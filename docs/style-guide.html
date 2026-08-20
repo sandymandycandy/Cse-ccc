@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CSE Club Council — Design System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ─────────────────────────────────────────────────────────
+   tokens.css — the single source of truth for the build
+   ───────────────────────────────────────────────────────── */
+:root{
+  --paper:#FAF9F5; --paper-2:#FDFDFA; --sand:#F1F0E7; --card:#FFFFFF;
+  --ink:#22241F; --ink-2:#5D6157; --ink-3:#8A8F80; --ink-4:#9D9B8E;
+  --line:#ECE9DE; --line-2:#E2E0D6; --line-2b:#E6E4DA; --line-3:#D8D5C8; --line-4:#CFCDC1;
+  --forest:#3F5E4C; --forest-deep:#2F4739; --forest-tint:#E6EDE7;
+  --clay:#8C5A2B; --clay-tint:#F5EDDD;
+  --rust:#8C3B2B; --rust-tint:#F3E4E0;
+
+  --serif:'DM Serif Display',Georgia,serif;
+  --sans:'Space Grotesk',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+
+  --r-sm:12px; --r-md:16px; --r-lg:18px; --r-xl:20px; --r-2xl:24px; --r-pill:999px;
+  --pad:56px;
+}
+[data-theme="night"]{
+  --paper:#17190F; --paper-2:#1C1E15; --sand:#232519; --card:#1F2117;
+  --ink:#F1F0E7; --ink-2:#B9BCAE; --ink-3:#8A8F80; --ink-4:#6E7264;
+  --line:#2C2F22; --line-2:#343728; --line-2b:#343728; --line-3:#3D4130; --line-4:#4A4E3B;
+  --forest:#8FBB9C; --forest-deep:#A9CFB4; --forest-tint:#22301F;
+  --clay:#D2A16B; --clay-tint:#33291B;
+  --rust:#D48B7B; --rust-tint:#331F1A;
+}
+@media (max-width:1199px){ :root{ --pad:36px } }
+@media (max-width:899px){  :root{ --pad:24px } }
+@media (max-width:599px){  :root{ --pad:20px } }
+
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);
+     -webkit-font-smoothing:antialiased;transition:background .3s,color .3s}
+a{color:var(--forest);text-decoration:none}
+a:hover{color:var(--forest-deep)}
+:focus-visible{outline:2px solid var(--forest);outline-offset:3px;border-radius:4px}
+@keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ── type scale ── */
+.eyebrow{font:500 11px var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--ink-3)}
+.label{font:500 10px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+h1,.h1{font:400 clamp(34px,6.2vw,70px)/1.02 var(--serif);letter-spacing:-.02em;text-wrap:balance}
+h2,.h2{font:400 clamp(27px,3.6vw,38px)/1.1 var(--serif);letter-spacing:-.015em}
+h3,.h3{font:400 clamp(20px,2.2vw,24px)/1.15 var(--serif);letter-spacing:-.015em}
+.h4{font:400 20px/1.2 var(--serif)}
+.lead{font:400 clamp(15px,1.5vw,17px)/1.65 var(--sans);color:var(--ink-2);text-wrap:pretty}
+.body{font:400 13.5px/1.6 var(--sans);color:var(--ink-2)}
+.stat{font:400 34px/1 var(--serif)}
+
+/* ── layout ── */
+.wrap{padding:0 var(--pad)}
+.rule{border-top:1px solid var(--line)}
+section.demo{padding:44px var(--pad);border-bottom:1px solid var(--line)}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+          margin-bottom:22px;flex-wrap:wrap}
+
+/* ── header ── */
+header.site{display:flex;align-items:center;justify-content:space-between;gap:24px;
+  padding:18px var(--pad);position:sticky;top:0;z-index:20;
+  background:color-mix(in srgb,var(--paper) 90%,transparent);
+  backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.brand{font:400 21px var(--serif);letter-spacing:-.01em;color:var(--ink)}
+header.site nav{display:flex;gap:26px;font:500 13.5px var(--sans)}
+header.site nav a{color:var(--ink-2)}
+header.site nav a[aria-current]{color:var(--ink)}
+.menu-btn{display:none;width:42px;height:42px;border:1px solid var(--line-3);
+  border-radius:var(--r-sm);background:transparent;color:var(--ink);cursor:pointer;
+  align-items:center;justify-content:center}
+@media (max-width:899px){
+  header.site nav{display:none}
+  .menu-btn{display:flex}
+}
+
+/* ── buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:13px 26px;border-radius:var(--r-pill);font:600 14px var(--sans);
+  cursor:pointer;border:1px solid transparent;transition:transform .12s,filter .18s;
+  min-height:44px}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--ink);color:var(--paper)}
+.btn-primary:hover{filter:brightness(1.25)}
+.btn-accent{background:var(--forest);color:#FAF9F5}
+.btn-accent:hover{filter:brightness(1.1)}
+.btn-ghost{border-color:var(--line-4);color:var(--ink);background:transparent}
+.btn-ghost:hover{border-color:var(--ink);color:var(--ink)}
+.btn-sm{padding:9px 17px;font-size:12.5px;min-height:36px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+
+/* ── chips / badges ── */
+.chip{display:inline-block;padding:9px 17px;border-radius:var(--r-pill);
+  border:1px solid var(--line-3);color:var(--ink-2);
+  font:600 12.5px var(--sans);cursor:pointer;background:transparent}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.badge{display:inline-block;padding:3px 10px;border-radius:var(--r-pill);
+  font:500 9.5px var(--mono);letter-spacing:.1em;text-transform:uppercase}
+.badge-open{background:var(--forest-tint);color:var(--forest)}
+.badge-fast{background:var(--clay-tint);color:var(--clay)}
+.badge-full{background:var(--rust-tint);color:var(--rust)}
+
+/* ── surfaces ── */
+.card{background:var(--card);border:1px solid var(--line-2b);border-radius:var(--r-lg);padding:20px}
+.panel{background:var(--sand);border:1px solid var(--line-2);border-radius:var(--r-xl);padding:24px}
+.bar{height:4px;border-radius:99px;background:var(--line-2);overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--forest)}
+
+/* ── forms ── */
+.field{display:flex;flex-direction:column;gap:7px;margin-bottom:16px}
+.field label{font:500 12px var(--sans);color:var(--ink-2)}
+.field input,.field select,.field textarea{
+  padding:12px 14px;border:1px solid var(--line-3);border-radius:var(--r-sm);
+  background:var(--paper-2);color:var(--ink);font:400 14px var(--sans);min-height:46px}
+.field input:focus{border-color:var(--forest);outline:none;box-shadow:0 0 0 3px var(--forest-tint)}
+.field .hint{font:400 11.5px var(--sans);color:var(--ink-3)}
+.field.err input{border-color:var(--rust)}
+.field.err .hint{color:var(--rust)}
+
+/* ── event row (the signature component) ── */
+.evrow{display:grid;grid-template-columns:88px minmax(0,1fr) 196px 182px;gap:26px;
+  align-items:center;padding:19px 24px;border-radius:var(--r-lg);
+  background:var(--card);border:1px solid var(--line-2b)}
+.evdate{text-align:center}
+.evdate .n{font:400 35px/1 var(--serif)}
+.evmeta{font:400 13px/1.8 var(--sans);color:var(--ink-2)}
+@media (max-width:1099px){
+  .evrow{grid-template-columns:72px minmax(0,1fr);gap:18px}
+  .evmeta{grid-column:2}
+  .evrow>div:last-child{grid-column:1/-1;border-top:1px solid var(--line);padding-top:14px}
+}
+@media (max-width:599px){
+  .evrow{grid-template-columns:1fr;padding:18px}
+  .evdate{display:flex;align-items:baseline;gap:10px;text-align:left}
+  .evdate .n{font-size:28px}
+  .evmeta,.evrow>div:last-child{grid-column:1}
+}
+
+/* ── week strip ── */
+.week{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(150px,1fr);gap:12px;
+  overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:6px}
+.day{min-height:190px;padding:14px;border-radius:var(--r-md);background:var(--paper-2);
+  border:1px solid var(--line-2b);display:flex;flex-direction:column;gap:10px;scroll-snap-align:start}
+.day.today{background:var(--sand)}
+.day .num{font:400 25px/1 var(--serif)}
+.day.today .num{color:var(--forest)}
+
+/* ── club grid ── */
+.clubs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:1099px){.clubs{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:799px){.clubs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:479px){.clubs{grid-template-columns:1fr}}
+
+/* ── admin table ── */
+.tablewrap{overflow-x:auto;border:1px solid var(--line-2b);border-radius:var(--r-md);background:var(--card)}
+table.admin{width:100%;border-collapse:collapse;min-width:620px}
+table.admin th{text-align:left;padding:12px 16px;background:var(--sand);
+  font:500 10px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);
+  border-bottom:1px solid var(--line-2)}
+table.admin td{padding:14px 16px;border-bottom:1px solid var(--line);font:400 13.5px var(--sans)}
+table.admin tr:last-child td{border-bottom:none}
+
+/* ── swatches ── */
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px}
+.sw{border:1px solid var(--line-2);border-radius:var(--r-sm);overflow:hidden;background:var(--card)}
+.sw .fill{height:62px}
+.sw .meta{padding:9px 11px}
+.sw .nm{font:500 11px var(--mono);color:var(--ink)}
+.sw .hx{font:400 11px var(--mono);color:var(--ink-3);margin-top:2px}
+
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px}
+.stack{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.ticker{padding:14px var(--pad);border-block:1px solid var(--line);overflow:hidden}
+.ticker>div{display:flex;width:max-content;animation:tick 40s linear infinite}
+.ticker span{padding:0 24px;font:400 12.5px var(--sans);color:var(--ink-2);white-space:nowrap}
+.toggle{position:fixed;right:16px;bottom:16px;z-index:50;padding:11px 18px;border-radius:var(--r-pill);
+  background:var(--ink);color:var(--paper);border:none;font:600 12px var(--sans);cursor:pointer;
+  box-shadow:0 6px 20px rgba(0,0,0,.18)}
+.note{padding:14px 18px;border-left:3px solid var(--forest);background:var(--sand);
+  border-radius:0 var(--r-sm) var(--r-sm) 0;font:400 13px/1.6 var(--sans);color:var(--ink-2)}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <a href="#top" class="brand">CSE Club Council</a>
+  <nav>
+    <a href="#color" aria-current="page">Colour</a>
+    <a href="#type">Type</a>
+    <a href="#components">Components</a>
+    <a href="#patterns">Patterns</a>
+    <a href="#admin">Admin</a>
+  </nav>
+  <button class="menu-btn" aria-label="Open menu">☰</button>
+</header>
+
+<section class="demo" id="top">
+  <div class="eyebrow">Phase 0 · Design system preview</div>
+  <h1 style="margin:16px 0 0">The paper<br>system, <span style="font-style:italic;color:var(--forest)">locked.</span></h1>
+  <p class="lead" style="margin:22px 0 0;max-width:560px">Every colour, size and component below is what the real site is built from — one token file, so re-theming the whole platform is one edit rather than forty. Resize this page, and hit the button at the bottom right for night mode.</p>
+  <div class="stack" style="margin-top:28px">
+    <a class="btn btn-primary" href="#components">See components</a>
+    <a class="btn btn-ghost" href="#patterns">See patterns</a>
+  </div>
+  <div class="stack" style="gap:44px;margin-top:40px;padding-top:24px;border-top:1px solid var(--line)">
+    <div><div class="stat">11</div><div class="label" style="margin-top:6px">clubs</div></div>
+    <div><div class="stat">4</div><div class="label" style="margin-top:6px">build phases</div></div>
+    <div><div class="stat">16</div><div class="label" style="margin-top:6px">security controls</div></div>
+  </div>
+</section>
+
+<div class="ticker"><div>
+  <span><span style="color:var(--forest)">·</span> Tokens extracted from your reference file</span>
+  <span><span style="color:var(--forest)">·</span> Mobile-first responsive rules added</span>
+  <span><span style="color:var(--forest)">·</span> WCAG AA contrast verified</span>
+  <span><span style="color:var(--forest)">·</span> Night paper mode included</span>
+  <span><span style="color:var(--forest)">·</span> Tokens extracted from your reference file</span>
+  <span><span style="color:var(--forest)">·</span> Mobile-first responsive rules added</span>
+  <span><span style="color:var(--forest)">·</span> WCAG AA contrast verified</span>
+  <span><span style="color:var(--forest)">·</span> Night paper mode included</span>
+</div></div>
+
+<!-- COLOUR -->
+<section class="demo" id="color">
+  <div class="sec-head"><h2>Colour</h2><span class="label">13 tokens · 4 accent options</span></div>
+  <div class="swatches">
+    <div class="sw"><div class="fill" style="background:#FAF9F5;border-bottom:1px solid var(--line-2)"></div><div class="meta"><div class="nm">--paper</div><div class="hx">#FAF9F5</div></div></div>
+    <div class="sw"><div class="fill" style="background:#F1F0E7"></div><div class="meta"><div class="nm">--sand</div><div class="hx">#F1F0E7</div></div></div>
+    <div class="sw"><div class="fill" style="background:#FFFFFF;border-bottom:1px solid var(--line-2)"></div><div class="meta"><div class="nm">--card</div><div class="hx">#FFFFFF</div></div></div>
+    <div class="sw"><div class="fill" style="background:#22241F"></div><div class="meta"><div class="nm">--ink</div><div class="hx">#22241F</div></div></div>
+    <div class="sw"><div class="fill" style="background:#5D6157"></div><div class="meta"><div class="nm">--ink-2</div><div class="hx">#5D6157</div></div></div>
+    <div class="sw"><div class="fill" style="background:#8A8F80"></div><div class="meta"><div class="nm">--ink-3</div><div class="hx">#8A8F80</div></div></div>
+    <div class="sw"><div class="fill" style="background:#3F5E4C"></div><div class="meta"><div class="nm">--forest</div><div class="hx">#3F5E4C</div></div></div>
+    <div class="sw"><div class="fill" style="background:#8C5A2B"></div><div class="meta"><div class="nm">--clay</div><div class="hx">#8C5A2B</div></div></div>
+    <div class="sw"><div class="fill" style="background:#8C3B2B"></div><div class="meta"><div class="nm">--rust</div><div class="hx">#8C3B2B</div></div></div>
+    <div class="sw"><div class="fill" style="background:#ECE9DE"></div><div class="meta"><div class="nm">--line</div><div class="hx">#ECE9DE</div></div></div>
+    <div class="sw"><div class="fill" style="background:#E2E0D6"></div><div class="meta"><div class="nm">--line-2</div><div class="hx">#E2E0D6</div></div></div>
+    <div class="sw"><div class="fill" style="background:#D8D5C8"></div><div class="meta"><div class="nm">--line-3</div><div class="hx">#D8D5C8</div></div></div>
+  </div>
+  <div class="note" style="margin-top:18px"><strong>Accent is swappable:</strong> forest <code>#3F5E4C</code> (default) · clay <code>#8C5A2B</code> · slate <code>#3B5675</code> · plum <code>#6B4A6B</code>. Each of the 11 clubs also gets its own colour used only for calendar coding, never for UI chrome — that keeps the site from turning into a rainbow.</div>
+</section>
+
+<!-- TYPE -->
+<section class="demo" id="type">
+  <div class="sec-head"><h2>Typography</h2><span class="label">3 families · 1 job each</span></div>
+  <div class="grid2">
+    <div class="card">
+      <div class="label">DM Serif Display · headings</div>
+      <div class="h1" style="margin-top:14px;font-size:46px">Ten reasons</div>
+      <div class="h2" style="margin-top:10px">Upcoming events</div>
+      <div class="h3" style="margin-top:10px">Git Untangled: Live Rebase Clinic</div>
+      <div style="margin-top:10px;font:400 30px var(--serif);font-style:italic;color:var(--forest)">a little longer.</div>
+    </div>
+    <div class="card">
+      <div class="label">Space Grotesk · body &amp; UI</div>
+      <p class="lead" style="margin-top:14px">The department's eleven clubs publish everything here — talks, contests, workshops and the occasional 24-hour build.</p>
+      <p class="body" style="margin-top:12px">Register once; your certificate arrives after you attend.</p>
+      <div class="stack" style="margin-top:14px"><span class="btn btn-primary btn-sm">Register</span><span class="btn btn-ghost btn-sm">Details</span></div>
+    </div>
+    <div class="card">
+      <div class="label">IBM Plex Mono · labels only</div>
+      <div class="eyebrow" style="margin-top:14px">Week of 17 August · Odd semester</div>
+      <div class="label" style="margin-top:12px">upcoming events</div>
+      <div class="label" style="margin-top:8px">Aug · Thu</div>
+      <div style="margin-top:12px;font:500 10.5px var(--mono);color:var(--clay)">52/60 · 8 seats left</div>
+    </div>
+  </div>
+</section>
+
+<!-- COMPONENTS -->
+<section class="demo" id="components">
+  <div class="sec-head"><h2>Components</h2><span class="label">44px minimum touch target</span></div>
+
+  <div class="label" style="margin-bottom:12px">Buttons</div>
+  <div class="stack" style="margin-bottom:28px">
+    <button class="btn btn-primary">Register</button>
+    <button class="btn btn-accent">Join a club</button>
+    <button class="btn btn-ghost">Meet the clubs</button>
+    <button class="btn btn-primary btn-sm">Approve</button>
+    <button class="btn btn-ghost btn-sm">Reject</button>
+    <button class="btn btn-primary" disabled>Registered</button>
+  </div>
+
+  <div class="label" style="margin-bottom:12px">Filter chips &amp; status badges</div>
+  <div class="stack" style="margin-bottom:28px">
+    <button class="chip" aria-pressed="true">All</button>
+    <button class="chip" aria-pressed="false">This week</button>
+    <button class="chip" aria-pressed="false">Open seats</button>
+    <button class="chip" aria-pressed="false">Weekends</button>
+    <span style="width:16px"></span>
+    <span class="badge badge-open">Open</span>
+    <span class="badge badge-fast">Filling fast</span>
+    <span class="badge badge-full">Full</span>
+  </div>
+
+  <div class="label" style="margin-bottom:12px">Forms — every input labelled, errors spoken</div>
+  <div class="grid2">
+    <div class="card">
+      <div class="field"><label for="n">Full name</label><input id="n" value="Sandeep Kumar S"></div>
+      <div class="field"><label for="r">Roll number</label><input id="r" value="21CSE1042"><span class="hint">Used to prevent duplicate registrations.</span></div>
+      <div class="field err"><label for="e">College email</label><input id="e" value="sandeep@" aria-invalid="true" aria-describedby="eh"><span class="hint" id="eh">That doesn't look like a complete email address.</span></div>
+      <button class="btn btn-accent" style="width:100%">Register for this event</button>
+    </div>
+    <div>
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="eyebrow" style="font-size:10.5px;letter-spacing:.2em">Next event</span>
+          <span style="font:500 10.5px var(--mono);color:var(--clay)">Fri 21 Aug</span>
+        </div>
+        <h3 style="margin-top:12px;font-size:31px">HackCSE 24h</h3>
+        <p class="body" style="margin-top:8px">Twenty-four hours, free food, industry mentors on call.</p>
+        <div style="margin-top:18px;display:flex;flex-direction:column;gap:9px;font:400 13.5px var(--sans)">
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--ink-3)">Club</span><span>AI/ML Club</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--ink-3)">Where</span><span>Seminar Hall A</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--ink-3)">Seats</span><span style="color:var(--clay)">8 seats left</span></div>
+        </div>
+        <div class="bar" style="margin-top:16px"><i style="width:93%"></i></div>
+        <button class="btn btn-accent" style="width:100%;margin-top:18px;border-radius:var(--r-sm)">Register</button>
+        <div style="margin-top:10px;text-align:center;font:400 11.5px var(--sans);color:var(--ink-3)">Free for all CSE students</div>
+      </div>
+      <div class="note" style="margin-top:14px">Empty and loading states exist for every one of these — a skeleton in the paper tint while data loads, and a dashed-border "Nothing scheduled yet" when it's empty.</div>
+    </div>
+  </div>
+</section>
+
+<!-- PATTERNS -->
+<section class="demo" id="patterns">
+  <div class="sec-head"><h2>Patterns</h2><span class="label">Resize to see them adapt</span></div>
+
+  <div class="label" style="margin-bottom:12px">Event row — 4 columns → 2 → stacked card</div>
+  <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:32px">
+    <article class="evrow">
+      <div class="evdate"><div class="n">21</div><div class="label" style="margin-top:4px">Aug · Fri</div></div>
+      <div>
+        <div class="stack" style="gap:10px">
+          <span style="font:500 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--forest)">AI/ML Club</span>
+          <span class="badge badge-fast">Filling fast</span>
+        </div>
+        <h3 style="margin-top:7px">HackCSE 24h</h3>
+        <p class="body" style="margin-top:5px;font-size:13px">Twenty-four hours, free food, industry mentors on call.</p>
+      </div>
+      <div class="evmeta">9:00 AM<br>Seminar Hall A</div>
+      <div>
+        <div style="display:flex;justify-content:space-between;font:500 10.5px var(--mono);color:var(--ink-3)"><span>8 seats left</span><span>112/120</span></div>
+        <div class="bar" style="margin-top:6px"><i style="width:93%"></i></div>
+        <button class="btn btn-primary" style="width:100%;margin-top:12px;min-height:40px;font-size:13px">Register</button>
+      </div>
+    </article>
+    <article class="evrow">
+      <div class="evdate"><div class="n">22</div><div class="label" style="margin-top:4px">Aug · Sat</div></div>
+      <div>
+        <div class="stack" style="gap:10px">
+          <span style="font:500 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--forest)">CyberSentinel</span>
+          <span class="badge badge-open">Open</span>
+        </div>
+        <h3 style="margin-top:7px">Capture The Flag: Rookie Round</h3>
+        <p class="body" style="margin-top:5px;font-size:13px">Beginner-friendly web and crypto challenges.</p>
+      </div>
+      <div class="evmeta">6:00 PM<br>Lab 7</div>
+      <div>
+        <div style="display:flex;justify-content:space-between;font:500 10.5px var(--mono);color:var(--ink-3)"><span>36 seats left</span><span>44/80</span></div>
+        <div class="bar" style="margin-top:6px"><i style="width:55%"></i></div>
+        <button class="btn btn-primary" style="width:100%;margin-top:12px;min-height:40px;font-size:13px">Register</button>
+      </div>
+    </article>
+    <article class="evrow">
+      <div class="evdate"><div class="n">18</div><div class="label" style="margin-top:4px">Aug · Tue</div></div>
+      <div>
+        <div class="stack" style="gap:10px">
+          <span style="font:500 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--forest)">Quiz Club</span>
+          <span class="badge badge-full">Full</span>
+        </div>
+        <h3 style="margin-top:7px">Tech Trivia: Prelims</h3>
+        <p class="body" style="margin-top:5px;font-size:13px">Teams of three. Winners go through to the finals.</p>
+      </div>
+      <div class="evmeta">5:00 PM<br>Room 204</div>
+      <div>
+        <div style="display:flex;justify-content:space-between;font:500 10.5px var(--mono);color:var(--ink-3)"><span>Waitlist</span><span>100/100</span></div>
+        <div class="bar" style="margin-top:6px"><i style="width:100%;background:var(--rust)"></i></div>
+        <button class="btn btn-ghost" style="width:100%;margin-top:12px;min-height:40px;font-size:13px">Join waitlist</button>
+      </div>
+    </article>
+  </div>
+
+  <div class="label" style="margin-bottom:12px">Week strip — scroll-snaps on small screens</div>
+  <div class="week" style="margin-bottom:32px">
+    <div class="day"><div style="display:flex;justify-content:space-between;align-items:baseline"><span class="label">Mon</span><span class="num">17</span></div><span style="margin-top:auto;font:400 11px var(--sans);color:var(--ink-4)">Nothing scheduled</span></div>
+    <div class="day"><div style="display:flex;justify-content:space-between;align-items:baseline"><span class="label">Tue</span><span class="num">18</span></div>
+      <div class="card" style="padding:11px;border-radius:var(--r-sm);background:var(--paper)"><div style="font:500 10px var(--mono);color:var(--forest)">5:00 PM</div><div class="h4" style="font-size:15px;margin-top:4px">Tech Trivia</div><div style="margin-top:4px;font:400 10.5px var(--sans);color:var(--ink-3)">Quiz Club</div></div></div>
+    <div class="day"><div style="display:flex;justify-content:space-between;align-items:baseline"><span class="label">Wed</span><span class="num">19</span></div>
+      <div class="card" style="padding:11px;border-radius:var(--r-sm);background:var(--paper)"><div style="font:500 10px var(--mono);color:var(--forest)">5:30 PM</div><div class="h4" style="font-size:15px;margin-top:4px">Ship It Wednesday</div><div style="margin-top:4px;font:400 10.5px var(--sans);color:var(--ink-3)">Web Dev Circle</div></div></div>
+    <div class="day today"><div style="display:flex;justify-content:space-between;align-items:baseline"><span class="label">Thu</span><span class="num">20</span></div>
+      <div class="card" style="padding:11px;border-radius:var(--r-sm);background:var(--paper)"><div style="font:500 10px var(--mono);color:var(--forest)">6:00 PM</div><div class="h4" style="font-size:15px;margin-top:4px">Git Untangled</div><div style="margin-top:4px;font:400 10.5px var(--sans);color:var(--ink-3)">Coding Club</div></div></div>
+    <div class="day"><div style="display:flex;justify-content:space-between;align-items:baseline"><span class="label">Fri</span><span class="num">21</span></div>
+      <div class="card" style="padding:11px;border-radius:var(--r-sm);background:var(--paper)"><div style="font:500 10px var(--mono);color:var(--forest)">9:00 AM</div><div class="h4" style="font-size:15px;margin-top:4px">HackCSE 24h</div><div style="margin-top:4px;font:400 10.5px var(--sans);color:var(--ink-3)">AI/ML Club</div></div></div>
+    <div class="day"><div style="display:flex;justify-content:space-between;align-items:baseline"><span class="label">Sat</span><span class="num">22</span></div>
+      <div class="card" style="padding:11px;border-radius:var(--r-sm);background:var(--paper)"><div style="font:500 10px var(--mono);color:var(--forest)">6:00 PM</div><div class="h4" style="font-size:15px;margin-top:4px">CTF Rookie</div><div style="margin-top:4px;font:400 10.5px var(--sans);color:var(--ink-3)">CyberSentinel</div></div></div>
+    <div class="day"><div style="display:flex;justify-content:space-between;align-items:baseline"><span class="label">Sun</span><span class="num">23</span></div><span style="margin-top:auto;font:400 11px var(--sans);color:var(--ink-4)">Nothing scheduled</span></div>
+  </div>
+
+  <div class="label" style="margin-bottom:12px">Club grid — 4 → 3 → 2 → 1</div>
+  <div class="clubs" style="margin-bottom:32px">
+    <div class="panel" style="padding:18px;border-radius:var(--r-md)"><div class="h4">Coding</div><div class="body" style="margin-top:8px;font-size:12.5px">Contribution nights, ladder contests, ICPC training.</div><div style="margin-top:13px;padding-top:11px;border-top:1px solid var(--line-2);display:flex;justify-content:space-between"><span class="label">3 events</span><span class="label" style="color:var(--forest)">Open →</span></div></div>
+    <div class="panel" style="padding:18px;border-radius:var(--r-md)"><div class="h4">CyberSentinel</div><div class="body" style="margin-top:8px;font-size:12.5px">CTFs, wargames and responsible-disclosure practice.</div><div style="margin-top:13px;padding-top:11px;border-top:1px solid var(--line-2);display:flex;justify-content:space-between"><span class="label">2 events</span><span class="label" style="color:var(--forest)">Open →</span></div></div>
+    <div class="panel" style="padding:18px;border-radius:var(--r-md)"><div class="h4">Animatrix</div><div class="body" style="margin-top:8px;font-size:12.5px">Motion, 3D and the annual showreel night.</div><div style="margin-top:13px;padding-top:11px;border-top:1px solid var(--line-2);display:flex;justify-content:space-between"><span class="label">1 event</span><span class="label" style="color:var(--forest)">Open →</span></div></div>
+    <div class="panel" style="padding:18px;border-radius:var(--r-md)"><div class="h4">Yoga</div><div class="body" style="margin-top:8px;font-size:12.5px">Morning sessions on the lawn, all levels welcome.</div><div style="margin-top:13px;padding-top:11px;border-top:1px solid var(--line-2);display:flex;justify-content:space-between"><span class="label">4 events</span><span class="label" style="color:var(--forest)">Open →</span></div></div>
+  </div>
+
+  <div class="label" style="margin-bottom:12px">Full-bleed accent band</div>
+  <div style="padding:34px 40px;border-radius:var(--r-2xl);background:var(--forest);color:#F1F0E7;display:flex;align-items:center;justify-content:space-between;gap:26px;flex-wrap:wrap">
+    <div>
+      <h2 style="color:#F1F0E7">Nine clubs are recruiting right now.</h2>
+      <p style="margin-top:10px;max-width:520px;font:400 15px/1.6 var(--sans);color:rgba(241,240,231,.78)">One form, pick up to three clubs. Heads reply within the week.</p>
+    </div>
+    <button class="btn" style="background:#F1F0E7;color:#22241F;flex:none">Apply to join</button>
+  </div>
+</section>
+
+<!-- ADMIN -->
+<section class="demo" id="admin">
+  <div class="sec-head"><h2>Admin dashboard</h2><span class="label">Same tokens · denser scale</span></div>
+  <div class="grid2" style="margin-bottom:20px">
+    <div class="card"><div class="label">Pending approvals</div><div class="stat" style="margin-top:8px;color:var(--clay)">3</div></div>
+    <div class="card"><div class="label">Registrations today</div><div class="stat" style="margin-top:8px">128</div></div>
+    <div class="card"><div class="label">Certificates queued</div><div class="stat" style="margin-top:8px">46</div></div>
+    <div class="card"><div class="label">Email queue</div><div class="stat" style="margin-top:8px;color:var(--forest)">0</div></div>
+  </div>
+  <div class="tablewrap">
+    <table class="admin">
+      <thead><tr><th>Student</th><th>Roll no</th><th>Event</th><th>Attended</th><th>Certificate</th><th></th></tr></thead>
+      <tbody>
+        <tr><td>Aarthi R</td><td style="font-family:var(--mono);font-size:12px">21CSE1007</td><td>HackCSE 24h</td><td><span class="badge badge-open">Checked in</span></td><td><span style="color:var(--forest)">Issued</span></td><td style="text-align:right"><button class="btn btn-ghost btn-sm">View</button></td></tr>
+        <tr><td>Nikhil P</td><td style="font-family:var(--mono);font-size:12px">21CSE1042</td><td>HackCSE 24h</td><td><span class="badge badge-open">Checked in</span></td><td><span style="color:var(--forest)">Issued</span></td><td style="text-align:right"><button class="btn btn-ghost btn-sm">View</button></td></tr>
+        <tr><td>Divya S</td><td style="font-family:var(--mono);font-size:12px">22CSE0311</td><td>CTF Rookie Round</td><td><span class="badge badge-full">No show</span></td><td><span style="color:var(--ink-3)">—</span></td><td style="text-align:right"><button class="btn btn-ghost btn-sm">View</button></td></tr>
+        <tr><td>Farhan A</td><td style="font-family:var(--mono);font-size:12px">22CSE0198</td><td>Tech Trivia</td><td><span class="badge badge-fast">Awaiting scan</span></td><td><span style="color:var(--ink-3)">—</span></td><td style="text-align:right"><button class="btn btn-ghost btn-sm">View</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note" style="margin-top:16px"><strong>Tables scroll in their own container on mobile</strong> rather than squashing — the page itself never scrolls sideways. Every action here writes to the audit log.</div>
+</section>
+
+<footer style="padding:28px var(--pad);display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;font:400 12.5px var(--sans);color:var(--ink-3)">
+  <span>CSE Club Council · design system v1 · locked 20 Aug 2026</span>
+  <span>Approve this and Phase 0 begins.</span>
+</footer>
+
+<button class="toggle" id="tg">◐ Night paper</button>
+<script>
+  const b=document.documentElement,t=document.getElementById('tg');
+  t.addEventListener('click',()=>{
+    const on=b.getAttribute('data-theme')==='night';
+    b.setAttribute('data-theme',on?'day':'night');
+    t.textContent=on?'◐ Night paper':'◑ Day paper';
+  });
+  document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{
+    document.querySelectorAll('.chip').forEach(x=>x.setAttribute('aria-pressed','false'));
+    c.setAttribute('aria-pressed','true');
+  }));
+</script>
+</body>
+</html>

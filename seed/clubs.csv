@@ -1,0 +1,12 @@
+sort,slug,name,short_name,category,color,tagline
+1,coding,Coding Club,Coding,tech,#3F5E4C,"Contribution nights, ladder contests, ICPC training."
+2,innovation,Innovation Club,Innovation,tech,#6B8E4E,"Build weekends, prototyping jams and demo days."
+3,cybersentinel,CyberSentinel Club,CyberSentinel,tech,#3B5675,"CTFs, wargames and responsible-disclosure practice."
+4,animatrix,Animatrix Club,Animatrix,media,#6B4A6B,"Motion, 3D and the annual showreel night."
+5,magazine,Magazine Club,Magazine,media,#8C5A2B,"The department magazine, from pitch to print."
+6,fusion-fashion,Fusion & Fashion Club,Fusion & Fashion,cultural,#A85751,"Styling, choreography and the annual runway."
+7,nature,Nature Club,Nature,wellness,#4F7A5B,"Trails, clean-ups and campus biodiversity walks."
+8,yoga,Yoga Club,Yoga,wellness,#7A8C5A,"Morning sessions on the lawn, all levels welcome."
+9,aspirex,AspireX Club,AspireX,career,#2F6B6B,"Placement prep, mock interviews and alumni talks."
+10,appnova,AppNova Club,AppNova,tech,#4A5E8C,"Mobile and web app building, shipped in public."
+11,short-film,Short Film & Movie Appreciation Club,Short Film,media,#6E5A3F,"Screenings, reviews and the 48-hour film race."
