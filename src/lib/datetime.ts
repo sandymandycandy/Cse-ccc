@@ -22,6 +22,21 @@ export const istTime = (d: Date | string) =>
 /** "Fri". */
 export const istWeekdayShort = (d: Date | string) => fmt(d, { weekday: "short" });
 
+/** "Friday, 21 August 2026". */
+export const istFullDate = (d: Date | string) =>
+  fmt(d, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+/**
+ * Human time range in IST. Same-day → "9:00 AM – 12:00 PM"; spanning days →
+ * "Fri 9:00 AM → Sat 9:00 AM".
+ */
+export function istTimeRange(start: Date | string, end: Date | string): string {
+  if (istDateKey(start) === istDateKey(end)) {
+    return `${istTime(start)} – ${istTime(end)}`;
+  }
+  return `${istWeekdayShort(start)} ${istTime(start)} → ${istWeekdayShort(end)} ${istTime(end)}`;
+}
+
 /** Stable IST calendar-day key, "YYYY-MM-DD" (en-CA yields ISO order). */
 export const istDateKey = (d: Date | string) =>
   fmt(d, { year: "numeric", month: "2-digit", day: "2-digit" }, "en-CA");
