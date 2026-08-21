@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { DM_Serif_Display, Space_Grotesk, IBM_Plex_Mono } from "next/font/google";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import "./globals.css";
@@ -45,6 +45,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const theme =
     (await cookies()).get("theme")?.value === "night" ? "night" : "day";
 
+  // The admin area brings its own chrome (middleware sets x-pathname); the public
+  // header/footer would be wrong there.
+  const isAdmin = ((await headers()).get("x-pathname") ?? "").startsWith("/admin");
+
   return (
     <html
       lang="en"
@@ -52,9 +56,15 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${dmSerif.variable} ${spaceGrotesk.variable} ${ibmPlexMono.variable}`}
     >
       <body>
-        <SiteHeader initialTheme={theme} />
-        <main>{children}</main>
-        <SiteFooter />
+        {isAdmin ? (
+          children
+        ) : (
+          <>
+            <SiteHeader initialTheme={theme} />
+            <main>{children}</main>
+            <SiteFooter />
+          </>
+        )}
       </body>
     </html>
   );

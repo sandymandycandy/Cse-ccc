@@ -60,3 +60,12 @@ export function checkRegistrationLimits(input: {
   ];
   return checks.find((c) => !c.ok) ?? { ok: true, remaining: 0, retryAfterSeconds: 0 };
 }
+
+/** Admin login limits (SECURITY_SPEC §6): 5 / 15 min per IP **and** per account. */
+export function checkLoginLimits(input: { ip: string; email: string }): RateResult {
+  const checks: RateResult[] = [
+    rateLimit(`login:ip:${input.ip}`, 5, 15 * MIN),
+    rateLimit(`login:acct:${input.email}`, 5, 15 * MIN),
+  ];
+  return checks.find((c) => !c.ok) ?? { ok: true, remaining: 0, retryAfterSeconds: 0 };
+}

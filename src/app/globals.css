@@ -1020,6 +1020,165 @@
     color: var(--ink-3);
     font: 400 14px var(--sans);
   }
+
+  /* ── admin ─────────────────────────────────────────────────────────────── */
+  .admin-auth {
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    padding: 40px 20px;
+    background: var(--sand);
+  }
+  .admin-auth-card {
+    width: 100%;
+    max-width: 384px;
+    background: var(--card);
+    border: 1px solid var(--line-2b);
+    border-radius: var(--r-xl);
+    padding: 32px 28px;
+  }
+  .admin-auth-alt {
+    display: block;
+    width: 100%;
+    margin-top: 14px;
+    background: none;
+    border: 0;
+    color: var(--ink-3);
+    font: 500 12px var(--sans);
+    cursor: pointer;
+    text-align: center;
+  }
+  .admin-auth-alt:hover { color: var(--ink); }
+
+  .admin-shell {
+    display: grid;
+    grid-template-columns: 236px minmax(0, 1fr);
+    min-height: 100dvh;
+  }
+  .admin-nav {
+    border-right: 1px solid var(--line);
+    background: var(--paper-2);
+    padding: 22px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+  }
+  .admin-brand {
+    font: 400 18px var(--serif);
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+  }
+  .admin-brand span {
+    font: 500 10px var(--mono);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--forest);
+    margin-top: 3px;
+  }
+  .admin-nav nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+  }
+  .admin-nav nav a {
+    padding: 9px 12px;
+    border-radius: var(--r-sm);
+    color: var(--ink-2);
+    font: 500 13.5px var(--sans);
+  }
+  .admin-nav nav a:hover { background: var(--sand); color: var(--ink); }
+  .admin-nav nav a[aria-current="page"] { background: var(--ink); color: var(--paper); }
+  .admin-nav-foot {
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .admin-who { display: flex; flex-direction: column; }
+  .admin-who strong { font: 600 13px var(--sans); }
+  .admin-who span {
+    font: 500 10px var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-3);
+  }
+  .admin-main { padding: 40px var(--pad); min-width: 0; }
+  .admin-page { max-width: 960px; }
+  .admin-page-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .admin-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+    margin-top: 24px;
+  }
+  .admin-stat {
+    background: var(--card);
+    border: 1px solid var(--line-2b);
+    border-radius: var(--r-lg);
+    padding: 20px;
+  }
+  .admin-stat .n { font: 400 40px var(--serif); line-height: 1; }
+  .admin-stat .label { margin-top: 8px; }
+  .admin-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  .abadge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: var(--r-pill);
+    font: 500 9.5px var(--mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .abadge-pending { background: var(--clay-tint); color: var(--clay); }
+  .abadge-approved { background: var(--forest-tint); color: var(--forest); }
+  .abadge-rejected { background: var(--rust-tint); color: var(--rust); }
+
+  .admin-approvals { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+  .admin-approval {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .admin-approval-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .admin-reject { display: flex; gap: 6px; align-items: center; }
+  .admin-reject input {
+    padding: 8px 12px;
+    border: 1px solid var(--line-3);
+    border-radius: var(--r-sm);
+    background: var(--paper-2);
+    color: var(--ink);
+    font: 400 12.5px var(--sans);
+    min-height: 36px;
+  }
+  @media (max-width: 860px) {
+    .admin-shell { grid-template-columns: 1fr; }
+    .admin-nav {
+      position: static;
+      height: auto;
+      flex-direction: row;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .admin-nav nav { flex-direction: row; flex-wrap: wrap; }
+    .admin-nav-foot { border-top: 0; padding-top: 0; flex-direction: row; align-items: center; }
+    .admin-main { padding: 28px var(--pad); }
+    .admin-form-row { grid-template-columns: 1fr; }
+  }
 }
 
 @keyframes cal-fade { from { opacity: 0; } to { opacity: 1; } }

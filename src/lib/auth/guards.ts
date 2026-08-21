@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -30,7 +31,7 @@ export interface AdminSession {
  * their epoch invalidates every outstanding session on the next request (§3).
  * Returns null when the session is missing, stale, or revoked.
  */
-export async function getAdminSession(): Promise<AdminSession | null> {
+export const getAdminSession = cache(async function getAdminSession(): Promise<AdminSession | null> {
   const session = await auth();
   if (!session?.user?.id) return null;
 
@@ -51,7 +52,7 @@ export async function getAdminSession(): Promise<AdminSession | null> {
     email: data.email,
     name: data.full_name,
   };
-}
+});
 
 // ── page guards (redirect on failure) ────────────────────────────────────────
 
