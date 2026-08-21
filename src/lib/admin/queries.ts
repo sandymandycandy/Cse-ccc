@@ -57,20 +57,34 @@ function isClubScoped(session: AdminSession): boolean {
   return grantFor(session.role, "manage:events") === "own";
 }
 
+// Inner-join variant so a club filter constrains which events come back (and the
+// row limit isn't spent on events the admin can't see).
+const EVENT_SELECT_OWN = EVENT_SELECT.replace("event_clubs (", "event_clubs!inner (");
+
 /** Events this admin may see, newest first. Club-scoped roles see only theirs. */
 export async function listEventsForAdmin(session: AdminSession): Promise<AdminEventRow[]> {
   const admin = createAdminClient();
+
+  if (isClubScoped(session)) {
+    // Fail closed: a club-scoped admin with no club sees nothing, never "all".
+    if (!session.clubId) return [];
+    const { data, error } = await admin
+      .from("events")
+      .select(EVENT_SELECT_OWN)
+      .eq("event_clubs.club_id", session.clubId)
+      .order("starts_at", { ascending: false })
+      .limit(200);
+    if (error) throw error;
+    return ((data ?? []) as unknown as EventRow[]).map(toRow);
+  }
+
   const { data, error } = await admin
     .from("events")
     .select(EVENT_SELECT)
     .order("starts_at", { ascending: false })
     .limit(200);
   if (error) throw error;
-  let rows = ((data ?? []) as unknown as EventRow[]).map(toRow);
-  if (isClubScoped(session) && session.clubId) {
-    rows = rows.filter((r) => r.clubId === session.clubId);
-  }
-  return rows;
+  return ((data ?? []) as unknown as EventRow[]).map(toRow);
 }
 
 /** Events awaiting approval (approvers hold an "all" grant, so no club scope). */
