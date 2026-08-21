@@ -36,3 +36,28 @@ export interface EventSummary {
   capacity: number;
   status: SeatStatus;
 }
+
+/**
+ * An event as the calendar needs it (BUILD_PLAN §5): raw instants for layout
+ * math, the club's calendar colour, and a cancelled flag so §5.6's 7-day
+ * struck-through window can render. Serialisable — crosses the server→client
+ * boundary as props.
+ */
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  /** ISO timestamptz — the true instant, rendered in IST by the views. */
+  startsAt: string;
+  endsAt: string;
+  isAllDay: boolean;
+  /** Primary club: short name for chips, slug for filtering, colour for the rail. */
+  club: string;
+  clubSlug: string;
+  clubColor: string;
+  venue: string;
+  registered: number;
+  capacity: number;
+  status: SeatStatus;
+  /** Cancelled but still inside the §5.6 grace window → render struck-through. */
+  cancelled: boolean;
+}

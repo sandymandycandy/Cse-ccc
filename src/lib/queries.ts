@@ -1,6 +1,12 @@
 import "server-only";
 import { createPublicClient } from "@/lib/supabase/server";
-import type { Club, ClubCategory, EventSummary, SeatStatus } from "@/lib/types";
+import type {
+  CalendarEvent,
+  Club,
+  ClubCategory,
+  EventSummary,
+  SeatStatus,
+} from "@/lib/types";
 import type { WeekDay } from "@/components/WeekStrip";
 import {
   istDateKey,
@@ -141,6 +147,87 @@ export async function getEventDetail(id: string): Promise<EventDetail | null> {
     endsAt: row.ends_at,
     isAllDay: row.is_all_day,
   };
+}
+
+// ── calendar ─────────────────────────────────────────────────────────────
+
+const CAL_SELECT =
+  "id, title, starts_at, ends_at, capacity, is_all_day, status, " +
+  "venues ( name ), event_clubs ( is_primary, clubs ( short_name, slug, color ) )";
+
+type CalEventRow = {
+  id: string;
+  title: string;
+  starts_at: string;
+  ends_at: string;
+  capacity: number | null;
+  is_all_day: boolean;
+  status: string;
+  venues: { name: string } | null;
+  event_clubs: {
+    is_primary: boolean;
+    clubs: { short_name: string; slug: string; color: string } | null;
+  }[];
+};
+
+function toCalendarEvent(row: CalEventRow, registered: number): CalendarEvent {
+  const primary = row.event_clubs.find((ec) => ec.is_primary) ?? row.event_clubs[0];
+  const club = primary?.clubs;
+  return {
+    id: row.id,
+    title: row.title,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    isAllDay: row.is_all_day,
+    club: club?.short_name ?? "Council",
+    clubSlug: club?.slug ?? "council",
+    clubColor: club?.color ?? "var(--forest)",
+    venue: row.venues?.name ?? "TBA",
+    registered,
+    capacity: row.capacity ?? 0,
+    status: seatStatus(registered, row.capacity),
+    cancelled: row.status === "cancelled",
+  };
+}
+
+/**
+ * Every public event whose [starts_at, ends_at) touches the UTC window — RLS
+ * exposes approved events plus cancelled ones inside the §5.6 7-day grace
+ * window (rendered struck-through), so we intentionally don't filter status.
+ */
+export async function getCalendarEvents(
+  startISO: string,
+  endISO: string,
+): Promise<CalendarEvent[]> {
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from("events")
+    .select(CAL_SELECT)
+    .lt("starts_at", endISO)
+    .gt("ends_at", startISO)
+    .order("starts_at", { ascending: true });
+  if (error) throw error;
+  const rows = (data ?? []) as unknown as CalEventRow[];
+  const counts = await registeredCounts(rows.map((r) => r.id));
+  return rows.map((r) => toCalendarEvent(r, counts.get(r.id) ?? 0));
+}
+
+/** Active clubs as filter chips: slug, short label, and calendar colour. */
+export async function getCalendarClubs(): Promise<
+  { slug: string; shortName: string; color: string }[]
+> {
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from("clubs")
+    .select("slug, short_name, color")
+    .eq("is_active", true)
+    .order("sort", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((c) => ({
+    slug: c.slug,
+    shortName: c.short_name,
+    color: c.color,
+  }));
 }
 
 // ── clubs ────────────────────────────────────────────────────────────────
