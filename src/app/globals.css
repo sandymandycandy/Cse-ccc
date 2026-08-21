@@ -1200,6 +1200,52 @@
     letter-spacing: 0.04em;
     text-align: center;
   }
+
+  /* attendance — organiser live QR + student scan result */
+  .att-live {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    margin-top: 22px;
+  }
+  .att-count { text-align: center; }
+  .att-count strong { font: 400 48px var(--serif); display: block; line-height: 1; }
+  .att-count span {
+    font: 500 10px var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-3);
+  }
+  .att-qr {
+    background: #fff; /* stays scannable in night mode */
+    padding: 12px;
+    border-radius: var(--r-md);
+    border: 1px solid var(--line-2);
+  }
+  .scan-result {
+    max-width: 440px;
+    margin: 64px auto;
+    padding: 0 24px;
+    text-align: center;
+  }
+  .scan-icon {
+    width: 84px;
+    height: 84px;
+    margin: 0 auto;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font: 400 40px var(--serif);
+    background: var(--sand);
+    border: 1px solid var(--line-2);
+    color: var(--ink-2);
+  }
+  .scan-icon.good {
+    background: var(--forest-tint);
+    color: var(--forest);
+    border-color: var(--forest-tint);
+  }
   @media (max-width: 860px) {
     .admin-shell { grid-template-columns: 1fr; }
     .admin-nav {

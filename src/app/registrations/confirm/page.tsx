@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ButtonLink } from "@/components/ui/Button";
+import { EnrollDevice } from "@/components/EnrollDevice";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hashToken } from "@/lib/tokens";
 
@@ -62,6 +63,10 @@ export default async function ConfirmPage({ searchParams }: Search) {
           My events
         </ButtonLink>
       </div>
+
+      {(outcome === "confirmed" || outcome === "already") && token ? (
+        <EnrollDevice token={token} />
+      ) : null}
     </section>
   );
 }
