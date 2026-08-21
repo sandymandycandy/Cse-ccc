@@ -15,6 +15,12 @@ export default async function AdminAppLayout({
     ...(canView(session, "approve:events")
       ? [{ href: "/admin/events/approvals", label: "Approvals" }]
       : []),
+    ...(canView(session, "issue:participation_certificate")
+      ? [{ href: "/admin/certificates", label: "Certificates" }]
+      : []),
+    ...(canView(session, "manage:admins")
+      ? [{ href: "/admin/users", label: "Admins" }]
+      : []),
   ];
 
   return (

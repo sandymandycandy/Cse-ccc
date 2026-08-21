@@ -1,17 +1,15 @@
 "use server";
 
-import { headers } from "next/headers";
 import { AuthError } from "next-auth";
 import { signIn } from "@/lib/auth";
 import { LoginSchema } from "@/lib/validation/admin";
-import { checkLoginLimits } from "@/lib/rate-limit";
 import type { LoginState } from "@/lib/admin/form-state";
 
 /**
- * Admin login (SECURITY_SPEC §3). Rate-limited per IP and per account before the
- * credential check; every failure returns the *same* generic message so wrong
- * email, wrong password, and locked account are indistinguishable. On success,
- * signIn issues the session cookie and redirects to /admin.
+ * Admin login (SECURITY_SPEC §3). Credential verification, rate limiting (§6),
+ * and 2FA all happen inside the Credentials `authorize` (so a direct POST to the
+ * endpoint is protected too); every failure surfaces the *same* generic message
+ * so wrong email, wrong password, rate-limited, and locked are indistinguishable.
  */
 export async function loginAction(
   _prev: LoginState,
@@ -24,12 +22,6 @@ export async function loginAction(
     recoveryCode: formData.get("recoveryCode") || undefined,
   });
   if (!parsed.success) return { error: "Enter your email and password." };
-
-  const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  if (!checkLoginLimits({ ip, email: parsed.data.email }).ok) {
-    return { error: "Too many attempts. Try again in a few minutes." };
-  }
 
   try {
     await signIn("credentials", { ...parsed.data, redirectTo: "/admin" });

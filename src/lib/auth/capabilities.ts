@@ -9,16 +9,19 @@
 // Grants are transcribed cell-for-cell from the §3.2 matrix. Keep them in sync
 // with the doc — this table is the audit surface.
 
-export type AdminRole =
-  | "faculty_advisor"
-  | "president"
-  | "vice_president"
-  | "tech_head"
-  | "events_head"
-  | "docs_head"
-  | "social_media_head"
-  | "club_head"
-  | "vice_head";
+export const ADMIN_ROLES = [
+  "faculty_advisor",
+  "president",
+  "vice_president",
+  "tech_head",
+  "events_head",
+  "docs_head",
+  "social_media_head",
+  "club_head",
+  "vice_head",
+] as const;
+
+export type AdminRole = (typeof ADMIN_ROLES)[number];
 
 /**
  * How much of a capability a role holds:

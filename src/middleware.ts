@@ -14,10 +14,11 @@ export function middleware(req: NextRequest) {
   headers.set("x-pathname", pathname);
   const proceed = NextResponse.next({ request: { headers } });
 
-  // Layer 1 (SECURITY_SPEC §4): a UX redirect only. The login page is open;
-  // every other /admin route needs a session cookie. The authoritative check is
-  // the per-page server guard, which re-validates the session against the DB.
-  if (pathname === "/admin/login") return proceed;
+  // Layer 1 (SECURITY_SPEC §4): a UX redirect only. Login and invite-acceptance
+  // are open (the new admin has no session yet); every other /admin route needs a
+  // session cookie. The authoritative check is the per-page server guard, which
+  // re-validates the session against the DB.
+  if (pathname === "/admin/login" || pathname === "/admin/accept-invite") return proceed;
   if (!req.cookies.has(SESSION_COOKIE)) {
     const url = req.nextUrl.clone();
     url.pathname = "/admin/login";

@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { LoginSchema } from "@/lib/validation/admin";
 import { verifyPassword } from "@/lib/auth/password";
 import { decryptSecret, matchRecoveryCode, verifyTotp } from "@/lib/auth/totp";
+import { checkLoginLimits } from "@/lib/rate-limit";
 
 /**
  * Auth.js v5 — admin authentication (SECURITY_SPEC §3).
@@ -51,10 +52,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         totp: {},
         recoveryCode: {},
       },
-      authorize: async (raw) => {
+      authorize: async (raw, request) => {
         const parsed = LoginSchema.safeParse(raw);
         if (!parsed.success) return null;
         const { email, password, totp, recoveryCode } = parsed.data;
+
+        // Rate limit here (SECURITY_SPEC §6) rather than only in the form action,
+        // so direct POSTs to /api/auth/callback/credentials are limited too. Over
+        // the limit returns null — the same generic failure as a bad password (§3).
+        const ip =
+          request?.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+        if (!checkLoginLimits({ ip, email }).ok) return null;
 
         const admin = createAdminClient();
         const { data: user } = await admin

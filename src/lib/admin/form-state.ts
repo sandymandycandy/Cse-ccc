@@ -8,3 +8,15 @@ export interface LoginState {
 export interface EventFormState {
   error?: string;
 }
+
+export interface InviteCreateState {
+  error?: string;
+  /** The generated accept-invite URL, shown once so the inviter can share it. */
+  inviteUrl?: string;
+}
+
+export interface AcceptInviteState {
+  error?: string;
+  /** Shown once on success — the admin's single-use TOTP recovery codes. */
+  recoveryCodes?: string[];
+}
