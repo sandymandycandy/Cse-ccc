@@ -1405,6 +1405,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      confirm_registration: { Args: { p_token_hash: string }; Returns: string }
+      register_for_event: {
+        Args: {
+          p_confirm_token_hash: string
+          p_department: string
+          p_email: string
+          p_event_id: string
+          p_phone: string
+          p_roll_no: string
+          p_student_name: string
+          p_year: number
+        }
+        Returns: {
+          status: string
+          registration_id: string
+        }[]
+      }
       check_event_clash: {
         Args: {
           p_editing_id?: string

@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Button } from "@/components/ui/Button";
-import { Panel, Note } from "@/components/ui/Surface";
+import { Panel } from "@/components/ui/Surface";
 import { SeatBadge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { RegisterForm } from "@/components/RegisterForm";
 import { getEventDetail } from "@/lib/queries";
 import { istFullDate, istTimeRange } from "@/lib/datetime";
 
@@ -117,18 +117,12 @@ export default async function EventDetailPage({ params }: Params) {
             </div>
           ) : null}
 
-          <Button
-            variant={isFull ? "ghost" : "accent"}
-            className="w-full"
-            style={{ marginTop: 18, borderRadius: "var(--r-sm)" }}
-            disabled
-          >
-            {isFull ? "Join waitlist" : "Register"}
-          </Button>
-          <Note style={{ marginTop: 12 }}>
-            Inline registration is the next piece of Phase 1 — the seat, dedup and
-            email-confirmation flow lands here shortly.
-          </Note>
+          <div style={{ marginTop: 20, paddingTop: 18, borderTop: "1px solid var(--line-2)" }}>
+            <div className="label" style={{ marginBottom: 12 }}>
+              {isFull ? "Join the waitlist" : "Register"}
+            </div>
+            <RegisterForm eventId={event.id} isFull={isFull} />
+          </div>
         </Panel>
       </div>
     </section>
