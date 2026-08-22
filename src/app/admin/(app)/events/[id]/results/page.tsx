@@ -109,6 +109,8 @@ export default async function AdminResultsPage({
             show_advanced: selectedRound?.show_advanced ?? true,
             show_remarks: selectedRound?.show_remarks ?? true,
           }}
+          isLast={!!selectedRound && rounds[rounds.length - 1]?.id === selectedRound.id}
+          defaultNextName={`Round ${rounds.length + 1}`}
         />
       ) : (
         <div className="cal-empty" style={{ marginTop: 18 }}>

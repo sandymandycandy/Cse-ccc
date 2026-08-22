@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getAdminSession } from "@/lib/auth/guards";
 import { canManage } from "@/lib/auth/capabilities";
 import { getEventForAttendance } from "@/lib/admin/attendance";
@@ -158,6 +159,44 @@ export async function publishRoundAction(formData: FormData): Promise<void> {
     entityId: roundId,
   });
   revalidate(eventId);
+}
+
+/**
+ * Create the next round and advance the eligible students into it, in one step.
+ * Publishing is NOT required: if the current round is still a draft we persist
+ * its rows first (so the latest `advanced` ticks count), then create the next
+ * round — its roster seeds from this round's advanced-with-score students — and
+ * navigate there. Only meaningful from the last round.
+ */
+export async function proceedToNextRoundAction(input: {
+  eventId: string;
+  roundId: string;
+  rows: RosterEntry[];
+  nextName: string;
+}): Promise<{ ok: false; error: string } | void> {
+  const auth = await authorizeRound(input.eventId, input.roundId);
+  if (!auth) return { ok: false, error: "Not permitted." };
+  const name = input.nextName.trim();
+  if (!name) return { ok: false, error: "Enter a name for the next round." };
+
+  // Persist current draft rows so advancement reflects the latest edits. A
+  // published round is already saved (and locked), so skip.
+  if (!(await roundIsPublished(input.roundId))) {
+    const parsed = z.array(rowSchema).safeParse(input.rows);
+    if (!parsed.success) return { ok: false, error: "Invalid results data." };
+    await replaceRoundResults(input.eventId, input.roundId, parsed.data);
+  }
+
+  const nextId = await createRoundRow(input.eventId, name, null);
+  await writeAudit({
+    actorId: auth.session.id,
+    action: "round_proceed",
+    entity: "event_round",
+    entityId: nextId,
+    after: { from: input.roundId, name },
+  });
+  revalidate(input.eventId);
+  redirect(`/admin/events/${input.eventId}/results?round=${nextId}`);
 }
 
 export async function unpublishRoundAction(formData: FormData): Promise<void> {

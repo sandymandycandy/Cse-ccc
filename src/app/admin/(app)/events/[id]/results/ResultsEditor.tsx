@@ -7,6 +7,7 @@ import {
   saveResultsAction,
   publishRoundAction,
   unpublishRoundAction,
+  proceedToNextRoundAction,
 } from "./actions";
 
 const inp: CSSProperties = {
@@ -45,6 +46,8 @@ export function ResultsEditor(props: {
   published: boolean;
   canEdit: boolean;
   visibility: { show_score: boolean; show_advanced: boolean; show_remarks: boolean };
+  isLast: boolean;
+  defaultNextName: string;
 }) {
   const [rows, setRows] = useState<RosterEntry[]>(props.initialRows);
   const [msg, setMsg] = useState<string | null>(null);
@@ -63,6 +66,21 @@ export function ResultsEditor(props: {
       });
       setMsg(res.ok ? "Saved." : res.error ?? "Failed.");
     });
+
+  const proceed = () => {
+    const name = window.prompt("Name the next round:", props.defaultNextName);
+    if (name === null || name.trim() === "") return;
+    start(async () => {
+      // On success the action redirects to the new round; only an error returns.
+      const res = await proceedToNextRoundAction({
+        eventId: props.eventId,
+        roundId: props.roundId,
+        rows,
+        nextName: name,
+      });
+      if (res && !res.ok) setMsg(res.error);
+    });
+  };
 
   return (
     <div style={{ marginTop: 18 }}>
@@ -218,6 +236,17 @@ export function ResultsEditor(props: {
               </button>
             </form>
           )}
+          {props.isLast ? (
+            <button
+              type="button"
+              className="btn btn-accent btn-sm"
+              onClick={proceed}
+              disabled={pending}
+              title="Save this round and start the next one with the advancing students"
+            >
+              Proceed to next round →
+            </button>
+          ) : null}
           {msg ? (
             <span className="body-text" style={{ color: "var(--ink-3)" }}>
               {msg}
