@@ -37,7 +37,14 @@ export default async function AdminEventsPage() {
             <tbody>
               {events.map((e) => (
                 <tr key={e.id}>
-                  <td style={{ fontWeight: 500 }}>{e.title}</td>
+                  <td style={{ fontWeight: 500 }}>
+                    <Link
+                      href={`/admin/events/${e.id}/registrations`}
+                      style={{ color: "var(--ink)" }}
+                    >
+                      {e.title}
+                    </Link>
+                  </td>
                   <td>{e.club}</td>
                   <td>
                     {istFullDate(e.startsAt)}
