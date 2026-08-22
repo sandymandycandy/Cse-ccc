@@ -56,15 +56,75 @@ completes end-to-end**, not a checklist of components.
    guard call.
 3. **Next 16 deprecation:** rename `src/middleware.ts` → `src/proxy.ts`
    (build warns "middleware is deprecated, use proxy"). Non-blocking.
-4. **Remaining Phase 1 admin surfaces:** event **edit / duplicate /
-   cancel-reschedule** (approvals exist but an event can't be edited yet);
-   `/admin/scan` kiosk; `/admin/audit` log viewer; real `/admin/certificates`;
-   public `/verify`.
+4. **Remaining Phase 1 admin surfaces:**
+   - **4a. Event edit** — ⭐ **designed & ready to build (bounded).** Approvals
+     exist but an event can't be edited yet. Agreed design:
+     - **New `updateEventAction`** in `src/app/admin/(app)/events/actions.ts`,
+       mirroring `createEventAction`: same Zod schema **+ hidden `eventId`
+       (uuid)**, `getAdminSession` + `canManage(session, "manage:events",
+       clubId)` guard, IST→UTC conversion, end-after-start, blackout check, and
+       venue-clash check **excluding the event's own row** (`.neq("id",
+       eventId)`). `UPDATE events` for title/description/times/venue/capacity
+       **only — never touch `approval_status`/`approved_by`** (editing does NOT
+       re-trigger approval; approved stays approved, pending stays pending).
+       Update the `event_clubs` primary link if the club changed. Write an audit
+       row `action: "update"` with before/after. Redirect to `/admin/events`.
+       - **Notify registrants on material change:** if `starts_at`, `ends_at`,
+         or `venue_id` actually changed **and** the event is published with
+         confirmed registrations, enqueue an "event updated" email to those
+         registrants (compare before/after; skip pure title/description/capacity
+         edits and unpublished events). Add the email template alongside the
+         existing `event_*` templates in `src/lib/email`.
+     - **`getEventForEdit(session, eventId)`** in `src/lib/admin/queries.ts` —
+       returns event fields + primary `clubId`; **fail-closed** for club-scoped
+       admins (only their own club's event loads, else `null` → 404).
+     - **`EventForm`** (`src/components/admin/EventForm.tsx`) — take the server
+       action + `submitLabel` + optional `initial` values + `eventId` as props
+       (both actions share the `(prev, formData) => state` signature); prefill
+       via `defaultValue`; keep the club locked for club-scoped roles as create
+       does. **Keep the native `datetime-local` picker** (its display already
+       follows the viewer's locale, dd/mm/yyyy in India/en-GB; its value must
+       stay ISO `YYYY-MM-DDTHH:mm`).
+     - **New page** `src/app/admin/(app)/events/[id]/edit/page.tsx` —
+       `requireViewPage("manage:events")`, load event + clubs + venues,
+       `notFound()` if the event doesn't load, render `EventForm` in edit mode.
+     - **Events list** (`.../events/page.tsx`) — add an **Edit** action link per
+       row.
+     - **Datetime helpers** in `src/lib/datetime.ts`: move `istLocalToUTC` here
+       and export it (so it's testable), add its inverse `istLocalInput(utcIso)
+       → "YYYY-MM-DDTHH:mm"` (IST) for prefilling the native inputs, and
+       `istNumericDate(d) → "dd/mm/yyyy"` (en-GB) for **read-only admin tables**
+       (switch the events list from `istFullDate` to this). Public/long-form
+       date surfaces stay on `istFullDate` unless asked otherwise.
+     - **Test:** vitest round-trip `istLocalToUTC ↔ istLocalInput` + a
+       `istNumericDate` case (server-action POSTs can't be curled — verify the
+       mutation itself in a real browser against the live DB).
+   - event **duplicate** and **cancel / reschedule** (still unbuilt);
+     `/admin/scan` kiosk; `/admin/audit` log viewer; real `/admin/certificates`;
+     public `/verify`.
 5. **Phase 2** (mostly schema-only today): schedules, gallery, `/achievements`
    page, announcements + richtext, `/resources`, recruitment, `/join`,
    `/contact`, `/my-events`, reminder cron, `.ics` feeds, waitlist
-   auto-promote, venue booking, email prefs, `/about`, `/team`. NOTE: the nav
-   currently has **dead `/team` and `/join` links**.
+   auto-promote, venue booking, email prefs, `/about`, `/team`.
+   - **Dead nav/CTA links (live-site polish, ready to build).** None of the
+     Phase 2 routes exist yet, but several are already linked on the **live**
+     site and 404:
+     - **Header** (`src/components/SiteHeader.tsx`): `/team` and `/join`.
+     - **Homepage** (`src/app/page.tsx`): two `/join` CTAs — the hero
+       "Join a club" button and an "Apply to join" button. These are real
+       recruitment CTAs, so **don't delete them** — give them a destination.
+     - **Footer** (`src/components/SiteFooter.tsx`): also links `/achievements`,
+       `/join`, `/team`, `/resources`, `/contact`, `/my-events`,
+       `/announcements`, `/gallery`, `/about` — all currently dead.
+     - **Agreed fix for `/join` + `/team`:** ship minimal real stub pages (match
+       the `.section` / `.eyebrow` / `.lead` conventions, e.g. `src/app/clubs/
+       page.tsx`; `ButtonLink` is `@/components/ui/Button`) so header, footer,
+       and the homepage CTAs all resolve — `/join` = "how to join, browse the
+       clubs", `/team` = "the council, roster coming". Preferred over hiding the
+       links because `/join` is a load-bearing CTA.
+     - **Footer's other 7 dead links** are a separate decision: prune them (guts
+       two footer columns) vs. stub them as they're built out in Phase 2. Leave
+       as-is until those pages land, or hide per-link.
 6. **Phase 3:** feedback, leaderboard, ⌘K palette, SEO/JSON-LD, PWA, live wall
    (§13.10), scheduling heatmap. **Phase 4:** launch.
 7. **Phase 0 leftovers:** real club taglines/descriptions (still placeholders,
