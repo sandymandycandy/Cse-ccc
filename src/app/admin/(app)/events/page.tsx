@@ -32,6 +32,7 @@ export default async function AdminEventsPage() {
                 <th>When</th>
                 <th>Approval</th>
                 <th>Check-in</th>
+                <th>Results</th>
               </tr>
             </thead>
             <tbody>
@@ -60,6 +61,15 @@ export default async function AdminEventsPage() {
                       style={{ color: "var(--forest)" }}
                     >
                       Open →
+                    </Link>
+                  </td>
+                  <td>
+                    <Link
+                      href={`/admin/events/${e.id}/results`}
+                      className="label"
+                      style={{ color: "var(--forest)" }}
+                    >
+                      Standings →
                     </Link>
                   </td>
                 </tr>
