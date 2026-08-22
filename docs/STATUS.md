@@ -48,10 +48,22 @@ completes end-to-end**, not a checklist of components.
    placeholder screen holds the slot at `/admin/certificates`. Tables
    (`certificates`) + HMAC serials already exist. Build issuance + verify now,
    PDF rendering when assets arrive.
-2. **Auth/security follow-ups** (all unblocked): CSRF double-submit token
-   (Origin check already exists via `sameOrigin`); 30-min idle session expiry
-   (only 8h absolute today); enforce **mandatory-TOTP** for `tech_head` /
-   `president` at login (the seeded bootstrap Tech Head has no TOTP).
+2. **Auth/security follow-ups.** Still open: **CSRF double-submit token** (Origin
+   check already exists via `sameOrigin`); enforce **mandatory-TOTP** for
+   `tech_head` / `president` at login (the seeded bootstrap Tech Head has no
+   TOTP — implement as *forced enrollment*, never a lockout).
+   - ✅ **Idle-session timeout — DONE.** 2 minutes of inactivity (per user),
+     on top of the 8h absolute JWT cap. Enforced in `src/proxy.ts` via a
+     separate HMAC-signed httpOnly `idle` cookie (`src/lib/auth/idle.ts`) it
+     check-then-slides each `/admin` request; on expiry it clears the session
+     cookie too (stateless JWT → dropping the cookie is the logout). Verified
+     end-to-end on the dev server (stale → 307 + both cookies cleared; fresh →
+     proceeds + clock refreshed). 8-case unit test.
+   - ✅ **Login lockout — DONE.** `checkLoginLimits` tightened to **3 attempts
+     then a 1-minute lockout** (per user), per-IP and per-account. Login still
+     surfaces one generic failure, so lockout is indistinguishable from a wrong
+     password (§3). 2-case test; `server-only` now aliased to a no-op stub in
+     `vitest.config.mts` so server modules are testable.
    - ✅ **ESLint guard rule — DONE.** `local/admin-route-requires-guard`
      (`eslint-rules/admin-route-requires-guard.mjs`, wired in
      `eslint.config.mjs`, scoped to `src/app/api/admin/**/route.{ts,tsx}`) fails
