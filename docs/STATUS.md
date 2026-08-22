@@ -61,8 +61,11 @@ completes end-to-end**, not a checklist of components.
      count). Covered by `src/lib/eslint/admin-route-requires-guard.test.ts`
      (RuleTester, 10 cases). Verified end-to-end: an unguarded admin route
      makes `npm run lint` exit 1.
-3. **Next 16 deprecation:** rename `src/middleware.ts` → `src/proxy.ts`
-   (build warns "middleware is deprecated, use proxy"). Non-blocking.
+3. ✅ **Next 16 deprecation — DONE.** Renamed `src/middleware.ts` →
+   `src/proxy.ts` and the exported `middleware()` → `proxy()` (per
+   `node_modules/next/dist/docs/.../proxy.md`); `config`/`matcher` and the
+   `x-pathname` header wiring unchanged. Build now reports "ƒ Proxy
+   (Middleware)" with no deprecation warning.
 4. **Remaining Phase 1 admin surfaces:**
    - **4a. Event edit** — ⭐ **designed & ready to build (bounded).** Approvals
      exist but an event can't be edited yet. Agreed design:

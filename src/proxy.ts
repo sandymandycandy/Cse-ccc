@@ -5,7 +5,7 @@ import type { NextRequest } from "next/server";
 const SESSION_COOKIE =
   process.env.NODE_ENV === "production" ? "__Host-ccc.session" : "ccc.session";
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Expose the path to the root layout so it can drop the public site chrome on
