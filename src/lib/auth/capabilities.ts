@@ -40,6 +40,7 @@ export type Capability =
   | "manage:blackouts"
   | "manage:schedules"
   | "manage:registrations"
+  | "manage:results"
   | "issue:participation_certificate"
   | "issue:winner_certificate"
   | "revoke:certificate"
@@ -82,6 +83,10 @@ const MATRIX: Record<Capability, Partial<Record<AdminRole, Grant>>> = {
     tech_head: "all", events_head: "all", club_head: "own", vice_head: "own",
   },
   "manage:registrations": {
+    faculty_advisor: "read", president: "all", vice_president: "all",
+    tech_head: "all", events_head: "all", club_head: "own", vice_head: "own",
+  },
+  "manage:results": {
     faculty_advisor: "read", president: "all", vice_president: "all",
     tech_head: "all", events_head: "all", club_head: "own", vice_head: "own",
   },
