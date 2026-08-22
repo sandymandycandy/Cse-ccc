@@ -156,3 +156,28 @@ export function istHourLabel(minuteOfDay: number): string {
   const anchor = new Date(Date.UTC(2000, 0, 1, h, 0) - IST_OFFSET_MS);
   return fmt(anchor, { hour: "numeric", hour12: true });
 }
+
+// ── <input type="datetime-local"> ↔ UTC (the event forms speak IST wall-clock) ─
+
+/** A `datetime-local` value ("YYYY-MM-DDTHH:mm") is IST wall-clock; convert it
+ *  to a UTC instant. Returns null if the value isn't well-formed. */
+export function istLocalToUTC(local: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(local);
+  if (!m) return null;
+  const [, y, mo, d, h, mi] = m.map(Number);
+  return new Date(Date.UTC(y, mo - 1, d, h, mi) - IST_OFFSET_MS).toISOString();
+}
+
+/** Inverse of {@link istLocalToUTC}: a UTC instant → the IST wall-clock
+ *  "YYYY-MM-DDTHH:mm" string a `datetime-local` input expects (for prefills). */
+export function istLocalInput(utc: string | Date): string {
+  const ist = new Date((typeof utc === "string" ? new Date(utc) : utc).getTime() + IST_OFFSET_MS);
+  return (
+    `${ist.getUTCFullYear()}-${pad2(ist.getUTCMonth() + 1)}-${pad2(ist.getUTCDate())}` +
+    `T${pad2(ist.getUTCHours())}:${pad2(ist.getUTCMinutes())}`
+  );
+}
+
+/** "dd/mm/yyyy" in IST — the read-only date stamp for admin tables. */
+export const istNumericDate = (d: Date | string) =>
+  fmt(d, { day: "2-digit", month: "2-digit", year: "numeric" }, "en-GB");

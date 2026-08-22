@@ -67,8 +67,27 @@ completes end-to-end**, not a checklist of components.
    `x-pathname` header wiring unchanged. Build now reports "ƒ Proxy
    (Middleware)" with no deprecation warning.
 4. **Remaining Phase 1 admin surfaces:**
-   - **4a. Event edit** — ⭐ **designed & ready to build (bounded).** Approvals
-     exist but an event can't be edited yet. Agreed design:
+   - **4a. Event edit** — ✅ **BUILT.** `updateEventAction` +
+     `getEventForEdit` + reusable `EventForm` + `[id]/edit` page + Edit link on
+     the events list + `istLocalToUTC`/`istLocalInput`/`istNumericDate` helpers
+     (11-case datetime unit test). typecheck + lint + full suite (30 tests) +
+     production build all pass; the new route compiles as `ƒ
+     /admin/events/[id]/edit`. Every DB column the action reads/writes was
+     schema-verified against the live DB (21/21), and the prefill round-trip
+     checks out on real event data.
+     - ⚠️ **Not yet driven end-to-end in a browser:** server-action POSTs can't
+       be curled and the admin flow needs TOTP login, so the live submit
+       (form → `updateEventAction` → write → redirect) is **unverified by
+       execution**. Do a manual pass before trusting it in prod: log in →
+       Events → Edit → change the time/venue → Save → confirm the row updated
+       and approval status is unchanged.
+     - ⚠️ **External email processor needs an `event_updated` template.** The
+       action enqueues `event_updated` (payload `{eventId, title, timeChanged,
+       venueChanged}`) to confirmed registrants on a material change; the
+       out-of-repo processor that renders `event_*` templates must learn this
+       one or those queued mails won't render.
+
+     As-built design (matches the code):
      - **New `updateEventAction`** in `src/app/admin/(app)/events/actions.ts`,
        mirroring `createEventAction`: same Zod schema **+ hidden `eventId`
        (uuid)**, `getAdminSession` + `canManage(session, "manage:events",

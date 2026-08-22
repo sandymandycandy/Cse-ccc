@@ -2,6 +2,7 @@ import { requireViewPage } from "@/lib/auth/guards";
 import { grantFor } from "@/lib/auth/capabilities";
 import { getClubOptions, getVenueOptions } from "@/lib/admin/queries";
 import { EventForm } from "@/components/admin/EventForm";
+import { createEventAction } from "../actions";
 
 export default async function NewEventPage() {
   const session = await requireViewPage("manage:events");
@@ -23,7 +24,12 @@ export default async function NewEventPage() {
           ? "This goes to the Events Head for approval before it's public."
           : "Your role approves events, so this publishes on save."}
       </p>
-      <EventForm clubs={clubs} venues={venues} fixedClub={fixedClub} />
+      <EventForm
+        action={createEventAction}
+        clubs={clubs}
+        venues={venues}
+        fixedClub={fixedClub}
+      />
     </div>
   );
 }

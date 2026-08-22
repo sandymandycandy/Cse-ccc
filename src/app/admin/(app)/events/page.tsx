@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireViewPage } from "@/lib/auth/guards";
 import { listEventsForAdmin } from "@/lib/admin/queries";
 import { ApprovalBadge } from "@/components/admin/ApprovalBadge";
-import { istFullDate, istTime } from "@/lib/datetime";
+import { istNumericDate, istTime } from "@/lib/datetime";
 
 export default async function AdminEventsPage() {
   const session = await requireViewPage("manage:events");
@@ -33,6 +33,7 @@ export default async function AdminEventsPage() {
                 <th>Approval</th>
                 <th>Check-in</th>
                 <th>Results</th>
+                <th>Edit</th>
               </tr>
             </thead>
             <tbody>
@@ -48,7 +49,7 @@ export default async function AdminEventsPage() {
                   </td>
                   <td>{e.club}</td>
                   <td>
-                    {istFullDate(e.startsAt)}
+                    {istNumericDate(e.startsAt)}
                     <span style={{ color: "var(--ink-3)" }}> · {istTime(e.startsAt)}</span>
                   </td>
                   <td>
@@ -70,6 +71,15 @@ export default async function AdminEventsPage() {
                       style={{ color: "var(--forest)" }}
                     >
                       Standings →
+                    </Link>
+                  </td>
+                  <td>
+                    <Link
+                      href={`/admin/events/${e.id}/edit`}
+                      className="label"
+                      style={{ color: "var(--forest)" }}
+                    >
+                      Edit →
                     </Link>
                   </td>
                 </tr>

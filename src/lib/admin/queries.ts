@@ -117,6 +117,67 @@ export async function getAdminStats(session: AdminSession): Promise<AdminStats> 
   };
 }
 
+export interface EventForEdit {
+  id: string;
+  title: string;
+  description: string | null;
+  startsAt: string;
+  endsAt: string;
+  venueId: string | null;
+  capacity: number | null;
+  clubId: string | null;
+}
+
+/**
+ * A single event's editable fields + its primary club, for the edit form.
+ * Fail-closed for club-scoped admins: returns null (→ 404) unless the event
+ * belongs to the admin's own club.
+ */
+export async function getEventForEdit(
+  session: AdminSession,
+  eventId: string,
+): Promise<EventForEdit | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("events")
+    .select(
+      "id, title, description, starts_at, ends_at, venue_id, capacity, " +
+        "event_clubs ( club_id, is_primary )",
+    )
+    .eq("id", eventId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+
+  const row = data as unknown as {
+    id: string;
+    title: string;
+    description: string | null;
+    starts_at: string;
+    ends_at: string;
+    venue_id: string | null;
+    capacity: number | null;
+    event_clubs: { club_id: string; is_primary: boolean }[];
+  };
+  const primary = row.event_clubs.find((l) => l.is_primary) ?? row.event_clubs[0];
+  const clubId = primary?.club_id ?? null;
+
+  if (isClubScoped(session) && (!session.clubId || session.clubId !== clubId)) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    venueId: row.venue_id,
+    capacity: row.capacity,
+    clubId,
+  };
+}
+
 /** Active clubs for the create-event select (id + label). */
 export async function getClubOptions(): Promise<{ id: string; name: string }[]> {
   const admin = createAdminClient();

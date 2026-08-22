@@ -8,7 +8,7 @@ import { getAdminSession } from "@/lib/auth/guards";
 import { canManage } from "@/lib/auth/capabilities";
 import { enqueueEmail } from "@/lib/email";
 import { writeAudit } from "@/lib/admin/audit";
-import { istDateKey } from "@/lib/datetime";
+import { istDateKey, istLocalToUTC } from "@/lib/datetime";
 import type { AdminRole } from "@/lib/auth/capabilities";
 import type { EventFormState } from "@/lib/admin/form-state";
 
@@ -31,15 +31,6 @@ const CreateSchema = z
     capacity: z.coerce.number().int().min(0).max(100000).optional().or(z.literal("")),
   })
   .strict();
-
-/** A `datetime-local` value is IST wall-clock; convert it to a UTC instant. */
-function istLocalToUTC(local: string): string | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(local);
-  if (!m) return null;
-  const [, y, mo, d, h, mi] = m.map(Number);
-  const ms = Date.UTC(y, mo - 1, d, h, mi) - (5 * 60 + 30) * 60_000;
-  return new Date(ms).toISOString();
-}
 
 export async function createEventAction(
   _prev: EventFormState,
@@ -157,6 +148,162 @@ export async function createEventAction(
     entity: "event",
     entityId: ev.id,
     after: { title, approval_status: autoApproved ? "approved" : "pending" },
+  });
+
+  redirect("/admin/events");
+}
+
+export async function updateEventAction(
+  _prev: EventFormState,
+  formData: FormData,
+): Promise<EventFormState> {
+  const session = await getAdminSession();
+  if (!session) return { error: "Your session expired. Sign in again." };
+
+  const eventId = String(formData.get("eventId") ?? "");
+  if (!z.string().uuid().safeParse(eventId).success) {
+    return { error: "Missing event reference." };
+  }
+
+  const parsed = CreateSchema.safeParse({
+    title: formData.get("title"),
+    description: formData.get("description") || undefined,
+    clubId: formData.get("clubId"),
+    venueId: formData.get("venueId") || "",
+    startsAt: formData.get("startsAt"),
+    endsAt: formData.get("endsAt"),
+    capacity: formData.get("capacity") || "",
+  });
+  if (!parsed.success) return { error: "Check the form — some fields are missing or invalid." };
+  const { title, description, clubId, venueId, capacity } = parsed.data;
+
+  const admin = createAdminClient();
+
+  // Load the existing event (+ current primary club) to authorise and to diff.
+  const { data: existingRaw } = await admin
+    .from("events")
+    .select("id, title, starts_at, ends_at, venue_id, status, event_clubs ( club_id, is_primary )")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (!existingRaw) return { error: "That event no longer exists." };
+  const existing = existingRaw as unknown as {
+    id: string;
+    title: string;
+    starts_at: string;
+    ends_at: string;
+    venue_id: string | null;
+    status: string;
+    event_clubs: { club_id: string; is_primary: boolean }[];
+  };
+  const currentClubId =
+    (existing.event_clubs.find((l) => l.is_primary) ?? existing.event_clubs[0])?.club_id ?? null;
+
+  // Authorise: must manage the event's current club, and — if moving it — the new
+  // club too. Club-scoped roles can therefore neither edit another club's event
+  // nor hand one to another club.
+  if (!canManage(session, "manage:events", currentClubId)) {
+    return { error: "You can't edit that event." };
+  }
+  if (clubId !== currentClubId && !canManage(session, "manage:events", clubId)) {
+    return { error: "You can't move the event to that club." };
+  }
+
+  const startsAt = istLocalToUTC(parsed.data.startsAt);
+  const endsAt = istLocalToUTC(parsed.data.endsAt);
+  if (!startsAt || !endsAt) return { error: "Enter a valid start and end time." };
+  if (new Date(endsAt) <= new Date(startsAt)) {
+    return { error: "The event must end after it starts." };
+  }
+
+  // Blackout check (§13.2).
+  const { data: blackouts } = await admin
+    .from("blackout_dates")
+    .select("reason")
+    .lte("starts_on", istDateKey(endsAt))
+    .gte("ends_on", istDateKey(startsAt))
+    .limit(1);
+  if (blackouts && blackouts.length > 0) {
+    return { error: `That date is blacked out: ${blackouts[0].reason}.` };
+  }
+
+  // Clash check (§6), excluding this event's own row.
+  const venue = venueId || null;
+  if (venue) {
+    const { data: clashes } = await admin
+      .from("events")
+      .select("title")
+      .eq("venue_id", venue)
+      .neq("id", eventId)
+      .neq("status", "cancelled")
+      .neq("approval_status", "rejected")
+      .lt("starts_at", endsAt)
+      .gt("ends_at", startsAt)
+      .limit(1);
+    if (clashes && clashes.length > 0) {
+      return { error: `Venue clash with "${clashes[0].title}". Pick another time or room.` };
+    }
+  }
+
+  // Editing never re-triggers approval: status / approval_status / approved_by
+  // are deliberately left untouched.
+  const { error: updErr } = await admin
+    .from("events")
+    .update({
+      title,
+      description: description ?? null,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      venue_id: venue,
+      capacity: typeof capacity === "number" ? capacity : null,
+    })
+    .eq("id", eventId);
+  if (updErr) return { error: "Could not save your changes. Try again." };
+
+  // Move the primary club link if the hosting club changed.
+  if (clubId !== currentClubId) {
+    const { error: linkErr } = await admin
+      .from("event_clubs")
+      .update({ club_id: clubId })
+      .eq("event_id", eventId)
+      .eq("is_primary", true);
+    if (linkErr) return { error: "Saved, but couldn't update the hosting club. Try again." };
+  }
+
+  // Notify confirmed registrants when the time or venue materially changed on a
+  // published event (§4a). Pure title/description/capacity edits stay quiet.
+  const timeChanged = existing.starts_at !== startsAt || existing.ends_at !== endsAt;
+  const venueChanged = (existing.venue_id ?? null) !== venue;
+  if ((timeChanged || venueChanged) && existing.status === "published") {
+    const { data: regs } = await admin
+      .from("registrations")
+      .select("email, student_name")
+      .eq("event_id", eventId)
+      .not("confirmed_at", "is", null);
+    for (const r of regs ?? []) {
+      await enqueueEmail({
+        template: "event_updated",
+        toEmail: r.email,
+        toName: r.student_name,
+        subject: `Updated: ${title}`,
+        payload: { eventId, title, timeChanged, venueChanged },
+        priority: 2,
+      });
+    }
+  }
+
+  await writeAudit({
+    actorId: session.id,
+    action: "update",
+    entity: "event",
+    entityId: eventId,
+    before: {
+      title: existing.title,
+      starts_at: existing.starts_at,
+      ends_at: existing.ends_at,
+      venue_id: existing.venue_id,
+      club_id: currentClubId,
+    },
+    after: { title, starts_at: startsAt, ends_at: endsAt, venue_id: venue, club_id: clubId },
   });
 
   redirect("/admin/events");
