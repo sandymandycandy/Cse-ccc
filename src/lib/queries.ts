@@ -1,5 +1,6 @@
 import "server-only";
 import { createPublicClient } from "@/lib/supabase/server";
+import { orderStandings } from "@/lib/results";
 import type {
   CalendarEvent,
   Club,
@@ -385,4 +386,61 @@ export async function getWeekStrip(): Promise<WeekDay[]> {
     today: istDateKey(d) === todayKey,
     event: byDay.get(istDateKey(d)),
   }));
+}
+
+// ── published standings (§13.9) ──────────────────────────────────────────────
+
+export interface PublishedResult {
+  roll_no: string;
+  display_name: string | null;
+  rank: number | null;
+  score: number | null;
+  advanced: boolean;
+}
+export interface PublishedRound {
+  id: string;
+  name: string;
+  sort: number;
+  results: PublishedResult[];
+}
+
+/**
+ * Rounds with published standings for an event, ordered by `sort`. Uses the anon
+ * client, so RLS (`results_public_read`) returns only rows with `published_at`
+ * set on approved events — draft rows never reach here. Rounds with no published
+ * results are omitted.
+ */
+export async function getPublishedResults(eventId: string): Promise<PublishedRound[]> {
+  const supabase = createPublicClient();
+  const { data } = await supabase
+    .from("event_rounds")
+    .select(
+      "id, name, sort, results ( roll_no, display_name, rank, score, advanced, published_at )",
+    )
+    .eq("event_id", eventId)
+    .order("sort", { ascending: true });
+
+  const rounds = (data ?? []) as unknown as Array<{
+    id: string;
+    name: string;
+    sort: number;
+    results: Array<PublishedResult & { published_at: string | null }>;
+  }>;
+
+  return rounds
+    .map((r) => ({
+      id: r.id,
+      name: r.name,
+      sort: r.sort,
+      results: orderStandings(r.results.filter((x) => x.published_at !== null)).map(
+        ({ roll_no, display_name, rank, score, advanced }) => ({
+          roll_no,
+          display_name,
+          rank,
+          score,
+          advanced,
+        }),
+      ),
+    }))
+    .filter((r) => r.results.length > 0);
 }
