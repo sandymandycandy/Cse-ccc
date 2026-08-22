@@ -7,6 +7,7 @@ import { canManage } from "@/lib/auth/capabilities";
 import { getEventForAttendance } from "@/lib/admin/attendance";
 import { writeAudit } from "@/lib/admin/audit";
 import {
+  getRound,
   createRoundRow,
   updateRoundRow,
   deleteRoundRow,
@@ -22,6 +23,20 @@ async function authorize(eventId: string) {
   const ev = await getEventForAttendance(eventId);
   if (!ev || !canManage(session, "manage:results", ev.clubId)) return null;
   return { session, ev };
+}
+
+/**
+ * Authorize AND confirm the round belongs to this event — otherwise a caller
+ * with `manage:results` on their own club could pass their eventId but another
+ * club's roundId and mutate it (IDOR). The round's ownership is read from the
+ * DB, never trusted from the request.
+ */
+async function authorizeRound(eventId: string, roundId: string) {
+  const auth = await authorize(eventId);
+  if (!auth) return null;
+  const round = await getRound(roundId);
+  if (!round || round.event_id !== eventId) return null;
+  return auth;
 }
 
 function revalidate(eventId: string) {
@@ -52,7 +67,7 @@ export async function updateRoundAction(formData: FormData): Promise<void> {
   const eventId = String(formData.get("eventId") ?? "");
   const roundId = String(formData.get("roundId") ?? "");
   if (!eventId || !roundId) return;
-  const auth = await authorize(eventId);
+  const auth = await authorizeRound(eventId, roundId);
   if (!auth) return;
   const patch: { name?: string; status?: "pending" | "active" | "completed" } = {};
   const name = String(formData.get("name") ?? "").trim();
@@ -76,7 +91,7 @@ export async function deleteRoundAction(formData: FormData): Promise<void> {
   const eventId = String(formData.get("eventId") ?? "");
   const roundId = String(formData.get("roundId") ?? "");
   if (!eventId || !roundId) return;
-  const auth = await authorize(eventId);
+  const auth = await authorizeRound(eventId, roundId);
   if (!auth) return;
   if (await roundIsPublished(roundId)) return; // don't delete published standings
   await deleteRoundRow(roundId);
@@ -104,7 +119,7 @@ export async function saveResultsAction(input: {
   roundId: string;
   rows: RosterEntry[];
 }): Promise<{ ok: boolean; error?: string }> {
-  const auth = await authorize(input.eventId);
+  const auth = await authorizeRound(input.eventId, input.roundId);
   if (!auth) return { ok: false, error: "Not permitted." };
   if (await roundIsPublished(input.roundId)) {
     return { ok: false, error: "Unpublish this round before editing it." };
@@ -127,7 +142,7 @@ export async function publishRoundAction(formData: FormData): Promise<void> {
   const eventId = String(formData.get("eventId") ?? "");
   const roundId = String(formData.get("roundId") ?? "");
   if (!eventId || !roundId) return;
-  const auth = await authorize(eventId);
+  const auth = await authorizeRound(eventId, roundId);
   if (!auth) return;
   await setRoundPublished(roundId, true);
   await writeAudit({
@@ -143,7 +158,7 @@ export async function unpublishRoundAction(formData: FormData): Promise<void> {
   const eventId = String(formData.get("eventId") ?? "");
   const roundId = String(formData.get("roundId") ?? "");
   if (!eventId || !roundId) return;
-  const auth = await authorize(eventId);
+  const auth = await authorizeRound(eventId, roundId);
   if (!auth) return;
   await setRoundPublished(roundId, false);
   await writeAudit({
