@@ -5,7 +5,7 @@ import { Panel } from "@/components/ui/Surface";
 import { SeatBadge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { RegisterForm } from "@/components/RegisterForm";
-import { getEventDetail } from "@/lib/queries";
+import { getEventDetail, getPublishedResults } from "@/lib/queries";
 import { istFullDate, istTimeRange } from "@/lib/datetime";
 
 type Params = { params: Promise<{ id: string }> };
@@ -21,7 +21,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 export default async function EventDetailPage({ params }: Params) {
   const { id } = await params;
-  const event = await getEventDetail(id);
+  const [event, rounds] = await Promise.all([
+    getEventDetail(id),
+    getPublishedResults(id),
+  ]);
   if (!event) notFound();
 
   const seatsLeft = Math.max(0, event.capacity - event.registered);
@@ -68,6 +71,31 @@ export default async function EventDetailPage({ params }: Params) {
               <div className="label">Rules</div>
               <p className="body-text" style={{ marginTop: 8, maxWidth: 620 }}>
                 {event.rules}
+              </p>
+            </div>
+          ) : null}
+
+          {rounds.length > 0 ? (
+            <div style={{ marginTop: 28 }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "baseline",
+                  maxWidth: 620,
+                }}
+              >
+                <div className="label">Results</div>
+                <Link
+                  href={`/events/${event.id}/results`}
+                  className="label"
+                  style={{ color: "var(--forest)" }}
+                >
+                  View standings →
+                </Link>
+              </div>
+              <p className="body-text" style={{ marginTop: 8, maxWidth: 620 }}>
+                {rounds.length} round{rounds.length > 1 ? "s" : ""} published.
               </p>
             </div>
           ) : null}
