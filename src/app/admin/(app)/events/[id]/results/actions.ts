@@ -144,6 +144,12 @@ export async function publishRoundAction(formData: FormData): Promise<void> {
   if (!eventId || !roundId) return;
   const auth = await authorizeRound(eventId, roundId);
   if (!auth) return;
+  // Which columns the public standings expose (rank + name always show).
+  await updateRoundRow(roundId, {
+    show_score: formData.get("show_score") === "1",
+    show_advanced: formData.get("show_advanced") === "1",
+    show_remarks: formData.get("show_remarks") === "1",
+  });
   await setRoundPublished(roundId, true);
   await writeAudit({
     actorId: auth.session.id,

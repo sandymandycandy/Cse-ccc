@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { rankByScore, orderStandings } from "./results";
+import { rankByScore, orderStandings, eligibleAdvancers } from "./results";
 
 const row = (roll_no: string, score: number | null) => ({
   roll_no,
@@ -35,6 +35,18 @@ describe("rankByScore", () => {
       ["b", 1],
       ["a", null],
     ]);
+  });
+});
+
+describe("eligibleAdvancers", () => {
+  it("keeps only advanced students who have a score", () => {
+    const rows = [
+      { roll_no: "a", advanced: true, score: 90 },
+      { roll_no: "b", advanced: true, score: null }, // advanced but no score → excluded
+      { roll_no: "c", advanced: false, score: 80 }, // not advanced → excluded
+      { roll_no: "d", advanced: true, score: 0 }, // score 0 is a real score → kept
+    ];
+    expect(eligibleAdvancers(rows).map((r) => r.roll_no)).toEqual(["a", "d"]);
   });
 });
 

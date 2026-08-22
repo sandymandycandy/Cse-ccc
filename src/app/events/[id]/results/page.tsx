@@ -60,8 +60,9 @@ export default async function EventResultsPage({ params }: Params) {
                       <th style={thStyle}>Rank</th>
                       <th style={thStyle}>Name</th>
                       <th style={thStyle}>Roll</th>
-                      <th style={thStyle}>Score</th>
-                      <th style={{ ...thStyle, paddingRight: 0 }}>Advanced</th>
+                      {round.showScore ? <th style={thStyle}>Score</th> : null}
+                      {round.showAdvanced ? <th style={thStyle}>Advanced</th> : null}
+                      {round.showRemarks ? <th style={thStyle}>Remarks</th> : null}
                     </tr>
                   </thead>
                   <tbody>
@@ -70,10 +71,15 @@ export default async function EventResultsPage({ params }: Params) {
                         <td style={tdStyle}>{r.rank ?? "—"}</td>
                         <td style={tdStyle}>{r.display_name ?? "—"}</td>
                         <td style={{ ...tdStyle, color: "var(--ink-2)" }}>{r.roll_no}</td>
-                        <td style={tdStyle}>{r.score ?? "—"}</td>
-                        <td style={{ ...tdStyle, paddingRight: 0, color: "var(--forest)" }}>
-                          {r.advanced ? "✓" : ""}
-                        </td>
+                        {round.showScore ? <td style={tdStyle}>{r.score ?? "—"}</td> : null}
+                        {round.showAdvanced ? (
+                          <td style={{ ...tdStyle, color: "var(--forest)" }}>
+                            {r.advanced ? "✓" : ""}
+                          </td>
+                        ) : null}
+                        {round.showRemarks ? (
+                          <td style={tdStyle}>{r.remarks ?? "—"}</td>
+                        ) : null}
                       </tr>
                     ))}
                   </tbody>

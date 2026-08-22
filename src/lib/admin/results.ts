@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { eligibleAdvancers } from "@/lib/results";
 
 export interface RoundRow {
   id: string;
@@ -8,7 +9,13 @@ export interface RoundRow {
   sort: number;
   status: "pending" | "active" | "completed";
   starts_at: string | null;
+  show_score: boolean;
+  show_advanced: boolean;
+  show_remarks: boolean;
 }
+
+const ROUND_COLS =
+  "id, event_id, name, sort, status, starts_at, show_score, show_advanced, show_remarks";
 
 export interface RosterEntry {
   roll_no: string;
@@ -26,7 +33,7 @@ export async function listRounds(eventId: string): Promise<RoundRow[]> {
   const admin = createAdminClient();
   const { data } = await admin
     .from("event_rounds")
-    .select("id, event_id, name, sort, status, starts_at")
+    .select(ROUND_COLS)
     .eq("event_id", eventId)
     .order("sort", { ascending: true });
   return (data ?? []) as RoundRow[];
@@ -36,7 +43,7 @@ export async function getRound(roundId: string): Promise<RoundRow | null> {
   const admin = createAdminClient();
   const { data } = await admin
     .from("event_rounds")
-    .select("id, event_id, name, sort, status, starts_at")
+    .select(ROUND_COLS)
     .eq("id", roundId)
     .maybeSingle();
   return (data as RoundRow | null) ?? null;
@@ -103,17 +110,23 @@ export async function getRoundRoster(
     return { rows, seededFrom: `attended (${rows.length})` };
   }
 
-  // 3) Later round: prior round's advanced rows.
+  // 3) Later round: prior round's advancers — advanced AND with a score (§13.9:
+  // no marks → no advancement). Score 0 counts; only null (blank) is excluded.
   const prev = rounds[idx - 1];
   const { data: adv } = await admin
     .from("results")
-    .select("roll_no, display_name, registration_id")
+    .select("roll_no, display_name, registration_id, score, advanced")
     .eq("round_id", prev.id)
-    .eq("advanced", true)
     .order("roll_no", { ascending: true });
-  const rows = (adv ?? []).map((r) =>
-    emptyEntry(r.roll_no, r.display_name, r.registration_id),
-  );
+  const rows = eligibleAdvancers(
+    (adv ?? []) as {
+      roll_no: string;
+      display_name: string | null;
+      registration_id: string | null;
+      score: number | null;
+      advanced: boolean;
+    }[],
+  ).map((r) => emptyEntry(r.roll_no, r.display_name, r.registration_id));
   return { rows, seededFrom: `advancing in ${prev.name} (${rows.length})` };
 }
 
@@ -143,6 +156,9 @@ export async function updateRoundRow(
     status?: RoundRow["status"];
     sort?: number;
     starts_at?: string | null;
+    show_score?: boolean;
+    show_advanced?: boolean;
+    show_remarks?: boolean;
   },
 ): Promise<void> {
   const admin = createAdminClient();

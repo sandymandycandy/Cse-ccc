@@ -759,6 +759,9 @@ export type Database = {
           event_id: string
           id: string
           name: string
+          show_advanced: boolean
+          show_remarks: boolean
+          show_score: boolean
           sort: number
           starts_at: string | null
           status: Database["public"]["Enums"]["round_status"]
@@ -768,6 +771,9 @@ export type Database = {
           event_id: string
           id?: string
           name: string
+          show_advanced?: boolean
+          show_remarks?: boolean
+          show_score?: boolean
           sort?: number
           starts_at?: string | null
           status?: Database["public"]["Enums"]["round_status"]
@@ -777,6 +783,9 @@ export type Database = {
           event_id?: string
           id?: string
           name?: string
+          show_advanced?: boolean
+          show_remarks?: boolean
+          show_score?: boolean
           sort?: number
           starts_at?: string | null
           status?: Database["public"]["Enums"]["round_status"]

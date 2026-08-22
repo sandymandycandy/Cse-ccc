@@ -30,6 +30,7 @@ export default async function AdminResultsPage({
 
   const rounds = await listRounds(id);
   const selectedId = roundParam ?? rounds[0]?.id ?? null;
+  const selectedRound = rounds.find((r) => r.id === selectedId) ?? null;
   const roster = selectedId ? await getRoundRoster(selectedId) : null;
   const published = selectedId ? await roundIsPublished(selectedId) : false;
 
@@ -103,6 +104,11 @@ export default async function AdminResultsPage({
           seededFrom={roster.seededFrom}
           published={published}
           canEdit={canEdit}
+          visibility={{
+            show_score: selectedRound?.show_score ?? true,
+            show_advanced: selectedRound?.show_advanced ?? true,
+            show_remarks: selectedRound?.show_remarks ?? true,
+          }}
         />
       ) : (
         <div className="cal-empty" style={{ marginTop: 18 }}>

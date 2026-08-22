@@ -396,11 +396,15 @@ export interface PublishedResult {
   rank: number | null;
   score: number | null;
   advanced: boolean;
+  remarks: string | null;
 }
 export interface PublishedRound {
   id: string;
   name: string;
   sort: number;
+  showScore: boolean;
+  showAdvanced: boolean;
+  showRemarks: boolean;
   results: PublishedResult[];
 }
 
@@ -408,14 +412,15 @@ export interface PublishedRound {
  * Rounds with published standings for an event, ordered by `sort`. Uses the anon
  * client, so RLS (`results_public_read`) returns only rows with `published_at`
  * set on approved events — draft rows never reach here. Rounds with no published
- * results are omitted.
+ * results are omitted. Columns the organiser hid (show_* = false) are nulled
+ * server-side, so hidden values never reach the client. Rank + name always show.
  */
 export async function getPublishedResults(eventId: string): Promise<PublishedRound[]> {
   const supabase = createPublicClient();
   const { data } = await supabase
     .from("event_rounds")
     .select(
-      "id, name, sort, results ( roll_no, display_name, rank, score, advanced, published_at )",
+      "id, name, sort, show_score, show_advanced, show_remarks, results ( roll_no, display_name, rank, score, advanced, remarks, published_at )",
     )
     .eq("event_id", eventId)
     .order("sort", { ascending: true });
@@ -424,23 +429,31 @@ export async function getPublishedResults(eventId: string): Promise<PublishedRou
     id: string;
     name: string;
     sort: number;
+    show_score: boolean;
+    show_advanced: boolean;
+    show_remarks: boolean;
     results: Array<PublishedResult & { published_at: string | null }>;
   }>;
 
   return rounds
-    .map((r) => ({
-      id: r.id,
-      name: r.name,
-      sort: r.sort,
-      results: orderStandings(r.results.filter((x) => x.published_at !== null)).map(
-        ({ roll_no, display_name, rank, score, advanced }) => ({
-          roll_no,
-          display_name,
-          rank,
-          score,
-          advanced,
-        }),
-      ),
-    }))
+    .map((r) => {
+      const published = r.results.filter((x) => x.published_at !== null);
+      return {
+        id: r.id,
+        name: r.name,
+        sort: r.sort,
+        showScore: r.show_score,
+        showAdvanced: r.show_advanced,
+        showRemarks: r.show_remarks,
+        results: orderStandings(published).map((x) => ({
+          roll_no: x.roll_no,
+          display_name: x.display_name,
+          rank: x.rank,
+          score: r.show_score ? x.score : null,
+          advanced: r.show_advanced ? x.advanced : false,
+          remarks: r.show_remarks ? x.remarks : null,
+        })),
+      };
+    })
     .filter((r) => r.results.length > 0);
 }

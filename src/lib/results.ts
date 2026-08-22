@@ -30,6 +30,17 @@ export function rankByScore<T extends { score: number | null; rank: number | nul
   return [...ranked, ...unscored.map((r) => ({ ...r, rank: null }))];
 }
 
+/**
+ * Students who proceed to the next round: marked `advanced` AND with a score
+ * entered. A student with no marks can never be advanced (§13.9 rule). Score 0
+ * counts as a real score.
+ */
+export function eligibleAdvancers<T extends { advanced: boolean; score: number | null }>(
+  rows: T[],
+): T[] {
+  return rows.filter((r) => r.advanced && r.score !== null);
+}
+
 /** Display order: rank asc (nulls last), then score desc (nulls last), then roll. */
 export function orderStandings<
   T extends { rank: number | null; score: number | null; roll_no: string },

@@ -29,6 +29,14 @@ const emptyRow = (): RosterEntry => ({
   remarks: null,
 });
 
+const chkLabel: CSSProperties = {
+  display: "inline-flex",
+  gap: 4,
+  alignItems: "center",
+  font: "400 13px var(--sans)",
+  color: "var(--ink)",
+};
+
 export function ResultsEditor(props: {
   eventId: string;
   roundId: string;
@@ -36,6 +44,7 @@ export function ResultsEditor(props: {
   seededFrom: string;
   published: boolean;
   canEdit: boolean;
+  visibility: { show_score: boolean; show_advanced: boolean; show_remarks: boolean };
 }) {
   const [rows, setRows] = useState<RosterEntry[]>(props.initialRows);
   const [msg, setMsg] = useState<string | null>(null);
@@ -105,9 +114,11 @@ export function ResultsEditor(props: {
                       style={{ ...inp, width: 80 }}
                       value={r.score ?? ""}
                       disabled={locked}
-                      onChange={(e) =>
-                        update(i, { score: e.target.value === "" ? null : Number(e.target.value) })
-                      }
+                      onChange={(e) => {
+                        const score = e.target.value === "" ? null : Number(e.target.value);
+                        // No score → can't advance (§13.9): clear the flag too.
+                        update(i, score === null ? { score, advanced: false } : { score });
+                      }}
                     />
                   </td>
                   <td>
@@ -125,7 +136,8 @@ export function ResultsEditor(props: {
                     <input
                       type="checkbox"
                       checked={r.advanced}
-                      disabled={locked}
+                      disabled={locked || r.score === null}
+                      title={r.score === null ? "Enter a score before advancing" : undefined}
                       onChange={(e) => update(i, { advanced: e.target.checked })}
                     />
                   </td>
@@ -173,9 +185,25 @@ export function ResultsEditor(props: {
               >
                 {pending ? "Saving…" : "Save draft"}
               </button>
-              <form action={publishRoundAction}>
+              <form
+                action={publishRoundAction}
+                className="stack"
+                style={{ flexDirection: "row", gap: 10, alignItems: "center", flexWrap: "wrap" }}
+              >
                 <input type="hidden" name="eventId" value={props.eventId} />
                 <input type="hidden" name="roundId" value={props.roundId} />
+                <span className="body-text" style={{ color: "var(--ink-3)" }}>
+                  Show publicly:
+                </span>
+                <label style={chkLabel}>
+                  <input type="checkbox" name="show_score" value="1" defaultChecked={props.visibility.show_score} /> Score
+                </label>
+                <label style={chkLabel}>
+                  <input type="checkbox" name="show_advanced" value="1" defaultChecked={props.visibility.show_advanced} /> Advanced
+                </label>
+                <label style={chkLabel}>
+                  <input type="checkbox" name="show_remarks" value="1" defaultChecked={props.visibility.show_remarks} /> Remarks
+                </label>
                 <button type="submit" className="btn btn-primary btn-sm">
                   Publish
                 </button>
