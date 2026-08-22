@@ -126,15 +126,16 @@ completes end-to-end**, not a checklist of components.
      - **Footer** (`src/components/SiteFooter.tsx`): also links `/achievements`,
        `/join`, `/team`, `/resources`, `/contact`, `/my-events`,
        `/announcements`, `/gallery`, `/about` — all currently dead.
-     - **Agreed fix for `/join` + `/team`:** ship minimal real stub pages (match
-       the `.section` / `.eyebrow` / `.lead` conventions, e.g. `src/app/clubs/
-       page.tsx`; `ButtonLink` is `@/components/ui/Button`) so header, footer,
-       and the homepage CTAs all resolve — `/join` = "how to join, browse the
-       clubs", `/team` = "the council, roster coming". Preferred over hiding the
-       links because `/join` is a load-bearing CTA.
-     - **Footer's other 7 dead links** are a separate decision: prune them (guts
-       two footer columns) vs. stub them as they're built out in Phase 2. Leave
-       as-is until those pages land, or hide per-link.
+     - ✅ **`/join` + `/team` — DONE.** Shipped minimal real stub pages
+       (`src/app/join/page.tsx`, `src/app/team/page.tsx`) so header, footer, and
+       the homepage CTAs all resolve — `/join` = "how to join, browse the
+       clubs", `/team` = "the council, roster coming". Both verified live in the
+       dev server (HTTP 200, headings + CTAs render). Stubs, not hides, because
+       `/join` is a load-bearing recruitment CTA.
+     - **Footer's other 7 dead links** (still open): `/achievements`,
+       `/resources`, `/contact`, `/my-events`, `/announcements`, `/gallery`,
+       `/about`. Separate decision — prune (guts two footer columns) vs. stub as
+       they're built out in Phase 2. Left as-is until those pages land.
 6. **Phase 3:** feedback, leaderboard, ⌘K palette, SEO/JSON-LD, PWA, live wall
    (§13.10), scheduling heatmap. **Phase 4:** launch.
 7. **Phase 0 leftovers:** real club taglines/descriptions (still placeholders,
