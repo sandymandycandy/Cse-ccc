@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "seed": "node --env-file-if-exists=.env.local scripts/seed.mjs",
     "types:gen": "supabase gen types typescript --project-id svkbleeibbrjryeovvjw --schema public > src/lib/database.types.ts"
   },
@@ -33,6 +35,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.11"
   }
 }

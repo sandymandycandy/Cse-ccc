@@ -1,9 +1,3 @@
-// Generated from the Supabase schema — DO NOT EDIT BY HAND.
-// Regenerate after migrations with:
-//   npm run types:gen
-// (or via the Supabase MCP `generate_typescript_types`). CI should fail on drift
-// between this file and the live schema (BUILD_PLAN §1, §16).
-
 export type Json =
   | string
   | number
@@ -765,6 +759,9 @@ export type Database = {
           event_id: string
           id: string
           name: string
+          show_advanced: boolean
+          show_remarks: boolean
+          show_score: boolean
           sort: number
           starts_at: string | null
           status: Database["public"]["Enums"]["round_status"]
@@ -774,6 +771,9 @@ export type Database = {
           event_id: string
           id?: string
           name: string
+          show_advanced?: boolean
+          show_remarks?: boolean
+          show_score?: boolean
           sort?: number
           starts_at?: string | null
           status?: Database["public"]["Enums"]["round_status"]
@@ -783,6 +783,9 @@ export type Database = {
           event_id?: string
           id?: string
           name?: string
+          show_advanced?: boolean
+          show_remarks?: boolean
+          show_score?: boolean
           sort?: number
           starts_at?: string | null
           status?: Database["public"]["Enums"]["round_status"]
@@ -1200,6 +1203,7 @@ export type Database = {
         Row: {
           advanced: boolean
           created_at: string
+          display_name: string | null
           event_id: string
           id: string
           published_at: string | null
@@ -1213,6 +1217,7 @@ export type Database = {
         Insert: {
           advanced?: boolean
           created_at?: string
+          display_name?: string | null
           event_id: string
           id?: string
           published_at?: string | null
@@ -1226,6 +1231,7 @@ export type Database = {
         Update: {
           advanced?: boolean
           created_at?: string
+          display_name?: string | null
           event_id?: string
           id?: string
           published_at?: string | null
@@ -1405,23 +1411,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      confirm_registration: { Args: { p_token_hash: string }; Returns: string }
-      register_for_event: {
-        Args: {
-          p_confirm_token_hash: string
-          p_department: string
-          p_email: string
-          p_event_id: string
-          p_phone: string
-          p_roll_no: string
-          p_student_name: string
-          p_year: number
-        }
-        Returns: {
-          status: string
-          registration_id: string
-        }[]
-      }
       check_event_clash: {
         Args: {
           p_editing_id?: string
@@ -1436,6 +1425,7 @@ export type Database = {
           title: string
         }[]
       }
+      confirm_registration: { Args: { p_token_hash: string }; Returns: string }
       day_load_heatmap: {
         Args: { p_from: string; p_to: string }
         Returns: {
@@ -1465,6 +1455,22 @@ export type Database = {
           p_session_id: string
         }
         Returns: string
+      }
+      register_for_event: {
+        Args: {
+          p_confirm_token_hash: string
+          p_department: string
+          p_email: string
+          p_event_id: string
+          p_phone: string
+          p_roll_no: string
+          p_student_name: string
+          p_year: number
+        }
+        Returns: {
+          registration_id: string
+          status: string
+        }[]
       }
     }
     Enums: {
