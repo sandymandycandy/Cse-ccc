@@ -51,9 +51,16 @@ completes end-to-end**, not a checklist of components.
 2. **Auth/security follow-ups** (all unblocked): CSRF double-submit token
    (Origin check already exists via `sameOrigin`); 30-min idle session expiry
    (only 8h absolute today); enforce **mandatory-TOTP** for `tech_head` /
-   `president` at login (the seeded bootstrap Tech Head has no TOTP); an ESLint
-   rule that fails the build if an `app/api/admin/*` handler lacks a `require*`
-   guard call.
+   `president` at login (the seeded bootstrap Tech Head has no TOTP).
+   - ✅ **ESLint guard rule — DONE.** `local/admin-route-requires-guard`
+     (`eslint-rules/admin-route-requires-guard.mjs`, wired in
+     `eslint.config.mjs`, scoped to `src/app/api/admin/**/route.{ts,tsx}`) fails
+     the build if any exported HTTP handler lacks an auth-guard call
+     (`requireSession` / `requireRole` / `requireCapability` — CSRF-only
+     `requireSameOrigin` and the redirecting page guards deliberately don't
+     count). Covered by `src/lib/eslint/admin-route-requires-guard.test.ts`
+     (RuleTester, 10 cases). Verified end-to-end: an unguarded admin route
+     makes `npm run lint` exit 1.
 3. **Next 16 deprecation:** rename `src/middleware.ts` → `src/proxy.ts`
    (build warns "middleware is deprecated, use proxy"). Non-blocking.
 4. **Remaining Phase 1 admin surfaces:**
