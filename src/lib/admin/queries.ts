@@ -190,6 +190,77 @@ export async function getClubOptions(): Promise<{ id: string; name: string }[]> 
   return (data ?? []).map((c) => ({ id: c.id, name: c.name }));
 }
 
+export interface AuditEntry {
+  id: string;
+  at: string;
+  actor: string | null;
+  action: string;
+  entity: string;
+  entityId: string | null;
+  summary: string;
+  ip: string | null;
+}
+
+/** A compact "k=v, k=v" of the after-snapshot (or before, on deletes), truncated. */
+function summarizeChange(before: unknown, after: unknown): string {
+  const src = (after && typeof after === "object" ? after : before) as Record<string, unknown> | null;
+  if (!src || typeof src !== "object") return "";
+  const parts = Object.entries(src).map(([k, v]) => {
+    const val = v == null ? "∅" : typeof v === "object" ? JSON.stringify(v) : String(v);
+    return `${k}=${val.length > 40 ? val.slice(0, 40) + "…" : val}`;
+  });
+  const joined = parts.join(", ");
+  return joined.length > 120 ? joined.slice(0, 120) + "…" : joined;
+}
+
+/**
+ * The audit trail (SECURITY_SPEC §14), newest first. Org-wide and read-only —
+ * `view:audit` has no club scope, so the page guard (`requireViewPage`) is the
+ * only gate. Actor names are resolved in a second query (no FK-embed assumed).
+ */
+export async function listAuditLog(limit = 100): Promise<AuditEntry[]> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("audit_log")
+    .select("id, at, actor_id, action, entity, entity_id, before, after, ip")
+    .order("at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+
+  const rows = (data ?? []) as {
+    id: string;
+    at: string;
+    actor_id: string | null;
+    action: string;
+    entity: string;
+    entity_id: string | null;
+    before: unknown;
+    after: unknown;
+    ip: string | null;
+  }[];
+
+  const actorIds = [...new Set(rows.map((r) => r.actor_id).filter((x): x is string => !!x))];
+  const names = new Map<string, string>();
+  if (actorIds.length > 0) {
+    const { data: admins } = await admin
+      .from("admin_users")
+      .select("id, full_name")
+      .in("id", actorIds);
+    for (const a of admins ?? []) names.set(a.id, a.full_name);
+  }
+
+  return rows.map((r) => ({
+    id: r.id,
+    at: r.at,
+    actor: r.actor_id ? names.get(r.actor_id) ?? "(removed)" : null,
+    action: r.action,
+    entity: r.entity,
+    entityId: r.entity_id,
+    summary: summarizeChange(r.before, r.after),
+    ip: r.ip,
+  }));
+}
+
 /** Bookable venues for the create-event select. */
 export async function getVenueOptions(): Promise<{ id: string; name: string }[]> {
   const admin = createAdminClient();
