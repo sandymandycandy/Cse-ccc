@@ -56,9 +56,17 @@ completes end-to-end**, not a checklist of components.
      on top of the 8h absolute JWT cap. Enforced in `src/proxy.ts` via a
      separate HMAC-signed httpOnly `idle` cookie (`src/lib/auth/idle.ts`) it
      check-then-slides each `/admin` request; on expiry it clears the session
-     cookie too (stateless JWT → dropping the cookie is the logout). Verified
-     end-to-end on the dev server (stale → 307 + both cookies cleared; fresh →
-     proceeds + clock refreshed). 8-case unit test.
+     cookie too (stateless JWT → dropping the cookie is the logout).
+     - **Hardened against a stripped-clock bypass** (found by the commit
+       security review): a missing/forged clock cookie no longer counts as a
+       fresh login — the proxy falls back to the session JWT's issued-at
+       (`getToken`), so an aged session with no clock is expired, while a
+       genuine fresh login still proceeds. Fails **open** if the JWT can't be
+       decoded (never bricks admin). Decision logic in `idleAction()`.
+     - Verified end-to-end on the dev server with minted JWEs: aged-session +
+       no clock → 307 + both cookies cleared; fresh → proceeds + clock
+       refreshed; stale clock → expires; undecodable → fail-open. 13-case unit
+       test.
    - ✅ **Login lockout — DONE.** `checkLoginLimits` tightened to **3 attempts
      then a 1-minute lockout** (per user), per-IP and per-account. Login still
      surfaces one generic failure, so lockout is indistinguishable from a wrong
