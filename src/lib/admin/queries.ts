@@ -126,6 +126,7 @@ export interface EventForEdit {
   venueId: string | null;
   capacity: number | null;
   clubId: string | null;
+  status: string;
 }
 
 /**
@@ -141,7 +142,7 @@ export async function getEventForEdit(
   const { data, error } = await admin
     .from("events")
     .select(
-      "id, title, description, starts_at, ends_at, venue_id, capacity, " +
+      "id, title, description, starts_at, ends_at, venue_id, capacity, status, " +
         "event_clubs ( club_id, is_primary )",
     )
     .eq("id", eventId)
@@ -157,6 +158,7 @@ export async function getEventForEdit(
     ends_at: string;
     venue_id: string | null;
     capacity: number | null;
+    status: string;
     event_clubs: { club_id: string; is_primary: boolean }[];
   };
   const primary = row.event_clubs.find((l) => l.is_primary) ?? row.event_clubs[0];
@@ -175,6 +177,7 @@ export async function getEventForEdit(
     venueId: row.venue_id,
     capacity: row.capacity,
     clubId,
+    status: row.status,
   };
 }
 

@@ -309,6 +309,143 @@ export async function updateEventAction(
   redirect("/admin/events");
 }
 
+export async function duplicateEventAction(formData: FormData): Promise<void> {
+  const session = await getAdminSession();
+  if (!session) redirect("/admin/login");
+
+  const eventId = String(formData.get("eventId") ?? "");
+  if (!z.string().uuid().safeParse(eventId).success) redirect("/admin/events");
+
+  const admin = createAdminClient();
+  const { data: srcRaw } = await admin
+    .from("events")
+    .select(
+      "title, description, starts_at, ends_at, venue_id, capacity, event_clubs ( club_id, is_primary )",
+    )
+    .eq("id", eventId)
+    .maybeSingle();
+  if (!srcRaw) redirect("/admin/events");
+  const src = srcRaw as unknown as {
+    title: string;
+    description: string | null;
+    starts_at: string;
+    ends_at: string;
+    venue_id: string | null;
+    capacity: number | null;
+    event_clubs: { club_id: string; is_primary: boolean }[];
+  };
+  const clubId =
+    (src.event_clubs.find((l) => l.is_primary) ?? src.event_clubs[0])?.club_id ?? null;
+  if (!clubId || !canManage(session, "manage:events", clubId)) redirect("/admin/events");
+
+  // Insert a DRAFT copy — schedule/venue are carried over but a draft holds no
+  // booking, so we skip the clash/blackout checks here; the admin sets a fresh
+  // date/venue on the edit page (where clash is re-checked on save). Registrations,
+  // rounds, results and attendance are intentionally NOT copied.
+  const { data: ev, error } = await admin
+    .from("events")
+    .insert({
+      title: `Copy of ${src.title}`.slice(0, 140),
+      description: src.description,
+      starts_at: src.starts_at,
+      ends_at: src.ends_at,
+      venue_id: src.venue_id,
+      capacity: src.capacity,
+      status: "draft",
+      approval_status: "pending",
+      created_by: session.id,
+    })
+    .select("id")
+    .single();
+  if (error || !ev) redirect("/admin/events");
+
+  const { error: linkErr } = await admin
+    .from("event_clubs")
+    .insert({ event_id: ev.id, club_id: clubId, is_primary: true });
+  if (linkErr) {
+    await admin.from("events").delete().eq("id", ev.id); // avoid an orphan event
+    redirect("/admin/events");
+  }
+
+  await writeAudit({
+    actorId: session.id,
+    action: "duplicate",
+    entity: "event",
+    entityId: ev.id,
+    after: { source: eventId, title: `Copy of ${src.title}`.slice(0, 140) },
+  });
+
+  redirect(`/admin/events/${ev.id}/edit`);
+}
+
+export async function cancelEventAction(
+  _prev: EventFormState,
+  formData: FormData,
+): Promise<EventFormState> {
+  const session = await getAdminSession();
+  if (!session) return { error: "Your session expired. Sign in again." };
+
+  const eventId = String(formData.get("eventId") ?? "");
+  if (!z.string().uuid().safeParse(eventId).success) return { error: "Missing event reference." };
+  const reason = String(formData.get("reason") ?? "").trim().slice(0, 500);
+
+  const admin = createAdminClient();
+  const { data: evRaw } = await admin
+    .from("events")
+    .select("title, status, event_clubs ( club_id, is_primary )")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (!evRaw) return { error: "That event no longer exists." };
+  const ev = evRaw as unknown as {
+    title: string;
+    status: string;
+    event_clubs: { club_id: string; is_primary: boolean }[];
+  };
+  const clubId =
+    (ev.event_clubs.find((l) => l.is_primary) ?? ev.event_clubs[0])?.club_id ?? null;
+
+  // Cancel is its own capability (§9): club heads may cancel their own club's
+  // events, but vice heads (manage but not cancel) may not.
+  if (!canManage(session, "cancel:events", clubId)) {
+    return { error: "You can't cancel that event." };
+  }
+  if (ev.status === "cancelled") redirect("/admin/events"); // already cancelled
+
+  const { error: updErr } = await admin
+    .from("events")
+    .update({ status: "cancelled" })
+    .eq("id", eventId);
+  if (updErr) return { error: "Could not cancel the event. Try again." };
+
+  // Cancellation is material — tell confirmed registrants (§4a pattern).
+  const { data: regs } = await admin
+    .from("registrations")
+    .select("email, student_name")
+    .eq("event_id", eventId)
+    .not("confirmed_at", "is", null);
+  for (const r of regs ?? []) {
+    await enqueueEmail({
+      template: "event_cancelled",
+      toEmail: r.email,
+      toName: r.student_name,
+      subject: `Cancelled: ${ev.title}`,
+      payload: { eventId, title: ev.title, reason: reason || null },
+      priority: 2,
+    });
+  }
+
+  await writeAudit({
+    actorId: session.id,
+    action: "cancel",
+    entity: "event",
+    entityId: eventId,
+    before: { status: ev.status },
+    after: { status: "cancelled", reason: reason || null },
+  });
+
+  redirect("/admin/events");
+}
+
 async function decide(
   formData: FormData,
   approved: boolean,

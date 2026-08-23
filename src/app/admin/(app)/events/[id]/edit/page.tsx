@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import { requireViewPage } from "@/lib/auth/guards";
-import { grantFor } from "@/lib/auth/capabilities";
+import { grantFor, canManage } from "@/lib/auth/capabilities";
 import { getClubOptions, getVenueOptions, getEventForEdit } from "@/lib/admin/queries";
 import { EventForm } from "@/components/admin/EventForm";
+import { CancelEventForm } from "@/components/admin/CancelEventForm";
 import { istLocalInput } from "@/lib/datetime";
-import { updateEventAction } from "../../actions";
+import { updateEventAction, duplicateEventAction } from "../../actions";
 
 export default async function EditEventPage({
   params,
@@ -29,6 +30,9 @@ export default async function EditEventPage({
     clubScoped && session.clubId
       ? clubs.find((c) => c.id === session.clubId) ?? null
       : null;
+
+  const isCancelled = event.status === "cancelled";
+  const canCancel = canManage(session, "cancel:events", event.clubId);
 
   return (
     <div className="admin-page" style={{ maxWidth: 640 }}>
@@ -55,6 +59,46 @@ export default async function EditEventPage({
           capacity: event.capacity != null ? String(event.capacity) : "",
         }}
       />
+
+      <section className="rule" style={{ marginTop: 32, paddingTop: 24 }}>
+        <h2 style={{ font: "400 20px var(--serif)", margin: 0 }}>More actions</h2>
+
+        {isCancelled ? (
+          <div className="note" style={{ marginTop: 14 }}>
+            This event is <strong>cancelled</strong>. Duplicate it to run it again.
+          </div>
+        ) : null}
+
+        <div style={{ marginTop: 16 }}>
+          <div className="label" style={{ marginBottom: 6 }}>
+            Duplicate
+          </div>
+          <p className="body-text" style={{ fontSize: 13, marginBottom: 10, color: "var(--ink-2)" }}>
+            Creates a draft copy (&ldquo;Copy of…&rdquo;) with this event&rsquo;s details —
+            registrations and results are not copied. Opens it here so you can set a new
+            date and venue.
+          </p>
+          <form action={duplicateEventAction}>
+            <input type="hidden" name="eventId" value={event.id} />
+            <button type="submit" className="btn">
+              Duplicate as draft
+            </button>
+          </form>
+        </div>
+
+        {canCancel && !isCancelled ? (
+          <div style={{ marginTop: 24 }}>
+            <div className="label" style={{ marginBottom: 6, color: "var(--rust)" }}>
+              Cancel event
+            </div>
+            <p className="body-text" style={{ fontSize: 13, marginBottom: 10, color: "var(--ink-2)" }}>
+              Marks the event cancelled and emails confirmed registrants. This can&rsquo;t
+              be undone here.
+            </p>
+            <CancelEventForm eventId={event.id} />
+          </div>
+        ) : null}
+      </section>
     </div>
   );
 }
