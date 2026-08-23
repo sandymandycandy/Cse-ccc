@@ -49,9 +49,19 @@ completes end-to-end**, not a checklist of components.
    (`certificates`) + HMAC serials already exist. Build issuance + verify now,
    PDF rendering when assets arrive.
 2. **Auth/security follow-ups.** Still open: **CSRF double-submit token** (Origin
-   check already exists via `sameOrigin`); enforce **mandatory-TOTP** for
-   `tech_head` / `president` at login (the seeded bootstrap Tech Head has no
-   TOTP — implement as *forced enrollment*, never a lockout).
+   check already exists via `sameOrigin`; note server actions already carry
+   framework CSRF protection, so scope this to any non-action mutating routes).
+   - ✅ **Mandatory-TOTP — DONE** (forced enrollment, never a lockout). A
+     TOTP-required role (`roleRequiresTotp`: `tech_head`, `president`) with no
+     confirmed factor logs in but is flagged `mustSetupTotp` in the JWT and
+     confined by the proxy to `/admin/setup-totp` (covers pages + server-action
+     POSTs in one place; fails open on decode error). Enrollment reuses the
+     accept-invite primitives, then bumps `session_epoch` to force a 2FA
+     re-login. Verified on the dev server with minted sessions (true → gated,
+     setup page exempt/no-loop, false → free) and rendered the setup page for
+     the **real** bootstrap Tech Head session (HTTP 200 + QR). ⚠️ The
+     enrollment POST round-trip + subsequent 2FA login need a live authenticator
+     to confirm (mirrors accept-invite).
    - ✅ **Idle-session timeout — DONE.** 2 minutes of inactivity (per user),
      on top of the 8h absolute JWT cap. Enforced in `src/proxy.ts` via a
      separate HMAC-signed httpOnly `idle` cookie (`src/lib/auth/idle.ts`) it
