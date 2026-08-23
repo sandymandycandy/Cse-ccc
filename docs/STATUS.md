@@ -33,9 +33,10 @@ The 2026-08-23 work below is **committed locally, ~10 commits ahead of
 is on `origin`). Commits are stacked, so `git push origin main` ships them all
 at once → prod. Full suite (47 tests) + typecheck + lint + build all green.
 - **§3** middleware→proxy rename · **§5** `/join` + `/team` stubs · **§4a**
-  event edit · **§2** login lockout (3 tries → 1 min), 2-min idle timeout
-  (+ stripped-clock bypass fix from the commit security review), mandatory-TOTP
-  (forced enrollment for `tech_head`/`president`).
+  event edit · **§4b** `/admin/audit` log viewer · **§2** login lockout
+  (3 tries → 1 min), 2-min idle timeout (+ stripped-clock bypass fix from the
+  commit security review), mandatory-TOTP (forced enrollment for
+  `tech_head`/`president`).
 - **Before trusting in prod, two things need a human (can't be driven headless):**
   1. **Event-edit** — browser pass: log in → Events → Edit → change time → Save.
   2. **TOTP enrollment POST** — log in as the bootstrap Tech Head (routed to
@@ -184,9 +185,14 @@ at once → prod. Full suite (47 tests) + typecheck + lint + build all green.
      - **Test:** vitest round-trip `istLocalToUTC ↔ istLocalInput` + a
        `istNumericDate` case (server-action POSTs can't be curled — verify the
        mutation itself in a real browser against the live DB).
+   - **4b. Audit log viewer** — ✅ **BUILT.** `/admin/audit` (`view:audit` grant:
+     faculty advisor / president / tech head), read-only, newest 100 entries,
+     actor names + compact before/after summaries. `listAuditLog` in
+     `queries.ts`; nav link gated by `canView`. Verified end-to-end on the dev
+     server: authorized role → 200 with live rows, unauthorized real role → 307
+     → `/admin`.
    - event **duplicate** and **cancel / reschedule** (still unbuilt);
-     `/admin/scan` kiosk; `/admin/audit` log viewer; real `/admin/certificates`;
-     public `/verify`.
+     `/admin/scan` kiosk; real `/admin/certificates`; public `/verify`.
 5. **Phase 2** (mostly schema-only today): schedules, gallery, `/achievements`
    page, announcements + richtext, `/resources`, recruitment, `/join`,
    `/contact`, `/my-events`, reminder cron, `.ics` feeds, waitlist
