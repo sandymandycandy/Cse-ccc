@@ -43,8 +43,9 @@ at once → prod. Full suite (47 tests) + typecheck + lint + build all green.
      `/admin/setup-totp`), scan + enter a code to confirm the write + 2FA
      re-login. (The gate + page render are verified; only the code round-trip
      isn't.)
-- **Also queue for the out-of-repo email processor:** an `event_updated`
-  template (event-edit enqueues it to registrants on a time/venue change).
+- **Also queue for the out-of-repo email processor:** two new templates it must
+  render — **`event_updated`** (event-edit, on a time/venue change) and
+  **`event_cancelled`** (event cancel). Until added, those queued mails won't send.
 
 ### Live feature detail
 - Public: `/`, `/clubs` + `/clubs/[slug]`, `/events` (+`/upcoming`,`/past`) +
@@ -191,8 +192,18 @@ at once → prod. Full suite (47 tests) + typecheck + lint + build all green.
      `queries.ts`; nav link gated by `canView`. Verified end-to-end on the dev
      server: authorized role → 200 with live rows, unauthorized real role → 307
      → `/admin`.
-   - event **duplicate** and **cancel / reschedule** (still unbuilt);
-     `/admin/scan` kiosk; real `/admin/certificates`; public `/verify`.
+   - **4c. Event duplicate + cancel** — ✅ **BUILT** (on the edit page).
+     `duplicateEventAction` (draft "Copy of …", nothing else copied → redirect to
+     its edit page; skips clash on the draft insert), `cancelEventAction`
+     (status→cancelled, `cancel:events`-gated, emails confirmed registrants
+     `event_cancelled` + optional reason, audited) + `CancelEventForm` (confirm
+     gate). **Reschedule = edit the time** (already notifies registrants), so no
+     separate action. Verified: build + edit page renders both for President
+     (200) and stays fail-closed for an out-of-club head (404); enum writes
+     schema-checked. ⚠️ Mutation POSTs need a browser pass; the external email
+     processor needs an **`event_cancelled`** template too.
+   - **Still unbuilt:** `/admin/scan` kiosk; real `/admin/certificates`; public
+     `/verify`.
 5. **Phase 2** (mostly schema-only today): schedules, gallery, `/achievements`
    page, announcements + richtext, `/resources`, recruitment, `/join`,
    `/contact`, `/my-events`, reminder cron, `.ics` feeds, waitlist
