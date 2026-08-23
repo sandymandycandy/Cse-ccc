@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { makeIdleToken, readIdleToken, isIdleExpired } from "@/lib/auth/idle";
+import { getToken } from "next-auth/jwt";
+import { makeIdleToken, readIdleToken, idleAction } from "@/lib/auth/idle";
 
 const useSecureCookies = process.env.NODE_ENV === "production";
 
@@ -28,7 +29,7 @@ function clearCookie(res: NextResponse, name: string): void {
   });
 }
 
-export function proxy(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Expose the path to the root layout so it can drop the public site chrome on
@@ -48,18 +49,38 @@ export function proxy(req: NextRequest) {
   // The clock lives in a signed, httpOnly cookie the proxy check-then-slides on
   // every admin request. On expiry we clear the session cookie too — the JWT is
   // stateless, so dropping the cookie is the logout; a redirect alone would let
-  // the still-valid token walk straight back in. A missing/forged clock reads as
-  // null (a fresh login), which starts the clock rather than bouncing the user.
+  // the still-valid token walk straight back in.
   const secret = process.env.NEXTAUTH_SECRET;
   if (secret) {
     const now = Date.now();
     const lastSeen = readIdleToken(req.cookies.get(IDLE_COOKIE)?.value, secret);
-    if (isIdleExpired(lastSeen, now)) {
+
+    // A missing/forged clock cookie can't be trusted (anyone with the session
+    // cookie could strip it to defeat the timeout). Fall back to the session
+    // JWT's own issued-at: a fresh login is allowed to start a clock, but an aged
+    // session with no clock is treated as expired. Only decode when needed.
+    let sessionIatMs: number | null = null;
+    if (lastSeen === null) {
+      try {
+        const token = await getToken({
+          req,
+          secret,
+          salt: SESSION_COOKIE,
+          cookieName: SESSION_COOKIE,
+        });
+        if (token?.iat) sessionIatMs = token.iat * 1000;
+      } catch {
+        sessionIatMs = null; // fail-open: decode issues must never brick admin
+      }
+    }
+
+    if (idleAction(lastSeen, sessionIatMs, now) === "expire") {
       const res = toLogin(req, pathname);
       clearCookie(res, IDLE_COOKIE);
       clearCookie(res, SESSION_COOKIE);
       return res;
     }
+
     proceed.cookies.set({
       name: IDLE_COOKIE,
       value: makeIdleToken(now, secret),

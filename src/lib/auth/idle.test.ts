@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { makeIdleToken, readIdleToken, isIdleExpired, IDLE_MS } from "./idle";
+import { makeIdleToken, readIdleToken, isIdleExpired, idleAction, IDLE_MS } from "./idle";
 
 const SECRET = "test-secret-abc";
 
@@ -41,5 +41,28 @@ describe("isIdleExpired", () => {
   });
   it("uses a 2-minute window", () => {
     expect(IDLE_MS).toBe(2 * 60 * 1000);
+  });
+});
+
+describe("idleAction — clock present takes precedence", () => {
+  const now = 10_000_000;
+  it("proceeds within the window", () => {
+    expect(idleAction(now - (IDLE_MS - 1), null, now)).toBe("proceed");
+  });
+  it("expires past the window (session age irrelevant when a clock exists)", () => {
+    expect(idleAction(now - (IDLE_MS + 1), now, now)).toBe("expire");
+  });
+});
+
+describe("idleAction — no clock, falls back to session issued-at (the bypass fix)", () => {
+  const now = 10_000_000;
+  it("proceeds for a freshly-issued session (genuine login, no clock yet)", () => {
+    expect(idleAction(null, now - (IDLE_MS - 1), now)).toBe("proceed");
+  });
+  it("EXPIRES an aged session whose clock is missing (stripped-cookie bypass)", () => {
+    expect(idleAction(null, now - (IDLE_MS + 1), now)).toBe("expire");
+  });
+  it("fails open when the session age is unknown (decode failed) — no brick", () => {
+    expect(idleAction(null, null, now)).toBe("proceed");
   });
 });

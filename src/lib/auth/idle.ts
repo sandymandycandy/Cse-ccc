@@ -48,3 +48,35 @@ export function readIdleToken(raw: string | undefined | null, secret: string): n
 export function isIdleExpired(lastSeen: number | null, now: number, idleMs = IDLE_MS): boolean {
   return lastSeen !== null && now - lastSeen > idleMs;
 }
+
+export type IdleAction = "proceed" | "expire";
+
+/**
+ * The full idle decision, hardened against a stripped clock cookie.
+ *
+ * The activity cookie alone can be deleted by anyone holding the session cookie
+ * (it's httpOnly against JS, but not against devtools/network tools), which would
+ * otherwise defeat the timeout entirely. So when the clock is missing or forged
+ * (`lastSeen === null`) we fall back to the session's own issued-at time:
+ *
+ * - clock present    → expire iff it is older than the window (normal slide path)
+ * - clock absent, but the session was **issued within the window** → proceed
+ *   (a genuine fresh login that hasn't been stamped with a clock yet)
+ * - clock absent, and the session was **issued longer ago** → expire
+ *   (an aged session with no clock ⇒ the clock was stripped)
+ * - clock absent, and the session age is **unknown** (`sessionIatMs === null`,
+ *   e.g. the JWT couldn't be decoded) → proceed (fail-open: never worse than the
+ *   pre-hardening behavior, so a decode misconfig can't brick the admin panel)
+ */
+export function idleAction(
+  lastSeen: number | null,
+  sessionIatMs: number | null,
+  now: number,
+  idleMs = IDLE_MS,
+): IdleAction {
+  if (lastSeen !== null) {
+    return now - lastSeen > idleMs ? "expire" : "proceed";
+  }
+  if (sessionIatMs === null) return "proceed";
+  return now - sessionIatMs > idleMs ? "expire" : "proceed";
+}
