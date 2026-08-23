@@ -20,3 +20,9 @@ export interface AcceptInviteState {
   /** Shown once on success — the admin's single-use TOTP recovery codes. */
   recoveryCodes?: string[];
 }
+
+export interface SetupTotpState {
+  error?: string;
+  /** Shown once on success — new single-use recovery codes for the second factor. */
+  recoveryCodes?: string[];
+}

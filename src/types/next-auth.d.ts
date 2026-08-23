@@ -7,6 +7,8 @@ declare module "next-auth" {
     role: AdminRole;
     clubId: string | null;
     sessionEpoch: number;
+    /** Set when a TOTP-required role has no confirmed second factor yet. */
+    mustSetupTotp?: boolean;
   }
 
   interface Session {
@@ -15,6 +17,7 @@ declare module "next-auth" {
       role: AdminRole;
       clubId: string | null;
       sessionEpoch: number;
+      mustSetupTotp?: boolean;
     } & DefaultSession["user"];
   }
 }
@@ -28,5 +31,6 @@ declare module "@auth/core/jwt" {
     role: AdminRole;
     clubId: string | null;
     sessionEpoch: number;
+    mustSetupTotp?: boolean;
   }
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { grantFor, canManage } from "./capabilities";
+import { grantFor, canManage, roleRequiresTotp } from "./capabilities";
 
 describe("manage:results grants", () => {
   it("grants all to org-wide organiser roles", () => {
@@ -22,5 +22,18 @@ describe("manage:results grants", () => {
     const head = { role: "club_head", clubId: "c1" } as const;
     expect(canManage(head, "manage:results", "c1")).toBe(true);
     expect(canManage(head, "manage:results", "c2")).toBe(false);
+  });
+});
+
+describe("roleRequiresTotp — mandatory 2FA for the widest-reach roles", () => {
+  it("requires TOTP for tech_head and president", () => {
+    expect(roleRequiresTotp("tech_head")).toBe(true);
+    expect(roleRequiresTotp("president")).toBe(true);
+  });
+
+  it("does not force it on other roles", () => {
+    for (const role of ["vice_president", "events_head", "club_head", "faculty_advisor"] as const) {
+      expect(roleRequiresTotp(role)).toBe(false);
+    }
   });
 });

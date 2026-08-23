@@ -175,3 +175,14 @@ export function viewableCapabilities(role: AdminRole): Capability[] {
     (cap) => grantFor(role, cap) !== "none",
   );
 }
+
+/**
+ * Roles that MUST have a second factor enrolled (SECURITY_SPEC §3). These hold
+ * the widest blast radius, so password-only is not acceptable: at login they are
+ * routed to forced TOTP enrollment before they can reach any admin surface.
+ */
+export const TOTP_REQUIRED_ROLES: readonly AdminRole[] = ["tech_head", "president"];
+
+export function roleRequiresTotp(role: AdminRole): boolean {
+  return TOTP_REQUIRED_ROLES.includes(role);
+}

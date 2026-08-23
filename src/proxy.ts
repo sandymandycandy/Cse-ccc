@@ -45,40 +45,43 @@ export async function proxy(req: NextRequest) {
   if (pathname === "/admin/login" || pathname === "/admin/accept-invite") return proceed;
   if (!req.cookies.has(SESSION_COOKIE)) return toLogin(req, pathname);
 
-  // Idle timeout (SECURITY_SPEC §3): end the session after IDLE_MS of inactivity.
-  // The clock lives in a signed, httpOnly cookie the proxy check-then-slides on
-  // every admin request. On expiry we clear the session cookie too — the JWT is
-  // stateless, so dropping the cookie is the logout; a redirect alone would let
-  // the still-valid token walk straight back in.
   const secret = process.env.NEXTAUTH_SECRET;
   if (secret) {
-    const now = Date.now();
-    const lastSeen = readIdleToken(req.cookies.get(IDLE_COOKIE)?.value, secret);
-
-    // A missing/forged clock cookie can't be trusted (anyone with the session
-    // cookie could strip it to defeat the timeout). Fall back to the session
-    // JWT's own issued-at: a fresh login is allowed to start a clock, but an aged
-    // session with no clock is treated as expired. Only decode when needed.
-    let sessionIatMs: number | null = null;
-    if (lastSeen === null) {
-      try {
-        const token = await getToken({
-          req,
-          secret,
-          salt: SESSION_COOKIE,
-          cookieName: SESSION_COOKIE,
-        });
-        if (token?.iat) sessionIatMs = token.iat * 1000;
-      } catch {
-        sessionIatMs = null; // fail-open: decode issues must never brick admin
-      }
+    // Decode the session once; every check below fails open on a decode error so
+    // a JWT misconfig can never brick the admin panel.
+    let token: Awaited<ReturnType<typeof getToken>> = null;
+    try {
+      token = await getToken({ req, secret, salt: SESSION_COOKIE, cookieName: SESSION_COOKIE });
+    } catch {
+      token = null;
     }
 
+    // Idle timeout (SECURITY_SPEC §3): end the session after IDLE_MS of inactivity.
+    // The clock lives in a signed, httpOnly cookie the proxy check-then-slides on
+    // every admin request. On expiry we clear the session cookie too — the JWT is
+    // stateless, so dropping the cookie is the logout; a redirect alone would let
+    // the still-valid token walk straight back in. A missing/forged clock can't be
+    // trusted (anyone with the session cookie could strip it to defeat the
+    // timeout), so we fall back to the session's own issued-at: a fresh login may
+    // start a clock, but an aged session with no clock is treated as expired.
+    const now = Date.now();
+    const lastSeen = readIdleToken(req.cookies.get(IDLE_COOKIE)?.value, secret);
+    const sessionIatMs = lastSeen === null && token?.iat ? token.iat * 1000 : null;
     if (idleAction(lastSeen, sessionIatMs, now) === "expire") {
       const res = toLogin(req, pathname);
       clearCookie(res, IDLE_COOKIE);
       clearCookie(res, SESSION_COOKIE);
       return res;
+    }
+
+    // Mandatory-TOTP (SECURITY_SPEC §3): a TOTP-required role that hasn't enrolled
+    // is confined to the enrollment page until it has a second factor. Gating here
+    // covers admin pages *and* server-action POSTs (both hit /admin/*) in one place.
+    if (token?.mustSetupTotp && pathname !== "/admin/setup-totp") {
+      const url = req.nextUrl.clone();
+      url.pathname = "/admin/setup-totp";
+      url.search = "";
+      return NextResponse.redirect(url);
     }
 
     proceed.cookies.set({

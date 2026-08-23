@@ -6,6 +6,7 @@ import { LoginSchema } from "@/lib/validation/admin";
 import { verifyPassword } from "@/lib/auth/password";
 import { decryptSecret, matchRecoveryCode, verifyTotp } from "@/lib/auth/totp";
 import { checkLoginLimits } from "@/lib/rate-limit";
+import { roleRequiresTotp } from "@/lib/auth/capabilities";
 
 /**
  * Auth.js v5 — admin authentication (SECURITY_SPEC §3).
@@ -108,6 +109,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           .update({ last_login_at: new Date().toISOString() })
           .eq("id", user.id);
 
+        // Mandatory-TOTP (§3): a TOTP-required role with no confirmed second
+        // factor authenticates (so it can reach enrollment) but is flagged, so
+        // the proxy forces it to /admin/setup-totp before any admin surface.
+        const mustSetupTotp = roleRequiresTotp(user.role) && !totpRow?.confirmed_at;
+
         return {
           id: user.id,
           email: user.email,
@@ -115,6 +121,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role,
           clubId: user.club_id,
           sessionEpoch: user.session_epoch,
+          mustSetupTotp,
         };
       },
     }),
@@ -126,6 +133,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = user.role;
         token.clubId = user.clubId;
         token.sessionEpoch = user.sessionEpoch;
+        token.mustSetupTotp = user.mustSetupTotp ?? false;
       }
       return token;
     },
@@ -134,6 +142,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.role = token.role;
       session.user.clubId = token.clubId;
       session.user.sessionEpoch = token.sessionEpoch;
+      session.user.mustSetupTotp = token.mustSetupTotp ?? false;
       return session;
     },
   },
