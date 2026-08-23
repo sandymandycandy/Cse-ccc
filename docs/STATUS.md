@@ -4,7 +4,7 @@
 > `docs/BUILD_PLAN.md` (v2.1, the product/engineering spec) and
 > `docs/SECURITY_SPEC.md`. Per-feature designs live in
 > `docs/superpowers/specs/` and their plans in `docs/superpowers/plans/`.
-> Last updated: 2026-08-22.
+> Last updated: 2026-08-23.
 
 ## What this is
 
@@ -27,6 +27,24 @@ completes end-to-end**, not a checklist of components.
   (§13.9)** are all live.
 - **Certificates (§12.6)** — the last leg of the journey — is **parked** (see TODO #1).
 
+### ⚠️ Committed to local `main` but NOT pushed / deployed (as of 2026-08-23)
+The 2026-08-23 work below is **committed locally, ~10 commits ahead of
+`origin/main`, and not yet deployed** (only the ESLint guard rule, `5dec862`,
+is on `origin`). Commits are stacked, so `git push origin main` ships them all
+at once → prod. Full suite (47 tests) + typecheck + lint + build all green.
+- **§3** middleware→proxy rename · **§5** `/join` + `/team` stubs · **§4a**
+  event edit · **§2** login lockout (3 tries → 1 min), 2-min idle timeout
+  (+ stripped-clock bypass fix from the commit security review), mandatory-TOTP
+  (forced enrollment for `tech_head`/`president`).
+- **Before trusting in prod, two things need a human (can't be driven headless):**
+  1. **Event-edit** — browser pass: log in → Events → Edit → change time → Save.
+  2. **TOTP enrollment POST** — log in as the bootstrap Tech Head (routed to
+     `/admin/setup-totp`), scan + enter a code to confirm the write + 2FA
+     re-login. (The gate + page render are verified; only the code round-trip
+     isn't.)
+- **Also queue for the out-of-repo email processor:** an `event_updated`
+  template (event-edit enqueues it to registrants on a time/venue change).
+
 ### Live feature detail
 - Public: `/`, `/clubs` + `/clubs/[slug]`, `/events` (+`/upcoming`,`/past`) +
   `/events/[id]`, `/calendar` (month/week/day/agenda), `/events/[id]/results`.
@@ -38,6 +56,10 @@ completes end-to-end**, not a checklist of components.
 - Results & rounds (§13.9): ordered rounds, per-student score/rank/advanced,
   draft→publish with per-column public visibility, score-gated advancement,
   "Proceed to next round" button. Standings public only once published (RLS).
+- **Pending push (built 2026-08-23, see the ⚠️ block above):** admin **event
+  edit** (`/admin/events/[id]/edit`), **forced TOTP enrollment**
+  (`/admin/setup-totp`), and the login-lockout / idle-timeout / mandatory-TOTP
+  auth controls. Not live until `main` is pushed.
 
 ## TODO — remaining work (ordered)
 
@@ -48,9 +70,13 @@ completes end-to-end**, not a checklist of components.
    placeholder screen holds the slot at `/admin/certificates`. Tables
    (`certificates`) + HMAC serials already exist. Build issuance + verify now,
    PDF rendering when assets arrive.
-2. **Auth/security follow-ups.** Still open: **CSRF double-submit token** (Origin
-   check already exists via `sameOrigin`; note server actions already carry
-   framework CSRF protection, so scope this to any non-action mutating routes).
+2. **Auth/security follow-ups.** Only item left: **CSRF double-submit token** —
+   ⏸️ **assessed, recommend deferring.** Next.js server actions already carry
+   framework CSRF protection, `requireSameOrigin` is the Origin backstop, the one
+   admin API route is a GET, and the public POST routes are session-less
+   (rate-limit + honeypot + Turnstile-ready). No clear mutating surface a
+   double-submit token would protect that isn't already covered — build only if
+   a new non-action mutating admin route appears.
    - ✅ **Mandatory-TOTP — DONE** (forced enrollment, never a lockout). A
      TOTP-required role (`roleRequiresTotp`: `tech_head`, `president`) with no
      confirmed factor logs in but is flagged `mustSetupTotp` in the JWT and
@@ -213,7 +239,7 @@ completes end-to-end**, not a checklist of components.
 
 ```bash
 npm run dev        # localhost:3000 (uses .env.local, which points at the LIVE DB)
-npm test           # vitest unit tests (results logic, capabilities)
+npm test           # vitest (results, capabilities, datetime, rate-limit, idle, eslint rule) — 47 tests
 npm run typecheck  # tsc --noEmit
 npm run lint       # eslint
 npm run build      # production build
