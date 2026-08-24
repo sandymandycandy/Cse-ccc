@@ -32,11 +32,15 @@ The 2026-08-23 work below is **committed locally, ~10 commits ahead of
 `origin/main`, and not yet deployed** (only the ESLint guard rule, `5dec862`,
 is on `origin`). Commits are stacked, so `git push origin main` ships them all
 at once → prod. Full suite (47 tests) + typecheck + lint + build all green.
-- **§3** middleware→proxy rename · **§5** `/join` + `/team` stubs · **§4a**
-  event edit · **§4b** `/admin/audit` log viewer · **§2** login lockout
-  (3 tries → 1 min), 2-min idle timeout (+ stripped-clock bypass fix from the
-  commit security review), mandatory-TOTP (forced enrollment for
+- **§3** middleware→proxy rename · **§5** all 9 dead nav links stubbed
+  (`/join`, `/team` + the 7 footer routes) · **§4a** event edit · **§4b**
+  `/admin/audit` log viewer · **§4c** event duplicate + cancel · **§2** login
+  lockout (3 tries → 1 min), 2-min idle timeout (+ stripped-clock bypass fix from
+  the commit security review), mandatory-TOTP (forced enrollment for
   `tech_head`/`president`).
+- **Pushed to prod so far:** the first 13 commits (through the audit viewer).
+  Event duplicate/cancel (§4c) and the 7 footer stubs (§5) are **committed but
+  not yet pushed.**
 - **Before trusting in prod, two things need a human (can't be driven headless):**
   1. **Event-edit** — browser pass: log in → Events → Edit → change time → Save.
   2. **TOTP enrollment POST** — log in as the bootstrap Tech Head (routed to
@@ -224,10 +228,11 @@ at once → prod. Full suite (47 tests) + typecheck + lint + build all green.
        clubs", `/team` = "the council, roster coming". Both verified live in the
        dev server (HTTP 200, headings + CTAs render). Stubs, not hides, because
        `/join` is a load-bearing recruitment CTA.
-     - **Footer's other 7 dead links** (still open): `/achievements`,
-       `/resources`, `/contact`, `/my-events`, `/announcements`, `/gallery`,
-       `/about`. Separate decision — prune (guts two footer columns) vs. stub as
-       they're built out in Phase 2. Left as-is until those pages land.
+     - ✅ **Footer's other 7 links — DONE (stubbed).** `/about`, `/achievements`,
+       `/gallery`, `/announcements`, `/resources`, `/contact`, `/my-events` now
+       have minimal real pages (same pattern). **Every header + footer link on
+       the site resolves — zero dead nav.** All 7 verified HTTP 200 on the dev
+       server. These are placeholders; the real Phase-2 features replace them.
 6. **Phase 3:** feedback, leaderboard, ⌘K palette, SEO/JSON-LD, PWA, live wall
    (§13.10), scheduling heatmap. **Phase 4:** launch.
 7. **Phase 0 leftovers:** real club taglines/descriptions (still placeholders,
