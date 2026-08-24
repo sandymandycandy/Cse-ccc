@@ -42,3 +42,11 @@ export interface GalleryFormState {
 export interface AchievementFormState {
   error?: string;
 }
+
+export interface MemberFormState {
+  error?: string;
+}
+
+export interface SessionFormState {
+  error?: string;
+}
