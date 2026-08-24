@@ -531,6 +531,34 @@ export async function getAnnouncementBySlug(slug: string): Promise<AnnouncementD
   };
 }
 
+// ── Gallery (Phase 2) ────────────────────────────────────────────────────────
+
+export interface GalleryPhoto {
+  id: string;
+  imageUrl: string;
+  caption: string | null;
+  clubName: string | null;
+}
+
+/** All gallery photos for the public page (no draft state; RLS allows anon
+ *  read). Ordered by `sort` then newest first — the admin controls `sort`. */
+export async function getPublicGallery(): Promise<GalleryPhoto[]> {
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from("gallery")
+    .select("id, image_path, caption, sort, created_at, clubs(name)")
+    .order("sort", { ascending: true })
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error) throw error;
+  return (data ?? []).map((g) => ({
+    id: g.id,
+    imageUrl: supabase.storage.from("gallery").getPublicUrl(g.image_path).data.publicUrl,
+    caption: g.caption,
+    clubName: g.clubs?.name ?? null,
+  }));
+}
+
 // ── Resources (Phase 2) ──────────────────────────────────────────────────────
 
 export interface PublicResource {

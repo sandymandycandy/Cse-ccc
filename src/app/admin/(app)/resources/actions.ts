@@ -3,9 +3,10 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getAdminSession, type AdminSession } from "@/lib/auth/guards";
-import { canManage, grantFor } from "@/lib/auth/capabilities";
+import { getAdminSession } from "@/lib/auth/guards";
+import { canManage } from "@/lib/auth/capabilities";
 import { writeAudit } from "@/lib/admin/audit";
+import { resolveOwningClub } from "@/lib/admin/club-scope";
 import { getResourceForEdit } from "@/lib/admin/resources";
 import { isSafeHttpUrl } from "@/lib/url";
 import type { Database } from "@/lib/database.types";
@@ -20,26 +21,6 @@ const Schema = z.object({
   // "" = council-wide (no club); a uuid = that club.
   clubId: z.union([z.literal(""), z.string().uuid()]),
 });
-
-/**
- * Which club a resource may be filed under, given the actor's grant:
- * - `all`  → the submitted club, or null (council-wide).
- * - `own`  → forced to the actor's own club (a club-scoped admin can never file
- *            council-wide or under another club); denied if they have no club.
- * Returns the resolved club id, or an error string to surface on the form.
- */
-function resolveClub(
-  session: AdminSession,
-  submittedClubId: string,
-): { clubId: string | null } | { error: string } {
-  const grant = grantFor(session.role, "manage:resources");
-  if (grant === "all") return { clubId: submittedClubId === "" ? null : submittedClubId };
-  if (grant === "own") {
-    if (!session.clubId) return { error: "Your account isn't linked to a club." };
-    return { clubId: session.clubId };
-  }
-  return { error: "You can't manage resources." };
-}
 
 export async function createResourceAction(
   _prev: ResourceFormState,
@@ -58,7 +39,7 @@ export async function createResourceAction(
     return { error: "Check the form — a valid title, http(s) link and type are required." };
   }
 
-  const resolved = resolveClub(session, parsed.data.clubId);
+  const resolved = resolveOwningClub(session, "manage:resources", parsed.data.clubId);
   if ("error" in resolved) return { error: resolved.error };
 
   // Final authoritative check against the resolved owning club.
@@ -113,7 +94,7 @@ export async function updateResourceAction(
     return { error: "Check the form — a valid title, http(s) link and type are required." };
   }
 
-  const resolved = resolveClub(session, parsed.data.clubId);
+  const resolved = resolveOwningClub(session, "manage:resources", parsed.data.clubId);
   if ("error" in resolved) return { error: resolved.error };
   // Also authorise against the *destination* club (only an `all` admin can move
   // a resource between clubs; `own` is pinned to their club by resolveClub).

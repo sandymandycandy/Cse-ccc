@@ -34,3 +34,7 @@ export interface AnnouncementFormState {
 export interface ResourceFormState {
   error?: string;
 }
+
+export interface GalleryFormState {
+  error?: string;
+}

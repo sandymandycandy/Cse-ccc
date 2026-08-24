@@ -7,44 +7,13 @@ import { getAdminSession } from "@/lib/auth/guards";
 import { canManage } from "@/lib/auth/capabilities";
 import { writeAudit } from "@/lib/admin/audit";
 import { uniqueSlug, getAnnouncementForEdit } from "@/lib/admin/announcements";
+import { handleImageUpload } from "@/lib/admin/image-upload";
 import type { AnnouncementFormState } from "@/lib/admin/form-state";
 
 const Schema = z.object({
   title: z.string().trim().min(3).max(140),
   body: z.string().trim().min(1).max(20000),
 });
-
-const EXT: Record<string, string> = {
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/webp": "webp",
-  "image/gif": "gif",
-};
-const MAX_IMAGE = 5 * 1024 * 1024;
-
-/**
- * Handle an optional uploaded image. Returns:
- *  - a string path when a new image was uploaded,
- *  - undefined when none was provided (caller leaves the field unchanged),
- *  - an error string to surface to the form.
- */
-async function handleImage(
-  formData: FormData,
-): Promise<{ path?: string; error?: string }> {
-  const file = formData.get("image");
-  if (!(file instanceof File) || file.size === 0) return {};
-  if (file.size > MAX_IMAGE) return { error: "Image must be 5 MB or smaller." };
-  const ext = EXT[file.type];
-  if (!ext) return { error: "Image must be PNG, JPEG, WebP or GIF." };
-
-  const admin = createAdminClient();
-  const path = `${crypto.randomUUID()}.${ext}`;
-  const { error } = await admin.storage
-    .from("announcements")
-    .upload(path, file, { contentType: file.type, upsert: false });
-  if (error) return { error: "Could not upload the image. Try again." };
-  return { path };
-}
 
 export async function createAnnouncementAction(
   _prev: AnnouncementFormState,
@@ -62,7 +31,7 @@ export async function createAnnouncementAction(
   const { title, body } = parsed.data;
   const published = formData.get("published") === "on";
 
-  const img = await handleImage(formData);
+  const img = await handleImageUpload(formData, { bucket: "announcements" });
   if (img.error) return { error: img.error };
 
   const admin = createAdminClient();
@@ -113,7 +82,7 @@ export async function updateAnnouncementAction(
   const { title, body } = parsed.data;
   const published = formData.get("published") === "on";
 
-  const img = await handleImage(formData);
+  const img = await handleImageUpload(formData, { bucket: "announcements" });
   if (img.error) return { error: img.error };
 
   const admin = createAdminClient();

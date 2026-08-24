@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireViewPage } from "@/lib/auth/guards";
 import { grantFor } from "@/lib/auth/capabilities";
-import { listClubsBrief } from "@/lib/admin/resources";
+import { listClubsBrief } from "@/lib/admin/clubs";
 import { ResourceForm } from "@/components/admin/ResourceForm";
 import { createResourceAction } from "../actions";
 

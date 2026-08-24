@@ -54,11 +54,3 @@ export async function getResourceForEdit(id: string): Promise<ResourceForEdit | 
   if (!data) return null;
   return { id: data.id, title: data.title, url: data.url, kind: data.kind, clubId: data.club_id };
 }
-
-/** Clubs for the form's club picker (id + name, alphabetical). */
-export async function listClubsBrief(): Promise<{ id: string; name: string }[]> {
-  const admin = createAdminClient();
-  const { data, error } = await admin.from("clubs").select("id, name").order("name");
-  if (error) throw error;
-  return data ?? [];
-}

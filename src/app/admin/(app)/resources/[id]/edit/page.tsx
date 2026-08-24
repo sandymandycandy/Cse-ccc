@@ -1,7 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { requireViewPage } from "@/lib/auth/guards";
 import { canManage, grantFor } from "@/lib/auth/capabilities";
-import { getResourceForEdit, listClubsBrief } from "@/lib/admin/resources";
+import { getResourceForEdit } from "@/lib/admin/resources";
+import { listClubsBrief } from "@/lib/admin/clubs";
 import { ResourceForm } from "@/components/admin/ResourceForm";
 import { DeleteResourceForm } from "@/components/admin/DeleteResourceForm";
 import { updateResourceAction } from "../../actions";

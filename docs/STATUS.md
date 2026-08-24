@@ -20,18 +20,17 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-08-24)
 
-**Everything through announcements is pushed & deployed** — `HEAD ==
-origin/main == ab82a38` (0 ahead / 0 behind). §4c event duplicate/cancel, the 7
-footer stubs, and the announcements vertical are all live in prod.
+**Everything through `/resources` is pushed & deployed** — `HEAD ==
+origin/main == 4fc1cb4` (0 ahead / 0 behind). §4c event duplicate/cancel, the 7
+footer stubs, the announcements vertical, and the resources vertical are all
+live in prod.
 
-**Uncommitted/unpushed right now:** the **`/resources` vertical** (see Phase 2
-below). Green on typecheck / lint / **61 tests** / build; public read path
-browser-verified; admin **create/update/delete POSTs still need a browser pass**
-(server actions can't be curled — see Gotchas).
+**In progress (uncommitted):** the **Gallery vertical** (see Phase 2 below) —
+reuses the resources club-scope pattern + the announcements image-upload pattern.
 
 **Still browser-unverified in prod** (deployed, but the mutation was never
 executed by a human — POSTs can't be curled): §4c duplicate/cancel, announcements
-create/update, and now resources create/update/delete. Read paths for all are ✅.
+create/update, resources create/update/delete. Read paths for all are ✅.
 
 ### ✅ Manual-verification checklist (do these in a browser before trusting in prod)
 Server-action POSTs can't be curled (see Gotchas), so these were verified by
@@ -98,7 +97,21 @@ results editor); Auth.js v5 + capabilities across 9 roles.
   7 footer stubs unpushed)*
 
 ### Phase 2 started 2026-08-24
-- **Resources** — 2nd vertical *(UNPUSHED)*. Titled links (Drive/doc/template)
+- **Gallery** — 3rd vertical *(UNPUSHED)*. Responsive image grid at public
+  `/gallery` (image + caption + club label, ordered by `sort` then newest);
+  admin CRUD at `/admin/gallery` (thumbnail grid). Club-scoped via
+  `manage:content` (president/vp/tech/social_media = all, **club_head/vice_head =
+  own**, faculty = read) — so club heads DO see Gallery in the nav (unlike
+  Announcements, which is council-only). New public Storage bucket `gallery`
+  (migration `20260824010000_gallery_bucket.sql`, already applied to the live DB
+  via MCP). Image required on create, optional replace on edit; old object
+  removed on replace/delete; orphan cleanup if the row insert fails.
+  - **Reusables extracted here (use for achievements next):**
+    `src/lib/admin/image-upload.ts` (`handleImageUpload({bucket,field})` — the
+    announcements action now uses it too), `src/lib/admin/club-scope.ts`
+    (`resolveOwningClub`/`canCreateForCapability` — resources now uses it too),
+    and `src/lib/admin/clubs.ts` (`listClubsBrief`, moved out of resources).
+- **Resources** — 2nd vertical *(deployed)*. Titled links (Drive/doc/template)
   on a public `/resources` page, grouped **council-wide first, then per club**.
   Admin CRUD at `/admin/resources` (`manage:resources`: docs_head/president/vp/
   tech = all, **club_head = own**, faculty = read). No draft state — a row is
@@ -128,17 +141,17 @@ results editor); Auth.js v5 + capabilities across 9 roles.
 
 ## TODO — remaining work (ordered; pick the top unblocked item)
 
-1. **PUSH + browser-verify `/resources`.** Do the resources item on the
-   manual-verification checklist above (in a browser — the CRUD POSTs can't be
-   curled); then `git commit` + `git push origin main`. While there, close out
-   the older browser-unverified mutations (§4c, announcements) too.
+1. **Browser-verify the shipped content verticals.** `/resources` is pushed;
+   Gallery is committed (push per owner). Run the resources + gallery items on
+   the manual-verification checklist in a browser (CRUD POSTs can't be curled),
+   and close out the older browser-unverified mutations (§4c, announcements) too.
 
-2. **Phase 2 — next verticals** (Storage + safe-markdown + `isSafeHttpUrl`
-   foundations now exist, so these are faster). Suggested order:
-   - **Gallery / media** — admin uploads images to a Storage bucket (reuse the
-     announcements pattern), public `/gallery`. Table `gallery` exists.
-   - **`/achievements`** — reuse safe-markdown + Storage. Table `achievements`
-     exists (has `image_path`).
+2. **Phase 2 — next verticals** (Storage, safe-markdown, `isSafeHttpUrl`,
+   `image-upload`, `club-scope`, `clubs` foundations now exist, so these are
+   fast). Suggested order:
+   - **`/achievements`** — reuse safe-markdown + `image-upload` + `club-scope`.
+     Table `achievements` exists (has `image_path`). **Next up — smallest
+     remaining; it's the gallery pattern + a markdown body.**
    - **`/contact` inbox**, **recruitment drives + `/join` form**, **`/my-events`**
      (needs a student-lookup model — no student login today), **waitlist
      auto-promote** (server/cron), **reminder cron**, **`.ics` feeds**, **venue
