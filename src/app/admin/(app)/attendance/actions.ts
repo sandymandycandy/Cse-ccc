@@ -105,7 +105,8 @@ export async function updateMemberAction(
       name: parsed.data.name,
       roll_no: parsed.data.rollNo ? parsed.data.rollNo : null,
       role: parsed.data.role,
-      sort: typeof parsed.data.sort === "number" ? parsed.data.sort : 0,
+      // On UPDATE preserve the current ordering when sort is unset (create defaults to 0).
+      sort: typeof parsed.data.sort === "number" ? parsed.data.sort : existing.sort,
       is_active: parsed.data.isActive === "on",
       club_id: targetClub,
     })
@@ -114,8 +115,8 @@ export async function updateMemberAction(
 
   await writeAudit({
     actorId: session.id, action: "update", entity: "club_member", entityId: id,
-    before: { name: existing.name, active: existing.isActive },
-    after: { name: parsed.data.name, active: parsed.data.isActive === "on" },
+    before: { name: existing.name, active: existing.isActive, role: existing.role, clubId: existing.clubId },
+    after: { name: parsed.data.name, active: parsed.data.isActive === "on", role: parsed.data.role, clubId: targetClub },
   });
   redirect("/admin/attendance/members");
 }
