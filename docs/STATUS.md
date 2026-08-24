@@ -20,20 +20,18 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-08-24)
 
-**`main` is 6 commits ahead of `origin/main`. Nothing since the audit viewer is
-deployed.** Last pushed commit = `d984165` (§4b audit viewer). Commits are
-**stacked**, so `git push origin main` ships all 6 at once → production.
+**Everything through announcements is pushed & deployed** — `HEAD ==
+origin/main == ab82a38` (0 ahead / 0 behind). §4c event duplicate/cancel, the 7
+footer stubs, and the announcements vertical are all live in prod.
 
-**Unpushed (committed locally, green on typecheck/lint/56 tests/build):**
-| Item | What | Browser-verified? |
-|---|---|---|
-| §4c | Event **duplicate + cancel** (on the edit page) | ❌ mutation POSTs need a pass |
-| §5  | 7 **footer stub** pages (zero dead nav links now) | ✅ public GETs, 200 |
-| P2  | **Announcements** + rich text + image (first Phase-2 vertical) | ⚠️ read path ✅; create/update POSTs need a pass |
+**Uncommitted/unpushed right now:** the **`/resources` vertical** (see Phase 2
+below). Green on typecheck / lint / **61 tests** / build; public read path
+browser-verified; admin **create/update/delete POSTs still need a browser pass**
+(server actions can't be curled — see Gotchas).
 
-> ⚠️ **The announcements DB migration + Storage bucket are ALREADY LIVE** (applied
-> via Supabase MCP to the shared DB), but the app code that uses them is unpushed.
-> So prod schema is ahead of prod code until you push.
+**Still browser-unverified in prod** (deployed, but the mutation was never
+executed by a human — POSTs can't be curled): §4c duplicate/cancel, announcements
+create/update, and now resources create/update/delete. Read paths for all are ✅.
 
 ### ✅ Manual-verification checklist (do these in a browser before trusting in prod)
 Server-action POSTs can't be curled (see Gotchas), so these were verified by
@@ -42,6 +40,7 @@ build + render + schema-check but **not by executing the mutation**:
 2. **Event duplicate/cancel** (§4c): from an event's Edit page → Duplicate as draft (lands on the copy) / Cancel event (row → cancelled, registrants emailed).
 3. **TOTP enrollment** (§2): log in as the **bootstrap Tech Head** → you're forced to `/admin/setup-totp` → scan + enter code → save recovery codes → re-login with 2FA. (While logged in you can also confirm the **2-min idle timeout**: idle 2 min → next click bounces to login.)
 4. **Announcements** (P2): `/admin/announcements` → New → write Markdown + upload an image + Publish → confirm it appears at `/announcements` and the detail renders.
+5. **Resources** (P2): `/admin/resources` → Add resource → title + `https://…` link + type (+ club, if org-wide) → Save → confirm it appears grouped at `/resources`; Edit changes it; Delete removes it. As a **club_head**, confirm you only see/manage your own club's rows and get no club picker.
 
 ### 📧 Out-of-repo follow-up (email processor)
 The external processor that renders `event_*` templates must learn **3 new
@@ -98,8 +97,20 @@ results editor); Auth.js v5 + capabilities across 9 roles.
   minimal stub pages. **Zero dead nav links site-wide.** *(join/team pushed; the
   7 footer stubs unpushed)*
 
-### Phase 2 started 2026-08-24 (⚠️ UNPUSHED)
-- **Announcements + rich text + image** — first Phase-2 vertical. Council-wide
+### Phase 2 started 2026-08-24
+- **Resources** — 2nd vertical *(UNPUSHED)*. Titled links (Drive/doc/template)
+  on a public `/resources` page, grouped **council-wide first, then per club**.
+  Admin CRUD at `/admin/resources` (`manage:resources`: docs_head/president/vp/
+  tech = all, **club_head = own**, faculty = read). No draft state — a row is
+  public the moment it's saved (RLS = anon read; all writes via service-role,
+  like announcements). Club scope resolved server-side: org-wide managers pick a
+  club or "council-wide"; a club_head's rows are **pinned to their own club** (no
+  picker, submitted club ignored). **Reusable bits born here:**
+  `src/lib/url.ts` (`isSafeHttpUrl`/`isSafeLinkHref` — now also backs the markdown
+  link check; use for gallery/achievements) and `src/lib/resources.ts` (pure,
+  client-safe kind labels). The `resources` table + `resource_kind` enum already
+  existed; **no migration needed**.
+- **Announcements + rich text + image** — first Phase-2 vertical *(deployed)*. Council-wide
   (`manage:content`, org-wide roles only), draft/publish, public
   `/announcements` feed + `/announcements/[slug]` detail (replaced the stub),
   admin CRUD `/admin/announcements`.
@@ -117,16 +128,13 @@ results editor); Auth.js v5 + capabilities across 9 roles.
 
 ## TODO — remaining work (ordered; pick the top unblocked item)
 
-1. **PUSH + browser-verify the 6 unpushed commits.** Do the manual-verification
-   checklist above first; then `git push origin main`. This is the highest
-   priority — undeployed, execution-unverified mutations shouldn't keep stacking.
+1. **PUSH + browser-verify `/resources`.** Do the resources item on the
+   manual-verification checklist above (in a browser — the CRUD POSTs can't be
+   curled); then `git commit` + `git push origin main`. While there, close out
+   the older browser-unverified mutations (§4c, announcements) too.
 
-2. **Phase 2 — next verticals** (Storage + safe-markdown foundations now exist,
-   so these are faster). Suggested order:
-   - **`/resources`** — Docs Head adds titled Drive/URL links (`manage:resources`
-     CRUD of `{title, url, note}`); public `/resources` list. **Smallest; hits
-     the Phase-2 exit gate most directly** ("Docs Head updates a link without a
-     deploy"). Table `resources` already exists (RLS on).
+2. **Phase 2 — next verticals** (Storage + safe-markdown + `isSafeHttpUrl`
+   foundations now exist, so these are faster). Suggested order:
    - **Gallery / media** — admin uploads images to a Storage bucket (reuse the
      announcements pattern), public `/gallery`. Table `gallery` exists.
    - **`/achievements`** — reuse safe-markdown + Storage. Table `achievements`
@@ -188,7 +196,7 @@ results editor); Auth.js v5 + capabilities across 9 roles.
 
 ```bash
 npm run dev        # localhost:3000 (uses .env.local → the LIVE DB)
-npm test           # vitest — 56 tests (results, capabilities, datetime, rate-limit, idle, markdown, eslint rule)
+npm test           # vitest — 61 tests (results, capabilities, datetime, rate-limit, idle, markdown, url, eslint rule)
 npm run typecheck  # tsc --noEmit
 npm run lint       # eslint
 npm run build      # production build

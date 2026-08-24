@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { isSafeLinkHref } from "./url";
 
 /**
  * A deliberately tiny, safe Markdown renderer (Phase 2 — announcements & content).
@@ -13,8 +14,6 @@ import type { ReactNode } from "react";
  * [label](url) links (http/https/mailto only), - / * and 1. lists, paragraphs
  * with single-newline → <br/>.
  */
-
-const SAFE_LINK = /^(https?:\/\/|mailto:)/i;
 
 // One token = the earliest of: `code`, **bold**, *italic*, [label](url).
 // Bold is listed before italic so `**x**` matches bold at a `**` position.
@@ -41,7 +40,7 @@ function parseInline(text: string, keyBase: string): ReactNode[] {
     } else {
       const label = m[8];
       const href = m[9];
-      if (SAFE_LINK.test(href)) {
+      if (isSafeLinkHref(href)) {
         out.push(
           <a key={key} href={href} target="_blank" rel="noopener noreferrer">
             {parseInline(label, key)}

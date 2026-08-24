@@ -30,3 +30,7 @@ export interface SetupTotpState {
 export interface AnnouncementFormState {
   error?: string;
 }
+
+export interface ResourceFormState {
+  error?: string;
+}

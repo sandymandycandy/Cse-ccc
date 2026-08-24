@@ -21,6 +21,9 @@ export default async function AdminAppLayout({
     ...(canManage(session, "manage:content")
       ? [{ href: "/admin/announcements", label: "Announcements" }]
       : []),
+    ...(canView(session, "manage:resources")
+      ? [{ href: "/admin/resources", label: "Resources" }]
+      : []),
     ...(canView(session, "manage:admins")
       ? [{ href: "/admin/users", label: "Admins" }]
       : []),

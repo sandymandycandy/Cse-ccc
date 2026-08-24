@@ -1,6 +1,8 @@
 import "server-only";
 import { createPublicClient } from "@/lib/supabase/server";
 import { orderStandings } from "@/lib/results";
+import { isSafeHttpUrl } from "@/lib/url";
+import type { Database } from "@/lib/database.types";
 import type {
   CalendarEvent,
   Club,
@@ -527,4 +529,40 @@ export async function getAnnouncementBySlug(slug: string): Promise<AnnouncementD
       ? supabase.storage.from("announcements").getPublicUrl(data.image_path).data.publicUrl
       : null,
   };
+}
+
+// ── Resources (Phase 2) ──────────────────────────────────────────────────────
+
+export interface PublicResource {
+  id: string;
+  title: string;
+  url: string;
+  kind: Database["public"]["Enums"]["resource_kind"];
+  clubId: string | null;
+  clubName: string | null;
+}
+
+/**
+ * All resources for the public page (there is no draft state — a row is live
+ * once created; RLS allows anon read). Any row whose stored URL isn't a safe
+ * http(s) link is dropped defensively so it never becomes a live `<a href>`.
+ */
+export async function getPublicResources(): Promise<PublicResource[]> {
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from("resources")
+    .select("id, title, url, kind, club_id, clubs(name)")
+    .order("title")
+    .limit(500);
+  if (error) throw error;
+  return (data ?? [])
+    .filter((r) => isSafeHttpUrl(r.url))
+    .map((r) => ({
+      id: r.id,
+      title: r.title,
+      url: r.url,
+      kind: r.kind,
+      clubId: r.club_id,
+      clubName: r.clubs?.name ?? null,
+    }));
 }
