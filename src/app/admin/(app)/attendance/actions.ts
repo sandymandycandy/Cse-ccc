@@ -4,11 +4,12 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminSession } from "@/lib/auth/guards";
-import { canManage } from "@/lib/auth/capabilities";
+import { canManage, grantFor } from "@/lib/auth/capabilities";
 import { resolveOwningClub } from "@/lib/admin/club-scope";
 import { writeAudit } from "@/lib/admin/audit";
 import { getMemberForEdit } from "@/lib/admin/members";
-import type { MemberFormState } from "@/lib/admin/form-state";
+import { getOpenSession } from "@/lib/admin/attendance-club";
+import type { MemberFormState, SessionFormState } from "@/lib/admin/form-state";
 
 const MemberSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -140,4 +141,62 @@ export async function deleteMemberAction(formData: FormData): Promise<void> {
     });
   }
   redirect("/admin/attendance/members");
+}
+
+const SessionSchema = z.object({
+  title: z.string().trim().min(2).max(140),
+  clubId: z.union([z.literal(""), z.string().uuid()]),
+});
+
+export async function openSessionAction(
+  _prev: SessionFormState,
+  formData: FormData,
+): Promise<SessionFormState> {
+  const session = await getAdminSession();
+  if (!session) return { error: "Your session expired. Sign in again." };
+
+  const parsed = SessionSchema.safeParse({ title: formData.get("title"), clubId: formData.get("clubId") ?? "" });
+  if (!parsed.success) return { error: "Give the session a title." };
+
+  const grant = grantFor(session.role, "manage:members");
+  const clubId = grant === "own" ? session.clubId : (parsed.data.clubId || null);
+  if (!clubId) return { error: "Pick a club for this session." };
+  if (!canManage(session, "manage:members", clubId)) return { error: "You can't run sessions for that club." };
+
+  // One open session per club at a time (also enforced by a partial unique index).
+  const already = await getOpenSession(clubId);
+  if (already) return { error: "A session is already open for this club. Close it first." };
+
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("club_attendance_sessions")
+    .insert({ club_id: clubId, title: parsed.data.title, opened_by: session.id, status: "open" })
+    .select("id").single();
+  if (error || !data) return { error: "Could not open the session. Try again." };
+
+  await writeAudit({
+    actorId: session.id, action: "open", entity: "club_attendance_session",
+    entityId: data.id, after: { title: parsed.data.title, clubId },
+  });
+  redirect(`/admin/attendance/sessions/${data.id}`);
+}
+
+export async function closeSessionAction(formData: FormData): Promise<void> {
+  const session = await getAdminSession();
+  if (!session) redirect("/admin/login");
+  const id = String(formData.get("id") ?? "");
+  if (!z.string().uuid().safeParse(id).success) redirect("/admin/attendance");
+
+  const admin = createAdminClient();
+  const { data: s } = await admin
+    .from("club_attendance_sessions").select("club_id, status").eq("id", id).maybeSingle();
+  if (!s) redirect("/admin/attendance");
+  if (!canManage(session, "manage:members", s.club_id)) redirect("/admin/attendance");
+
+  if (s.status === "open") {
+    await admin.from("club_attendance_sessions")
+      .update({ status: "closed", closed_at: new Date().toISOString() }).eq("id", id);
+    await writeAudit({ actorId: session.id, action: "close", entity: "club_attendance_session", entityId: id });
+  }
+  redirect(`/admin/attendance/sessions/${id}`);
 }
