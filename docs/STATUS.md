@@ -20,6 +20,27 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-08-24)
 
+> ### 🔨 IN PROGRESS — QR attendance Phase 1 (on branch `feat/qr-attendance-phase1`)
+> A **club-member QR attendance** system is mid-build on branch
+> **`feat/qr-attendance-phase1`** (NOT merged, NOT pushed; `main` is unchanged and
+> still the deployed state below). It's being executed **task-by-task via the
+> `superpowers:subagent-driven-development` skill**, whose ledger is the resume map.
+>
+> **To resume:** `git checkout feat/qr-attendance-phase1`, then invoke
+> **`superpowers:subagent-driven-development`** — it reads
+> `.superpowers/sdd/2026-08-24-qr-attendance-phase1/progress.md` and continues at
+> the first task without a `complete` line.
+> - **Done:** Tasks 1–6 (schema+types applied to live DB · `manage:members`
+>   capability · member QR token · qr util · member data+CRUD actions · member
+>   UI+QR card+nav). **Next: Task 7** (session data layer + open/close), then
+>   T8 scan/feed routes → T9 `html5-qrcode` scanner → T10 dashboard+live view →
+>   T11 member self-view `/m/[token]` → T12 verify+final-review+merge.
+> - **Plan:** `docs/superpowers/plans/2026-08-24-qr-attendance-phase1.md` ·
+>   **Spec:** `docs/superpowers/specs/2026-08-24-qr-attendance-design.md`
+> - ⚠️ The Phase-1 DB migration is **already applied to the live/shared DB**
+>   (additive: nullable cols on `club_members` + new `club_attendance_sessions`/
+>   `club_attendance` tables). ⚠️ The camera scanner (T9) needs a real-phone test.
+
 **All four Phase-2 content verticals are pushed & deployed** — `HEAD ==
 origin/main == b33286f` (0 ahead / 0 behind). §4c event duplicate/cancel, the 7
 footer stubs, and the announcements / resources / gallery / **achievements**
