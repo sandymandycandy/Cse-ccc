@@ -25,6 +25,17 @@ describe("manage:results grants", () => {
   });
 });
 
+describe("manage:members grants", () => {
+  it("club head/vice head manage their own club; org-wide manage all; faculty read", () => {
+    expect(grantFor("club_head", "manage:members")).toBe("own");
+    expect(grantFor("vice_head", "manage:members")).toBe("own");
+    expect(grantFor("president", "manage:members")).toBe("all");
+    expect(grantFor("tech_head", "manage:members")).toBe("all");
+    expect(grantFor("faculty_advisor", "manage:members")).toBe("read");
+    expect(grantFor("events_head", "manage:members")).toBe("none");
+  });
+});
+
 describe("roleRequiresTotp — mandatory 2FA for the widest-reach roles", () => {
   it("requires TOTP for tech_head and president", () => {
     expect(roleRequiresTotp("tech_head")).toBe(true);

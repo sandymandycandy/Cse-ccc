@@ -45,6 +45,7 @@ export type Capability =
   | "issue:winner_certificate"
   | "revoke:certificate"
   | "manage:content" // announcements / gallery / achievements
+  | "manage:members"
   | "manage:resources"
   | "manage:recruitment"
   | "manage:venues"
@@ -108,6 +109,10 @@ const MATRIX: Record<Capability, Partial<Record<AdminRole, Grant>>> = {
   "manage:content": {
     faculty_advisor: "read", president: "all", vice_president: "all",
     tech_head: "all", social_media_head: "all", club_head: "own", vice_head: "own",
+  },
+  "manage:members": {
+    faculty_advisor: "read", president: "all", vice_president: "all",
+    tech_head: "all", club_head: "own", vice_head: "own",
   },
   "manage:resources": {
     faculty_advisor: "read", president: "all", vice_president: "all",
