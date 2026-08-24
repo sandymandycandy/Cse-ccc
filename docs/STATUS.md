@@ -20,17 +20,14 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-08-24)
 
-**Everything through `/resources` is pushed & deployed** — `HEAD ==
-origin/main == 4fc1cb4` (0 ahead / 0 behind). §4c event duplicate/cancel, the 7
-footer stubs, the announcements vertical, and the resources vertical are all
-live in prod.
-
-**In progress (uncommitted):** the **Gallery vertical** (see Phase 2 below) —
-reuses the resources club-scope pattern + the announcements image-upload pattern.
+**Everything through Gallery is pushed & deployed** — `HEAD == origin/main ==
+fda5811` (0 ahead / 0 behind). §4c event duplicate/cancel, the 7 footer stubs,
+and the announcements / resources / **gallery** verticals are all live in prod.
 
 **Still browser-unverified in prod** (deployed, but the mutation was never
 executed by a human — POSTs can't be curled): §4c duplicate/cancel, announcements
-create/update, resources create/update/delete. Read paths for all are ✅.
+create/update, resources CRUD, and **gallery CRUD** (incl. image upload). Read
+paths for all are ✅.
 
 ### ✅ Manual-verification checklist (do these in a browser before trusting in prod)
 Server-action POSTs can't be curled (see Gotchas), so these were verified by
@@ -40,6 +37,7 @@ build + render + schema-check but **not by executing the mutation**:
 3. **TOTP enrollment** (§2): log in as the **bootstrap Tech Head** → you're forced to `/admin/setup-totp` → scan + enter code → save recovery codes → re-login with 2FA. (While logged in you can also confirm the **2-min idle timeout**: idle 2 min → next click bounces to login.)
 4. **Announcements** (P2): `/admin/announcements` → New → write Markdown + upload an image + Publish → confirm it appears at `/announcements` and the detail renders.
 5. **Resources** (P2): `/admin/resources` → Add resource → title + `https://…` link + type (+ club, if org-wide) → Save → confirm it appears grouped at `/resources`; Edit changes it; Delete removes it. As a **club_head**, confirm you only see/manage your own club's rows and get no club picker.
+6. **Gallery** (P2): `/admin/gallery` → Add photo → upload an image + caption + sort (+ club, if org-wide) → Save → confirm it shows in the grid at `/gallery`; Edit (replace the image — old object should be gone) and Delete work. As a **club_head/vice_head**, confirm you see Gallery in the nav and manage only your own club's photos.
 
 ### 📧 Out-of-repo follow-up (email processor)
 The external processor that renders `event_*` templates must learn **3 new
@@ -97,7 +95,7 @@ results editor); Auth.js v5 + capabilities across 9 roles.
   7 footer stubs unpushed)*
 
 ### Phase 2 started 2026-08-24
-- **Gallery** — 3rd vertical *(UNPUSHED)*. Responsive image grid at public
+- **Gallery** — 3rd vertical *(deployed)*. Responsive image grid at public
   `/gallery` (image + caption + club label, ordered by `sort` then newest);
   admin CRUD at `/admin/gallery` (thumbnail grid). Club-scoped via
   `manage:content` (president/vp/tech/social_media = all, **club_head/vice_head =
@@ -141,10 +139,10 @@ results editor); Auth.js v5 + capabilities across 9 roles.
 
 ## TODO — remaining work (ordered; pick the top unblocked item)
 
-1. **Browser-verify the shipped content verticals.** `/resources` is pushed;
-   Gallery is committed (push per owner). Run the resources + gallery items on
-   the manual-verification checklist in a browser (CRUD POSTs can't be curled),
-   and close out the older browser-unverified mutations (§4c, announcements) too.
+1. **Browser-verify the shipped content verticals.** Resources + gallery are
+   pushed & live. Run their items on the manual-verification checklist in a
+   browser (CRUD POSTs can't be curled), and close out the older
+   browser-unverified mutations (§4c, announcements) too.
 
 2. **Phase 2 — next verticals** (Storage, safe-markdown, `isSafeHttpUrl`,
    `image-upload`, `club-scope`, `clubs` foundations now exist, so these are
