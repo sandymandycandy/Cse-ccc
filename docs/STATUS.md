@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-08-24.**
+> `docs/superpowers/plans/`. **Last updated: 2026-08-25.**
 
 ## What this is
 
@@ -18,7 +18,7 @@ end-to-end**, not a checklist of components.
 
 ---
 
-## 🚦 START HERE — current git/deploy state (2026-08-24)
+## 🚦 START HERE — current git/deploy state (2026-08-25)
 
 > ### 🔨 IN PROGRESS — QR attendance Phase 1 (on branch `feat/qr-attendance-phase1`)
 > A **club-member QR attendance** system is mid-build on branch
@@ -30,16 +30,23 @@ end-to-end**, not a checklist of components.
 > **`superpowers:subagent-driven-development`** — it reads
 > `.superpowers/sdd/2026-08-24-qr-attendance-phase1/progress.md` and continues at
 > the first task without a `complete` line.
-> - **Done:** Tasks 1–6 (schema+types applied to live DB · `manage:members`
+> - **Done:** Tasks 1–7 (schema+types applied to live DB · `manage:members`
 >   capability · member QR token · qr util · member data+CRUD actions · member
->   UI+QR card+nav). **Next: Task 7** (session data layer + open/close), then
->   T8 scan/feed routes → T9 `html5-qrcode` scanner → T10 dashboard+live view →
->   T11 member self-view `/m/[token]` → T12 verify+final-review+merge.
+>   UI+QR card+nav · **T7 session data layer `attendance-club.ts` + open/close
+>   actions**, branch @ `7f961de`). **Next: Task 8** (scan API route
+>   `POST /api/admin/attendance/club/scan` + live-feed route
+>   `GET /api/admin/attendance/club/feed`), then T9 `html5-qrcode` scanner
+>   (`npm install html5-qrcode`) → T10 dashboard+live view → T11 member
+>   self-view `/m/[token]` → T12 verify+final-review+merge.
 > - **Plan:** `docs/superpowers/plans/2026-08-24-qr-attendance-phase1.md` ·
 >   **Spec:** `docs/superpowers/specs/2026-08-24-qr-attendance-design.md`
 > - ⚠️ The Phase-1 DB migration is **already applied to the live/shared DB**
 >   (additive: nullable cols on `club_members` + new `club_attendance_sessions`/
 >   `club_attendance` tables). ⚠️ The camera scanner (T9) needs a real-phone test.
+> - ⚠️ **Subagents hit the API session limit this session** (resets 5am
+>   Asia/Calcutta). T7's fix round was completed by the controller re-running
+>   typecheck/lint + dispatching the re-review once access returned; if a
+>   dispatch fails with "session limit," pause and resume the SDD loop after reset.
 
 **All four Phase-2 content verticals are pushed & deployed** — `HEAD ==
 origin/main == b33286f` (0 ahead / 0 behind). §4c event duplicate/cancel, the 7
