@@ -457,3 +457,74 @@ export async function getPublishedResults(eventId: string): Promise<PublishedRou
     })
     .filter((r) => r.results.length > 0);
 }
+
+// ── Announcements (Phase 2) ──────────────────────────────────────────────────
+
+export interface AnnouncementCard {
+  slug: string;
+  title: string;
+  excerpt: string;
+  publishedAt: string;
+  imageUrl: string | null;
+}
+
+export interface AnnouncementDetail {
+  slug: string;
+  title: string;
+  bodyMarkdown: string;
+  publishedAt: string;
+  imageUrl: string | null;
+}
+
+/** Plain-text excerpt from markdown body — strip the lightweight syntax, clamp. */
+function excerpt(md: string, max = 160): string {
+  const text = md
+    .replace(/[#>*_`~-]/g, " ")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1") // link → its label
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length > max ? text.slice(0, max).trimEnd() + "…" : text;
+}
+
+/** Published announcements, newest first (RLS also enforces published-only). */
+export async function getPublishedAnnouncements(): Promise<AnnouncementCard[]> {
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from("announcements")
+    .select("slug, title, body_markdown, published_at, image_path")
+    .not("published_at", "is", null)
+    .order("published_at", { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return (data ?? []).map((a) => ({
+    slug: a.slug,
+    title: a.title,
+    excerpt: excerpt(a.body_markdown),
+    publishedAt: a.published_at as string,
+    imageUrl: a.image_path
+      ? supabase.storage.from("announcements").getPublicUrl(a.image_path).data.publicUrl
+      : null,
+  }));
+}
+
+/** One published announcement by slug, or null (a draft/missing slug → null → 404). */
+export async function getAnnouncementBySlug(slug: string): Promise<AnnouncementDetail | null> {
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from("announcements")
+    .select("slug, title, body_markdown, published_at, image_path")
+    .eq("slug", slug)
+    .not("published_at", "is", null)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    slug: data.slug,
+    title: data.title,
+    bodyMarkdown: data.body_markdown,
+    publishedAt: data.published_at as string,
+    imageUrl: data.image_path
+      ? supabase.storage.from("announcements").getPublicUrl(data.image_path).data.publicUrl
+      : null,
+  };
+}

@@ -198,6 +198,7 @@ export type Database = {
           body_markdown: string
           created_at: string
           id: string
+          image_path: string | null
           published_at: string | null
           slug: string
           title: string
@@ -208,6 +209,7 @@ export type Database = {
           body_markdown: string
           created_at?: string
           id?: string
+          image_path?: string | null
           published_at?: string | null
           slug: string
           title: string
@@ -218,6 +220,7 @@ export type Database = {
           body_markdown?: string
           created_at?: string
           id?: string
+          image_path?: string | null
           published_at?: string | null
           slug?: string
           title?: string

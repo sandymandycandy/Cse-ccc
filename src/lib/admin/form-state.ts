@@ -26,3 +26,7 @@ export interface SetupTotpState {
   /** Shown once on success — new single-use recovery codes for the second factor. */
   recoveryCodes?: string[];
 }
+
+export interface AnnouncementFormState {
+  error?: string;
+}

@@ -1,5 +1,5 @@
 import { requireAdminPage } from "@/lib/auth/guards";
-import { canView } from "@/lib/auth/capabilities";
+import { canView, canManage } from "@/lib/auth/capabilities";
 import { AdminNav } from "@/components/admin/AdminNav";
 
 export default async function AdminAppLayout({
@@ -17,6 +17,9 @@ export default async function AdminAppLayout({
       : []),
     ...(canView(session, "issue:participation_certificate")
       ? [{ href: "/admin/certificates", label: "Certificates" }]
+      : []),
+    ...(canManage(session, "manage:content")
+      ? [{ href: "/admin/announcements", label: "Announcements" }]
       : []),
     ...(canView(session, "manage:admins")
       ? [{ href: "/admin/users", label: "Admins" }]
