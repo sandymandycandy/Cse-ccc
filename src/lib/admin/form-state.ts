@@ -38,3 +38,7 @@ export interface ResourceFormState {
 export interface GalleryFormState {
   error?: string;
 }
+
+export interface AchievementFormState {
+  error?: string;
+}

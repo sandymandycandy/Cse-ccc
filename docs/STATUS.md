@@ -38,6 +38,7 @@ build + render + schema-check but **not by executing the mutation**:
 4. **Announcements** (P2): `/admin/announcements` → New → write Markdown + upload an image + Publish → confirm it appears at `/announcements` and the detail renders.
 5. **Resources** (P2): `/admin/resources` → Add resource → title + `https://…` link + type (+ club, if org-wide) → Save → confirm it appears grouped at `/resources`; Edit changes it; Delete removes it. As a **club_head**, confirm you only see/manage your own club's rows and get no club picker.
 6. **Gallery** (P2): `/admin/gallery` → Add photo → upload an image + caption + sort (+ club, if org-wide) → Save → confirm it shows in the grid at `/gallery`; Edit (replace the image — old object should be gone) and Delete work. As a **club_head/vice_head**, confirm you see Gallery in the nav and manage only your own club's photos.
+7. **Achievements** (P2): `/admin/achievements` → Add → title + Markdown description + date + optional image (+ club, if org-wide) → Save → confirm it renders at `/achievements` (markdown formatted, date + club shown); Edit/replace-image/Delete work. Club scope same as Gallery.
 
 ### 📧 Out-of-repo follow-up (email processor)
 The external processor that renders `event_*` templates must learn **3 new
@@ -95,6 +96,15 @@ results editor); Auth.js v5 + capabilities across 9 roles.
   7 footer stubs unpushed)*
 
 ### Phase 2 started 2026-08-24
+- **Achievements** — 4th vertical *(deployed)*. Public `/achievements` list
+  (optional image + title + date + **safe-markdown** description + club label,
+  ordered by `happened_on` desc then newest); admin CRUD at `/admin/achievements`.
+  Club-scoped via `manage:content` (same roles as gallery). The cleanest blend of
+  the earlier verticals: markdown body (announcements' `renderMarkdown`) +
+  optional image (`image-upload` → new `achievements` bucket) + club scope
+  (`club-scope`) + an optional `happened_on` date. New date formatter
+  `istDateMedium` ("21 Aug 2026", safe for plain YYYY-MM-DD). Migration
+  `20260824020000_achievements_bucket.sql` (already applied to the live DB).
 - **Gallery** — 3rd vertical *(deployed)*. Responsive image grid at public
   `/gallery` (image + caption + club label, ordered by `sort` then newest);
   admin CRUD at `/admin/gallery` (thumbnail grid). Club-scoped via
@@ -139,23 +149,24 @@ results editor); Auth.js v5 + capabilities across 9 roles.
 
 ## TODO — remaining work (ordered; pick the top unblocked item)
 
-1. **Browser-verify the shipped content verticals.** Resources + gallery are
-   pushed & live. Run their items on the manual-verification checklist in a
-   browser (CRUD POSTs can't be curled), and close out the older
+1. **Browser-verify the shipped content verticals.** Resources + gallery +
+   achievements are pushed & live. Run their items on the manual-verification
+   checklist in a browser (CRUD POSTs can't be curled), and close out the older
    browser-unverified mutations (§4c, announcements) too.
 
-2. **Phase 2 — next verticals** (Storage, safe-markdown, `isSafeHttpUrl`,
-   `image-upload`, `club-scope`, `clubs` foundations now exist, so these are
-   fast). Suggested order:
-   - **`/achievements`** — reuse safe-markdown + `image-upload` + `club-scope`.
-     Table `achievements` exists (has `image_path`). **Next up — smallest
-     remaining; it's the gallery pattern + a markdown body.**
-   - **`/contact` inbox**, **recruitment drives + `/join` form**, **`/my-events`**
-     (needs a student-lookup model — no student login today), **waitlist
-     auto-promote** (server/cron), **reminder cron**, **`.ics` feeds**, **venue
-     booking**, **co-hosted events**, **email prefs**, **`/about` + `/team` org
-     chart**, **schedules**.
-   - NOTE: the 9 stub pages (§5) are placeholders these real features replace.
+2. **Phase 2 — remaining verticals** (Storage, safe-markdown, `isSafeHttpUrl`,
+   `image-upload`, `club-scope`, `clubs` foundations all exist now, so these are
+   fast). The 4 content verticals (announcements/resources/gallery/achievements)
+   are done. Remaining, roughly by size:
+   - **`/contact` inbox** — public contact form → `contact_messages` table
+     (exists); admin reads them. No club scope, no Storage — small; a good next.
+   - **recruitment drives + `/join` form** (`recruitment_drives`, `join_requests`
+     tables exist), **`/my-events`** (needs a student-lookup model — no student
+     login today), **waitlist auto-promote** (server/cron), **reminder cron**,
+     **`.ics` feeds**, **venue booking**, **co-hosted events**, **email prefs**,
+     **`/about` + `/team` org chart**, **schedules**.
+   - NOTE: the remaining stub pages (§5) are placeholders these real features
+     replace — `/gallery`, `/resources`, `/achievements` are now REAL.
    - **Phase-2 exit gate:** a club head runs their club end-to-end without
      messaging anyone; Docs Head updates a Drive link without a deploy.
 

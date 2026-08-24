@@ -531,6 +531,40 @@ export async function getAnnouncementBySlug(slug: string): Promise<AnnouncementD
   };
 }
 
+// ── Achievements (Phase 2) ───────────────────────────────────────────────────
+
+export interface PublicAchievement {
+  id: string;
+  title: string;
+  description: string | null;
+  happenedOn: string | null;
+  imageUrl: string | null;
+  clubName: string | null;
+}
+
+/** All achievements for the public page (no draft state; RLS allows anon read).
+ *  Ordered by date (newest first, undated last) then newest created. */
+export async function getPublicAchievements(): Promise<PublicAchievement[]> {
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from("achievements")
+    .select("id, title, description, happened_on, image_path, created_at, clubs(name)")
+    .order("happened_on", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error) throw error;
+  return (data ?? []).map((a) => ({
+    id: a.id,
+    title: a.title,
+    description: a.description,
+    happenedOn: a.happened_on,
+    imageUrl: a.image_path
+      ? supabase.storage.from("achievements").getPublicUrl(a.image_path).data.publicUrl
+      : null,
+    clubName: a.clubs?.name ?? null,
+  }));
+}
+
 // ── Gallery (Phase 2) ────────────────────────────────────────────────────────
 
 export interface GalleryPhoto {

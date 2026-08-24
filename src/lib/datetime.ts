@@ -26,6 +26,12 @@ export const istWeekdayShort = (d: Date | string) => fmt(d, { weekday: "short" }
 export const istFullDate = (d: Date | string) =>
   fmt(d, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
+/** "21 Aug 2026" — compact calendar date (e.g. an achievement's `happened_on`).
+ *  Safe for a plain "YYYY-MM-DD": IST is ahead of UTC, so UTC-midnight stays on
+ *  the same calendar day. */
+export const istDateMedium = (d: Date | string) =>
+  fmt(d, { day: "numeric", month: "short", year: "numeric" });
+
 /**
  * Human time range in IST. Same-day → "9:00 AM – 12:00 PM"; spanning days →
  * "Fri 9:00 AM → Sat 9:00 AM".
