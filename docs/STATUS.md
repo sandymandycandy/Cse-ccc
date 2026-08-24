@@ -20,14 +20,15 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-08-24)
 
-**Everything through Gallery is pushed & deployed** — `HEAD == origin/main ==
-fda5811` (0 ahead / 0 behind). §4c event duplicate/cancel, the 7 footer stubs,
-and the announcements / resources / **gallery** verticals are all live in prod.
+**All four Phase-2 content verticals are pushed & deployed** — `HEAD ==
+origin/main == b33286f` (0 ahead / 0 behind). §4c event duplicate/cancel, the 7
+footer stubs, and the announcements / resources / gallery / **achievements**
+verticals are all live in prod.
 
 **Still browser-unverified in prod** (deployed, but the mutation was never
 executed by a human — POSTs can't be curled): §4c duplicate/cancel, announcements
-create/update, resources CRUD, and **gallery CRUD** (incl. image upload). Read
-paths for all are ✅.
+create/update, resources CRUD, gallery CRUD, and **achievements CRUD** (incl.
+image upload). Read paths for all are ✅.
 
 ### ✅ Manual-verification checklist (do these in a browser before trusting in prod)
 Server-action POSTs can't be curled (see Gotchas), so these were verified by
