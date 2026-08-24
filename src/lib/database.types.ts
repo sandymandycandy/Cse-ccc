@@ -497,14 +497,117 @@ export type Database = {
           },
         ]
       }
+      club_attendance: {
+        Row: {
+          id: string
+          marked_at: string
+          marked_by: string | null
+          member_id: string
+          session_id: string
+        }
+        Insert: {
+          id?: string
+          marked_at?: string
+          marked_by?: string | null
+          member_id: string
+          session_id: string
+        }
+        Update: {
+          id?: string
+          marked_at?: string
+          marked_by?: string | null
+          member_id?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_attendance_marked_by_fkey"
+            columns: ["marked_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_attendance_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "club_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_attendance_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "club_attendance_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      club_attendance_sessions: {
+        Row: {
+          closed_at: string | null
+          club_id: string
+          event_id: string | null
+          id: string
+          opened_at: string
+          opened_by: string | null
+          status: Database["public"]["Enums"]["club_session_status"]
+          title: string
+        }
+        Insert: {
+          closed_at?: string | null
+          club_id: string
+          event_id?: string | null
+          id?: string
+          opened_at?: string
+          opened_by?: string | null
+          status?: Database["public"]["Enums"]["club_session_status"]
+          title: string
+        }
+        Update: {
+          closed_at?: string | null
+          club_id?: string
+          event_id?: string | null
+          id?: string
+          opened_at?: string
+          opened_by?: string | null
+          status?: Database["public"]["Enums"]["club_session_status"]
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_attendance_sessions_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_attendance_sessions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "club_attendance_sessions_opened_by_fkey"
+            columns: ["opened_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       club_members: {
         Row: {
           club_id: string
           created_at: string
           id: string
+          is_active: boolean
           name: string
           photo_path: string | null
           role: Database["public"]["Enums"]["member_role"]
+          roll_no: string | null
           socials: Json
           sort: number
         }
@@ -512,9 +615,11 @@ export type Database = {
           club_id: string
           created_at?: string
           id?: string
+          is_active?: boolean
           name: string
           photo_path?: string | null
           role?: Database["public"]["Enums"]["member_role"]
+          roll_no?: string | null
           socials?: Json
           sort?: number
         }
@@ -522,9 +627,11 @@ export type Database = {
           club_id?: string
           created_at?: string
           id?: string
+          is_active?: boolean
           name?: string
           photo_path?: string | null
           role?: Database["public"]["Enums"]["member_role"]
+          roll_no?: string | null
           socials?: Json
           sort?: number
         }
@@ -1492,6 +1599,7 @@ export type Database = {
       certificate_type: "participation" | "winner"
       checkin_method: "door" | "self" | "manual"
       club_category: "tech" | "media" | "cultural" | "wellness" | "career"
+      club_session_status: "open" | "closed"
       email_status: "pending" | "sent" | "failed"
       event_status: "draft" | "published" | "cancelled" | "completed"
       member_role: "head" | "vice_head" | "member"
@@ -1641,6 +1749,7 @@ export const Constants = {
       certificate_type: ["participation", "winner"],
       checkin_method: ["door", "self", "manual"],
       club_category: ["tech", "media", "cultural", "wellness", "career"],
+      club_session_status: ["open", "closed"],
       email_status: ["pending", "sent", "failed"],
       event_status: ["draft", "published", "cancelled", "completed"],
       member_role: ["head", "vice_head", "member"],
