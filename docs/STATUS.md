@@ -39,8 +39,10 @@ at once → prod. Full suite (47 tests) + typecheck + lint + build all green.
   the commit security review), mandatory-TOTP (forced enrollment for
   `tech_head`/`president`).
 - **Pushed to prod so far:** the first 13 commits (through the audit viewer).
-  Event duplicate/cancel (§4c) and the 7 footer stubs (§5) are **committed but
-  not yet pushed.**
+  **Committed but NOT yet pushed:** event duplicate/cancel (§4c), the 7 footer
+  stubs (§5), and **Announcements (Phase 2)**. Note: the announcements DB
+  migration + Storage bucket are **already live** (applied via MCP to the shared
+  DB); only the app code is unpushed.
 - **Before trusting in prod, two things need a human (can't be driven headless):**
   1. **Event-edit** — browser pass: log in → Events → Edit → change time → Save.
   2. **TOTP enrollment POST** — log in as the bootstrap Tech Head (routed to
@@ -208,10 +210,28 @@ at once → prod. Full suite (47 tests) + typecheck + lint + build all green.
      processor needs an **`event_cancelled`** template too.
    - **Still unbuilt:** `/admin/scan` kiosk; real `/admin/certificates`; public
      `/verify`.
-5. **Phase 2** (mostly schema-only today): schedules, gallery, `/achievements`
-   page, announcements + richtext, `/resources`, recruitment, `/join`,
-   `/contact`, `/my-events`, reminder cron, `.ics` feeds, waitlist
-   auto-promote, venue booking, email prefs, `/about`, `/team`.
+5. **Phase 2 — Self-service & content** (started 2026-08-24):
+   - ✅ **Announcements + rich text + image — DONE** (first Phase-2 vertical).
+     Council-wide (`manage:content`, org-wide roles only — no club scope),
+     draft/publish, public `/announcements` feed + `/announcements/[slug]`
+     detail (replaces the stub), admin CRUD at `/admin/announcements`.
+     - **Safe rich text:** zero-dep Markdown renderer (`src/lib/markdown.tsx`)
+       parsing an allowlisted subset → React elements (no HTML string, so the
+       §5 `dangerouslySetInnerHTML` ban holds natively; hrefs scheme-checked).
+       9-case unit test incl. XSS. Verified end-to-end that a `<script>` payload
+       is escaped and `javascript:` links are inert.
+     - **Images:** public Supabase Storage bucket `announcements`, uploads only
+       via the service-role action (least privilege; ≤5 MB, images only).
+       Migration `20260824000000_announcements_image.sql` (applied via MCP +
+       mirrored in-repo); `database.types.ts` regenerated. vitest now runs
+       `.tsx` tests (automatic JSX runtime).
+     - ⚠️ Create/update POSTs (multipart server actions) need a browser pass.
+   - **Still schema-only / unbuilt:** schedules, gallery, `/achievements`,
+     `/resources`, recruitment, `/contact` inbox, `/my-events`, reminder cron,
+     `.ics` feeds, media library, waitlist auto-promote, venue booking,
+     co-hosted events, email prefs, `/about` + `/team` (org chart). NOTE: the
+     7 footer routes + `/about`/`/team` currently have **placeholder stubs**
+     (§5) that these real features replace.
    - **Dead nav/CTA links (live-site polish, ready to build).** None of the
      Phase 2 routes exist yet, but several are already linked on the **live**
      site and 404:
