@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminSession } from "@/lib/auth/guards";
-import { canManage, grantFor } from "@/lib/auth/capabilities";
+import { canManage } from "@/lib/auth/capabilities";
 import { resolveOwningClub } from "@/lib/admin/club-scope";
 import { writeAudit } from "@/lib/admin/audit";
 import { getMemberForEdit } from "@/lib/admin/members";
@@ -158,9 +158,10 @@ export async function openSessionAction(
   const parsed = SessionSchema.safeParse({ title: formData.get("title"), clubId: formData.get("clubId") ?? "" });
   if (!parsed.success) return { error: "Give the session a title." };
 
-  const grant = grantFor(session.role, "manage:members");
-  const clubId = grant === "own" ? session.clubId : (parsed.data.clubId || null);
-  if (!clubId) return { error: "Pick a club for this session." };
+  const resolved = resolveOwningClub(session, "manage:members", parsed.data.clubId);
+  if ("error" in resolved) return { error: resolved.error };
+  if (resolved.clubId == null) return { error: "Pick a club for this session." };
+  const clubId = resolved.clubId;
   if (!canManage(session, "manage:members", clubId)) return { error: "You can't run sessions for that club." };
 
   // One open session per club at a time (also enforced by a partial unique index).
