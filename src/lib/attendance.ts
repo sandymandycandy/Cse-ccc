@@ -85,3 +85,32 @@ export function secondsLeft(s: SessionWindow, nowMs: number = Date.now()): numbe
   const end = new Date(s.opened_at).getTime() + s.window_seconds * 1000;
   return Math.max(0, Math.ceil((end - nowMs) / 1000));
 }
+
+// ── member QR token (static, head-scanned) ───────────────────────────────────
+// A member's QR encodes `<memberId>.<sig>`; the same token both marks the member
+// present (a head scans it) and authorises their read-only self-view. Static
+// (no time slot): the head's authenticated session is the trust anchor.
+
+function memberSig(memberId: string): string {
+  return createHmac("sha256", hmacSecret())
+    .update(`member:v1|${memberId}`)
+    .digest("base64url");
+}
+
+/** The token to embed in a member's QR. */
+export function memberToken(memberId: string): string {
+  return `${memberId}.${memberSig(memberId)}`;
+}
+
+/** The member id if `token` carries a valid signature (constant-time), else null. */
+export function verifyMemberToken(token: string): string | null {
+  if (typeof token !== "string") return null;
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+  const [memberId, sig] = parts;
+  if (!memberId || !sig) return null;
+  const expected = Buffer.from(memberSig(memberId));
+  const given = Buffer.from(sig);
+  if (expected.length !== given.length) return null;
+  return timingSafeEqual(expected, given) ? memberId : null;
+}
