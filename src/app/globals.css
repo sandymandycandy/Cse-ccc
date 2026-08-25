@@ -209,9 +209,26 @@
     border-bottom: 1px solid var(--line);
   }
   .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 11px;
     font: 400 21px var(--serif);
     letter-spacing: -0.01em;
     color: var(--ink);
+  }
+  /* Logo mark: the PNG's alpha is used as a mask and filled with currentColor,
+     so the "C" takes the theme ink (dark on paper / light on night) and turns
+     forest on hover along with the wordmark. */
+  .brand-mark {
+    flex: none;
+    width: 30px;
+    height: 34px;
+    background-color: currentColor;
+    -webkit-mask: url(/logo-mark.png) center / contain no-repeat;
+    mask: url(/logo-mark.png) center / contain no-repeat;
+  }
+  @media (max-width: 380px) {
+    .brand-text { display: none; }
   }
   .site-nav {
     display: flex;

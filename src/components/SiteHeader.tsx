@@ -29,8 +29,9 @@ export function SiteHeader({
 
   return (
     <header className="site-header">
-      <Link href="/" className="brand">
-        CSE Club Council
+      <Link href="/" className="brand" aria-label="CSE Club Council — home">
+        <span className="brand-mark" aria-hidden />
+        <span className="brand-text">CSE Club Council</span>
       </Link>
 
       <nav className="site-nav" aria-label="Primary">
