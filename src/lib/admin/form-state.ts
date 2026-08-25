@@ -60,3 +60,7 @@ export interface MemberInviteState {
 export interface MemberSetupState {
   error?: string;
 }
+
+export interface MemberLoginState {
+  error?: string;
+}
