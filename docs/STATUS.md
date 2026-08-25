@@ -20,33 +20,27 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-08-25)
 
-> ### 🔨 IN PROGRESS — QR attendance Phase 1 (on branch `feat/qr-attendance-phase1`)
-> A **club-member QR attendance** system is mid-build on branch
-> **`feat/qr-attendance-phase1`** (NOT merged, NOT pushed; `main` is unchanged and
-> still the deployed state below). It's being executed **task-by-task via the
-> `superpowers:subagent-driven-development` skill**, whose ledger is the resume map.
->
-> **To resume:** `git checkout feat/qr-attendance-phase1`, then invoke
-> **`superpowers:subagent-driven-development`** — it reads
-> `.superpowers/sdd/2026-08-24-qr-attendance-phase1/progress.md` and continues at
-> the first task without a `complete` line.
-> - **Done:** Tasks 1–7 (schema+types applied to live DB · `manage:members`
->   capability · member QR token · qr util · member data+CRUD actions · member
->   UI+QR card+nav · **T7 session data layer `attendance-club.ts` + open/close
->   actions**, branch @ `7f961de`). **Next: Task 8** (scan API route
->   `POST /api/admin/attendance/club/scan` + live-feed route
->   `GET /api/admin/attendance/club/feed`), then T9 `html5-qrcode` scanner
->   (`npm install html5-qrcode`) → T10 dashboard+live view → T11 member
->   self-view `/m/[token]` → T12 verify+final-review+merge.
+> ### ✅ READY — QR attendance Phase 1 (branch `feat/qr-attendance-phase1`, awaiting merge decision)
+> The **club-member QR attendance** system is **code-complete** on branch
+> **`feat/qr-attendance-phase1`** @ `21437ab` (NOT merged, NOT pushed; `main` is
+> unchanged and still the deployed state below). All 12 plan tasks are done, the
+> whole-branch review is done (0 Critical; both Important findings fixed), and the
+> verify gate is green (**typecheck/lint clean, 78/78 tests, build ✓**). SDD ledger:
+> `.superpowers/sdd/2026-08-24-qr-attendance-phase1/progress.md`.
+> - **The only thing left is the OWNER's merge decision** (merge locally / push+PR
+>   / keep as-is) — do NOT merge or push without explicit consent.
 > - **Plan:** `docs/superpowers/plans/2026-08-24-qr-attendance-phase1.md` ·
 >   **Spec:** `docs/superpowers/specs/2026-08-24-qr-attendance-design.md`
-> - ⚠️ The Phase-1 DB migration is **already applied to the live/shared DB**
->   (additive: nullable cols on `club_members` + new `club_attendance_sessions`/
->   `club_attendance` tables). ⚠️ The camera scanner (T9) needs a real-phone test.
-> - ⚠️ **Subagents hit the API session limit this session** (resets 5am
->   Asia/Calcutta). T7's fix round was completed by the controller re-running
->   typecheck/lint + dispatching the re-review once access returned; if a
->   dispatch fails with "session limit," pause and resume the SDD loop after reset.
+> - ⚠️ **Both** Phase-1 DB migrations are **already applied to the live/shared DB**
+>   (additive): the schema migration (nullable cols on `club_members` + new
+>   `club_attendance_sessions`/`club_attendance` tables) AND
+>   `20260825000000_club_members_rollno_privacy.sql` (locks `roll_no` PII out of the
+>   anon PostgREST API — a column-level SELECT grant; **verified** anon can no
+>   longer read `roll_no`).
+> - ⚠️ **OWED before trusting in prod:** a **real-phone camera test** of the
+>   html5-qrcode scanner at `/admin/attendance/scan` (getUserMedia + live decode —
+>   not verifiable headless), plus the browser walk-through in the
+>   manual-verification checklist item #8 below.
 
 **All four Phase-2 content verticals are pushed & deployed** — `HEAD ==
 origin/main == b33286f` (0 ahead / 0 behind). §4c event duplicate/cancel, the 7
@@ -68,6 +62,14 @@ build + render + schema-check but **not by executing the mutation**:
 5. **Resources** (P2): `/admin/resources` → Add resource → title + `https://…` link + type (+ club, if org-wide) → Save → confirm it appears grouped at `/resources`; Edit changes it; Delete removes it. As a **club_head**, confirm you only see/manage your own club's rows and get no club picker.
 6. **Gallery** (P2): `/admin/gallery` → Add photo → upload an image + caption + sort (+ club, if org-wide) → Save → confirm it shows in the grid at `/gallery`; Edit (replace the image — old object should be gone) and Delete work. As a **club_head/vice_head**, confirm you see Gallery in the nav and manage only your own club's photos.
 7. **Achievements** (P2): `/admin/achievements` → Add → title + Markdown description + date + optional image (+ club, if org-wide) → Save → confirm it renders at `/achievements` (markdown formatted, date + club shown); Edit/replace-image/Delete work. Club scope same as Gallery.
+8. **Club-member QR attendance** (branch `feat/qr-attendance-phase1`, once merged):
+   `/admin/attendance` → add members (`/admin/attendance/members`) → **open a
+   session** → on a phone open a member's `/m/<token>` QR (or a printed card) →
+   `/admin/attendance/scan` scans it → dashboard present-count increments (live,
+   3s poll) → the member's `/m/<token>` shows the new mark + %. As a **faculty
+   advisor** (read grant), confirm the dashboard + live view are **viewable** but
+   Scan/Close/Open-session controls are hidden. ⚠️ The **camera** step needs a
+   real phone (getUserMedia can't be driven headless).
 
 ### 📧 Out-of-repo follow-up (email processor)
 The external processor that renders `event_*` templates must learn **3 new
@@ -123,6 +125,37 @@ results editor); Auth.js v5 + capabilities across 9 roles.
 - **§5 Dead nav links** — all 9 (`/join`, `/team` + 7 footer routes) now have
   minimal stub pages. **Zero dead nav links site-wide.** *(join/team pushed; the
   7 footer stubs unpushed)*
+
+### Club-member QR attendance (Phase 1) — built 2026-08-24/25 *(⚠️ UNMERGED, branch `feat/qr-attendance-phase1`)*
+A club-roster attendance system **distinct from the event self-scan flow** (§13.8).
+- **Members** — admin CRUD at `/admin/attendance/members`, gated on the new
+  **`manage:members`** capability (president/vp/tech_head/social_media = all clubs,
+  **club_head/vice_head = own**, faculty = read). `roll_no` is admin-only PII (card
+  printing/disambiguation, read server-side via service-role only).
+- **Per-member QR** — HMAC-signed member token (`memberToken`/`verifyMemberToken`
+  in `attendance.ts`, constant-time verify, domain-separated `member:v1|`);
+  printable QR card via `qrDataUrl`.
+- **Sessions** — open/close with a one-open-per-club guard; scan a member's QR
+  (`POST /api/admin/attendance/club/scan`, idempotent via `UNIQUE(session_id,
+  member_id)` → 23505 → "already", club scope read fresh from the DB row) → live
+  dashboard (`GET /api/admin/attendance/club/feed`, 3s poll) at `/admin/attendance`
+  + `/admin/attendance/sessions/[id]`.
+- **Camera scanner** — html5-qrcode at `/admin/attendance/scan` (⚠️ owes a
+  real-phone test — can't be driven headless).
+- **Member self-view** — no-login `/m/[token]` (HMAC token → `notFound` on
+  tamper/malformed; `noindex`; service-role read only).
+- **Faculty/council read-only** — `canViewClub` lets `read`/`all` grants view any
+  club's dashboard + live view while every mutation stays behind `canManage`.
+- **PII lockdown** — migration `20260825000000_club_members_rollno_privacy.sql`
+  (**applied + verified on the live DB**) replaces the table-wide anon SELECT grant
+  on `club_members` with a column-level grant excluding `roll_no`.
+- **Attendance math** — pure `src/lib/admin/attendance-math.ts`
+  (`summarizeAttendance`, unit-tested) shared by the dashboard roster and the
+  member self-view so they can't disagree; `attended ≤ eligible` always
+  (eligible = closed sessions opened on/after the member joined).
+- 78 vitest tests (added `canViewClub`, `summarizeAttendance`, member-token, qr).
+- **Out-of-repo:** emailing members their `/m/[token]` link needs a new email
+  template (Phase-2 flavor; not built).
 
 ### Phase 2 started 2026-08-24
 - **Achievements** — 4th vertical *(deployed)*. Public `/achievements` list
