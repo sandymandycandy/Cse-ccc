@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { requireMember } from "@/lib/member/guards";
-import { memberToken } from "@/lib/attendance";
+import { memberExpiringToken } from "@/lib/attendance";
 import { qrDataUrl } from "@/lib/qr";
 import { getMemberAttendance } from "@/lib/admin/attendance-club";
 import { istNumericDate } from "@/lib/datetime";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { RotatingMemberQr } from "@/components/member/RotatingMemberQr";
 import { memberLogoutAction } from "./actions";
 
 export const metadata: Metadata = { title: "My attendance", robots: { index: false } };
@@ -11,8 +13,13 @@ export const dynamic = "force-dynamic";
 
 export default async function MemberHome() {
   const session = await requireMember();
+  const admin = createAdminClient();
+  const { data: open } = await admin
+    .from("club_attendance_sessions")
+    .select("qr_ttl_seconds").eq("club_id", session.clubId).eq("status", "open").maybeSingle();
+  const ttl = open?.qr_ttl_seconds ?? 60;
   const [qr, view] = await Promise.all([
-    qrDataUrl(`${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/m/${memberToken(session.memberId)}`),
+    qrDataUrl(`${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/m/${memberExpiringToken(session.memberId, ttl)}`),
     getMemberAttendance(session.memberId),
   ]);
 
@@ -23,9 +30,7 @@ export default async function MemberHome() {
       <p className="lead" style={{ marginTop: 0 }}>Show this QR to your club head to mark attendance.</p>
 
       <div style={{ textAlign: "center", margin: "20px 0" }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={qr} alt="Your attendance QR" width={240} height={240}
-             style={{ width: 240, height: 240, border: "1px solid var(--rule)", borderRadius: 12, padding: 12 }} />
+        <RotatingMemberQr initialQr={qr} initialTtl={ttl} />
       </div>
 
       <div className="att-count" style={{ marginTop: 8 }}>

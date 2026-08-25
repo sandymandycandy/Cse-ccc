@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { verifyMemberToken } from "@/lib/attendance";
+import { verifyMemberToken, verifyMemberExpiringToken } from "@/lib/attendance";
 import { getMemberAttendance } from "@/lib/admin/attendance-club";
 import { istNumericDate } from "@/lib/datetime";
 
@@ -13,7 +13,10 @@ export default async function MemberSelfView({ params }: { params: Promise<{ tok
   // any undecodable/invalid token as a 404, never a 500.
   let memberId: string | null = null;
   try {
-    memberId = verifyMemberToken(decodeURIComponent(token));
+    const decoded = decodeURIComponent(token);
+    memberId = decoded.startsWith("e.")
+      ? verifyMemberExpiringToken(decoded)
+      : verifyMemberToken(decoded);
   } catch {
     /* malformed token → memberId stays null → 404 below */
   }
