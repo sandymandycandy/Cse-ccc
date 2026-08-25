@@ -9,6 +9,8 @@ const initialState: MemberFormState = {};
 export interface MemberInitial {
   name: string;
   rollNo: string;
+  email: string;
+  phone: string;
   role: "head" | "vice_head" | "member";
   sort: number;
   isActive: boolean;
@@ -38,6 +40,14 @@ export function MemberForm({
       <div className="field">
         <label htmlFor="rollNo">Roll number (optional)</label>
         <input id="rollNo" name="rollNo" maxLength={40} defaultValue={initial?.rollNo} />
+      </div>
+      <div className="field">
+        <label htmlFor="email">Email (needed for a member login)</label>
+        <input id="email" name="email" type="email" maxLength={200} defaultValue={initial?.email} />
+      </div>
+      <div className="field">
+        <label htmlFor="phone">Phone (optional)</label>
+        <input id="phone" name="phone" maxLength={20} defaultValue={initial?.phone} />
       </div>
       <div className="field">
         <label htmlFor="role">Role</label>

@@ -19,6 +19,8 @@ export interface MemberForEdit {
   id: string;
   name: string;
   rollNo: string | null;
+  email: string | null;
+  phone: string | null;
   role: MemberRole;
   sort: number;
   isActive: boolean;
@@ -50,7 +52,7 @@ export async function getMemberForEdit(id: string): Promise<MemberForEdit | null
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("club_members")
-    .select("id, name, roll_no, role, sort, is_active, club_id")
+    .select("id, name, roll_no, email, phone, role, sort, is_active, club_id")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
@@ -59,6 +61,8 @@ export async function getMemberForEdit(id: string): Promise<MemberForEdit | null
     id: data.id,
     name: data.name,
     rollNo: data.roll_no,
+    email: data.email,
+    phone: data.phone,
     role: data.role,
     sort: data.sort,
     isActive: data.is_active,

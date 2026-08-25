@@ -25,7 +25,8 @@ export default async function EditMemberPage({ params }: { params: Promise<{ id:
         id={member.id}
         clubs={clubs}
         initial={{
-          name: member.name, rollNo: member.rollNo ?? "", role: member.role,
+          name: member.name, rollNo: member.rollNo ?? "",
+          email: member.email ?? "", phone: member.phone ?? "", role: member.role,
           sort: member.sort, isActive: member.isActive, clubId: member.clubId,
         }}
       />

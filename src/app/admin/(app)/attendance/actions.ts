@@ -14,6 +14,8 @@ import type { MemberFormState, SessionFormState } from "@/lib/admin/form-state";
 const MemberSchema = z.object({
   name: z.string().trim().min(2).max(120),
   rollNo: z.string().trim().max(40).optional().or(z.literal("")),
+  email: z.string().trim().email().max(200).optional().or(z.literal("")),
+  phone: z.string().trim().max(20).optional().or(z.literal("")),
   role: z.enum(["head", "vice_head", "member"]),
   sort: z.coerce.number().int().min(0).max(9999).optional().or(z.literal("")),
   isActive: z.union([z.literal("on"), z.literal("")]),
@@ -26,6 +28,8 @@ function parse(formData: FormData) {
   return MemberSchema.safeParse({
     name: formData.get("name"),
     rollNo: formData.get("rollNo") ?? "",
+    email: formData.get("email") ?? "",
+    phone: formData.get("phone") ?? "",
     role: formData.get("role"),
     sort: formData.get("sort") ?? "",
     isActive: formData.get("isActive") ? "on" : "",
@@ -57,6 +61,8 @@ export async function createMemberAction(
       club_id: resolved.clubId,
       name: parsed.data.name,
       roll_no: parsed.data.rollNo ? parsed.data.rollNo : null,
+      email: parsed.data.email ? parsed.data.email.toLowerCase() : null,
+      phone: parsed.data.phone ? parsed.data.phone : null,
       role: parsed.data.role,
       sort: typeof parsed.data.sort === "number" ? parsed.data.sort : 0,
       is_active: parsed.data.isActive === "on",
@@ -64,7 +70,14 @@ export async function createMemberAction(
     })
     .select("id")
     .single();
+  if (error?.code === "23505") return { error: "That email is already used by another member." };
   if (error || !data) return { error: "Could not add the member. Try again." };
+
+  // Provision an empty credential row so the head can later generate a login link.
+  if (parsed.data.email) {
+    const { ensureAuthRow } = await import("@/lib/member/auth");
+    await ensureAuthRow(data.id);
+  }
 
   await writeAudit({
     actorId: session.id, action: "create", entity: "club_member",
@@ -105,6 +118,8 @@ export async function updateMemberAction(
     .update({
       name: parsed.data.name,
       roll_no: parsed.data.rollNo ? parsed.data.rollNo : null,
+      email: parsed.data.email ? parsed.data.email.toLowerCase() : null,
+      phone: parsed.data.phone ? parsed.data.phone : null,
       role: parsed.data.role,
       // On UPDATE preserve the current ordering when sort is unset (create defaults to 0).
       sort: typeof parsed.data.sort === "number" ? parsed.data.sort : existing.sort,
@@ -112,6 +127,7 @@ export async function updateMemberAction(
       club_id: targetClub,
     })
     .eq("id", id);
+  if (error?.code === "23505") return { error: "That email is already used by another member." };
   if (error) return { error: "Could not save your changes. Try again." };
 
   await writeAudit({
