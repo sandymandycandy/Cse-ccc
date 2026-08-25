@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireViewPage } from "@/lib/auth/guards";
-import { canManage } from "@/lib/auth/capabilities";
+import { canManage, canViewClub } from "@/lib/auth/capabilities";
 import { getSessionDetail } from "@/lib/admin/attendance-club";
 import { LiveSession } from "@/components/admin/LiveSession";
 import { closeSessionAction } from "../../actions";
@@ -12,7 +12,8 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const detail = await getSessionDetail(id);
   if (!detail) notFound();
-  if (!canManage(session, "manage:members", detail.session.clubId)) redirect("/admin/attendance");
+  if (!canViewClub(session, "manage:members", detail.session.clubId)) redirect("/admin/attendance");
+  const canManageClub = canManage(session, "manage:members", detail.session.clubId);
 
   const { session: s, present, absent } = detail;
   return (
@@ -23,12 +24,14 @@ export default async function SessionPage({ params }: { params: Promise<{ id: st
           <h1 style={{ margin: "6px 0 0" }}>{s.title}</h1>
         </div>
         {s.status === "open" ? (
-          <div style={{ display: "flex", gap: 8 }}>
-            <Link href={`/admin/attendance/scan`} className="btn btn-primary">Scan</Link>
-            <form action={closeSessionAction}><input type="hidden" name="id" value={s.id} />
-              <button className="btn" style={{ color: "var(--rust)", borderColor: "var(--rust)" }}>Close</button>
-            </form>
-          </div>
+          canManageClub ? (
+            <div style={{ display: "flex", gap: 8 }}>
+              <Link href={`/admin/attendance/scan`} className="btn btn-primary">Scan</Link>
+              <form action={closeSessionAction}><input type="hidden" name="id" value={s.id} />
+                <button className="btn" style={{ color: "var(--rust)", borderColor: "var(--rust)" }}>Close</button>
+              </form>
+            </div>
+          ) : <span className="abadge abadge-approved">Open · live</span>
         ) : <span className="abadge abadge-approved">Closed</span>}
       </div>
 

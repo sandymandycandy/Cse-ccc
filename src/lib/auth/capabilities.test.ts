@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { grantFor, canManage, roleRequiresTotp } from "./capabilities";
+import { grantFor, canManage, canViewClub, roleRequiresTotp } from "./capabilities";
 
 describe("manage:results grants", () => {
   it("grants all to org-wide organiser roles", () => {
@@ -33,6 +33,33 @@ describe("manage:members grants", () => {
     expect(grantFor("tech_head", "manage:members")).toBe("all");
     expect(grantFor("faculty_advisor", "manage:members")).toBe("read");
     expect(grantFor("events_head", "manage:members")).toBe("none");
+  });
+});
+
+describe("canViewClub — read-or-manage view scope for a specific club", () => {
+  it("faculty (read) can view any club's dashboard but cannot manage it", () => {
+    const faculty = { role: "faculty_advisor", clubId: null } as const;
+    expect(canViewClub(faculty, "manage:members", "c1")).toBe(true);
+    expect(canViewClub(faculty, "manage:members", "c2")).toBe(true);
+    expect(canManage(faculty, "manage:members", "c1")).toBe(false);
+  });
+
+  it("council-wide managers (all) view every club", () => {
+    const pres = { role: "president", clubId: null } as const;
+    expect(canViewClub(pres, "manage:members", "c1")).toBe(true);
+  });
+
+  it("own-scoped heads view only their own club", () => {
+    const head = { role: "club_head", clubId: "c1" } as const;
+    expect(canViewClub(head, "manage:members", "c1")).toBe(true);
+    expect(canViewClub(head, "manage:members", "c2")).toBe(false);
+  });
+
+  it("a role with no grant, or a null club, views nothing", () => {
+    const eventsHead = { role: "events_head", clubId: null } as const;
+    expect(canViewClub(eventsHead, "manage:members", "c1")).toBe(false);
+    const pres = { role: "president", clubId: null } as const;
+    expect(canViewClub(pres, "manage:members", null)).toBe(false);
   });
 });
 

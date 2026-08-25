@@ -174,6 +174,25 @@ export function canManage(
   return false;
 }
 
+/**
+ * Can this identity *view* a capability's surface for a SPECIFIC club?
+ * Council-wide grants (`all`/`read`) view every club; `own` sees only its own;
+ * `request`/`none` view nothing. Unlike `canManage`, a `read` grant qualifies —
+ * this is what lets a Faculty Advisor open a club's dashboard read-only while
+ * mutations stay gated behind `canManage`.
+ */
+export function canViewClub(
+  id: AdminIdentity,
+  cap: Capability,
+  resourceClubId: string | null,
+): boolean {
+  if (resourceClubId == null) return false;
+  const grant = grantFor(id.role, cap);
+  if (grant === "all" || grant === "read") return true;
+  if (grant === "own") return id.clubId != null && id.clubId === resourceClubId;
+  return false;
+}
+
 /** Capabilities this role can at least see — drives the admin nav. */
 export function viewableCapabilities(role: AdminRole): Capability[] {
   return (Object.keys(MATRIX) as Capability[]).filter(
