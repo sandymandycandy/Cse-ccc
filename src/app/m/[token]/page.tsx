@@ -9,7 +9,14 @@ export const metadata: Metadata = { title: "My attendance", robots: { index: fal
 
 export default async function MemberSelfView({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const memberId = verifyMemberToken(decodeURIComponent(token));
+  // decodeURIComponent throws URIError on malformed input (e.g. "/m/%") — treat
+  // any undecodable/invalid token as a 404, never a 500.
+  let memberId: string | null = null;
+  try {
+    memberId = verifyMemberToken(decodeURIComponent(token));
+  } catch {
+    /* malformed token → memberId stays null → 404 below */
+  }
   if (!memberId) notFound();
   const view = await getMemberAttendance(memberId);
   if (!view) notFound();

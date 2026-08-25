@@ -18,5 +18,6 @@ export async function GET(request: Request) {
     return Response.json({ error: "Not permitted." }, { status: 403 });
   }
   const feed = await liveFeed(sessionId);
+  if (!feed) return Response.json({ error: "Not found." }, { status: 404 });
   return Response.json(feed, { headers: { "cache-control": "no-store" } });
 }

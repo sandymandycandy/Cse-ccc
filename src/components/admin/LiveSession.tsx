@@ -7,18 +7,20 @@ interface Feed { open: boolean; count: number; present: { memberId: string; name
 export function LiveSession({ sessionId, initial }: { sessionId: string; initial: Feed }) {
   const [feed, setFeed] = useState<Feed>(initial);
   useEffect(() => {
+    if (!initial.open) return; // closed session — nothing live to poll
     let active = true;
-    const poll = async () => {
+    const iv = setInterval(async () => {
       try {
         const r = await fetch(`/api/admin/attendance/club/feed?session=${sessionId}`, { cache: "no-store" });
         if (!r.ok) return;
         const j = (await r.json()) as Feed;
-        if (active) setFeed(j);
+        if (!active) return;
+        setFeed(j);
+        if (!j.open) clearInterval(iv); // session just closed — stop polling
       } catch { /* keep last frame */ }
-    };
-    const iv = setInterval(poll, 3000);
+    }, 3000);
     return () => { active = false; clearInterval(iv); };
-  }, [sessionId]);
+  }, [sessionId, initial.open]);
 
   return (
     <div style={{ marginTop: 16 }}>

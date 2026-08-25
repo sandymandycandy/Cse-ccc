@@ -109,14 +109,24 @@ export async function rosterWithPercent(clubId: string): Promise<RosterPct[]> {
     .eq("club_attendance_sessions.club_id", clubId);
 
   const sess = sessions ?? [];
-  const attendedByMember = new Map<string, number>();
+  const closedOpenedAt = new Map(sess.map((s) => [s.id, s.opened_at]));
+  // Per member: opened_at of each CLOSED session they were marked at. Marks for
+  // still-open sessions are ignored here so `attended` is drawn from the same set
+  // as `eligible` — otherwise a live scan could push attended past eligible (>100%)
+  // and the dashboard would disagree with the member self-view (getMemberAttendance).
+  const attendedOpenedAts = new Map<string, string[]>();
   for (const m of marks ?? []) {
-    attendedByMember.set(m.member_id, (attendedByMember.get(m.member_id) ?? 0) + 1);
+    const openedAt = closedOpenedAt.get(m.session_id);
+    if (openedAt === undefined) continue;
+    const list = attendedOpenedAts.get(m.member_id) ?? [];
+    list.push(openedAt);
+    attendedOpenedAts.set(m.member_id, list);
   }
   return (members ?? []).map((mem) => {
     // Eligible = closed sessions on/after the member joined (fairer denominator).
     const eligible = sess.filter((s) => s.opened_at >= mem.created_at).length;
-    const attended = attendedByMember.get(mem.id) ?? 0;
+    // Attended = those eligible closed sessions the member was actually marked at.
+    const attended = (attendedOpenedAts.get(mem.id) ?? []).filter((oa) => oa >= mem.created_at).length;
     const pct = eligible === 0 ? 0 : Math.round((attended / eligible) * 100);
     return { memberId: mem.id, name: mem.name, attended, eligible, pct };
   });
