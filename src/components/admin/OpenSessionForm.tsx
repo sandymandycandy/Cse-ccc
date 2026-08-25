@@ -15,6 +15,11 @@ export function OpenSessionForm({ clubId }: { clubId: string | null }) {
         <label htmlFor="title">New session</label>
         <input id="title" name="title" required maxLength={140} placeholder="Weekly sync" />
       </div>
+      <div className="field" style={{ margin: 0 }}>
+        <label htmlFor="qrTtlSeconds">QR refresh (seconds)</label>
+        <input id="qrTtlSeconds" name="qrTtlSeconds" type="number" min={5} max={600}
+               defaultValue={60} style={{ maxWidth: 120 }} />
+      </div>
       <button className="btn btn-primary" disabled={pending}>{pending ? "Opening…" : "Open session"}</button>
       {state.error ? <div className="note" style={{ borderLeftColor: "var(--rust)", width: "100%" }}>{state.error}</div> : null}
     </form>

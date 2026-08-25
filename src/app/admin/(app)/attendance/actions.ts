@@ -163,6 +163,7 @@ export async function deleteMemberAction(formData: FormData): Promise<void> {
 const SessionSchema = z.object({
   title: z.string().trim().min(2).max(140),
   clubId: z.union([z.literal(""), z.string().uuid()]),
+  qrTtlSeconds: z.coerce.number().int().min(5).max(600).optional(),
 });
 
 export async function openSessionAction(
@@ -172,7 +173,11 @@ export async function openSessionAction(
   const session = await getAdminSession();
   if (!session) return { error: "Your session expired. Sign in again." };
 
-  const parsed = SessionSchema.safeParse({ title: formData.get("title"), clubId: formData.get("clubId") ?? "" });
+  const parsed = SessionSchema.safeParse({
+    title: formData.get("title"),
+    clubId: formData.get("clubId") ?? "",
+    qrTtlSeconds: formData.get("qrTtlSeconds") ?? undefined,
+  });
   if (!parsed.success) return { error: "Give the session a title." };
 
   const resolved = resolveOwningClub(session, "manage:members", parsed.data.clubId);
@@ -188,7 +193,7 @@ export async function openSessionAction(
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("club_attendance_sessions")
-    .insert({ club_id: clubId, title: parsed.data.title, opened_by: session.id, status: "open" })
+    .insert({ club_id: clubId, title: parsed.data.title, opened_by: session.id, status: "open", qr_ttl_seconds: parsed.data.qrTtlSeconds ?? 60 })
     .select("id").single();
   if (error || !data) return { error: "Could not open the session. Try again." };
 
