@@ -20,27 +20,28 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-08-25)
 
-> ### ✅ READY — QR attendance Phase 1 (branch `feat/qr-attendance-phase1`, awaiting merge decision)
-> The **club-member QR attendance** system is **code-complete** on branch
-> **`feat/qr-attendance-phase1`** @ `21437ab` (NOT merged, NOT pushed; `main` is
-> unchanged and still the deployed state below). All 12 plan tasks are done, the
-> whole-branch review is done (0 Critical; both Important findings fixed), and the
-> verify gate is green (**typecheck/lint clean, 78/78 tests, build ✓**). SDD ledger:
+> ### ✅ SHIPPED & LIVE — QR attendance Phase 1 (merged to `main`, deployed to prod 2026-08-25)
+> The **club-member QR attendance** system is **merged and live in production**
+> (`main` @ `7fe7c01`, deployed to https://cse-ccc.vercel.app). All 12 plan tasks
+> done, whole-branch review done (0 Critical; both Important findings fixed), verify
+> gate green (**typecheck/lint clean, 78/78 tests, build ✓**). The
+> `feat/qr-attendance-phase1` branch was fast-forward-merged and deleted (local +
+> remote). SDD ledger (gitignored, local):
 > `.superpowers/sdd/2026-08-24-qr-attendance-phase1/progress.md`.
-> - **The only thing left is the OWNER's merge decision** (merge locally / push+PR
->   / keep as-is) — do NOT merge or push without explicit consent.
+> - **Prod smoke-tested post-deploy:** `/m/<bad-token>` + `/m/%25` → 404 (token +
+>   malformed-encoding guards), `/admin/attendance` → 307→login (guard), `/clubs` →
+>   200 (no regression). **PII verified on the live anon endpoint:** `club_members?
+>   select=roll_no` → 401 permission-denied, `select=name` → 200.
 > - **Plan:** `docs/superpowers/plans/2026-08-24-qr-attendance-phase1.md` ·
 >   **Spec:** `docs/superpowers/specs/2026-08-24-qr-attendance-design.md`
-> - ⚠️ **Both** Phase-1 DB migrations are **already applied to the live/shared DB**
->   (additive): the schema migration (nullable cols on `club_members` + new
+> - ✅ **Both** Phase-1 DB migrations are applied to the live/shared DB (additive):
+>   the schema migration (nullable cols on `club_members` + new
 >   `club_attendance_sessions`/`club_attendance` tables) AND
->   `20260825000000_club_members_rollno_privacy.sql` (locks `roll_no` PII out of the
->   anon PostgREST API — a column-level SELECT grant; **verified** anon can no
->   longer read `roll_no`).
-> - ⚠️ **OWED before trusting in prod:** a **real-phone camera test** of the
->   html5-qrcode scanner at `/admin/attendance/scan` (getUserMedia + live decode —
->   not verifiable headless), plus the browser walk-through in the
->   manual-verification checklist item #8 below.
+>   `20260825000000_club_members_rollno_privacy.sql` (roll_no locked out of anon).
+> - ⚠️ **STILL OWED — a real-phone camera test** of the html5-qrcode scanner at
+>   `/admin/attendance/scan` (getUserMedia + live decode — not verifiable headless),
+>   plus the browser CRUD/scan walk-through in manual-verification item #8 below.
+>   Everything else is verified; this is the one human-only gap.
 
 **All four Phase-2 content verticals are pushed & deployed** — `HEAD ==
 origin/main == b33286f` (0 ahead / 0 behind). §4c event duplicate/cancel, the 7
@@ -62,7 +63,7 @@ build + render + schema-check but **not by executing the mutation**:
 5. **Resources** (P2): `/admin/resources` → Add resource → title + `https://…` link + type (+ club, if org-wide) → Save → confirm it appears grouped at `/resources`; Edit changes it; Delete removes it. As a **club_head**, confirm you only see/manage your own club's rows and get no club picker.
 6. **Gallery** (P2): `/admin/gallery` → Add photo → upload an image + caption + sort (+ club, if org-wide) → Save → confirm it shows in the grid at `/gallery`; Edit (replace the image — old object should be gone) and Delete work. As a **club_head/vice_head**, confirm you see Gallery in the nav and manage only your own club's photos.
 7. **Achievements** (P2): `/admin/achievements` → Add → title + Markdown description + date + optional image (+ club, if org-wide) → Save → confirm it renders at `/achievements` (markdown formatted, date + club shown); Edit/replace-image/Delete work. Club scope same as Gallery.
-8. **Club-member QR attendance** (branch `feat/qr-attendance-phase1`, once merged):
+8. **Club-member QR attendance** (LIVE in prod — do this walk-through to confirm):
    `/admin/attendance` → add members (`/admin/attendance/members`) → **open a
    session** → on a phone open a member's `/m/<token>` QR (or a printed card) →
    `/admin/attendance/scan` scans it → dashboard present-count increments (live,
@@ -126,7 +127,7 @@ results editor); Auth.js v5 + capabilities across 9 roles.
   minimal stub pages. **Zero dead nav links site-wide.** *(join/team pushed; the
   7 footer stubs unpushed)*
 
-### Club-member QR attendance (Phase 1) — built 2026-08-24/25 *(⚠️ UNMERGED, branch `feat/qr-attendance-phase1`)*
+### Club-member QR attendance (Phase 1) — built 2026-08-24/25 *(deployed 2026-08-25)*
 A club-roster attendance system **distinct from the event self-scan flow** (§13.8).
 - **Members** — admin CRUD at `/admin/attendance/members`, gated on the new
   **`manage:members`** capability (president/vp/tech_head/social_media = all clubs,
