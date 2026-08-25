@@ -56,3 +56,7 @@ export interface MemberInviteState {
   /** The generated accept-invite URL, shown once so the head can share it. */
   inviteUrl?: string;
 }
+
+export interface MemberSetupState {
+  error?: string;
+}
