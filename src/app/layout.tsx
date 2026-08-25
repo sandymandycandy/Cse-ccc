@@ -45,9 +45,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const theme =
     (await cookies()).get("theme")?.value === "night" ? "night" : "day";
 
-  // The admin area brings its own chrome (middleware sets x-pathname); the public
-  // header/footer would be wrong there.
-  const isAdmin = ((await headers()).get("x-pathname") ?? "").startsWith("/admin");
+  // Admin AND member areas bring their own chrome (proxy sets x-pathname); the
+  // public header/footer would be wrong there.
+  const path = (await headers()).get("x-pathname") ?? "";
+  const bespokeChrome = path.startsWith("/admin") || path.startsWith("/member");
 
   return (
     <html
@@ -56,7 +57,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${dmSerif.variable} ${spaceGrotesk.variable} ${ibmPlexMono.variable}`}
     >
       <body>
-        {isAdmin ? (
+        {bespokeChrome ? (
           children
         ) : (
           <>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { makeIdleToken, readIdleToken, idleAction } from "@/lib/auth/idle";
+import { MEMBER_COOKIE } from "@/lib/member/session";
 
 const useSecureCookies = process.env.NODE_ENV === "production";
 
@@ -37,6 +38,18 @@ export async function proxy(req: NextRequest) {
   const headers = new Headers(req.headers);
   headers.set("x-pathname", pathname);
   const proceed = NextResponse.next({ request: { headers } });
+
+  // Member portal (spec §5.6): its own isolated cookie + login. A UX redirect only;
+  // the authoritative check is requireMember() on each guarded page.
+  if (pathname.startsWith("/member")) {
+    if (pathname === "/member/login" || pathname === "/member/accept-invite") return proceed;
+    if (!req.cookies.has(MEMBER_COOKIE)) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/member/login";
+      return NextResponse.redirect(url);
+    }
+    return proceed;
+  }
 
   // Layer 1 (SECURITY_SPEC §4): a UX redirect only. Login and invite-acceptance
   // are open (the new admin has no session yet); every other /admin route needs a
@@ -101,5 +114,5 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/member/:path*"],
 };
