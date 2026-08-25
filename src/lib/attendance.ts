@@ -114,3 +114,40 @@ export function verifyMemberToken(token: string): string | null {
   if (expected.length !== given.length) return null;
   return timingSafeEqual(expected, given) ? memberId : null;
 }
+
+// ── time-boxed member QR (anti-proxy portal display, spec §6a) ────────────────
+// The portal shows a QR that expires after a head-set window; a screenshot is stale
+// once `exp` passes. Distinguished from the static token by an `e.` prefix.
+
+function memberExpSig(memberId: string, exp: number): string {
+  return createHmac("sha256", hmacSecret())
+    .update(`member-exp:v1|${memberId}|${exp}`)
+    .digest("base64url");
+}
+
+/** A member token that is valid only until `now + ttlSeconds`. */
+export function memberExpiringToken(
+  memberId: string,
+  ttlSeconds: number,
+  nowMs: number = Date.now(),
+): string {
+  const exp = nowMs + Math.max(1, Math.floor(ttlSeconds)) * 1000;
+  return `e.${memberId}.${exp}.${memberExpSig(memberId, exp)}`;
+}
+
+/** The member id iff the signature is valid AND the token has not expired. */
+export function verifyMemberExpiringToken(
+  token: string,
+  nowMs: number = Date.now(),
+): string | null {
+  if (typeof token !== "string") return null;
+  const parts = token.split(".");
+  if (parts.length !== 4 || parts[0] !== "e") return null;
+  const [, memberId, expStr, sig] = parts;
+  const exp = Number(expStr);
+  if (!memberId || !sig || !Number.isInteger(exp)) return null;
+  const expected = Buffer.from(memberExpSig(memberId, exp));
+  const given = Buffer.from(sig);
+  if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
+  return nowMs <= exp ? memberId : null;
+}

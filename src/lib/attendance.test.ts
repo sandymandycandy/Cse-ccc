@@ -5,7 +5,8 @@ beforeAll(() => {
 });
 
 // Import AFTER the env is set (the module reads the secret lazily, but be safe).
-const { memberToken, verifyMemberToken } = await import("./attendance");
+const { memberToken, verifyMemberToken, memberExpiringToken, verifyMemberExpiringToken } =
+  await import("./attendance");
 
 describe("member QR token", () => {
   const id = "11111111-1111-1111-1111-111111111111";
@@ -33,5 +34,24 @@ describe("member QR token", () => {
     expect(verifyMemberToken("")).toBe(null);
     expect(verifyMemberToken("nodot")).toBe(null);
     expect(verifyMemberToken("a.b.c")).toBe(null);
+  });
+});
+
+describe("expiring member token", () => {
+  it("verifies within its window and returns the memberId", () => {
+    const t = memberExpiringToken("mem-1", 60, 1_000_000);
+    expect(verifyMemberExpiringToken(t, 1_030_000)).toBe("mem-1"); // 30s later
+  });
+  it("rejects after expiry", () => {
+    const t = memberExpiringToken("mem-1", 60, 1_000_000); // exp = 1_060_000
+    expect(verifyMemberExpiringToken(t, 1_060_001)).toBeNull();
+  });
+  it("rejects a tampered signature", () => {
+    const t = memberExpiringToken("mem-1", 60, 1_000_000);
+    expect(verifyMemberExpiringToken(t.slice(0, -2) + "zz", 1_010_000)).toBeNull();
+  });
+  it("rejects a wrong shape / static token", () => {
+    expect(verifyMemberExpiringToken("mem-1.somesig", 1_010_000)).toBeNull();
+    expect(verifyMemberExpiringToken("e.mem-1.notanumber.sig", 1_010_000)).toBeNull();
   });
 });
