@@ -1,5 +1,8 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { summarizeAttendance } from "./attendance-math";
+
+const NO_MARKS: ReadonlySet<string> = new Set();
 
 export interface SessionRow {
   id: string;
@@ -109,25 +112,20 @@ export async function rosterWithPercent(clubId: string): Promise<RosterPct[]> {
     .eq("club_attendance_sessions.club_id", clubId);
 
   const sess = sessions ?? [];
-  const closedOpenedAt = new Map(sess.map((s) => [s.id, s.opened_at]));
-  // Per member: opened_at of each CLOSED session they were marked at. Marks for
-  // still-open sessions are ignored here so `attended` is drawn from the same set
-  // as `eligible` — otherwise a live scan could push attended past eligible (>100%)
-  // and the dashboard would disagree with the member self-view (getMemberAttendance).
-  const attendedOpenedAts = new Map<string, string[]>();
+  const closedIds = new Set(sess.map((s) => s.id));
+  // Per member: the CLOSED sessions they were marked at. A mark on a still-open
+  // session is dropped so `attended` is drawn from the same set as `eligible`
+  // (see summarizeAttendance) — the dashboard then agrees with the member
+  // self-view and can never exceed 100%.
+  const attendedByMember = new Map<string, Set<string>>();
   for (const m of marks ?? []) {
-    const openedAt = closedOpenedAt.get(m.session_id);
-    if (openedAt === undefined) continue;
-    const list = attendedOpenedAts.get(m.member_id) ?? [];
-    list.push(openedAt);
-    attendedOpenedAts.set(m.member_id, list);
+    if (!closedIds.has(m.session_id)) continue;
+    const set = attendedByMember.get(m.member_id) ?? new Set<string>();
+    set.add(m.session_id);
+    attendedByMember.set(m.member_id, set);
   }
   return (members ?? []).map((mem) => {
-    // Eligible = closed sessions on/after the member joined (fairer denominator).
-    const eligible = sess.filter((s) => s.opened_at >= mem.created_at).length;
-    // Attended = those eligible closed sessions the member was actually marked at.
-    const attended = (attendedOpenedAts.get(mem.id) ?? []).filter((oa) => oa >= mem.created_at).length;
-    const pct = eligible === 0 ? 0 : Math.round((attended / eligible) * 100);
+    const { attended, eligible, pct } = summarizeAttendance(sess, mem.created_at, attendedByMember.get(mem.id) ?? NO_MARKS);
     return { memberId: mem.id, name: mem.name, attended, eligible, pct };
   });
 }
@@ -173,12 +171,13 @@ export async function getMemberAttendance(memberId: string): Promise<MemberSelfV
     .from("club_attendance").select("session_id").eq("member_id", memberId);
   const attendedIds = new Set((marks ?? []).map((x) => x.session_id));
 
-  const eligibleSessions = (sessions ?? []).filter((s) => s.opened_at >= m.created_at);
-  const attended = eligibleSessions.filter((s) => attendedIds.has(s.id)).length;
-  const eligible = eligibleSessions.length;
+  const all = sessions ?? [];
+  const { attended, eligible, pct } = summarizeAttendance(all, m.created_at, attendedIds);
+  // History lists the same eligible set (closed sessions opened on/after join).
+  const eligibleSessions = all.filter((s) => s.opened_at >= m.created_at);
   return {
     name: m.name, clubName: m.clubs?.name ?? null, role: m.role,
-    attended, eligible, pct: eligible === 0 ? 0 : Math.round((attended / eligible) * 100),
+    attended, eligible, pct,
     history: eligibleSessions.map((s) => ({ title: s.title, at: s.opened_at, present: attendedIds.has(s.id) })),
   };
 }
