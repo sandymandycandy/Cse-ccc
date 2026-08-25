@@ -1,12 +1,13 @@
 import { notFound, redirect } from "next/navigation";
 import { requireViewPage } from "@/lib/auth/guards";
 import { canManage, grantFor } from "@/lib/auth/capabilities";
-import { getMemberForEdit } from "@/lib/admin/members";
+import { getMemberForEdit, isMemberActivated } from "@/lib/admin/members";
 import { listClubsBrief } from "@/lib/admin/clubs";
 import { MemberForm } from "@/components/admin/MemberForm";
 import { DeleteMemberForm } from "@/components/admin/DeleteMemberForm";
 import { MemberQrCard } from "@/components/admin/MemberQrCard";
-import { updateMemberAction } from "../../../actions";
+import { MemberLoginAccess } from "@/components/admin/MemberLoginAccess";
+import { updateMemberAction, generateMemberLinkAction, resetMemberAccessAction } from "../../../actions";
 
 export default async function EditMemberPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireViewPage("manage:members");
@@ -37,6 +38,17 @@ export default async function EditMemberPage({ params }: { params: Promise<{ id:
           Print or share this. A head scans it to mark attendance; the member can open it to see their record.
         </p>
       </section>
+      {member.email ? (
+        <section className="rule" style={{ marginTop: 24, paddingTop: 24 }}>
+          <h2 style={{ font: "400 18px var(--serif)", margin: "0 0 12px" }}>Login access</h2>
+          <MemberLoginAccess
+            memberId={member.id}
+            activated={await isMemberActivated(member.id)}
+            generate={generateMemberLinkAction}
+            reset={resetMemberAccessAction}
+          />
+        </section>
+      ) : null}
       <section className="rule" style={{ marginTop: 24, paddingTop: 24 }}>
         <div className="label" style={{ marginBottom: 6, color: "var(--rust)" }}>Remove</div>
         <DeleteMemberForm id={member.id} />

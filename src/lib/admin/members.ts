@@ -48,6 +48,17 @@ export async function listMembers(clubId: string): Promise<AdminMemberRow[]> {
   }));
 }
 
+/** True once the member has set up their PIN + TOTP (i.e. can sign in). */
+export async function isMemberActivated(id: string): Promise<boolean> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("club_member_auth")
+    .select("activated_at")
+    .eq("member_id", id)
+    .maybeSingle();
+  return !!data?.activated_at;
+}
+
 export async function getMemberForEdit(id: string): Promise<MemberForEdit | null> {
   const admin = createAdminClient();
   const { data, error } = await admin

@@ -50,3 +50,9 @@ export interface MemberFormState {
 export interface SessionFormState {
   error?: string;
 }
+
+export interface MemberInviteState {
+  error?: string;
+  /** The generated accept-invite URL, shown once so the head can share it. */
+  inviteUrl?: string;
+}

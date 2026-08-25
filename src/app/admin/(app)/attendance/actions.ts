@@ -9,7 +9,9 @@ import { resolveOwningClub } from "@/lib/admin/club-scope";
 import { writeAudit } from "@/lib/admin/audit";
 import { getMemberForEdit } from "@/lib/admin/members";
 import { getOpenSession } from "@/lib/admin/attendance-club";
-import type { MemberFormState, SessionFormState } from "@/lib/admin/form-state";
+import { createMemberInvite } from "@/lib/member/invites";
+import { resetMemberAccess, ensureAuthRow } from "@/lib/member/auth";
+import type { MemberFormState, SessionFormState, MemberInviteState } from "@/lib/admin/form-state";
 
 const MemberSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -75,7 +77,6 @@ export async function createMemberAction(
 
   // Provision an empty credential row so the head can later generate a login link.
   if (parsed.data.email) {
-    const { ensureAuthRow } = await import("@/lib/member/auth");
     await ensureAuthRow(data.id);
   }
 
@@ -216,4 +217,54 @@ export async function closeSessionAction(formData: FormData): Promise<void> {
     await writeAudit({ actorId: session.id, action: "close", entity: "club_attendance_session", entityId: id });
   }
   redirect(`/admin/attendance/sessions/${id}`);
+}
+
+// ── Member login access (spec §5.1) — own-club-scoped generate-link / reset ─────
+
+/** Own-club-scoped guard shared by both member-login actions below. */
+async function requireOwnClubMember(memberId: string) {
+  const session = await getAdminSession();
+  if (!session) return { error: "Your session expired. Sign in again." as string };
+  if (!z.string().uuid().safeParse(memberId).success) return { error: "Missing member reference." };
+  const member = await getMemberForEdit(memberId);
+  if (!member) return { error: "That member no longer exists." };
+  if (!member.email) return { error: "Add an email for this member first." };
+  if (!canManage(session, "manage:members", member.clubId)) return { error: "You can't manage that member." };
+  return { session, member };
+}
+
+export async function generateMemberLinkAction(
+  _prev: MemberInviteState,
+  formData: FormData,
+): Promise<MemberInviteState> {
+  const memberId = String(formData.get("memberId") ?? "");
+  const gate = await requireOwnClubMember(memberId);
+  if ("error" in gate) return { error: gate.error };
+
+  await ensureAuthRow(memberId);
+  const { token } = await createMemberInvite({ memberId, createdBy: gate.session.id });
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  await writeAudit({
+    actorId: gate.session.id, action: "invite", entity: "club_member", entityId: memberId,
+    after: { action: "login-link" },
+  });
+  return { inviteUrl: `${base}/member/accept-invite?token=${token}` };
+}
+
+export async function resetMemberAccessAction(
+  _prev: MemberInviteState,
+  formData: FormData,
+): Promise<MemberInviteState> {
+  const memberId = String(formData.get("memberId") ?? "");
+  const gate = await requireOwnClubMember(memberId);
+  if ("error" in gate) return { error: gate.error };
+
+  await resetMemberAccess(memberId); // clears creds + bumps epoch (logs them out)
+  const { token } = await createMemberInvite({ memberId, createdBy: gate.session.id });
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  await writeAudit({
+    actorId: gate.session.id, action: "reset", entity: "club_member", entityId: memberId,
+    after: { action: "reset-access" },
+  });
+  return { inviteUrl: `${base}/member/accept-invite?token=${token}` };
 }
