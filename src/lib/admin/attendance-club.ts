@@ -136,3 +136,39 @@ export async function liveFeed(
   const present = (marks ?? []).map((m) => ({ memberId: m.member_id, name: m.club_members?.name ?? "—" }));
   return { open: s.status === "open", count: present.length, present };
 }
+
+export interface MemberSelfView {
+  name: string;
+  clubName: string | null;
+  role: string;
+  attended: number;
+  eligible: number;
+  pct: number;
+  history: { title: string; at: string; present: boolean }[];
+}
+
+export async function getMemberAttendance(memberId: string): Promise<MemberSelfView | null> {
+  const admin = createAdminClient();
+  const { data: m } = await admin
+    .from("club_members")
+    .select("id, name, role, created_at, club_id, clubs(name)")
+    .eq("id", memberId).maybeSingle();
+  if (!m) return null;
+
+  const { data: sessions } = await admin
+    .from("club_attendance_sessions")
+    .select("id, title, opened_at").eq("club_id", m.club_id).eq("status", "closed")
+    .order("opened_at", { ascending: false });
+  const { data: marks } = await admin
+    .from("club_attendance").select("session_id").eq("member_id", memberId);
+  const attendedIds = new Set((marks ?? []).map((x) => x.session_id));
+
+  const eligibleSessions = (sessions ?? []).filter((s) => s.opened_at >= m.created_at);
+  const attended = eligibleSessions.filter((s) => attendedIds.has(s.id)).length;
+  const eligible = eligibleSessions.length;
+  return {
+    name: m.name, clubName: m.clubs?.name ?? null, role: m.role,
+    attended, eligible, pct: eligible === 0 ? 0 : Math.round((attended / eligible) * 100),
+    history: eligibleSessions.map((s) => ({ title: s.title, at: s.opened_at, present: attendedIds.has(s.id) })),
+  };
+}
