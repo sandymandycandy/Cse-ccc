@@ -551,6 +551,7 @@ export type Database = {
           id: string
           opened_at: string
           opened_by: string | null
+          qr_ttl_seconds: number | null
           status: Database["public"]["Enums"]["club_session_status"]
           title: string
         }
@@ -561,6 +562,7 @@ export type Database = {
           id?: string
           opened_at?: string
           opened_by?: string | null
+          qr_ttl_seconds?: number | null
           status?: Database["public"]["Enums"]["club_session_status"]
           title: string
         }
@@ -571,6 +573,7 @@ export type Database = {
           id?: string
           opened_at?: string
           opened_by?: string | null
+          qr_ttl_seconds?: number | null
           status?: Database["public"]["Enums"]["club_session_status"]
           title?: string
         }
@@ -598,13 +601,62 @@ export type Database = {
           },
         ]
       }
+      club_member_auth: {
+        Row: {
+          activated_at: string | null
+          created_at: string
+          failed_attempts: number
+          locked_until: string | null
+          member_id: string
+          pin_hash: string | null
+          session_epoch: number
+          totp_enrolled_at: string | null
+          totp_secret_enc: string | null
+          updated_at: string
+        }
+        Insert: {
+          activated_at?: string | null
+          created_at?: string
+          failed_attempts?: number
+          locked_until?: string | null
+          member_id: string
+          pin_hash?: string | null
+          session_epoch?: number
+          totp_enrolled_at?: string | null
+          totp_secret_enc?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activated_at?: string | null
+          created_at?: string
+          failed_attempts?: number
+          locked_until?: string | null
+          member_id?: string
+          pin_hash?: string | null
+          session_epoch?: number
+          totp_enrolled_at?: string | null
+          totp_secret_enc?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_member_auth_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
+            referencedRelation: "club_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       club_members: {
         Row: {
           club_id: string
           created_at: string
+          email: string | null
           id: string
           is_active: boolean
           name: string
+          phone: string | null
           photo_path: string | null
           role: Database["public"]["Enums"]["member_role"]
           roll_no: string | null
@@ -614,9 +666,11 @@ export type Database = {
         Insert: {
           club_id: string
           created_at?: string
+          email?: string | null
           id?: string
           is_active?: boolean
           name: string
+          phone?: string | null
           photo_path?: string | null
           role?: Database["public"]["Enums"]["member_role"]
           roll_no?: string | null
@@ -626,9 +680,11 @@ export type Database = {
         Update: {
           club_id?: string
           created_at?: string
+          email?: string | null
           id?: string
           is_active?: boolean
           name?: string
+          phone?: string | null
           photo_path?: string | null
           role?: Database["public"]["Enums"]["member_role"]
           roll_no?: string | null
@@ -1144,6 +1200,51 @@ export type Database = {
             columns: ["uploaded_by"]
             isOneToOne: false
             referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_invites: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          id: string
+          member_id: string
+          token_hash: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at: string
+          id?: string
+          member_id: string
+          token_hash: string
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          member_id?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_invites_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_invites_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "club_members"
             referencedColumns: ["id"]
           },
         ]
