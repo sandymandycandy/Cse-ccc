@@ -19,7 +19,7 @@ export function InviteForm({ clubs }: { clubs: { id: string; name: string }[] })
 
       {state.inviteUrl ? (
         <div className="note" style={{ marginBottom: 14 }}>
-          Invite created. Share this link (valid 48 hours):
+          Invite emailed to the admin (valid 48 hours). You can also copy this link to share manually:
           <br />
           <code style={{ wordBreak: "break-all", fontSize: 12 }}>{state.inviteUrl}</code>
         </div>

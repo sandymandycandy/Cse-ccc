@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getAdminSession } from "@/lib/auth/guards";
 import { canManage, ADMIN_ROLES } from "@/lib/auth/capabilities";
 import { createInvite } from "@/lib/admin/invites";
+import { enqueueEmail } from "@/lib/email";
 import type { InviteCreateState } from "@/lib/admin/form-state";
 
 const Schema = z.object({
@@ -44,7 +45,19 @@ export async function generateInviteAction(
     `http://${(await headers()).get("host") ?? "localhost:3000"}`;
 
   revalidatePath("/admin/users");
-  // Dev: return the link to share. Prod: this is where the invite email (§11
-  // template 7) gets enqueued instead of surfacing the URL.
-  return { inviteUrl: `${origin}/admin/accept-invite?token=${token}` };
+  const inviteUrl = `${origin}/admin/accept-invite?token=${token}`;
+  // Email the invite to the new admin (§11); the URL is still returned so the Tech
+  // Head can copy it as a fallback. Best-effort — a send hiccup never loses the link.
+  try {
+    await enqueueEmail({
+      template: "admin_invite",
+      toEmail: email,
+      subject: "Your CSE Council admin invite",
+      payload: { inviteUrl, role },
+      priority: 1,
+    });
+  } catch {
+    /* swallow — the URL is still returned + shown on screen */
+  }
+  return { inviteUrl };
 }
