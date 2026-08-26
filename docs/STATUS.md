@@ -364,6 +364,39 @@ migration**). Verify gate green (**typecheck/lint clean, 109/109 tests, build �
 
 ---
 
+## 🔨 Active owner requests (batch opened 2026-08-27) — build these first
+
+Direct owner asks from the 2026-08-27 admin-panel walkthrough, in build order.
+Each ships on its own branch → merge to `main` → prod, same flow as always.
+
+- **A. Form placeholders** — ✅ **DONE** (branch `feat/form-placeholders`, gate
+  green, pending merge). Every text box now has a placeholder: email →
+  `vtuxxxxx@veltech.edu.in`, roll → `vtuxxxxx`, contextual hints elsewhere.
+- **B. Clubs CRUD** — **create new clubs** (`/admin/clubs/new` +
+  `createClubAction`) **+ edit ALL fields** on the existing editor (unlock slug /
+  category / colour / is_active beyond name/tagline/description). **No delete**;
+  the 11-club floor stays. Needs Zod + slug-uniqueness + `writeAudit`. Reverses
+  the old "clubs are fixed / edit-only" decision **at owner's request**.
+- **C. Member roster — roll + phone mandatory** — make `rollNo` and `phone`
+  **required** in the attendance member add/edit form: `MemberForm` (labels +
+  `required`) AND the create/update action's Zod schema (client + server agree).
+- **D. Events — three changes** *(needs a migration)*: (1) **venue is a
+  manually-typed text field**, not the current `<select>` from a venues list;
+  (2) **email participants on ANY change** to an event, not just time/venue (today
+  `updateEventAction` only mails on a time/venue change); (3) **event cover
+  photo** — new column + Storage bucket + upload UI on `EventForm`, shown on the
+  event pages. Reuse `image-upload.ts` + the announcements/gallery Storage pattern.
+- **E. Full-site mobile-responsive pass** — media-query pass over **public +
+  admin** at 390/360 (spot-check 320): no horizontal body scroll, readable type,
+  ~44px tap targets, tables/grids collapse-or-scroll, fluid images; functional +
+  visual polish. No headless browser — **owner eyeballs on phone** at checkpoints.
+- **Pending owner decision (not a build yet):** the member **static printable QR
+  card** on the member edit page — keep / remove / move behind a "Print card"
+  button. It's the fallback for members who don't log in (vs the portal's rotating
+  QR). Awaiting the owner's call.
+
+---
+
 ## TODO — remaining work (ordered; pick the top unblocked item)
 
 1. **Browser-verify the shipped content verticals.** Resources + gallery +
