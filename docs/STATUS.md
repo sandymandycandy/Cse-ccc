@@ -219,27 +219,34 @@ A member-facing login on the public site, **isolated from the 9-admin panel**. S
   human-exercised, though the code gate + prod guard-paths are green.
   ~~**Out-of-repo:** an email to deliver the login link~~ → **now built** (see below).
 
-### Email delivery (Resend) — built 2026-08-26 *(branch `feat/email-delivery`, NOT merged)*
-Turns the dormant `email_log` queue into a real sender — verified end-to-end: a live
-Resend send to the account owner flipped its row to `sent` (test mode). Before this,
-**0 of 8 queued emails had ever sent**; nothing delivered mail at all.
-- **`src/lib/email/`** — `resend.ts` (Resend HTTP API via `fetch`, no SDK; reads
-  `process.env` **not `@/lib/env`**, which is a dormant validate-everything tripwire),
-  `templates.ts` (pure, **6 unit tests**: branded wrapper + auto action-button from the
-  payload's `inviteUrl`/`confirmUrl`/`url`, HTML-escaped — XSS-guarded), `send.ts`
-  (`deliverEmail(row)` → sends + flips `status`; `deliverPending(n)` drains).
-- **Immediate + backstop** — `enqueueEmail` keeps its signature but now attempts a
+### Email delivery — built + deployed 2026-08-26 *(merged to `main`, LIVE — Gmail transport)*
+Turns the dormant `email_log` queue into a real sender. Before this, **0 of 8 queued
+emails had ever sent**; nothing delivered mail at all. Now merged + live in prod
+(`main` @ `da5a048`). **Active transport = Gmail SMTP** (free, no domain, reaches ANY
+recipient ~500/day); Resend is a built-in fallback.
+- **`src/lib/email/`** — `transport.ts` (`sendEmail()` **dispatcher**: uses Gmail when
+  `GMAIL_USER`/`GMAIL_APP_PASSWORD` are set, else Resend, else no-op fail), `gmail.ts`
+  (nodemailer SMTP, app password, From = the Gmail address), `resend.ts` (HTTP API, no
+  SDK — kept as fallback), `templates.ts` (pure, **6 unit tests**: branded wrapper +
+  auto action-button from the payload's `inviteUrl`/`confirmUrl`/`url`, HTML-escaped —
+  XSS-guarded), `send.ts` (`deliverEmail(row)` → `sendEmail` + flips `status`;
+  `deliverPending(n)` drains). All read `process.env` directly, **never `@/lib/env`**
+  (dormant validate-everything tripwire).
+- **Immediate + backstop** — `enqueueEmail` keeps its signature but attempts a
   best-effort **inline send** (try/catch; a failure leaves the row `pending`). The
   `CRON_SECRET`-gated **`/api/cron/send-email`** route (daily `vercel.json` cron) is the
-  retry/backstop. 401 without the bearer secret (verified).
+  retry/backstop. Verified in prod: 200 with the bearer secret, 401 without.
 - **Member login link auto-emails** — `generateMemberLinkAction` /
   `resetMemberAccessAction` enqueue `member_login_link`; the URL still shows on screen
   as a copy fallback. (Resolves the member-portal "deliver the link" gap above.)
-- **97 tests** (91 + 6). Gate green (typecheck/lint/test/build).
-- **Owes before real members get mail:** (a) **verify a sending domain** in Resend
-  (test mode reaches only the account owner `sandysandeepkur05@gmail.com`; sends
-  elsewhere legitimately `failed`), (b) set `RESEND_API_KEY`/`EMAIL_FROM`/`CRON_SECRET`
-  in **Vercel prod env**, then merge. **Spec/plan:**
+- **97 tests** (91 + 6). Gate green (typecheck/lint/test/build). Verified end-to-end:
+  a live send flipped a row to `sent` (Resend, test mode) before the Gmail swap.
+- **Prod env set:** `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `CRON_SECRET` (+ Resend vars).
+- **Owes:** an **in-app confirmation** that a Gmail email actually lands for a
+  non-owner recipient (agent tools are sandbox-blocked from sending/DB-writes, so this
+  is a human step — generate a member login link in the admin UI and check the inbox).
+  Deliverability note: Gmail-as-sender may spam-fold at first (no domain SPF/DKIM); a
+  verified domain later is the upgrade. **Spec/plan:**
   `docs/superpowers/{specs,plans}/2026-08-26-email-delivery*`.
 
 ### Phase 2 started 2026-08-24
