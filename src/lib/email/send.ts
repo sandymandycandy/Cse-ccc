@@ -2,7 +2,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/database.types";
 import { renderEmail } from "./templates";
-import { sendViaResend } from "./resend";
+import { sendEmail } from "./transport";
 
 export interface EmailRow {
   id: string;
@@ -22,7 +22,7 @@ export async function deliverEmail(row: EmailRow): Promise<"sent" | "failed"> {
       : null;
 
   const { html, text } = renderEmail(row.template, row.subject, row.to_name, payload);
-  const result = await sendViaResend({ to: row.to_email, subject: row.subject, html, text });
+  const result = await sendEmail({ to: row.to_email, subject: row.subject, html, text });
 
   if (result.ok) {
     await admin
