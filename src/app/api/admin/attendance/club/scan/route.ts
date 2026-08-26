@@ -1,6 +1,6 @@
 import { requireSession, requireSameOrigin } from "@/lib/auth/guards";
 import { canManage } from "@/lib/auth/capabilities";
-import { verifyMemberToken } from "@/lib/attendance";
+import { verifyMemberToken, verifyMemberExpiringToken } from "@/lib/attendance";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { writeAudit } from "@/lib/admin/audit";
 
@@ -14,7 +14,10 @@ export async function POST(request: Request) {
   let body: { sessionId?: string; token?: string };
   try { body = await request.json(); } catch { return Response.json({ error: "Bad request." }, { status: 400 }); }
   const sessionId = String(body.sessionId ?? "");
-  const memberId = verifyMemberToken(String(body.token ?? ""));
+  const rawToken = String(body.token ?? "");
+  const memberId = rawToken.startsWith("e.")
+    ? verifyMemberExpiringToken(rawToken)
+    : verifyMemberToken(rawToken);
   if (!sessionId || !memberId) return Response.json({ error: "Invalid QR." }, { status: 400 });
 
   const admin = createAdminClient();
