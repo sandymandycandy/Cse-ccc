@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOutAction } from "@/app/admin/(app)/actions";
@@ -23,36 +24,52 @@ export function AdminNav({
   links: NavLink[];
 }) {
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
 
   return (
-    <aside className="admin-nav">
-      <div className="admin-brand">
-        CSE Council
-        <span>Admin</span>
+    <aside className="admin-nav" data-open={open ? "true" : "false"}>
+      <div className="admin-nav-bar">
+        <div className="admin-brand">
+          CSE Council
+          <span>Admin</span>
+        </div>
+        <button
+          type="button"
+          className="admin-nav-toggle"
+          aria-expanded={open}
+          aria-controls="admin-nav-panel"
+          aria-label={open ? "Close menu" : "Open menu"}
+          onClick={() => setOpen((o) => !o)}
+        >
+          <span aria-hidden="true">{open ? "✕" : "☰"}</span>
+        </button>
       </div>
 
-      <nav aria-label="Admin">
-        {links.map((l) => (
-          <Link
-            key={l.href}
-            href={l.href}
-            aria-current={active(pathname, l.href) ? "page" : undefined}
-          >
-            {l.label}
-          </Link>
-        ))}
-      </nav>
+      <div className="admin-nav-panel" id="admin-nav-panel">
+        <nav aria-label="Admin">
+          {links.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              aria-current={active(pathname, l.href) ? "page" : undefined}
+              onClick={() => setOpen(false)}
+            >
+              {l.label}
+            </Link>
+          ))}
+        </nav>
 
-      <div className="admin-nav-foot">
-        <div className="admin-who">
-          <strong>{name}</strong>
-          <span>{role.replace(/_/g, " ")}</span>
+        <div className="admin-nav-foot">
+          <div className="admin-who">
+            <strong>{name}</strong>
+            <span>{role.replace(/_/g, " ")}</span>
+          </div>
+          <form action={signOutAction}>
+            <button type="submit" className="btn btn-ghost btn-sm w-full">
+              Sign out
+            </button>
+          </form>
         </div>
-        <form action={signOutAction}>
-          <button type="submit" className="btn btn-ghost btn-sm w-full">
-            Sign out
-          </button>
-        </form>
       </div>
     </aside>
   );

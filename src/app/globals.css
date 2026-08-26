@@ -437,12 +437,25 @@
     .clubs { grid-template-columns: 1fr; }
   }
 
-  /* admin table — scrolls in its own container, page never scrolls sideways */
+  /* admin table — scrolls in its own container, page never scrolls sideways.
+     The edge shadows are a pure-CSS scroll affordance: the "cover" gradients
+     (background-attachment: local) scroll with the content and hide the shadow
+     once you reach an edge, so a shadow only shows while more is off-screen. */
   .tablewrap {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     border: 1px solid var(--line-2b);
     border-radius: var(--r-md);
-    background: var(--card);
+    background-color: var(--card);
+    background-image:
+      linear-gradient(to right, var(--card), transparent 14px),
+      linear-gradient(to left, var(--card), transparent 14px),
+      linear-gradient(to right, rgba(0, 0, 0, 0.09), transparent 8px),
+      linear-gradient(to left, rgba(0, 0, 0, 0.09), transparent 8px);
+    background-position: left center, right center, left center, right center;
+    background-repeat: no-repeat;
+    background-size: 24px 100%, 24px 100%, 8px 100%, 8px 100%;
+    background-attachment: local, local, scroll, scroll;
   }
   table.admin {
     width: 100%;
@@ -465,6 +478,12 @@
     font: 400 13.5px var(--sans);
   }
   table.admin tr:last-child td { border-bottom: none; }
+  /* Tighten cells on small phones so more fits before sideways scroll kicks in. */
+  @media (max-width: 599px) {
+    table.admin { min-width: 560px; }
+    table.admin th { padding: 10px 12px; }
+    table.admin td { padding: 11px 12px; font-size: 12.5px; }
+  }
 
   /* home hero — text + next-event panel, stacks under 900px */
   .hero-grid {
@@ -1096,6 +1115,34 @@
     color: var(--forest);
     margin-top: 3px;
   }
+  .admin-nav-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .admin-nav-toggle {
+    display: none; /* desktop: the sidebar is always open, so no toggle */
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-sm);
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .admin-nav-toggle:hover { background: var(--sand); }
+  .admin-nav-panel {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
   .admin-nav nav {
     display: flex;
     flex-direction: column;
@@ -1265,16 +1312,37 @@
   }
   @media (max-width: 860px) {
     .admin-shell { grid-template-columns: 1fr; }
+    /* Sidebar becomes a sticky top bar; the links collapse into a drawer. */
     .admin-nav {
-      position: static;
+      position: sticky;
+      top: 0;
+      z-index: 20;
       height: auto;
-      flex-direction: row;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 12px;
+      gap: 0;
+      padding: 12px var(--pad);
+      border-right: 0;
+      border-bottom: 1px solid var(--line);
     }
-    .admin-nav nav { flex-direction: row; flex-wrap: wrap; }
-    .admin-nav-foot { border-top: 0; padding-top: 0; flex-direction: row; align-items: center; }
+    .admin-nav-toggle { display: inline-flex; }
+    .admin-nav-panel {
+      display: none;
+      flex: none;
+      gap: 14px;
+      margin-top: 12px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      max-height: calc(100dvh - 72px);
+      overflow-y: auto;
+    }
+    .admin-nav[data-open="true"] .admin-nav-panel { display: flex; }
+    /* Full-width, thumb-sized link rows. */
+    .admin-nav nav a {
+      padding: 12px 14px;
+      font-size: 15px;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+    }
     .admin-main { padding: 28px var(--pad); }
     .admin-form-row { grid-template-columns: 1fr; }
   }
