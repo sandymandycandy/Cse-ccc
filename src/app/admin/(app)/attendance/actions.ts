@@ -11,6 +11,7 @@ import { getMemberForEdit } from "@/lib/admin/members";
 import { getOpenSession } from "@/lib/admin/attendance-club";
 import { createMemberInvite } from "@/lib/member/invites";
 import { resetMemberAccess, ensureAuthRow } from "@/lib/member/auth";
+import { enqueueEmail } from "@/lib/email";
 import type { MemberFormState, SessionFormState, MemberInviteState } from "@/lib/admin/form-state";
 
 const MemberSchema = z.object({
@@ -253,7 +254,20 @@ export async function generateMemberLinkAction(
     actorId: gate.session.id, action: "invite", entity: "club_member", entityId: memberId,
     after: { action: "login-link" },
   });
-  return { inviteUrl: `${base}/member/accept-invite?token=${token}` };
+  const inviteUrl = `${base}/member/accept-invite?token=${token}`;
+  try {
+    await enqueueEmail({
+      template: "member_login_link",
+      toEmail: gate.member.email!,
+      toName: gate.member.name,
+      subject: "Set up your CSE Council member login",
+      payload: { inviteUrl, name: gate.member.name },
+      priority: 1,
+    });
+  } catch {
+    /* never lose the URL over an email hiccup — it's still returned + shown on screen */
+  }
+  return { inviteUrl };
 }
 
 export async function resetMemberAccessAction(
@@ -271,5 +285,18 @@ export async function resetMemberAccessAction(
     actorId: gate.session.id, action: "reset", entity: "club_member", entityId: memberId,
     after: { action: "reset-access" },
   });
-  return { inviteUrl: `${base}/member/accept-invite?token=${token}` };
+  const inviteUrl = `${base}/member/accept-invite?token=${token}`;
+  try {
+    await enqueueEmail({
+      template: "member_login_link",
+      toEmail: gate.member.email!,
+      toName: gate.member.name,
+      subject: "Set up your CSE Council member login",
+      payload: { inviteUrl, name: gate.member.name },
+      priority: 1,
+    });
+  } catch {
+    /* never lose the URL over an email hiccup — it's still returned + shown on screen */
+  }
+  return { inviteUrl };
 }

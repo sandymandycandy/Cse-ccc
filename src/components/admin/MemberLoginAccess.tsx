@@ -23,13 +23,13 @@ export function MemberLoginAccess({
     <div>
       <p className="body-text" style={{ fontSize: 13, color: "var(--ink-2)", margin: "0 0 10px" }}>
         {activated
-          ? "This member has set up their login. Use Reset access if they lost their device."
-          : "Generate a one-time link and send it to the member to set up their login."}
+          ? "This member has set up their login. Use Reset access if they lost their device — we'll email them a fresh link."
+          : "Generate a one-time link — we'll email it to the member, and you can also copy it below to share manually."}
       </p>
       {error ? <div className="note" style={{ borderLeftColor: "var(--rust)", marginBottom: 12 }}>{error}</div> : null}
       {url ? (
         <div className="note" style={{ marginBottom: 12 }}>
-          <div className="label" style={{ marginBottom: 6 }}>Send this link (shown once)</div>
+          <div className="label" style={{ marginBottom: 6 }}>Emailed to the member · copy to share manually</div>
           <code style={{ wordBreak: "break-all" }}>{url}</code>
         </div>
       ) : null}
