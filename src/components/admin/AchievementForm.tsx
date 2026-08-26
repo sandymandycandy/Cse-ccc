@@ -47,7 +47,7 @@ export function AchievementForm({
 
       <div className="field">
         <label htmlFor="title">Title</label>
-        <input id="title" name="title" required maxLength={140} defaultValue={initial?.title} />
+        <input id="title" name="title" required maxLength={140} defaultValue={initial?.title} placeholder="e.g. 1st place — Smart India Hackathon 2026" />
       </div>
 
       <div className="field">
@@ -58,6 +58,7 @@ export function AchievementForm({
           rows={8}
           maxLength={20000}
           defaultValue={initial?.description}
+          placeholder="Describe the achievement — Markdown supported"
         />
         <span className="hint">
           Formatting: <code># heading</code>, <code>**bold**</code>, <code>*italic*</code>,{" "}

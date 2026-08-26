@@ -36,7 +36,7 @@ export function ClubForm({
 
       <div className="field">
         <label htmlFor="name">Name</label>
-        <input id="name" name="name" required minLength={2} maxLength={80} defaultValue={initial.name} />
+        <input id="name" name="name" required minLength={2} maxLength={80} defaultValue={initial.name} placeholder="Club name" />
       </div>
 
       <div className="field">

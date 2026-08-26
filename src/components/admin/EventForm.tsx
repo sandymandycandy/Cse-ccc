@@ -59,7 +59,7 @@ export function EventForm({
 
       <div className="field">
         <label htmlFor="title">Title</label>
-        <input id="title" name="title" required maxLength={140} defaultValue={initial?.title} />
+        <input id="title" name="title" required maxLength={140} defaultValue={initial?.title} placeholder="e.g. Intro to Machine Learning" />
       </div>
 
       <div className="field">
@@ -70,6 +70,7 @@ export function EventForm({
           rows={4}
           maxLength={4000}
           defaultValue={initial?.description}
+          placeholder="What's this event about? Who should come?"
         />
       </div>
 
@@ -134,7 +135,7 @@ export function EventForm({
 
       <div className="field">
         <label htmlFor="capacity">Capacity (optional)</label>
-        <input id="capacity" name="capacity" type="number" min={0} defaultValue={initial?.capacity} />
+        <input id="capacity" name="capacity" type="number" min={0} defaultValue={initial?.capacity} placeholder="Leave blank for unlimited" />
       </div>
 
       <button type="submit" className="btn btn-primary" disabled={pending}>

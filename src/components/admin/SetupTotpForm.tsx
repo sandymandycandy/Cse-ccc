@@ -88,7 +88,7 @@ export function SetupTotpForm({
 
       <div className="field" style={{ marginTop: 14 }}>
         <label htmlFor="totp">6-digit code from the app</label>
-        <input id="totp" name="totp" inputMode="numeric" autoComplete="one-time-code" required />
+        <input id="totp" name="totp" inputMode="numeric" autoComplete="one-time-code" required placeholder="6-digit code" />
       </div>
 
       <button type="submit" className="btn btn-primary w-full" disabled={pending}>

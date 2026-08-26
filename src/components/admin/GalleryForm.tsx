@@ -70,7 +70,7 @@ export function GalleryForm({
 
       <div className="field">
         <label htmlFor="caption">Caption (optional)</label>
-        <input id="caption" name="caption" maxLength={500} defaultValue={initial?.caption} />
+        <input id="caption" name="caption" maxLength={500} defaultValue={initial?.caption} placeholder="Optional caption" />
       </div>
 
       <div className="field">
@@ -83,6 +83,7 @@ export function GalleryForm({
           max={9999}
           defaultValue={initial?.sort ?? 0}
           style={{ maxWidth: 120 }}
+          placeholder="0"
         />
         <span className="hint">Lower numbers show first.</span>
       </div>

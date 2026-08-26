@@ -58,6 +58,7 @@ export default async function AttendancePage({
               defaultValue={60}
               min={20}
               max={600}
+              placeholder="60"
             />
           </div>
           <button type="submit" className="btn btn-primary">

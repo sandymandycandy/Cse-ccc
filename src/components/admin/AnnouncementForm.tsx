@@ -42,12 +42,12 @@ export function AnnouncementForm({
 
       <div className="field">
         <label htmlFor="title">Title</label>
-        <input id="title" name="title" required maxLength={140} defaultValue={init?.title} />
+        <input id="title" name="title" required maxLength={140} defaultValue={init?.title} placeholder="e.g. Registrations open for TechFest 2026" />
       </div>
 
       <div className="field">
         <label htmlFor="body">Body</label>
-        <textarea id="body" name="body" rows={12} required maxLength={20000} defaultValue={init?.body} />
+        <textarea id="body" name="body" rows={12} required maxLength={20000} defaultValue={init?.body} placeholder="Write your announcement… (Markdown supported)" />
         <span className="hint">
           Formatting: <code># heading</code>, <code>**bold**</code>, <code>*italic*</code>,{" "}
           <code>`code`</code>, <code>[link](https://…)</code>, and <code>-</code> / <code>1.</code> lists.

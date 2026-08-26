@@ -33,7 +33,7 @@ export default function AdminLoginPage() {
 
         <div className="field">
           <label htmlFor="email">Email</label>
-          <input id="email" name="email" type="email" autoComplete="username" required />
+          <input id="email" name="email" type="email" autoComplete="username" required placeholder="vtuxxxxx@veltech.edu.in" />
         </div>
 
         <div className="field">
@@ -44,13 +44,14 @@ export default function AdminLoginPage() {
             type="password"
             autoComplete="current-password"
             required
+            placeholder="Your password"
           />
         </div>
 
         {useRecovery ? (
           <div className="field">
             <label htmlFor="recoveryCode">Recovery code</label>
-            <input id="recoveryCode" name="recoveryCode" autoComplete="one-time-code" />
+            <input id="recoveryCode" name="recoveryCode" autoComplete="one-time-code" placeholder="xxxxx-xxxxx" />
           </div>
         ) : (
           <div className="field">

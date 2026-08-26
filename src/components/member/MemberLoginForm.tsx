@@ -16,15 +16,15 @@ export function MemberLoginForm() {
       {state.error ? <div className="note" style={{ borderLeftColor: "var(--rust)", marginBottom: 16 }}>{state.error}</div> : null}
       <div className="field">
         <label htmlFor="email">Email</label>
-        <input id="email" name="email" type="email" autoComplete="email" required />
+        <input id="email" name="email" type="email" autoComplete="email" required placeholder="vtuxxxxx@veltech.edu.in" />
       </div>
       <div className="field">
         <label htmlFor="pin">6-digit PIN</label>
-        <input id="pin" name="pin" inputMode="numeric" autoComplete="off" maxLength={6} required />
+        <input id="pin" name="pin" inputMode="numeric" autoComplete="off" maxLength={6} required placeholder="Your 6-digit PIN" />
       </div>
       <div className="field">
         <label htmlFor="totp">Authenticator code</label>
-        <input id="totp" name="totp" inputMode="numeric" autoComplete="one-time-code" required />
+        <input id="totp" name="totp" inputMode="numeric" autoComplete="one-time-code" required placeholder="6-digit code" />
       </div>
       <button type="submit" className="btn btn-primary w-full" disabled={pending}>
         {pending ? "Signing in…" : "Sign in"}

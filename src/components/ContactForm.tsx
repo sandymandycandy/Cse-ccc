@@ -61,20 +61,20 @@ export function ContactForm() {
 
       <div className="field">
         <label htmlFor="cf-name">Your name</label>
-        <input id="cf-name" name="name" required maxLength={80} autoComplete="name" />
+        <input id="cf-name" name="name" required maxLength={80} autoComplete="name" placeholder="Your full name" />
       </div>
       <div className="field">
         <label htmlFor="cf-email">Email</label>
-        <input id="cf-email" name="email" type="email" required maxLength={120} autoComplete="email" />
+        <input id="cf-email" name="email" type="email" required maxLength={120} autoComplete="email" placeholder="vtuxxxxx@veltech.edu.in" />
         <span className="hint">We&rsquo;ll reply here.</span>
       </div>
       <div className="field">
         <label htmlFor="cf-subject">Subject</label>
-        <input id="cf-subject" name="subject" maxLength={140} placeholder="Optional" />
+        <input id="cf-subject" name="subject" maxLength={140} placeholder="Optional — what's this about?" />
       </div>
       <div className="field">
         <label htmlFor="cf-message">Message</label>
-        <textarea id="cf-message" name="message" required rows={6} minLength={10} maxLength={4000} />
+        <textarea id="cf-message" name="message" required rows={6} minLength={10} maxLength={4000} placeholder="How can we help?" />
       </div>
 
       {/* honeypot: real users never see or fill this */}

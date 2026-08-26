@@ -30,7 +30,7 @@ export function CancelEventForm({ eventId }: { eventId: string }) {
       ) : null}
       <div className="field">
         <label htmlFor="reason">Reason (optional — shared with registrants)</label>
-        <input id="reason" name="reason" maxLength={500} />
+        <input id="reason" name="reason" maxLength={500} placeholder="Why is it cancelled? (shared with registrants)" />
       </div>
       <button
         type="submit"

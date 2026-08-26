@@ -115,6 +115,7 @@ export function ResultsEditor(props: {
                       style={{ ...inp, width: 110 }}
                       value={r.roll_no}
                       disabled={locked}
+                      placeholder="vtuxxxxx"
                       onChange={(e) => update(i, { roll_no: e.target.value })}
                     />
                   </td>
@@ -123,6 +124,7 @@ export function ResultsEditor(props: {
                       style={{ ...inp, width: 160 }}
                       value={r.display_name ?? ""}
                       disabled={locked}
+                      placeholder="Full name"
                       onChange={(e) => update(i, { display_name: e.target.value })}
                     />
                   </td>
@@ -164,6 +166,7 @@ export function ResultsEditor(props: {
                       style={{ ...inp, width: 160 }}
                       value={r.remarks ?? ""}
                       disabled={locked}
+                      placeholder="Optional note"
                       onChange={(e) => update(i, { remarks: e.target.value })}
                     />
                   </td>

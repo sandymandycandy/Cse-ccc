@@ -71,7 +71,7 @@ export function AcceptInviteForm({
 
       <div className="field">
         <label htmlFor="name">Full name</label>
-        <input id="name" name="name" required autoComplete="name" />
+        <input id="name" name="name" required autoComplete="name" placeholder="Your full name" />
       </div>
 
       <div className="field">
@@ -82,6 +82,7 @@ export function AcceptInviteForm({
           type="password"
           required
           autoComplete="new-password"
+          placeholder="At least 12 characters"
         />
         <span className="hint">At least 12 characters, not a known-breached password.</span>
       </div>
@@ -102,7 +103,7 @@ export function AcceptInviteForm({
 
       <div className="field" style={{ marginTop: 14 }}>
         <label htmlFor="totp">6-digit code from the app</label>
-        <input id="totp" name="totp" inputMode="numeric" autoComplete="one-time-code" required />
+        <input id="totp" name="totp" inputMode="numeric" autoComplete="one-time-code" required placeholder="6-digit code" />
       </div>
 
       <button type="submit" className="btn btn-primary w-full" disabled={pending}>

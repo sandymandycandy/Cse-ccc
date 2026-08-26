@@ -47,7 +47,7 @@ export function ResourceForm({
 
       <div className="field">
         <label htmlFor="title">Title</label>
-        <input id="title" name="title" required maxLength={140} defaultValue={initial?.title} />
+        <input id="title" name="title" required maxLength={140} defaultValue={initial?.title} placeholder="e.g. Club rulebook / syllabus" />
       </div>
 
       <div className="field">

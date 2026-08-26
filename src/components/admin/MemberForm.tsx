@@ -34,23 +34,23 @@ export function MemberForm({
       ) : null}
       <div className="field">
         <label htmlFor="name">Name</label>
-        <input id="name" name="name" required maxLength={120} defaultValue={initial?.name} />
+        <input id="name" name="name" required maxLength={120} defaultValue={initial?.name} placeholder="Member's full name" />
       </div>
       <div className="field">
         <label htmlFor="rollNo">Roll number (optional)</label>
-        <input id="rollNo" name="rollNo" maxLength={40} defaultValue={initial?.rollNo} />
+        <input id="rollNo" name="rollNo" maxLength={40} defaultValue={initial?.rollNo} placeholder="vtuxxxxx" />
       </div>
       <div className="field">
         <label htmlFor="email">Email (needed for a member login)</label>
-        <input id="email" name="email" type="email" maxLength={200} defaultValue={initial?.email} />
+        <input id="email" name="email" type="email" maxLength={200} defaultValue={initial?.email} placeholder="vtuxxxxx@veltech.edu.in" />
       </div>
       <div className="field">
         <label htmlFor="phone">Phone (optional)</label>
-        <input id="phone" name="phone" maxLength={20} defaultValue={initial?.phone} />
+        <input id="phone" name="phone" maxLength={20} defaultValue={initial?.phone} placeholder="10-digit mobile number" />
       </div>
       <div className="field">
         <label htmlFor="sort">Sort order</label>
-        <input id="sort" name="sort" type="number" min={0} max={9999} defaultValue={initial?.sort ?? 0} style={{ maxWidth: 120 }} />
+        <input id="sort" name="sort" type="number" min={0} max={9999} defaultValue={initial?.sort ?? 0} style={{ maxWidth: 120 }} placeholder="0" />
       </div>
       {clubs ? (
         <div className="field">

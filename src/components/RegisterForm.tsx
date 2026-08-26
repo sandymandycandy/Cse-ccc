@@ -71,21 +71,21 @@ export function RegisterForm({
 
       <div className="field">
         <label htmlFor="rf-name">Full name</label>
-        <input id="rf-name" name="studentName" required autoComplete="name" />
+        <input id="rf-name" name="studentName" required autoComplete="name" placeholder="Your full name" />
       </div>
       <div className="field">
         <label htmlFor="rf-roll">Roll number</label>
-        <input id="rf-roll" name="rollNo" required autoCapitalize="characters" />
+        <input id="rf-roll" name="rollNo" required autoCapitalize="characters" placeholder="vtuxxxxx" />
         <span className="hint">Used to prevent duplicate registrations.</span>
       </div>
       <div className="field">
         <label htmlFor="rf-email">College email</label>
-        <input id="rf-email" name="email" type="email" required autoComplete="email" />
+        <input id="rf-email" name="email" type="email" required autoComplete="email" placeholder="vtuxxxxx@veltech.edu.in" />
         <span className="hint">We&rsquo;ll send a one-tap link to confirm your seat.</span>
       </div>
       <div className="field">
         <label htmlFor="rf-phone">Mobile number</label>
-        <input id="rf-phone" name="phone" inputMode="numeric" required autoComplete="tel" />
+        <input id="rf-phone" name="phone" inputMode="numeric" required autoComplete="tel" placeholder="10-digit mobile number" />
       </div>
       <div style={{ display: "flex", gap: 12 }}>
         <div className="field" style={{ flex: 1 }}>

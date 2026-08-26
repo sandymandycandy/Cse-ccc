@@ -34,7 +34,7 @@ export function InviteForm({ clubs }: { clubs: { id: string; name: string }[] })
         <div className="admin-form-row">
           <div className="field">
             <label htmlFor="inv-email">Email</label>
-            <input id="inv-email" name="email" type="email" required />
+            <input id="inv-email" name="email" type="email" required placeholder="vtuxxxxx@veltech.edu.in" />
           </div>
           <div className="field">
             <label htmlFor="inv-role">Role</label>

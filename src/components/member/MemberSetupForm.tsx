@@ -23,7 +23,7 @@ export function MemberSetupForm({
 
       <div className="field">
         <label htmlFor="pin">6-digit PIN</label>
-        <input id="pin" name="pin" inputMode="numeric" autoComplete="off" maxLength={6} required />
+        <input id="pin" name="pin" inputMode="numeric" autoComplete="off" maxLength={6} required placeholder="Choose a 6-digit PIN" />
         <span className="hint">You&rsquo;ll enter this each time you sign in.</span>
       </div>
 
@@ -39,7 +39,7 @@ export function MemberSetupForm({
 
       <div className="field" style={{ marginTop: 14 }}>
         <label htmlFor="totp">6-digit code from the app</label>
-        <input id="totp" name="totp" inputMode="numeric" autoComplete="one-time-code" required />
+        <input id="totp" name="totp" inputMode="numeric" autoComplete="one-time-code" required placeholder="6-digit code" />
       </div>
 
       <button type="submit" className="btn btn-primary w-full" disabled={pending}>
