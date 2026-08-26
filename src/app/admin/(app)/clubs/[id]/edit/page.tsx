@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { requireViewPage } from "@/lib/auth/guards";
-import { canManage } from "@/lib/auth/capabilities";
+import { canManage, grantFor } from "@/lib/auth/capabilities";
 import { getClubForEdit } from "@/lib/admin/clubs";
 import { ClubForm } from "@/components/admin/ClubForm";
 import { updateClubAction } from "../../actions";
@@ -18,6 +18,8 @@ export default async function EditClubPage({
   if (!club) notFound();
   // Fail closed: a club-scoped admin may only edit their own club.
   if (!canManage(session, "manage:clubs", club.id)) redirect("/admin/clubs");
+  // Only council-wide admins edit structural / identity fields.
+  const canEditStructural = grantFor(session.role, "manage:clubs") === "all";
 
   return (
     <div className="admin-page" style={{ maxWidth: 640 }}>
@@ -30,8 +32,20 @@ export default async function EditClubPage({
       </p>
       <ClubForm
         action={updateClubAction}
+        mode="edit"
+        canEditStructural={canEditStructural}
         id={club.id}
-        initial={{ name: club.name, tagline: club.tagline, description: club.description }}
+        initial={{
+          name: club.name,
+          shortName: club.shortName,
+          slug: club.slug,
+          category: club.category,
+          color: club.color,
+          tagline: club.tagline,
+          description: club.description,
+          isActive: club.isActive,
+          sort: club.sort,
+        }}
       />
     </div>
   );
