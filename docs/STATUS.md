@@ -249,6 +249,39 @@ recipient ~500/day); Resend is a built-in fallback.
   verified domain later is the upgrade. **Spec/plan:**
   `docs/superpowers/{specs,plans}/2026-08-26-email-delivery*`.
 
+### Clubs editor + Contact inbox — built 2026-08-26 *(branch `feat/clubs-editor-contact-inbox`, NOT yet merged)*
+Two small Phase-2 verticals, both **schema-free** (`clubs` + `contact_messages`
+tables already existed; all access is service-role so RLS is bypassed — **no
+migration**). Verify gate green (**typecheck/lint clean, 109/109 tests, build ✓**).
+- **Clubs editor** — `/admin/clubs` (list) + `/admin/clubs/[id]/edit`. Makes a
+  club's **name / tagline / description** self-editable (closes the Phase-0
+  placeholder gap). New capability **`manage:clubs`** (all: pres/vp/tech; **own:
+  club_head/vice_head**; read: faculty) — a head edits only their own club,
+  council edits any. NOT editable here: slug/category/colour/is_active (structural)
+  — and no create/delete (the 11 clubs are fixed). `updateClubAction` (Zod +
+  `canManage` guard + service-role update + `writeAudit`). Reuses the resources
+  vertical's shape: `listClubsForAdmin`/`getClubForEdit` in `src/lib/admin/clubs.ts`,
+  `ClubForm` client component.
+- **Contact inbox** — public `/contact` placeholder replaced with a real
+  `ContactForm` → **`POST /api/contact`** (mirrors the registrations route: 100 KB
+  cap, Zod `.strict()` + `website` honeypot, new `checkContactLimits` per-IP+email,
+  Turnstile-ready, **service-role insert** into `contact_messages`). Admin side:
+  new **`manage:contact`** capability (council-wide, no club scope: all for
+  pres/vp/tech/social_media, read faculty); `/admin/contact` inbox (unhandled
+  highlighted) + `/admin/contact/[id]` detail (full message, `mailto:` reply,
+  **mark-handled** toggle via `setContactHandledAction` on `handled_at`). No email
+  fire on submit (owner's call — inbox only).
+- **Tests (+12 → 109):** `manage:clubs`/`manage:contact` grants, `ContactSchema`
+  (honeypot/`.strict()`/required), `checkContactLimits`.
+- **Verified end-to-end:** `POST /api/contact` curl-smoked live — rejection paths
+  (bad body/honeypot/short/unknown-key) → 400 no-write; one valid insert → 200,
+  row landed with correct columns, **deleted after** (`zzz-verify-tmp`). Public
+  `/contact` 200, `/clubs` 200 (no regression), `/admin/clubs` + `/admin/contact`
+  (no cookie) → 307→login.
+- **Owes (human-only, server-action POSTs can't be curled):** browser walk of
+  the **club edit save** (as council + as a club_head confirming own-club-only)
+  and the **mark-handled toggle** (+ faculty sees read-only, no toggle button).
+
 ### Phase 2 started 2026-08-24
 - **Achievements** — 4th vertical *(deployed)*. Public `/achievements` list
   (optional image + title + date + **safe-markdown** description + club label,
@@ -312,8 +345,8 @@ recipient ~500/day); Resend is a built-in fallback.
    `image-upload`, `club-scope`, `clubs` foundations all exist now, so these are
    fast). The 4 content verticals (announcements/resources/gallery/achievements)
    are done. Remaining, roughly by size:
-   - **`/contact` inbox** — public contact form → `contact_messages` table
-     (exists); admin reads them. No club scope, no Storage — small; a good next.
+   - ~~**`/contact` inbox**~~ — ✅ **DONE** (see What's DONE below).
+   - ~~**Clubs editor**~~ (name/tagline/description self-edit) — ✅ **DONE** (below).
    - **recruitment drives + `/join` form** (`recruitment_drives`, `join_requests`
      tables exist), **`/my-events`** (needs a student-lookup model — no student
      login today), **waitlist auto-promote** (server/cron), **reminder cron**,
@@ -343,8 +376,10 @@ recipient ~500/day); Resend is a built-in fallback.
    live wall (§13.10). **Phase 4:** launch (domain, secrets rotation, PITR, real
    accounts, training doc, security pass).
 
-7. **Phase 0 leftovers:** real club taglines/descriptions (still placeholders);
-   Sentry not wired; owner's visual sign-off of the home page.
+7. **Phase 0 leftovers:** ~~real club taglines/descriptions (still
+   placeholders)~~ — now **self-editable** via the clubs editor (below); the
+   real copy still needs to be *written* by each club. Sentry not wired; owner's
+   visual sign-off of the home page.
 
 8. **DB advisories (low priority, by-design):** `btree_gist` in `public` (could
    move to `extensions`); `get_registration_count(s)` are intentional anon-safe
@@ -372,7 +407,7 @@ recipient ~500/day); Resend is a built-in fallback.
 
 ```bash
 npm run dev        # localhost:3000 (uses .env.local → the LIVE DB)
-npm test           # vitest — 61 tests (results, capabilities, datetime, rate-limit, idle, markdown, url, eslint rule)
+npm test           # vitest — 109 tests (results, capabilities, datetime, rate-limit, idle, markdown, url, email, contact, member, eslint rule)
 npm run typecheck  # tsc --noEmit
 npm run lint       # eslint
 npm run build      # production build

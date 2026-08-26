@@ -35,6 +35,14 @@ export interface ResourceFormState {
   error?: string;
 }
 
+export interface ClubFormState {
+  error?: string;
+}
+
+export interface ContactHandledState {
+  error?: string;
+}
+
 export interface GalleryFormState {
   error?: string;
 }

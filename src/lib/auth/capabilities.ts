@@ -45,6 +45,8 @@ export type Capability =
   | "issue:winner_certificate"
   | "revoke:certificate"
   | "manage:content" // announcements / gallery / achievements
+  | "manage:clubs" // a club's own name / tagline / description
+  | "manage:contact" // the public contact-form inbox (council-wide)
   | "manage:members"
   | "manage:resources"
   | "manage:recruitment"
@@ -109,6 +111,18 @@ const MATRIX: Record<Capability, Partial<Record<AdminRole, Grant>>> = {
   "manage:content": {
     faculty_advisor: "read", president: "all", vice_president: "all",
     tech_head: "all", social_media_head: "all", club_head: "own", vice_head: "own",
+  },
+  // A club's public profile (name/tagline/description) is self-editable: heads
+  // edit their own club; council-wide roles edit any; faculty read.
+  "manage:clubs": {
+    faculty_advisor: "read", president: "all", vice_president: "all",
+    tech_head: "all", club_head: "own", vice_head: "own",
+  },
+  // The public contact-form inbox is council-wide (no club scope) — the roles
+  // that field outside enquiries plus Social Media (outreach); faculty read.
+  "manage:contact": {
+    faculty_advisor: "read", president: "all", vice_president: "all",
+    tech_head: "all", social_media_head: "all",
   },
   "manage:members": {
     faculty_advisor: "read", president: "all", vice_president: "all",

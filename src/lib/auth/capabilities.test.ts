@@ -36,6 +36,42 @@ describe("manage:members grants", () => {
   });
 });
 
+describe("manage:clubs grants", () => {
+  it("club head/vice head edit their own club; org-wide edit all; faculty read", () => {
+    expect(grantFor("club_head", "manage:clubs")).toBe("own");
+    expect(grantFor("vice_head", "manage:clubs")).toBe("own");
+    expect(grantFor("president", "manage:clubs")).toBe("all");
+    expect(grantFor("vice_president", "manage:clubs")).toBe("all");
+    expect(grantFor("tech_head", "manage:clubs")).toBe("all");
+    expect(grantFor("faculty_advisor", "manage:clubs")).toBe("read");
+    expect(grantFor("events_head", "manage:clubs")).toBe("none");
+    expect(grantFor("docs_head", "manage:clubs")).toBe("none");
+  });
+
+  it("a head can edit only their own club's profile", () => {
+    const head = { role: "club_head", clubId: "c1" } as const;
+    expect(canManage(head, "manage:clubs", "c1")).toBe(true);
+    expect(canManage(head, "manage:clubs", "c2")).toBe(false);
+  });
+});
+
+describe("manage:contact grants (council-wide, no club scope)", () => {
+  it("council + social media manage; faculty read; club roles none", () => {
+    expect(grantFor("president", "manage:contact")).toBe("all");
+    expect(grantFor("vice_president", "manage:contact")).toBe("all");
+    expect(grantFor("tech_head", "manage:contact")).toBe("all");
+    expect(grantFor("social_media_head", "manage:contact")).toBe("all");
+    expect(grantFor("faculty_advisor", "manage:contact")).toBe("read");
+    expect(grantFor("club_head", "manage:contact")).toBe("none");
+    expect(grantFor("events_head", "manage:contact")).toBe("none");
+  });
+
+  it("an all grant can act with no club context (council-wide surface)", () => {
+    const pres = { role: "president", clubId: null } as const;
+    expect(canManage(pres, "manage:contact")).toBe(true);
+  });
+});
+
 describe("canViewClub — read-or-manage view scope for a specific club", () => {
   it("faculty (read) can view any club's dashboard but cannot manage it", () => {
     const faculty = { role: "faculty_advisor", clubId: null } as const;

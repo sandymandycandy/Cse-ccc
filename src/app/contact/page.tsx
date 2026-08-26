@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { ButtonLink } from "@/components/ui/Button";
+import Link from "next/link";
+import { ContactForm } from "@/components/ContactForm";
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -12,15 +13,17 @@ export default function ContactPage() {
       <div className="eyebrow">Get in touch</div>
       <h1 style={{ margin: "12px 0 0" }}>Contact</h1>
       <p className="lead" style={{ marginTop: 16, maxWidth: 560 }}>
-        Questions about an event, joining a club, or the council itself? The
-        fastest route is the club running what you&rsquo;re interested in — each
-        club&rsquo;s page lists what it does and what&rsquo;s coming up.
+        Questions about an event, joining a club, or the council itself? Drop us
+        a message below. For something club-specific, the fastest route is often
+        the club itself — each{" "}
+        <Link href="/clubs" style={{ color: "var(--forest)" }}>
+          club&rsquo;s page
+        </Link>{" "}
+        lists what it does and what&rsquo;s coming up.
       </p>
-      <p className="body-text" style={{ marginTop: 24, maxWidth: 560, color: "var(--ink-3)" }}>
-        A general contact address is on the way.
-      </p>
-      <div className="stack" style={{ marginTop: 24, gap: 12 }}>
-        <ButtonLink href="/clubs">Find a club</ButtonLink>
+
+      <div style={{ marginTop: 32 }}>
+        <ContactForm />
       </div>
     </section>
   );

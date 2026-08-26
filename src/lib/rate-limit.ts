@@ -62,6 +62,18 @@ export function checkRegistrationLimits(input: {
 }
 
 /**
+ * Public contact-form limits: 5 per IP / 10 min, plus 5 per email / hour, so one
+ * address can't flood the inbox from rotating IPs. Returns the first that trips.
+ */
+export function checkContactLimits(input: { ip: string; email: string }): RateResult {
+  const checks: RateResult[] = [
+    rateLimit(`contact:ip:${input.ip}`, 5, 10 * MIN),
+    rateLimit(`contact:email:${input.email}`, 5, HOUR),
+  ];
+  return checks.find((c) => !c.ok) ?? { ok: true, remaining: 0, retryAfterSeconds: 0 };
+}
+
+/**
  * Admin login limits: 3 attempts, then a 1-minute lockout — enforced per IP
  * **and** per account, so the lock survives an attacker rotating IPs. The 4th
  * attempt within the minute returns `ok: false` with `retryAfterSeconds` (≤ 60).
