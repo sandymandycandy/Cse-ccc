@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-08-26.**
+> `docs/superpowers/plans/`. **Last updated: 2026-08-27.**
 
 ## What this is
 
@@ -18,7 +18,37 @@ end-to-end**, not a checklist of components.
 
 ---
 
-## 🚦 START HERE — current git/deploy state (2026-08-26)
+## 🚦 START HERE — current git/deploy state (2026-08-27)
+
+> ### ✅ CURRENT STATE — `main == origin/main @ 50857aa`, clean (2026-08-27)
+> Everything below is **merged to `main` and live in prod** — there are **no unmerged
+> feature branches**. Shipped since the member-portal/email blocks below:
+> - **Clubs editor + public contact inbox** (`2d025a3`) — self-editable club
+>   name/tagline/description (`manage:clubs`) + `/contact` → `contact_messages` inbox
+>   (`manage:contact`). Schema-free (no migration). *(the block further down still said
+>   "NOT yet merged" — that's now corrected.)*
+> - **Mobile-responsive admin nav** (`99fbe7a`) — hamburger drawer + table horizontal
+>   scroll affordance in the **admin panel**. ⚠️ The **public site** has NOT had a
+>   dedicated mobile-responsiveness pass yet (in progress 2026-08-27).
+> - **Members-only attendance roster** (`50857aa`) — Role picker removed from the
+>   add/edit member form; `create`+`update` force `role="member"` server-side; Role
+>   column dropped from the list. The 2 pre-existing "head" rows were migrated on the
+>   live DB. Prod deploy `● Ready`; `/`,`/clubs` → 200, `/admin/attendance/members` →
+>   307 (guard). Gate green (typecheck/lint/109 tests/build).
+>
+> **⚠️ Owed human-only walkthroughs** (server-action POSTs can't be curled; camera/PIN
+> can't be driven headless — all shipped ahead of them at the owner's direction):
+> 1. **Members roster** — log into `/admin/attendance/members`, confirm the add/edit
+>    form has no Role field and a save lands as `member`.
+> 2. **Clubs editor** — club-edit save as council + as a club_head (own-club-only).
+> 3. **Contact inbox** — mark-handled toggle; faculty sees read-only (no toggle).
+> 4. **Member portal** — the club_head→add-member→link→PIN/TOTP→login→scan→reset walk,
+>    and the **rotating-QR phone test** (stale screenshot rejected, live scan works,
+>    printed card still scans).
+> 5. **QR attendance** — real-phone camera test of `/admin/attendance/scan`.
+> 6. **Content verticals** — announcements/resources/gallery/achievements CRUD (+ image
+>    upload) and §4c event duplicate/cancel — read paths ✅, mutations never executed.
+> 7. **Email** — confirm a Gmail login-link email actually lands for a non-owner inbox.
 
 > ### ✅ SHIPPED & LIVE — Member Portal (merged to `main`, deployed to prod 2026-08-26)
 > The **member-login portal** (spec + plan `2026-08-25-member-portal*`) is **merged and
@@ -249,7 +279,7 @@ recipient ~500/day); Resend is a built-in fallback.
   verified domain later is the upgrade. **Spec/plan:**
   `docs/superpowers/{specs,plans}/2026-08-26-email-delivery*`.
 
-### Clubs editor + Contact inbox — built 2026-08-26 *(branch `feat/clubs-editor-contact-inbox`, NOT yet merged)*
+### Clubs editor + Contact inbox — built 2026-08-26 *(merged to `main` @ `2d025a3`, LIVE)*
 Two small Phase-2 verticals, both **schema-free** (`clubs` + `contact_messages`
 tables already existed; all access is service-role so RLS is bypassed — **no
 migration**). Verify gate green (**typecheck/lint clean, 109/109 tests, build ✓**).
