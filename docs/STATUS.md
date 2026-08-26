@@ -107,12 +107,15 @@ build + render + schema-check but **not by executing the mutation**:
    Scan/Close/Open-session controls are hidden. ⚠️ The **camera** step needs a
    real phone (getUserMedia can't be driven headless).
 
-### 📧 Out-of-repo follow-up (email processor)
-The external processor that renders `event_*` templates must learn **3 new
-templates**, or their queued mail won't send:
-`event_updated` (event-edit time/venue change), `event_cancelled` (event cancel),
-and there's an existing announcement flow that does **not** email (no template
-needed there).
+### 📧 Email delivery — NOW BUILT IN-REPO (was the "out-of-repo processor")
+**Superseded.** There is no longer any external processor to maintain: the delivery
+half now lives in the repo (branch `feat/email-delivery`, see START HERE + What's
+DONE). `enqueueEmail` sends inline via Resend, a `CRON_SECRET`-gated
+`/api/cron/send-email` route is the backstop, and a **single generic branded
+renderer** handles every template (`event_*`, `registration_received`,
+`member_login_link`) — so no per-template work is owed. Remaining email work is just
+**(a) verify a sending domain** (until then, test mode only reaches the Resend account
+owner) and **(b) set `RESEND_API_KEY`/`EMAIL_FROM`/`CRON_SECRET` in Vercel prod env**.
 
 ---
 
@@ -214,7 +217,30 @@ A member-facing login on the public site, **isolated from the 9-admin panel**. S
   auth, guards) are typecheck + walkthrough-verified, like the admin equivalents.
 - **Owes:** two human-only walkthroughs (see START HERE) — write/camera paths not yet
   human-exercised, though the code gate + prod guard-paths are green.
-  **Out-of-repo:** an email to actually *deliver* the login link to members.
+  ~~**Out-of-repo:** an email to deliver the login link~~ → **now built** (see below).
+
+### Email delivery (Resend) — built 2026-08-26 *(branch `feat/email-delivery`, NOT merged)*
+Turns the dormant `email_log` queue into a real sender — verified end-to-end: a live
+Resend send to the account owner flipped its row to `sent` (test mode). Before this,
+**0 of 8 queued emails had ever sent**; nothing delivered mail at all.
+- **`src/lib/email/`** — `resend.ts` (Resend HTTP API via `fetch`, no SDK; reads
+  `process.env` **not `@/lib/env`**, which is a dormant validate-everything tripwire),
+  `templates.ts` (pure, **6 unit tests**: branded wrapper + auto action-button from the
+  payload's `inviteUrl`/`confirmUrl`/`url`, HTML-escaped — XSS-guarded), `send.ts`
+  (`deliverEmail(row)` → sends + flips `status`; `deliverPending(n)` drains).
+- **Immediate + backstop** — `enqueueEmail` keeps its signature but now attempts a
+  best-effort **inline send** (try/catch; a failure leaves the row `pending`). The
+  `CRON_SECRET`-gated **`/api/cron/send-email`** route (daily `vercel.json` cron) is the
+  retry/backstop. 401 without the bearer secret (verified).
+- **Member login link auto-emails** — `generateMemberLinkAction` /
+  `resetMemberAccessAction` enqueue `member_login_link`; the URL still shows on screen
+  as a copy fallback. (Resolves the member-portal "deliver the link" gap above.)
+- **97 tests** (91 + 6). Gate green (typecheck/lint/test/build).
+- **Owes before real members get mail:** (a) **verify a sending domain** in Resend
+  (test mode reaches only the account owner `sandysandeepkur05@gmail.com`; sends
+  elsewhere legitimately `failed`), (b) set `RESEND_API_KEY`/`EMAIL_FROM`/`CRON_SECRET`
+  in **Vercel prod env**, then merge. **Spec/plan:**
+  `docs/superpowers/{specs,plans}/2026-08-26-email-delivery*`.
 
 ### Phase 2 started 2026-08-24
 - **Achievements** — 4th vertical *(deployed)*. Public `/achievements` list
