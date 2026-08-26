@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-08-25.**
+> `docs/superpowers/plans/`. **Last updated: 2026-08-26.**
 
 ## What this is
 
@@ -18,7 +18,37 @@ end-to-end**, not a checklist of components.
 
 ---
 
-## 🚦 START HERE — current git/deploy state (2026-08-25)
+## 🚦 START HERE — current git/deploy state (2026-08-26)
+
+> ### 🟡 BUILT, NOT MERGED — Member Portal (branch `feat/member-portal`, 2026-08-26)
+> The **member-login portal** (spec + plan `2026-08-25-member-portal*`) is **fully
+> built and code-complete on branch `feat/member-portal`** — all 18 plan tasks done
+> (18 commits off `main`). **Verify gate green: typecheck ✓, lint ✓, 91/91 tests ✓,
+> build ✓.** NOT yet merged to `main` (so **not in prod**).
+> - **What it is:** a second, isolated auth surface for club members (separate from the
+>   9-admin panel). Head generates a one-time login link → member sets a **6-digit PIN +
+>   TOTP** → signs in with email+PIN+TOTP → sees their **attendance QR + %/history**.
+>   Bespoke signed cookie `__Host-ccc.member` (NOT Auth.js), `requireMember()` guard,
+>   `/member/*` guarded in `proxy.ts`. Credentials in service-role-only tables
+>   (`club_member_auth`, `member_invites`); email/phone/roll_no kept off the anon grant.
+> - **Anti-proxy rotating QR (spec §6a):** the portal shows a **time-boxed** QR that
+>   silently refreshes before expiry (head sets the window per session, default 60s);
+>   `/api/member/qr` mints a fresh `e.`-prefixed expiring token each poll; the scanner
+>   and `/m/[token]` accept **both** the expiring token AND the static printed card.
+> - ⚠️ **STILL OWED — two human-only walkthroughs** before merge (mutations + camera
+>   can't be driven headless): (a) the **club_head → add member w/ email → generate
+>   link → member PIN/TOTP setup → login → scan → reset-access → club-scope** walk
+>   (plan Task 13 Step 2), and (b) the **rotating-QR phone test** — a stale screenshot
+>   scanned after the window must be **rejected** while a live on-screen scan works,
+>   and a printed static card still scans (plan Task 18 Step 3).
+> - ✅ **Migration applied to the live DB** — `20260825120000_member_portal.sql`
+>   (member auth + invites tables, `club_members.email/phone`, `qr_ttl_seconds` on
+>   sessions, anon-grant lockdown). Since the DB is shared, this is already live even
+>   though the app branch is not.
+> - **Merge decision is the owner's** — pushing `feat/member-portal` → `main`
+>   auto-deploys to production. Do the two walkthroughs first, then merge on go-ahead.
+> - **Plan:** `docs/superpowers/plans/2026-08-25-member-portal.md` · **Spec:**
+>   `docs/superpowers/specs/2026-08-25-member-portal-design.md`
 
 > ### ✅ SHIPPED & LIVE — QR attendance Phase 1 (merged to `main`, deployed to prod 2026-08-25)
 > The **club-member QR attendance** system is **merged and live in production**
@@ -157,6 +187,28 @@ A club-roster attendance system **distinct from the event self-scan flow** (§13
 - 78 vitest tests (added `canViewClub`, `summarizeAttendance`, member-token, qr).
 - **Out-of-repo:** emailing members their `/m/[token]` link needs a new email
   template (Phase-2 flavor; not built).
+
+### Member Portal (member login) — built 2026-08-26 *(branch `feat/member-portal`, NOT merged)*
+A member-facing login on the public site, **isolated from the 9-admin panel**. See the
+🟡 START HERE block above for the full state. In short:
+- **Onboarding + login** — head-generated one-time link (`member_invites`, mirrors
+  admin invites) → member sets a **6-digit PIN + TOTP** (`club_member_auth`,
+  service-role only) → signs in with email + PIN + TOTP (rate-limited, 5-fail/15-min
+  lockout). **Members never touch Auth.js** — a bespoke HMAC-signed cookie
+  (`__Host-ccc.member`, domain-separated) + `requireMember()` re-validates the DB
+  epoch + active + activated on every guarded page; `/member/*` guarded in `proxy.ts`.
+- **Portal** — `/member` shows the member's attendance **QR + %/history**; head-side
+  **Login access** block on the member edit page (generate link / **reset access**,
+  own-club scoped, bumps epoch to kill live sessions).
+- **Anti-proxy rotating QR (§6a)** — the portal QR is **time-boxed** (head sets the
+  window per session, default 60s); it silently refreshes before expiry via
+  `/api/member/qr` (fresh `e.`-prefixed expiring token per poll). The scanner and
+  `/m/[token]` accept **both** the expiring token and the static printed card.
+- **13 new unit tests** (member session signing, lockout math, expiring token) → 91
+  total. Pure/security-critical pieces are unit-tested; DB-backed layers (invites,
+  auth, guards) are typecheck + walkthrough-verified, like the admin equivalents.
+- **Owes:** two human-only walkthroughs (see START HERE) + owner merge go-ahead.
+  **Out-of-repo:** an email to actually *deliver* the login link to members.
 
 ### Phase 2 started 2026-08-24
 - **Achievements** — 4th vertical *(deployed)*. Public `/achievements` list
