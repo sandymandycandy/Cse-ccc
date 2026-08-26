@@ -11,7 +11,6 @@ export interface MemberInitial {
   rollNo: string;
   email: string;
   phone: string;
-  role: "head" | "vice_head" | "member";
   sort: number;
   isActive: boolean;
   clubId: string | null;
@@ -48,14 +47,6 @@ export function MemberForm({
       <div className="field">
         <label htmlFor="phone">Phone (optional)</label>
         <input id="phone" name="phone" maxLength={20} defaultValue={initial?.phone} />
-      </div>
-      <div className="field">
-        <label htmlFor="role">Role</label>
-        <select id="role" name="role" defaultValue={initial?.role ?? "member"}>
-          <option value="member">Member</option>
-          <option value="vice_head">Vice Head</option>
-          <option value="head">Head</option>
-        </select>
       </div>
       <div className="field">
         <label htmlFor="sort">Sort order</label>

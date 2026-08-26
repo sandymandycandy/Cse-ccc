@@ -4,8 +4,6 @@ import { grantFor } from "@/lib/auth/capabilities";
 import { canCreateForCapability } from "@/lib/admin/club-scope";
 import { listMembers } from "@/lib/admin/members";
 
-const ROLE_LABEL: Record<string, string> = { head: "Head", vice_head: "Vice Head", member: "Member" };
-
 export default async function MembersPage({
   searchParams,
 }: {
@@ -46,13 +44,12 @@ export default async function MembersPage({
       ) : (
         <div className="tablewrap" style={{ marginTop: 18 }}>
           <table className="admin">
-            <thead><tr><th>Name</th><th>Roll</th><th>Role</th><th>Active</th><th>Edit</th></tr></thead>
+            <thead><tr><th>Name</th><th>Roll</th><th>Active</th><th>Edit</th></tr></thead>
             <tbody>
               {members.map((m) => (
                 <tr key={m.id}>
                   <td style={{ fontWeight: 500 }}>{m.name}</td>
                   <td>{m.rollNo ?? "—"}</td>
-                  <td>{ROLE_LABEL[m.role]}</td>
                   <td>{m.isActive ? "Yes" : "No"}</td>
                   <td><Link href={`/admin/attendance/members/${m.id}/edit`} className="label" style={{ color: "var(--forest)" }}>Edit →</Link></td>
                 </tr>

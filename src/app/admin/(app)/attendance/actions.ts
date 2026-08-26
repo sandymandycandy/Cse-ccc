@@ -19,7 +19,8 @@ const MemberSchema = z.object({
   rollNo: z.string().trim().max(40).optional().or(z.literal("")),
   email: z.string().trim().email().max(200).optional().or(z.literal("")),
   phone: z.string().trim().max(20).optional().or(z.literal("")),
-  role: z.enum(["head", "vice_head", "member"]),
+  // Roster is members-only. Head / vice-head are admin_users, created via the
+  // admin-invite flow — never set here — so `role` is always "member".
   sort: z.coerce.number().int().min(0).max(9999).optional().or(z.literal("")),
   isActive: z.union([z.literal("on"), z.literal("")]),
   // resolveOwningClub uses "manage:members" grant; "" = council-wide is INVALID
@@ -48,7 +49,7 @@ export async function createMemberAction(
   if (!session) return { error: "Your session expired. Sign in again." };
 
   const parsed = parse(formData);
-  if (!parsed.success) return { error: "Check the form — name and role are required." };
+  if (!parsed.success) return { error: "Check the form — a name is required." };
 
   const resolved = resolveOwningClub(session, "manage:members", parsed.data.clubId);
   if ("error" in resolved) return { error: resolved.error };
@@ -66,7 +67,7 @@ export async function createMemberAction(
       roll_no: parsed.data.rollNo ? parsed.data.rollNo : null,
       email: parsed.data.email ? parsed.data.email.toLowerCase() : null,
       phone: parsed.data.phone ? parsed.data.phone : null,
-      role: parsed.data.role,
+      role: "member",
       sort: typeof parsed.data.sort === "number" ? parsed.data.sort : 0,
       is_active: parsed.data.isActive === "on",
       socials: {},
@@ -83,7 +84,7 @@ export async function createMemberAction(
 
   await writeAudit({
     actorId: session.id, action: "create", entity: "club_member",
-    entityId: data.id, after: { name: parsed.data.name, role: parsed.data.role, clubId: resolved.clubId },
+    entityId: data.id, after: { name: parsed.data.name, role: "member", clubId: resolved.clubId },
   });
   redirect("/admin/attendance/members");
 }
@@ -122,7 +123,7 @@ export async function updateMemberAction(
       roll_no: parsed.data.rollNo ? parsed.data.rollNo : null,
       email: parsed.data.email ? parsed.data.email.toLowerCase() : null,
       phone: parsed.data.phone ? parsed.data.phone : null,
-      role: parsed.data.role,
+      role: "member",
       // On UPDATE preserve the current ordering when sort is unset (create defaults to 0).
       sort: typeof parsed.data.sort === "number" ? parsed.data.sort : existing.sort,
       is_active: parsed.data.isActive === "on",
@@ -134,8 +135,8 @@ export async function updateMemberAction(
 
   await writeAudit({
     actorId: session.id, action: "update", entity: "club_member", entityId: id,
-    before: { name: existing.name, active: existing.isActive, role: existing.role, clubId: existing.clubId },
-    after: { name: parsed.data.name, active: parsed.data.isActive === "on", role: parsed.data.role, clubId: targetClub },
+    before: { name: existing.name, active: existing.isActive, clubId: existing.clubId },
+    after: { name: parsed.data.name, active: parsed.data.isActive === "on", clubId: targetClub },
   });
   redirect("/admin/attendance/members");
 }
