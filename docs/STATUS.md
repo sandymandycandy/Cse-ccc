@@ -20,11 +20,16 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-08-26)
 
-> ### 🟡 BUILT, NOT MERGED — Member Portal (branch `feat/member-portal`, 2026-08-26)
-> The **member-login portal** (spec + plan `2026-08-25-member-portal*`) is **fully
-> built and code-complete on branch `feat/member-portal`** — all 18 plan tasks done
-> (18 commits off `main`). **Verify gate green: typecheck ✓, lint ✓, 91/91 tests ✓,
-> build ✓.** NOT yet merged to `main` (so **not in prod**).
+> ### ✅ SHIPPED & LIVE — Member Portal (merged to `main`, deployed to prod 2026-08-26)
+> The **member-login portal** (spec + plan `2026-08-25-member-portal*`) is **merged and
+> live in production** (`main` @ `a65065c`, https://cse-ccc.vercel.app). All 18 plan
+> tasks done; the `feat/member-portal` branch (19 commits) was **fast-forward-merged and
+> deleted** (local; it was never pushed as a branch). **Verify gate green: typecheck ✓,
+> lint ✓, 91/91 tests ✓, build ✓.**
+> - **Prod smoke-tested post-deploy:** `/member/login` + `/member/accept-invite` → 200
+>   (public), `/member` (no cookie) → 307→`/member/login` (proxy guard), `/api/member/qr`
+>   → 401 (member-session guard), `/m/<bad-token>` → 404 (HMAC tamper guard), `/clubs` →
+>   200 (no regression). **Read/redirect/guard paths all confirmed.**
 > - **What it is:** a second, isolated auth surface for club members (separate from the
 >   9-admin panel). Head generates a one-time login link → member sets a **6-digit PIN +
 >   TOTP** → signs in with email+PIN+TOTP → sees their **attendance QR + %/history**.
@@ -35,18 +40,18 @@ end-to-end**, not a checklist of components.
 >   silently refreshes before expiry (head sets the window per session, default 60s);
 >   `/api/member/qr` mints a fresh `e.`-prefixed expiring token each poll; the scanner
 >   and `/m/[token]` accept **both** the expiring token AND the static printed card.
-> - ⚠️ **STILL OWED — two human-only walkthroughs** before merge (mutations + camera
->   can't be driven headless): (a) the **club_head → add member w/ email → generate
->   link → member PIN/TOTP setup → login → scan → reset-access → club-scope** walk
->   (plan Task 13 Step 2), and (b) the **rotating-QR phone test** — a stale screenshot
->   scanned after the window must be **rejected** while a live on-screen scan works,
->   and a printed static card still scans (plan Task 18 Step 3).
+> - ⚠️ **STILL OWED — two human-only walkthroughs** (mutations + camera can't be driven
+>   headless; shipped ahead of them at the owner's direction): (a) the **club_head → add
+>   member w/ email → generate link → member PIN/TOTP setup → login → scan →
+>   reset-access → club-scope** walk (plan Task 13 Step 2), and (b) the **rotating-QR
+>   phone test** — a stale screenshot scanned after the window must be **rejected** while
+>   a live on-screen scan works, and a printed static card still scans (plan Task 18 Step
+>   3). Code gate + prod guard-paths are green; these exercise the write/camera paths.
+> - 📧 **Out-of-repo:** no email yet *delivers* a member their `/member/accept-invite`
+>   link — the head copies it manually from the member edit page.
 > - ✅ **Migration applied to the live DB** — `20260825120000_member_portal.sql`
 >   (member auth + invites tables, `club_members.email/phone`, `qr_ttl_seconds` on
->   sessions, anon-grant lockdown). Since the DB is shared, this is already live even
->   though the app branch is not.
-> - **Merge decision is the owner's** — pushing `feat/member-portal` → `main`
->   auto-deploys to production. Do the two walkthroughs first, then merge on go-ahead.
+>   sessions, anon-grant lockdown).
 > - **Plan:** `docs/superpowers/plans/2026-08-25-member-portal.md` · **Spec:**
 >   `docs/superpowers/specs/2026-08-25-member-portal-design.md`
 
@@ -188,9 +193,9 @@ A club-roster attendance system **distinct from the event self-scan flow** (§13
 - **Out-of-repo:** emailing members their `/m/[token]` link needs a new email
   template (Phase-2 flavor; not built).
 
-### Member Portal (member login) — built 2026-08-26 *(branch `feat/member-portal`, NOT merged)*
+### Member Portal (member login) — built + deployed 2026-08-26 *(merged to `main`, LIVE)*
 A member-facing login on the public site, **isolated from the 9-admin panel**. See the
-🟡 START HERE block above for the full state. In short:
+✅ START HERE block above for the full state. In short:
 - **Onboarding + login** — head-generated one-time link (`member_invites`, mirrors
   admin invites) → member sets a **6-digit PIN + TOTP** (`club_member_auth`,
   service-role only) → signs in with email + PIN + TOTP (rate-limited, 5-fail/15-min
@@ -207,7 +212,8 @@ A member-facing login on the public site, **isolated from the 9-admin panel**. S
 - **13 new unit tests** (member session signing, lockout math, expiring token) → 91
   total. Pure/security-critical pieces are unit-tested; DB-backed layers (invites,
   auth, guards) are typecheck + walkthrough-verified, like the admin equivalents.
-- **Owes:** two human-only walkthroughs (see START HERE) + owner merge go-ahead.
+- **Owes:** two human-only walkthroughs (see START HERE) — write/camera paths not yet
+  human-exercised, though the code gate + prod guard-paths are green.
   **Out-of-repo:** an email to actually *deliver* the login link to members.
 
 ### Phase 2 started 2026-08-24
