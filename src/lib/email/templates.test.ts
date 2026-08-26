@@ -10,6 +10,15 @@ describe("renderEmail", () => {
     expect(text).toContain("https://x.test/member/accept-invite?token=abc");
   });
 
+  it("wraps the fallback URL in its own anchor (button + link) so clients don't re-linkify/split it", () => {
+    const { html } = renderEmail("member_login_link", "Set up your login", "Asha", {
+      inviteUrl: "https://x.test/a?token=abc",
+    });
+    // The URL appears as an href twice: the Open button AND the fallback link.
+    const hrefs = html.match(/href="https:\/\/x\.test\/a\?token=abc"/g) ?? [];
+    expect(hrefs.length).toBe(2);
+  });
+
   it("also detects confirmUrl", () => {
     const { html } = renderEmail("registration_received", "Confirm your seat", "A", {
       confirmUrl: "https://x.test/registrations/confirm?t=1",

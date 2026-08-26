@@ -41,7 +41,7 @@ export function renderEmail(
   const greeting = toName ? `Hi ${esc(toName)},` : "Hi,";
   const button = url
     ? `<p style="margin:24px 0"><a href="${esc(url)}" style="display:inline-block;background:#1f4d3a;color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font:600 15px sans-serif">Open</a></p>
-       <p style="color:#666;font-size:13px;word-break:break-all">Or paste this link into your browser:<br>${esc(url)}</p>`
+       <p style="color:#666;font-size:13px;word-break:break-all">Or open this link:<br><a href="${esc(url)}" style="color:#1f4d3a">${esc(url)}</a></p>`
     : "";
 
   const html = `<div style="max-width:520px;margin:0 auto;font:400 15px/1.6 -apple-system,Segoe UI,Roboto,sans-serif;color:#1a1a1a">
