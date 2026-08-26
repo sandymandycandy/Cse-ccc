@@ -37,16 +37,16 @@ export function MemberForm({
         <input id="name" name="name" required maxLength={120} defaultValue={initial?.name} placeholder="Member's full name" />
       </div>
       <div className="field">
-        <label htmlFor="rollNo">Roll number (optional)</label>
-        <input id="rollNo" name="rollNo" maxLength={40} defaultValue={initial?.rollNo} placeholder="vtuxxxxx" />
+        <label htmlFor="rollNo">Roll number</label>
+        <input id="rollNo" name="rollNo" required maxLength={40} defaultValue={initial?.rollNo} placeholder="vtuxxxxx" />
       </div>
       <div className="field">
         <label htmlFor="email">Email (needed for a member login)</label>
         <input id="email" name="email" type="email" maxLength={200} defaultValue={initial?.email} placeholder="vtuxxxxx@veltech.edu.in" />
       </div>
       <div className="field">
-        <label htmlFor="phone">Phone (optional)</label>
-        <input id="phone" name="phone" maxLength={20} defaultValue={initial?.phone} placeholder="10-digit mobile number" />
+        <label htmlFor="phone">Phone</label>
+        <input id="phone" name="phone" required maxLength={20} defaultValue={initial?.phone} placeholder="10-digit mobile number" />
       </div>
       <div className="field">
         <label htmlFor="sort">Sort order</label>

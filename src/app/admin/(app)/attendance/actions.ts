@@ -16,9 +16,10 @@ import type { MemberFormState, SessionFormState, MemberInviteState } from "@/lib
 
 const MemberSchema = z.object({
   name: z.string().trim().min(2).max(120),
-  rollNo: z.string().trim().max(40).optional().or(z.literal("")),
+  // Roll number and phone are mandatory for every roster member.
+  rollNo: z.string().trim().min(1).max(40),
   email: z.string().trim().email().max(200).optional().or(z.literal("")),
-  phone: z.string().trim().max(20).optional().or(z.literal("")),
+  phone: z.string().trim().min(1).max(20),
   // Roster is members-only. Head / vice-head are admin_users, created via the
   // admin-invite flow — never set here — so `role` is always "member".
   sort: z.coerce.number().int().min(0).max(9999).optional().or(z.literal("")),
@@ -49,7 +50,7 @@ export async function createMemberAction(
   if (!session) return { error: "Your session expired. Sign in again." };
 
   const parsed = parse(formData);
-  if (!parsed.success) return { error: "Check the form — a name is required." };
+  if (!parsed.success) return { error: "Check the form — name, roll number and phone are all required." };
 
   const resolved = resolveOwningClub(session, "manage:members", parsed.data.clubId);
   if ("error" in resolved) return { error: resolved.error };
@@ -64,9 +65,9 @@ export async function createMemberAction(
     .insert({
       club_id: resolved.clubId,
       name: parsed.data.name,
-      roll_no: parsed.data.rollNo ? parsed.data.rollNo : null,
+      roll_no: parsed.data.rollNo,
       email: parsed.data.email ? parsed.data.email.toLowerCase() : null,
-      phone: parsed.data.phone ? parsed.data.phone : null,
+      phone: parsed.data.phone,
       role: "member",
       sort: typeof parsed.data.sort === "number" ? parsed.data.sort : 0,
       is_active: parsed.data.isActive === "on",
@@ -105,7 +106,7 @@ export async function updateMemberAction(
   }
 
   const parsed = parse(formData);
-  if (!parsed.success) return { error: "Check the form — name and role are required." };
+  if (!parsed.success) return { error: "Check the form — name, roll number and phone are required." };
 
   // A club-scoped admin cannot move a member to another club; org-wide can.
   const resolved = resolveOwningClub(session, "manage:members", parsed.data.clubId);
@@ -120,9 +121,9 @@ export async function updateMemberAction(
     .from("club_members")
     .update({
       name: parsed.data.name,
-      roll_no: parsed.data.rollNo ? parsed.data.rollNo : null,
+      roll_no: parsed.data.rollNo,
       email: parsed.data.email ? parsed.data.email.toLowerCase() : null,
-      phone: parsed.data.phone ? parsed.data.phone : null,
+      phone: parsed.data.phone,
       role: "member",
       // On UPDATE preserve the current ordering when sort is unset (create defaults to 0).
       sort: typeof parsed.data.sort === "number" ? parsed.data.sort : existing.sort,
