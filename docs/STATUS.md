@@ -366,9 +366,9 @@ migration**). Verify gate green (**typecheck/lint clean, 109/109 tests, build �
 
 ## 🔨 Active owner requests (batch opened 2026-08-27) — build these first
 
-Direct owner asks from the 2026-08-27 admin-panel walkthrough. Four of five
-shipped; events is built and one migration away. Each shipped on its own branch
-→ merge to `main` → prod, same flow as always.
+Direct owner asks from the 2026-08-27 admin-panel walkthrough. **All five
+shipped to prod.** Each shipped on its own branch → merge to `main` → prod, same
+flow as always.
 
 - **A. Form placeholders** — ✅ **SHIPPED** (`927b51c`). Every text box has a
   placeholder: email → `vtuxxxxx@veltech.edu.in`, roll → `vtuxxxxx`, contextual
@@ -380,16 +380,16 @@ shipped; events is built and one migration away. Each shipped on its own branch
 - **C. Member roster — roll + phone mandatory** — ✅ **SHIPPED** (`a6025bd`).
   `MemberSchema` requires `rollNo`/`phone` (min 1); labels + `required` updated;
   insert/update always set them.
-- **D. Events — typed venue + notify-on-any-change + cover photo** — 🟡 **BUILT,
-  NOT DEPLOYED** (branch `feat/events-venue-notify-poster` @ `b7bcc04`, gate
-  green). (1) venue is a typed `events.venue_text` field (clash-check via
+- **D. Events — typed venue + notify-on-any-change + cover photo** — ✅ **SHIPPED**
+  (`f04b134`). (1) venue is a typed `events.venue_text` field (clash-check via
   `ilike`); (2) confirmed registrants emailed on ANY material change (title/desc/
   time/venue/capacity) with a click-through link; (3) cover photo via the
   existing `poster_path` column + new `event-posters` bucket, shown on the event
-  page. **BLOCKED on the live-DB migration** `20260827000000_event_venue_text_and_poster.sql`
-  (the auto-mode classifier blocks me from applying it — owner runs it in the
-  Supabase SQL editor, then merge → prod). `database.types.ts` was hand-edited to
-  add `venue_text`; regen via MCP once applied.
+  page. **Migration `20260827000000_event_venue_text_and_poster.sql` applied to
+  the live DB via MCP** (venue_text column + backfill + event-posters bucket).
+  Prod smoke green: `/events`,`/events/upcoming`,`/events/past`,`/calendar` → 200
+  (all now SELECT venue_text). `database.types.ts` carries the hand-added
+  `venue_text` (matches the live schema; verified by build + live reads).
 - **E. Mobile-responsive pass** — ✅ **DONE / baseline shipped** (`3d4c5b0`). The
   "paper" system was already fluid (clamp() type, scaling `--pad`, grids stacking
   at 899/599/479, scrolling tables/calendars, 44px buttons; no fixed-width
