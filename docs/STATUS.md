@@ -366,34 +366,46 @@ migration**). Verify gate green (**typecheck/lint clean, 109/109 tests, build �
 
 ## 🔨 Active owner requests (batch opened 2026-08-27) — build these first
 
-Direct owner asks from the 2026-08-27 admin-panel walkthrough, in build order.
-Each ships on its own branch → merge to `main` → prod, same flow as always.
+Direct owner asks from the 2026-08-27 admin-panel walkthrough. Four of five
+shipped; events is built and one migration away. Each shipped on its own branch
+→ merge to `main` → prod, same flow as always.
 
-- **A. Form placeholders** — ✅ **DONE** (branch `feat/form-placeholders`, gate
-  green, pending merge). Every text box now has a placeholder: email →
-  `vtuxxxxx@veltech.edu.in`, roll → `vtuxxxxx`, contextual hints elsewhere.
-- **B. Clubs CRUD** — **create new clubs** (`/admin/clubs/new` +
-  `createClubAction`) **+ edit ALL fields** on the existing editor (unlock slug /
-  category / colour / is_active beyond name/tagline/description). **No delete**;
-  the 11-club floor stays. Needs Zod + slug-uniqueness + `writeAudit`. Reverses
-  the old "clubs are fixed / edit-only" decision **at owner's request**.
-- **C. Member roster — roll + phone mandatory** — make `rollNo` and `phone`
-  **required** in the attendance member add/edit form: `MemberForm` (labels +
-  `required`) AND the create/update action's Zod schema (client + server agree).
-- **D. Events — three changes** *(needs a migration)*: (1) **venue is a
-  manually-typed text field**, not the current `<select>` from a venues list;
-  (2) **email participants on ANY change** to an event, not just time/venue (today
-  `updateEventAction` only mails on a time/venue change); (3) **event cover
-  photo** — new column + Storage bucket + upload UI on `EventForm`, shown on the
-  event pages. Reuse `image-upload.ts` + the announcements/gallery Storage pattern.
-- **E. Full-site mobile-responsive pass** — media-query pass over **public +
-  admin** at 390/360 (spot-check 320): no horizontal body scroll, readable type,
-  ~44px tap targets, tables/grids collapse-or-scroll, fluid images; functional +
-  visual polish. No headless browser — **owner eyeballs on phone** at checkpoints.
+- **A. Form placeholders** — ✅ **SHIPPED** (`927b51c`). Every text box has a
+  placeholder: email → `vtuxxxxx@veltech.edu.in`, roll → `vtuxxxxx`, contextual
+  hints elsewhere (public + admin).
+- **B. Clubs CRUD** — ✅ **SHIPPED** (`6f1fd51`). Create new clubs
+  (`/admin/clubs/new`, council-only) + edit ALL fields (slug/category/colour/
+  is_active) beyond profile text; structural fields gated to grant=all, heads
+  keep profile-only. No delete. New `src/lib/validation/club.ts` + 14 tests.
+- **C. Member roster — roll + phone mandatory** — ✅ **SHIPPED** (`a6025bd`).
+  `MemberSchema` requires `rollNo`/`phone` (min 1); labels + `required` updated;
+  insert/update always set them.
+- **D. Events — typed venue + notify-on-any-change + cover photo** — 🟡 **BUILT,
+  NOT DEPLOYED** (branch `feat/events-venue-notify-poster` @ `b7bcc04`, gate
+  green). (1) venue is a typed `events.venue_text` field (clash-check via
+  `ilike`); (2) confirmed registrants emailed on ANY material change (title/desc/
+  time/venue/capacity) with a click-through link; (3) cover photo via the
+  existing `poster_path` column + new `event-posters` bucket, shown on the event
+  page. **BLOCKED on the live-DB migration** `20260827000000_event_venue_text_and_poster.sql`
+  (the auto-mode classifier blocks me from applying it — owner runs it in the
+  Supabase SQL editor, then merge → prod). `database.types.ts` was hand-edited to
+  add `venue_text`; regen via MCP once applied.
+- **E. Mobile-responsive pass** — ✅ **DONE / baseline shipped** (`3d4c5b0`). The
+  "paper" system was already fluid (clamp() type, scaling `--pad`, grids stacking
+  at 899/599/479, scrolling tables/calendars, 44px buttons; no fixed-width
+  overflow found). Shipped the real gaps: `img { max-width:100% }`, 16px form
+  controls on phones (kills iOS zoom-on-focus), `.btn-sm` 44px tap target. Deeper
+  *visual* polish deferred by owner — revisit with phone-eyes (or Playwright)
+  later.
 - **Pending owner decision (not a build yet):** the member **static printable QR
   card** on the member edit page — keep / remove / move behind a "Print card"
   button. It's the fallback for members who don't log in (vs the portal's rotating
   QR). Awaiting the owner's call.
+
+> ⚠️ **Human-only browser verification owed** for this batch (server-action POSTs
+> can't be curled): clubs create + edit-all-fields save; member add with the new
+> required roll/phone; and — once the migration lands and events deploys — an
+> event create/edit with a typed venue + poster upload + the notify-on-change email.
 
 ---
 
