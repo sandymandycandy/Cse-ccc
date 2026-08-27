@@ -49,7 +49,6 @@ export type Capability =
   | "manage:contact" // the public contact-form inbox (council-wide)
   | "manage:members"
   | "manage:resources"
-  | "manage:recruitment"
   | "manage:venues"
   | "manage:admins"
   | "view:audit"
@@ -131,10 +130,6 @@ const MATRIX: Record<Capability, Partial<Record<AdminRole, Grant>>> = {
   "manage:resources": {
     faculty_advisor: "read", president: "all", vice_president: "all",
     tech_head: "all", docs_head: "all", club_head: "own",
-  },
-  "manage:recruitment": {
-    faculty_advisor: "read", president: "all", vice_president: "all",
-    tech_head: "all", social_media_head: "all", club_head: "own", vice_head: "own",
   },
   "manage:venues": {
     faculty_advisor: "read", president: "all", vice_president: "all",

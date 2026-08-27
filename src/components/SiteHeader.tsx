@@ -12,7 +12,6 @@ const LINKS = [
   { href: "/calendar", label: "Calendar" },
   { href: "/clubs", label: "Clubs" },
   { href: "/team", label: "Team" },
-  { href: "/join", label: "Join" },
 ] as const;
 
 function isActive(pathname: string, href: string) {

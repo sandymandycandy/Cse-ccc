@@ -13,7 +13,6 @@ const COLS: { title: string; links: { href: string; label: string }[] }[] = [
   {
     title: "Get involved",
     links: [
-      { href: "/join", label: "Join a club" },
       { href: "/team", label: "The council" },
       { href: "/resources", label: "Resources" },
       { href: "/contact", label: "Contact" },

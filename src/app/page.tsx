@@ -59,8 +59,8 @@ export default async function HomePage() {
             </p>
             <div className="stack" style={{ marginTop: 28 }}>
               <ButtonLink href="/events">See what&rsquo;s on</ButtonLink>
-              <ButtonLink href="/join" variant="ghost">
-                Join a club
+              <ButtonLink href="/clubs" variant="ghost">
+                Explore the clubs
               </ButtonLink>
             </div>
             <div
@@ -159,42 +159,6 @@ export default async function HomePage() {
         </section>
       ) : null}
 
-      {/* ── Recruitment band ── */}
-      <section style={{ padding: "40px var(--pad)" }}>
-        <div
-          style={{
-            padding: "34px 40px",
-            borderRadius: "var(--r-2xl)",
-            background: "var(--forest)",
-            color: "#F1F0E7",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 26,
-            flexWrap: "wrap",
-          }}
-        >
-          <div>
-            <h2 style={{ color: "#F1F0E7" }}>The clubs are recruiting.</h2>
-            <p
-              style={{
-                marginTop: 10,
-                maxWidth: 520,
-                font: "400 15px/1.6 var(--sans)",
-                color: "rgba(241,240,231,.78)",
-              }}
-            >
-              One form, pick up to three clubs. Heads reply within the week.
-            </p>
-          </div>
-          <ButtonLink
-            href="/join"
-            style={{ background: "#F1F0E7", color: "#22241F", flex: "none" }}
-          >
-            Apply to join
-          </ButtonLink>
-        </div>
-      </section>
     </>
   );
 }
