@@ -1356,3 +1356,31 @@
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
 }
+
+/* ── mobile refinements (2026-08-27) ──────────────────────────────────────
+   The "paper" system is already fluid — clamp() type on every heading + .lead,
+   a scaling --pad, grids that stack at 899/599/479, and tables/calendars that
+   scroll inside their own overflow-x container. These are the small
+   cross-cutting touch/phone fixes that sit on top of that. */
+
+/* No image (poster, thumbnail, markdown-embedded) can overflow its container or
+   the viewport. Explicit-height thumbnails keep their height (all are < a phone
+   width, so this only ever caps oversized images). */
+img {
+  max-width: 100%;
+}
+
+@media (max-width: 599px) {
+  /* Form controls render at >=16px on phones so iOS Safari doesn't zoom the
+     page in when a field is focused (the classic mobile-form jump). */
+  .field input,
+  .field select,
+  .field textarea {
+    font-size: 16px;
+  }
+
+  /* Small buttons get a full touch target on phones. */
+  .btn-sm {
+    min-height: 44px;
+  }
+}
