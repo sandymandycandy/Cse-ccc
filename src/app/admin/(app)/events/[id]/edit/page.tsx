@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireViewPage } from "@/lib/auth/guards";
 import { grantFor, canManage } from "@/lib/auth/capabilities";
-import { getClubOptions, getVenueOptions, getEventForEdit } from "@/lib/admin/queries";
+import { getClubOptions, getEventForEdit } from "@/lib/admin/queries";
 import { EventForm } from "@/components/admin/EventForm";
 import { CancelEventForm } from "@/components/admin/CancelEventForm";
 import { istLocalInput } from "@/lib/datetime";
@@ -15,10 +15,9 @@ export default async function EditEventPage({
   const session = await requireViewPage("manage:events");
   const { id } = await params;
 
-  const [event, clubs, venues] = await Promise.all([
+  const [event, clubs] = await Promise.all([
     getEventForEdit(session, id),
     getClubOptions(),
-    getVenueOptions(),
   ]);
   // Fail closed: getEventForEdit returns null for a missing event or one outside
   // a club-scoped admin's club.
@@ -40,12 +39,11 @@ export default async function EditEventPage({
       <h1 style={{ margin: "6px 0 0" }}>Edit event</h1>
       <p className="lead" style={{ marginTop: 8 }}>
         Changes save immediately and don&rsquo;t change the event&rsquo;s approval
-        status. Registrants are emailed if the date or venue changes.
+        status. Confirmed registrants are emailed whenever you change the details.
       </p>
       <EventForm
         action={updateEventAction}
         clubs={clubs}
-        venues={venues}
         fixedClub={fixedClub}
         eventId={event.id}
         submitLabel="Save changes"
@@ -53,10 +51,11 @@ export default async function EditEventPage({
           title: event.title,
           description: event.description ?? "",
           clubId: event.clubId ?? "",
-          venueId: event.venueId ?? "",
+          venueText: event.venueText ?? "",
           startsAtLocal: istLocalInput(event.startsAt),
           endsAtLocal: istLocalInput(event.endsAt),
           capacity: event.capacity != null ? String(event.capacity) : "",
+          posterUrl: event.posterUrl,
         }}
       />
 

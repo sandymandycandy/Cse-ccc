@@ -46,7 +46,7 @@ async function registeredCounts(ids: string[]): Promise<Map<string, number>> {
 }
 
 const EVENT_SELECT =
-  "id, title, description, starts_at, ends_at, capacity, is_all_day, " +
+  "id, title, description, starts_at, ends_at, capacity, is_all_day, venue_text, " +
   "venues ( name ), event_clubs ( is_primary, clubs ( name, short_name ) )";
 
 type EventJoinRow = {
@@ -57,6 +57,7 @@ type EventJoinRow = {
   ends_at: string;
   capacity: number | null;
   is_all_day: boolean;
+  venue_text: string | null;
   venues: { name: string } | null;
   event_clubs: {
     is_primary: boolean;
@@ -78,7 +79,7 @@ function toSummary(row: EventJoinRow, registered: number): EventSummary {
     day: istDayNum(row.starts_at),
     dateLabel: istDateLabel(row.starts_at),
     timeLabel: row.is_all_day ? "All day" : istTime(row.starts_at),
-    venue: row.venues?.name ?? "TBA",
+    venue: row.venue_text ?? row.venues?.name ?? "TBA",
     registered,
     capacity: row.capacity ?? 0,
     status: seatStatus(registered, row.capacity),
@@ -127,19 +128,20 @@ export interface EventDetail extends EventSummary {
   startsAt: string;
   endsAt: string;
   isAllDay: boolean;
+  posterUrl: string | null;
 }
 
 export async function getEventDetail(id: string): Promise<EventDetail | null> {
   const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("events")
-    .select("id, title, description, rules, starts_at, ends_at, capacity, is_all_day, " +
+    .select("id, title, description, rules, starts_at, ends_at, capacity, is_all_day, venue_text, poster_path, " +
       "venues ( name ), event_clubs ( is_primary, clubs ( name, short_name ) )")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  const row = data as unknown as EventJoinRow & { rules: string | null };
+  const row = data as unknown as EventJoinRow & { rules: string | null; poster_path: string | null };
   const counts = await registeredCounts([row.id]);
   const summary = toSummary(row, counts.get(row.id) ?? 0);
   return {
@@ -149,13 +151,16 @@ export async function getEventDetail(id: string): Promise<EventDetail | null> {
     startsAt: row.starts_at,
     endsAt: row.ends_at,
     isAllDay: row.is_all_day,
+    posterUrl: row.poster_path
+      ? supabase.storage.from("event-posters").getPublicUrl(row.poster_path).data.publicUrl
+      : null,
   };
 }
 
 // ── calendar ─────────────────────────────────────────────────────────────
 
 const CAL_SELECT =
-  "id, title, starts_at, ends_at, capacity, is_all_day, status, " +
+  "id, title, starts_at, ends_at, capacity, is_all_day, status, venue_text, " +
   "venues ( name ), event_clubs ( is_primary, clubs ( short_name, slug, color ) )";
 
 type CalEventRow = {
@@ -166,6 +171,7 @@ type CalEventRow = {
   capacity: number | null;
   is_all_day: boolean;
   status: string;
+  venue_text: string | null;
   venues: { name: string } | null;
   event_clubs: {
     is_primary: boolean;
@@ -185,7 +191,7 @@ function toCalendarEvent(row: CalEventRow, registered: number): CalendarEvent {
     club: club?.short_name ?? "Council",
     clubSlug: club?.slug ?? "council",
     clubColor: club?.color ?? "var(--forest)",
-    venue: row.venues?.name ?? "TBA",
+    venue: row.venue_text ?? row.venues?.name ?? "TBA",
     registered,
     capacity: row.capacity ?? 0,
     status: seatStatus(registered, row.capacity),

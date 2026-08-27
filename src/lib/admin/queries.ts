@@ -123,7 +123,8 @@ export interface EventForEdit {
   description: string | null;
   startsAt: string;
   endsAt: string;
-  venueId: string | null;
+  venueText: string | null;
+  posterUrl: string | null;
   capacity: number | null;
   clubId: string | null;
   status: string;
@@ -142,7 +143,7 @@ export async function getEventForEdit(
   const { data, error } = await admin
     .from("events")
     .select(
-      "id, title, description, starts_at, ends_at, venue_id, capacity, status, " +
+      "id, title, description, starts_at, ends_at, venue_text, poster_path, capacity, status, " +
         "event_clubs ( club_id, is_primary )",
     )
     .eq("id", eventId)
@@ -156,7 +157,8 @@ export async function getEventForEdit(
     description: string | null;
     starts_at: string;
     ends_at: string;
-    venue_id: string | null;
+    venue_text: string | null;
+    poster_path: string | null;
     capacity: number | null;
     status: string;
     event_clubs: { club_id: string; is_primary: boolean }[];
@@ -174,7 +176,10 @@ export async function getEventForEdit(
     description: row.description,
     startsAt: row.starts_at,
     endsAt: row.ends_at,
-    venueId: row.venue_id,
+    venueText: row.venue_text,
+    posterUrl: row.poster_path
+      ? admin.storage.from("event-posters").getPublicUrl(row.poster_path).data.publicUrl
+      : null,
     capacity: row.capacity,
     clubId,
     status: row.status,

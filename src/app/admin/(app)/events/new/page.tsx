@@ -1,12 +1,12 @@
 import { requireViewPage } from "@/lib/auth/guards";
 import { grantFor } from "@/lib/auth/capabilities";
-import { getClubOptions, getVenueOptions } from "@/lib/admin/queries";
+import { getClubOptions } from "@/lib/admin/queries";
 import { EventForm } from "@/components/admin/EventForm";
 import { createEventAction } from "../actions";
 
 export default async function NewEventPage() {
   const session = await requireViewPage("manage:events");
-  const [clubs, venues] = await Promise.all([getClubOptions(), getVenueOptions()]);
+  const clubs = await getClubOptions();
 
   // Club-scoped roles create only for their own club; it's fixed, not chosen.
   const clubScoped = grantFor(session.role, "manage:events") === "own";
@@ -27,7 +27,6 @@ export default async function NewEventPage() {
       <EventForm
         action={createEventAction}
         clubs={clubs}
-        venues={venues}
         fixedClub={fixedClub}
       />
     </div>

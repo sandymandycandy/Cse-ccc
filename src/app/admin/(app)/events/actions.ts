@@ -8,9 +8,12 @@ import { getAdminSession } from "@/lib/auth/guards";
 import { canManage } from "@/lib/auth/capabilities";
 import { enqueueEmail } from "@/lib/email";
 import { writeAudit } from "@/lib/admin/audit";
+import { handleImageUpload } from "@/lib/admin/image-upload";
 import { istDateKey, istLocalToUTC } from "@/lib/datetime";
 import type { AdminRole } from "@/lib/auth/capabilities";
 import type { EventFormState } from "@/lib/admin/form-state";
+
+const POSTER_BUCKET = "event-posters";
 
 // Roles whose own events skip the approval queue (§9).
 const AUTO_APPROVE: AdminRole[] = [
@@ -25,12 +28,24 @@ const CreateSchema = z
     title: z.string().trim().min(3).max(140),
     description: z.string().trim().max(4000).optional(),
     clubId: z.string().uuid(),
-    venueId: z.string().uuid().optional().or(z.literal("")),
+    venueText: z.string().trim().max(120).optional(),
     startsAt: z.string().min(1),
     endsAt: z.string().min(1),
     capacity: z.coerce.number().int().min(0).max(100000).optional().or(z.literal("")),
   })
   .strict();
+
+function parseEvent(formData: FormData) {
+  return CreateSchema.safeParse({
+    title: formData.get("title"),
+    description: formData.get("description") || undefined,
+    clubId: formData.get("clubId"),
+    venueText: formData.get("venueText") || undefined,
+    startsAt: formData.get("startsAt"),
+    endsAt: formData.get("endsAt"),
+    capacity: formData.get("capacity") || "",
+  });
+}
 
 export async function createEventAction(
   _prev: EventFormState,
@@ -39,17 +54,9 @@ export async function createEventAction(
   const session = await getAdminSession();
   if (!session) return { error: "Your session expired. Sign in again." };
 
-  const parsed = CreateSchema.safeParse({
-    title: formData.get("title"),
-    description: formData.get("description") || undefined,
-    clubId: formData.get("clubId"),
-    venueId: formData.get("venueId") || "",
-    startsAt: formData.get("startsAt"),
-    endsAt: formData.get("endsAt"),
-    capacity: formData.get("capacity") || "",
-  });
+  const parsed = parseEvent(formData);
   if (!parsed.success) return { error: "Check the form — some fields are missing or invalid." };
-  const { title, description, clubId, venueId, capacity } = parsed.data;
+  const { title, description, clubId, venueText, capacity } = parsed.data;
 
   // Capability + club scope: a club-scoped role may only create for its own club.
   if (!canManage(session, "manage:events", clubId)) {
@@ -78,13 +85,14 @@ export async function createEventAction(
     return { error: `That date is blacked out: ${blackouts[0].reason}.` };
   }
 
-  // Clash check (§6): same venue, overlapping time, not cancelled/rejected.
-  const venue = venueId || null;
+  // Clash check (§6): same venue (case-insensitive exact match on the typed
+  // name), overlapping time, not cancelled/rejected.
+  const venue = venueText || null;
   if (venue) {
     const { data: clashes } = await admin
       .from("events")
       .select("title")
-      .eq("venue_id", venue)
+      .ilike("venue_text", venue)
       .neq("status", "cancelled")
       .neq("approval_status", "rejected")
       .lt("starts_at", endsAt)
@@ -95,6 +103,10 @@ export async function createEventAction(
     }
   }
 
+  // Optional cover poster (uploaded via the service role to the public bucket).
+  const poster = await handleImageUpload(formData, { bucket: POSTER_BUCKET });
+  if (poster.error) return { error: poster.error };
+
   const autoApproved = AUTO_APPROVE.includes(session.role);
 
   const { data: ev, error } = await admin
@@ -104,7 +116,8 @@ export async function createEventAction(
       description: description ?? null,
       starts_at: startsAt,
       ends_at: endsAt,
-      venue_id: venue,
+      venue_text: venue,
+      poster_path: poster.path ?? null,
       capacity: typeof capacity === "number" ? capacity : null,
       status: "published",
       approval_status: autoApproved ? "approved" : "pending",
@@ -113,13 +126,17 @@ export async function createEventAction(
     })
     .select("id")
     .single();
-  if (error || !ev) return { error: "Could not save the event. Try again." };
+  if (error || !ev) {
+    if (poster.path) await admin.storage.from(POSTER_BUCKET).remove([poster.path]);
+    return { error: "Could not save the event. Try again." };
+  }
 
   const { error: linkErr } = await admin
     .from("event_clubs")
     .insert({ event_id: ev.id, club_id: clubId, is_primary: true });
   if (linkErr) {
     await admin.from("events").delete().eq("id", ev.id); // avoid an orphan event
+    if (poster.path) await admin.storage.from(POSTER_BUCKET).remove([poster.path]);
     return { error: "Could not link the event to its club. Try again." };
   }
 
@@ -165,33 +182,31 @@ export async function updateEventAction(
     return { error: "Missing event reference." };
   }
 
-  const parsed = CreateSchema.safeParse({
-    title: formData.get("title"),
-    description: formData.get("description") || undefined,
-    clubId: formData.get("clubId"),
-    venueId: formData.get("venueId") || "",
-    startsAt: formData.get("startsAt"),
-    endsAt: formData.get("endsAt"),
-    capacity: formData.get("capacity") || "",
-  });
+  const parsed = parseEvent(formData);
   if (!parsed.success) return { error: "Check the form — some fields are missing or invalid." };
-  const { title, description, clubId, venueId, capacity } = parsed.data;
+  const { title, description, clubId, venueText, capacity } = parsed.data;
 
   const admin = createAdminClient();
 
   // Load the existing event (+ current primary club) to authorise and to diff.
   const { data: existingRaw } = await admin
     .from("events")
-    .select("id, title, starts_at, ends_at, venue_id, status, event_clubs ( club_id, is_primary )")
+    .select(
+      "id, title, description, starts_at, ends_at, venue_text, poster_path, capacity, status, " +
+        "event_clubs ( club_id, is_primary )",
+    )
     .eq("id", eventId)
     .maybeSingle();
   if (!existingRaw) return { error: "That event no longer exists." };
   const existing = existingRaw as unknown as {
     id: string;
     title: string;
+    description: string | null;
     starts_at: string;
     ends_at: string;
-    venue_id: string | null;
+    venue_text: string | null;
+    poster_path: string | null;
+    capacity: number | null;
     status: string;
     event_clubs: { club_id: string; is_primary: boolean }[];
   };
@@ -227,12 +242,12 @@ export async function updateEventAction(
   }
 
   // Clash check (§6), excluding this event's own row.
-  const venue = venueId || null;
+  const venue = venueText || null;
   if (venue) {
     const { data: clashes } = await admin
       .from("events")
       .select("title")
-      .eq("venue_id", venue)
+      .ilike("venue_text", venue)
       .neq("id", eventId)
       .neq("status", "cancelled")
       .neq("approval_status", "rejected")
@@ -244,20 +259,39 @@ export async function updateEventAction(
     }
   }
 
+  // Optional replacement cover poster.
+  const poster = await handleImageUpload(formData, { bucket: POSTER_BUCKET });
+  if (poster.error) return { error: poster.error };
+
   // Editing never re-triggers approval: status / approval_status / approved_by
   // are deliberately left untouched.
-  const { error: updErr } = await admin
-    .from("events")
-    .update({
-      title,
-      description: description ?? null,
-      starts_at: startsAt,
-      ends_at: endsAt,
-      venue_id: venue,
-      capacity: typeof capacity === "number" ? capacity : null,
-    })
-    .eq("id", eventId);
-  if (updErr) return { error: "Could not save your changes. Try again." };
+  const update: {
+    title: string;
+    description: string | null;
+    starts_at: string;
+    ends_at: string;
+    venue_text: string | null;
+    capacity: number | null;
+    poster_path?: string;
+  } = {
+    title,
+    description: description ?? null,
+    starts_at: startsAt,
+    ends_at: endsAt,
+    venue_text: venue,
+    capacity: typeof capacity === "number" ? capacity : null,
+  };
+  if (poster.path) update.poster_path = poster.path;
+
+  const { error: updErr } = await admin.from("events").update(update).eq("id", eventId);
+  if (updErr) {
+    if (poster.path) await admin.storage.from(POSTER_BUCKET).remove([poster.path]);
+    return { error: "Could not save your changes. Try again." };
+  }
+  // Replaced poster → drop the old object so it doesn't orphan in Storage.
+  if (poster.path && existing.poster_path) {
+    await admin.storage.from(POSTER_BUCKET).remove([existing.poster_path]);
+  }
 
   // Move the primary club link if the hosting club changed.
   if (clubId !== currentClubId) {
@@ -269,11 +303,19 @@ export async function updateEventAction(
     if (linkErr) return { error: "Saved, but couldn't update the hosting club. Try again." };
   }
 
-  // Notify confirmed registrants when the time or venue materially changed on a
-  // published event (§4a). Pure title/description/capacity edits stay quiet.
+  // Notify confirmed registrants when ANYTHING material changed on a published
+  // event — title, description, time, venue or capacity (owner request; was
+  // previously time/venue only). A new poster alone doesn't notify.
   const timeChanged = existing.starts_at !== startsAt || existing.ends_at !== endsAt;
-  const venueChanged = (existing.venue_id ?? null) !== venue;
-  if ((timeChanged || venueChanged) && existing.status === "published") {
+  const venueChanged = (existing.venue_text ?? null) !== venue;
+  const titleChanged = existing.title !== title;
+  const descChanged = (existing.description ?? null) !== (description ?? null);
+  const capacityChanged =
+    (existing.capacity ?? null) !== (typeof capacity === "number" ? capacity : null);
+  const anyChanged = timeChanged || venueChanged || titleChanged || descChanged || capacityChanged;
+
+  if (anyChanged && existing.status === "published") {
+    const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
     const { data: regs } = await admin
       .from("registrations")
       .select("email, student_name")
@@ -285,7 +327,7 @@ export async function updateEventAction(
         toEmail: r.email,
         toName: r.student_name,
         subject: `Updated: ${title}`,
-        payload: { eventId, title, timeChanged, venueChanged },
+        payload: { eventId, title, url: base ? `${base}/events/${eventId}` : undefined, timeChanged, venueChanged },
         priority: 2,
       });
     }
@@ -300,10 +342,10 @@ export async function updateEventAction(
       title: existing.title,
       starts_at: existing.starts_at,
       ends_at: existing.ends_at,
-      venue_id: existing.venue_id,
+      venue_text: existing.venue_text,
       club_id: currentClubId,
     },
-    after: { title, starts_at: startsAt, ends_at: endsAt, venue_id: venue, club_id: clubId },
+    after: { title, starts_at: startsAt, ends_at: endsAt, venue_text: venue, club_id: clubId },
   });
 
   redirect("/admin/events");
@@ -320,7 +362,7 @@ export async function duplicateEventAction(formData: FormData): Promise<void> {
   const { data: srcRaw } = await admin
     .from("events")
     .select(
-      "title, description, starts_at, ends_at, venue_id, capacity, event_clubs ( club_id, is_primary )",
+      "title, description, starts_at, ends_at, venue_text, capacity, event_clubs ( club_id, is_primary )",
     )
     .eq("id", eventId)
     .maybeSingle();
@@ -330,7 +372,7 @@ export async function duplicateEventAction(formData: FormData): Promise<void> {
     description: string | null;
     starts_at: string;
     ends_at: string;
-    venue_id: string | null;
+    venue_text: string | null;
     capacity: number | null;
     event_clubs: { club_id: string; is_primary: boolean }[];
   };
@@ -340,8 +382,8 @@ export async function duplicateEventAction(formData: FormData): Promise<void> {
 
   // Insert a DRAFT copy — schedule/venue are carried over but a draft holds no
   // booking, so we skip the clash/blackout checks here; the admin sets a fresh
-  // date/venue on the edit page (where clash is re-checked on save). Registrations,
-  // rounds, results and attendance are intentionally NOT copied.
+  // date/venue on the edit page (where clash is re-checked on save). The poster,
+  // registrations, rounds, results and attendance are intentionally NOT copied.
   const { data: ev, error } = await admin
     .from("events")
     .insert({
@@ -349,7 +391,7 @@ export async function duplicateEventAction(formData: FormData): Promise<void> {
       description: src.description,
       starts_at: src.starts_at,
       ends_at: src.ends_at,
-      venue_id: src.venue_id,
+      venue_text: src.venue_text,
       capacity: src.capacity,
       status: "draft",
       approval_status: "pending",

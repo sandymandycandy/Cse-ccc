@@ -992,6 +992,7 @@ export type Database = {
           title: string
           updated_at: string
           venue_id: string | null
+          venue_text: string | null
           waitlist_enabled: boolean
         }
         Insert: {
@@ -1019,6 +1020,7 @@ export type Database = {
           title: string
           updated_at?: string
           venue_id?: string | null
+          venue_text?: string | null
           waitlist_enabled?: boolean
         }
         Update: {
@@ -1046,6 +1048,7 @@ export type Database = {
           title?: string
           updated_at?: string
           venue_id?: string | null
+          venue_text?: string | null
           waitlist_enabled?: boolean
         }
         Relationships: [

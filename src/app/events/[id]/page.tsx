@@ -54,6 +54,14 @@ export default async function EventDetailPage({ params }: Params) {
             <SeatBadge status={event.status} />
           </div>
           <h1 style={{ margin: "12px 0 0" }}>{event.title}</h1>
+          {event.posterUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={event.posterUrl}
+              alt={`${event.title} poster`}
+              style={{ width: "100%", maxWidth: 620, borderRadius: 10, marginTop: 20, display: "block" }}
+            />
+          ) : null}
           {event.blurb ? (
             <p className="lead" style={{ marginTop: 16, maxWidth: 620 }}>
               {event.blurb}
