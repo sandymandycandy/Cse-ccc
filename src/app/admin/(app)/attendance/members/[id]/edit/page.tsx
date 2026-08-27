@@ -32,11 +32,17 @@ export default async function EditMemberPage({ params }: { params: Promise<{ id:
         }}
       />
       <section className="rule" style={{ marginTop: 32, paddingTop: 24 }}>
-        <h2 style={{ font: "400 18px var(--serif)", margin: "0 0 12px" }}>QR card</h2>
-        <MemberQrCard memberId={member.id} name={member.name} />
-        <p className="body-text" style={{ fontSize: 13, color: "var(--ink-2)", marginTop: 10 }}>
-          Print or share this. A head scans it to mark attendance; the member can open it to see their record.
-        </p>
+        <details>
+          <summary style={{ cursor: "pointer", font: "500 13px var(--sans)", color: "var(--forest)" }}>
+            Print QR card
+          </summary>
+          <p className="body-text" style={{ fontSize: 13, color: "var(--ink-2)", margin: "10px 0 12px" }}>
+            A static card for members who don&rsquo;t sign in — print or share it. A head scans it to mark
+            attendance; the member can open it to see their record. (Members who log in get a rotating QR in
+            their portal.)
+          </p>
+          <MemberQrCard memberId={member.id} name={member.name} />
+        </details>
       </section>
       {member.email ? (
         <section className="rule" style={{ marginTop: 24, paddingTop: 24 }}>
