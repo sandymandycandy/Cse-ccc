@@ -19,12 +19,14 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  *  `join_token` is a uuid column, so a non-uuid token can never match — short-circuit
  *  to null rather than let Postgres reject the malformed literal (a garbage token in
  *  the URL then 404s cleanly instead of 500-ing). */
-export async function getClubByJoinToken(token: string): Promise<{ id: string; name: string } | null> {
+export async function getClubByJoinToken(
+  token: string,
+): Promise<{ id: string; name: string; tagline: string | null; color: string } | null> {
   if (!UUID_RE.test(token)) return null;
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("clubs")
-    .select("id, name")
+    .select("id, name, tagline, color")
     .eq("join_token", token)
     .maybeSingle();
   if (error) throw error;
