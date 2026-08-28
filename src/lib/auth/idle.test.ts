@@ -39,8 +39,8 @@ describe("isIdleExpired", () => {
   it("is expired past the window", () => {
     expect(isIdleExpired(now - (IDLE_MS + 1), now)).toBe(true);
   });
-  it("uses a 2-minute window", () => {
-    expect(IDLE_MS).toBe(2 * 60 * 1000);
+  it("uses a 10-minute window", () => {
+    expect(IDLE_MS).toBe(10 * 60 * 1000);
   });
 });
 

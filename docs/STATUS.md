@@ -179,7 +179,7 @@ Server-action POSTs can't be curled (see Gotchas), so these were verified by
 build + render + schema-check but **not by executing the mutation**:
 1. **Event edit** (§4a): log in → Events → Edit → change time → Save → row updates, approval status unchanged.
 2. **Event duplicate/cancel** (§4c): from an event's Edit page → Duplicate as draft (lands on the copy) / Cancel event (row → cancelled, registrants emailed).
-3. **TOTP enrollment** (§2): log in as the **bootstrap Tech Head** → you're forced to `/admin/setup-totp` → scan + enter code → save recovery codes → re-login with 2FA. (While logged in you can also confirm the **2-min idle timeout**: idle 2 min → next click bounces to login.)
+3. **TOTP enrollment** (§2): log in as the **bootstrap Tech Head** → you're forced to `/admin/setup-totp` → scan + enter code → save recovery codes → re-login with 2FA. (While logged in you can also confirm the **10-min idle timeout**: idle 10 min → next click bounces to login.)
 4. **Announcements** (P2): `/admin/announcements` → New → write Markdown + upload an image + Publish → confirm it appears at `/announcements` and the detail renders.
 5. **Resources** (P2): `/admin/resources` → Add resource → title + `https://…` link + type (+ club, if org-wide) → Save → confirm it appears grouped at `/resources`; Edit changes it; Delete removes it. As a **club_head**, confirm you only see/manage your own club's rows and get no club picker.
 6. **Gallery** (P2): `/admin/gallery` → Add photo → upload an image + caption + sort (+ club, if org-wide) → Save → confirm it shows in the grid at `/gallery`; Edit (replace the image — old object should be gone) and Delete work. As a **club_head/vice_head**, confirm you see Gallery in the nav and manage only your own club's photos.
@@ -238,7 +238,7 @@ results editor); Auth.js v5 + capabilities across 9 roles.
     `requireCapability`. *(pushed)*
   - **Login lockout** — `checkLoginLimits` = 3 attempts / 1-min lockout, per-IP
     and per-account; generic failure message unchanged. *(pushed)*
-  - **2-min idle timeout** — `src/proxy.ts` + `src/lib/auth/idle.ts`; signed
+  - **10-min idle timeout** — `src/proxy.ts` + `src/lib/auth/idle.ts`; signed
     httpOnly `idle` cookie, check-then-slide; on expiry clears the session cookie
     too. **Hardened against a stripped-clock bypass** (a missing clock falls back
     to the JWT `iat`; fails open on decode error). *(pushed)*
