@@ -20,16 +20,21 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-08-28)
 
-> ### 🔨 IN PROGRESS — Manual attendance + self-registration (`feat/manual-attendance`, 2026-08-28)
-> A large rework on branch **`feat/manual-attendance`** (NOT merged, NOT deployed).
-> **Replaces** the club-member **QR attendance** system and the **PIN/TOTP member
-> login portal** with a simpler manual flow. Code-complete for all 11 plan tasks;
-> **gate green (typecheck ✓ / lint ✓ / 118 tests ✓ / build ✓).** Plan + spec:
-> `docs/superpowers/{plans,specs}/2026-08-28-manual-attendance*`. **Latest commit
-> `c39cf2a`** — `fix(roster): 404 non-uuid join tokens instead of 500`
+> ### ✅ SHIPPED & LIVE — Manual attendance + self-registration (merged to `main`, deployed to prod 2026-08-28)
+> The large rework on `feat/manual-attendance` is **fast-forward-merged to `main` (@ `747cdf0`)
+> and live in production** (https://cse-ccc.vercel.app). **Replaces** the club-member **QR
+> attendance** system and the **PIN/TOTP member login portal** with a simpler manual flow. All
+> 11 plan tasks done; **gate green (typecheck ✓ / lint ✓ / 118 tests ✓ / build ✓).** Plan +
+> spec: `docs/superpowers/{plans,specs}/2026-08-28-manual-attendance*`. Includes commit
+> `c39cf2a` — `fix(roster): 404 non-uuid join tokens instead of 500`
 > (`getClubByJoinToken` short-circuits a non-uuid token to null so `/join/[token]` and
 > `POST /api/roster/register` take their clean not-found path instead of 500-ing on the
 > malformed uuid literal).
+> - **Prod smoke-tested post-deploy (2026-08-28):** `/attendance` + `/join/<real-token>` → 200
+>   (new public surface); `/join/not-a-uuid` → 404 (the `c39cf2a` guard, live); `/member/login`,
+>   `/member/accept-invite`, `/m/<token>` → 404 (removed surface gone); `/`,`/clubs`,`/events` →
+>   200 (no regression); `POST /api/roster/register` bad token → 404 (route handler, no write);
+>   `/admin/attendance/members` → 307→login (guard). Read/redirect/guard paths confirmed.
 > - **What it does now:** (a) a per-club **self-registration link** (`/join/[token]`)
 >   → public form (name/roll/veltech-email/phone/≤200 KB photo) → row lands **pending**
 >   (`approved_at IS NULL`); (b) head **Onboard/Reject** + full member CRUD with photo
@@ -53,20 +58,25 @@ end-to-end**, not a checklist of components.
 >   rows / **0 pending** (all `approved_at` set), the `club_members_roll_unique` index +
 >   `member-photos` bucket both present. So dev/prod **no longer 500** on these columns.
 >   (This was flagged MISSING in a prior session; it has since been applied.)
-> - **Post-deploy drop migration:** `20260828010000_drop_member_portal.sql` (drops
->   `member_invites`, `club_member_auth`, `qr_ttl_seconds`, the one-open index) — apply
->   **only after** the new code is live (old code still referenced those objects).
-> - **Owed human-only walkthroughs** (once the additive migration lands): share a club's
->   `/join/<token>` link → self-register → head **Onboards** at `/admin/attendance/members`
->   → **create a session** (date + slot) → **mark present/absent + Save** → **check
->   attendance by roll** at `/attendance`. Plus a **runtime curl** of
->   `POST /api/roster/register` (route handlers curl fine — 404 bad token / 400 bad field /
->   one valid insert then delete the row + photo object, since the DB is shared).
+> - **⏸️ Post-deploy drop migration — HELD (owner's call, 2026-08-28).**
+>   `20260828010000_drop_member_portal.sql` (drops `member_invites`, `club_member_auth`,
+>   `qr_ttl_seconds`, the one-open index) is **safe to apply now** — the new code is live and no
+>   longer references those objects — but is **deliberately held** to keep a clean `git revert`
+>   rollback of the deploy. Apply later via Supabase MCP `apply_migration` (name
+>   `drop_member_portal`); the objects sit harmlessly unused until then.
+> - **✅ Runtime rejection-path curls DONE (prod, 2026-08-28):** `POST /api/roster/register` →
+>   404 non-uuid token / 404 nonexistent-uuid token / 400 bad fields, all **without writing**
+>   (`club_members` held at 23 rows / 0 pending before and after). **STILL OWED — one human-only
+>   browser walk:** share a club's `/join/<token>` → self-register (one real submit w/ photo) →
+>   head **Onboards** at `/admin/attendance/members` → **create a session** (date + slot) →
+>   **mark present/absent + Save** → **check by roll** at `/attendance`. (Server-action POSTs + a
+>   real photo upload can't be curled; delete the test row + photo object after — the DB is
+>   shared/live.)
 > - **OBSOLETED by this branch** — the QR-attendance + member-portal "owed walkthrough"
 >   items below (rotating-QR phone test, `/admin/attendance/scan` camera test, member
 >   PIN/TOTP login walk, member login-link email) — that entire surface is deleted.
 
-> ### ✅ CURRENT STATE — `main == origin/main @ 50857aa`, clean (2026-08-27)
+> ### ✅ PRIOR STATE — `main @ 50857aa` (2026-08-27; superseded by the SHIPPED block above — `main` is now `747cdf0`)
 > Everything below is **merged to `main` and live in prod** — there are **no unmerged
 > feature branches**. Shipped since the member-portal/email blocks below:
 > - **Clubs editor + public contact inbox** (`2d025a3`) — self-editable club
