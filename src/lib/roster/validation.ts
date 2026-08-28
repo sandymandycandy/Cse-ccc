@@ -1,8 +1,6 @@
 export const ROLL_RE = /^\d{5}$/;
 export const PHONE_RE = /^\d{10}$/;
 export const VELTECH_EMAIL_RE = /^vtu(\d{5})@veltech\.edu\.in$/i;
-export const MAX_PHOTO_BYTES = 200 * 1024;
-export const PHOTO_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 
 export interface RegisterValue { name: string; roll: string; email: string; phone: string }
 
@@ -24,11 +22,4 @@ export function validateRegistration(input: {
 
   if (Object.keys(errors).length > 0) return { ok: false, errors };
   return { ok: true, value: { name, roll, email, phone } };
-}
-
-export function validatePhoto(file: { size: number; type: string } | null): string | null {
-  if (!file || file.size === 0) return "A passport photo is required.";
-  if (!(PHOTO_TYPES as readonly string[]).includes(file.type)) return "Photo must be PNG, JPEG or WebP.";
-  if (file.size > MAX_PHOTO_BYTES) return "Photo must be 200 KB or smaller.";
-  return null;
 }

@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { requireViewPage } from "@/lib/auth/guards";
 import { canManage, grantFor } from "@/lib/auth/capabilities";
-import { getMemberForEdit, memberPhotoUrl } from "@/lib/admin/members";
+import { getMemberForEdit } from "@/lib/admin/members";
 import { listClubsBrief } from "@/lib/admin/clubs";
 import { MemberForm } from "@/components/admin/MemberForm";
 import { DeleteMemberForm } from "@/components/admin/DeleteMemberForm";
@@ -14,7 +14,6 @@ export default async function EditMemberPage({ params }: { params: Promise<{ id:
   if (!member) notFound();
   if (!canManage(session, "manage:members", member.clubId)) redirect("/admin/attendance/members");
   const clubs = grantFor(session.role, "manage:members") === "all" ? await listClubsBrief() : undefined;
-  const photoUrl = await memberPhotoUrl(member.photoPath);
   return (
     <div className="admin-page" style={{ maxWidth: 620 }}>
       <div className="eyebrow">Attendance{member.approvedAt ? "" : " · pending"}</div>
@@ -27,7 +26,7 @@ export default async function EditMemberPage({ params }: { params: Promise<{ id:
         initial={{
           name: member.name, rollNo: member.rollNo ?? "",
           email: member.email ?? "", phone: member.phone ?? "",
-          sort: member.sort, isActive: member.isActive, clubId: member.clubId, photoUrl,
+          sort: member.sort, isActive: member.isActive, clubId: member.clubId,
         }}
       />
       <section className="rule" style={{ marginTop: 24, paddingTop: 24 }}>

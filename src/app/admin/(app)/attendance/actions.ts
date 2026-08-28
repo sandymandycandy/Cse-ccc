@@ -8,7 +8,6 @@ import { canManage } from "@/lib/auth/capabilities";
 import { resolveOwningClub } from "@/lib/admin/club-scope";
 import { writeAudit } from "@/lib/admin/audit";
 import { getMemberForEdit } from "@/lib/admin/members";
-import { handleImageUpload } from "@/lib/admin/image-upload";
 import { createSession, savePresence, getSessionMarking } from "@/lib/admin/attendance-club";
 import type { MemberFormState, SessionFormState } from "@/lib/admin/form-state";
 
@@ -57,9 +56,6 @@ export async function createMemberAction(
     return { error: "You can't add members to that club." };
   }
 
-  const photo = await handleImageUpload(formData, { bucket: "member-photos", field: "photo", maxBytes: 200 * 1024 });
-  if (photo.error) return { error: photo.error };
-
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("club_members")
@@ -69,7 +65,7 @@ export async function createMemberAction(
       roll_no: parsed.data.rollNo,
       email: parsed.data.email ? parsed.data.email.toLowerCase() : null,
       phone: parsed.data.phone,
-      photo_path: photo.path ?? null,
+      photo_path: null,
       role: "member",
       sort: typeof parsed.data.sort === "number" ? parsed.data.sort : 0,
       is_active: parsed.data.isActive === "on",
@@ -115,9 +111,6 @@ export async function updateMemberAction(
     return { error: "You can't file members there." };
   }
 
-  const photo = await handleImageUpload(formData, { bucket: "member-photos", field: "photo", maxBytes: 200 * 1024 });
-  if (photo.error) return { error: photo.error };
-
   const admin = createAdminClient();
   const { error } = await admin
     .from("club_members")
@@ -131,8 +124,6 @@ export async function updateMemberAction(
       sort: typeof parsed.data.sort === "number" ? parsed.data.sort : existing.sort,
       is_active: parsed.data.isActive === "on",
       club_id: targetClub,
-      // Only replace the photo when a new file was uploaded; otherwise keep the current one.
-      ...(photo.path ? { photo_path: photo.path } : {}),
     })
     .eq("id", id);
   if (error?.code === "23505") return { error: "That roll number or email is already registered." };

@@ -26,7 +26,6 @@ export interface MemberForEdit {
   sort: number;
   isActive: boolean;
   clubId: string;
-  photoPath: string | null;
   approvedAt: string | null;
 }
 
@@ -85,19 +84,11 @@ export async function getClubJoinToken(clubId: string): Promise<string | null> {
   return data?.join_token ?? null;
 }
 
-/** A short-lived signed URL for a member's photo in the private bucket (admin view only). */
-export async function memberPhotoUrl(photoPath: string | null): Promise<string | null> {
-  if (!photoPath) return null;
-  const admin = createAdminClient();
-  const { data } = await admin.storage.from("member-photos").createSignedUrl(photoPath, 300);
-  return data?.signedUrl ?? null;
-}
-
 export async function getMemberForEdit(id: string): Promise<MemberForEdit | null> {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("club_members")
-    .select("id, name, roll_no, email, phone, role, sort, is_active, club_id, photo_path, approved_at")
+    .select("id, name, roll_no, email, phone, role, sort, is_active, club_id, approved_at")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
@@ -112,7 +103,6 @@ export async function getMemberForEdit(id: string): Promise<MemberForEdit | null
     sort: data.sort,
     isActive: data.is_active,
     clubId: data.club_id,
-    photoPath: data.photo_path,
     approvedAt: data.approved_at,
   };
 }

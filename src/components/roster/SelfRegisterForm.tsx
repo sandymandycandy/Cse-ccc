@@ -39,10 +39,6 @@ export function SelfRegisterForm({ token }: { token: string }) {
         <label htmlFor="phone">Phone (10 digits)</label>
         <input id="phone" name="phone" required inputMode="numeric" pattern="\d{10}" maxLength={10} placeholder="9876543210" />
       </div>
-      <div className="field" style={{ margin: 0 }}>
-        <label htmlFor="photo">Passport photo (≤ 200 KB)</label>
-        <input id="photo" name="photo" type="file" accept="image/png,image/jpeg,image/webp" required />
-      </div>
       <button className="btn btn-primary" disabled={busy} style={{ justifySelf: "start" }}>
         {busy ? "Submitting…" : "Submit"}
       </button>

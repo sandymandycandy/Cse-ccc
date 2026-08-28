@@ -14,7 +14,6 @@ export interface MemberInitial {
   sort: number;
   isActive: boolean;
   clubId: string | null;
-  photoUrl?: string | null;
 }
 
 export function MemberForm({
@@ -28,7 +27,7 @@ export function MemberForm({
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   return (
-    <form action={formAction} encType="multipart/form-data" style={{ marginTop: 20, maxWidth: 560 }}>
+    <form action={formAction} style={{ marginTop: 20, maxWidth: 560 }}>
       {id ? <input type="hidden" name="id" value={id} /> : null}
       {state.error ? (
         <div className="note" style={{ borderLeftColor: "var(--rust)", marginBottom: 16 }}>{state.error}</div>
@@ -48,14 +47,6 @@ export function MemberForm({
       <div className="field">
         <label htmlFor="phone">Phone</label>
         <input id="phone" name="phone" required inputMode="numeric" maxLength={20} defaultValue={initial?.phone} placeholder="10-digit mobile" />
-      </div>
-      <div className="field">
-        <label htmlFor="photo">Passport photo (≤ 200 KB){initial ? " — leave empty to keep current" : ""}</label>
-        {initial?.photoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={initial.photoUrl} alt="" style={{ width: 72, height: 90, objectFit: "cover", borderRadius: 4, marginBottom: 8 }} />
-        ) : null}
-        <input id="photo" name="photo" type="file" accept="image/png,image/jpeg,image/webp" />
       </div>
       <div className="field">
         <label htmlFor="sort">Sort order</label>

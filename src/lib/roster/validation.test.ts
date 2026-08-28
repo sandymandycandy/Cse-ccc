@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateRegistration, validatePhoto, MAX_PHOTO_BYTES } from "./validation";
+import { validateRegistration } from "./validation";
 
 const good = { name: "Asha Rao", roll: "12345", email: "vtu12345@veltech.edu.in", phone: "9876543210" };
 
@@ -28,21 +28,5 @@ describe("validateRegistration", () => {
   });
   it("rejects a short name", () => {
     expect(validateRegistration({ ...good, name: "A" }).ok).toBe(false);
-  });
-});
-
-describe("validatePhoto", () => {
-  it("requires a photo", () => {
-    expect(validatePhoto(null)).toBeTruthy();
-    expect(validatePhoto({ size: 0, type: "image/png" })).toBeTruthy();
-  });
-  it("rejects a non-image type", () => {
-    expect(validatePhoto({ size: 1000, type: "application/pdf" })).toBeTruthy();
-  });
-  it("rejects a photo over 200 KB", () => {
-    expect(validatePhoto({ size: MAX_PHOTO_BYTES + 1, type: "image/jpeg" })).toBeTruthy();
-  });
-  it("accepts a valid photo", () => {
-    expect(validatePhoto({ size: 1000, type: "image/jpeg" })).toBeNull();
   });
 });
