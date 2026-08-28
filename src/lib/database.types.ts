@@ -552,6 +552,9 @@ export type Database = {
           opened_at: string
           opened_by: string | null
           qr_ttl_seconds: number | null
+          session_date: string | null
+          start_time: string | null
+          end_time: string | null
           status: Database["public"]["Enums"]["club_session_status"]
           title: string
         }
@@ -563,6 +566,9 @@ export type Database = {
           opened_at?: string
           opened_by?: string | null
           qr_ttl_seconds?: number | null
+          session_date?: string | null
+          start_time?: string | null
+          end_time?: string | null
           status?: Database["public"]["Enums"]["club_session_status"]
           title: string
         }
@@ -574,6 +580,9 @@ export type Database = {
           opened_at?: string
           opened_by?: string | null
           qr_ttl_seconds?: number | null
+          session_date?: string | null
+          start_time?: string | null
+          end_time?: string | null
           status?: Database["public"]["Enums"]["club_session_status"]
           title?: string
         }
@@ -650,6 +659,7 @@ export type Database = {
       }
       club_members: {
         Row: {
+          approved_at: string | null
           club_id: string
           created_at: string
           email: string | null
@@ -664,6 +674,7 @@ export type Database = {
           sort: number
         }
         Insert: {
+          approved_at?: string | null
           club_id: string
           created_at?: string
           email?: string | null
@@ -678,6 +689,7 @@ export type Database = {
           sort?: number
         }
         Update: {
+          approved_at?: string | null
           club_id?: string
           created_at?: string
           email?: string | null
@@ -709,6 +721,7 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean
+          join_token: string
           name: string
           short_name: string
           slug: string
@@ -723,6 +736,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          join_token?: string
           name: string
           short_name: string
           slug: string
@@ -737,6 +751,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          join_token?: string
           name?: string
           short_name?: string
           slug?: string
