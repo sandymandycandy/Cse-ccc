@@ -26,11 +26,12 @@ const MAX_IMAGE = 5 * 1024 * 1024;
 
 export async function handleImageUpload(
   formData: FormData,
-  opts: { bucket: string; field?: string },
+  opts: { bucket: string; field?: string; maxBytes?: number },
 ): Promise<{ path?: string; error?: string }> {
   const file = formData.get(opts.field ?? "image");
   if (!(file instanceof File) || file.size === 0) return {};
-  if (file.size > MAX_IMAGE) return { error: "Image must be 5 MB or smaller." };
+  const max = opts.maxBytes ?? MAX_IMAGE;
+  if (file.size > max) return { error: `Image must be ${Math.round(max / 1024)} KB or smaller.` };
   const ext = EXT[file.type];
   if (!ext) return { error: "Image must be PNG, JPEG, WebP or GIF." };
 

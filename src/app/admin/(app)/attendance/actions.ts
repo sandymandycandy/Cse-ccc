@@ -8,11 +8,9 @@ import { canManage } from "@/lib/auth/capabilities";
 import { resolveOwningClub } from "@/lib/admin/club-scope";
 import { writeAudit } from "@/lib/admin/audit";
 import { getMemberForEdit } from "@/lib/admin/members";
+import { handleImageUpload } from "@/lib/admin/image-upload";
 import { createSession, savePresence, getSessionMarking } from "@/lib/admin/attendance-club";
-import { createMemberInvite } from "@/lib/member/invites";
-import { resetMemberAccess, ensureAuthRow } from "@/lib/member/auth";
-import { enqueueEmail } from "@/lib/email";
-import type { MemberFormState, SessionFormState, MemberInviteState } from "@/lib/admin/form-state";
+import type { MemberFormState, SessionFormState } from "@/lib/admin/form-state";
 
 const MemberSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -59,6 +57,9 @@ export async function createMemberAction(
     return { error: "You can't add members to that club." };
   }
 
+  const photo = await handleImageUpload(formData, { bucket: "member-photos", field: "photo", maxBytes: 200 * 1024 });
+  if (photo.error) return { error: photo.error };
+
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("club_members")
@@ -68,20 +69,18 @@ export async function createMemberAction(
       roll_no: parsed.data.rollNo,
       email: parsed.data.email ? parsed.data.email.toLowerCase() : null,
       phone: parsed.data.phone,
+      photo_path: photo.path ?? null,
       role: "member",
       sort: typeof parsed.data.sort === "number" ? parsed.data.sort : 0,
       is_active: parsed.data.isActive === "on",
+      // Admin-added members skip the pending queue — they're onboarded on the spot.
+      approved_at: new Date().toISOString(),
       socials: {},
     })
     .select("id")
     .single();
-  if (error?.code === "23505") return { error: "That email is already used by another member." };
+  if (error?.code === "23505") return { error: "That roll number or email is already registered." };
   if (error || !data) return { error: "Could not add the member. Try again." };
-
-  // Provision an empty credential row so the head can later generate a login link.
-  if (parsed.data.email) {
-    await ensureAuthRow(data.id);
-  }
 
   await writeAudit({
     actorId: session.id, action: "create", entity: "club_member",
@@ -116,6 +115,9 @@ export async function updateMemberAction(
     return { error: "You can't file members there." };
   }
 
+  const photo = await handleImageUpload(formData, { bucket: "member-photos", field: "photo", maxBytes: 200 * 1024 });
+  if (photo.error) return { error: photo.error };
+
   const admin = createAdminClient();
   const { error } = await admin
     .from("club_members")
@@ -129,9 +131,11 @@ export async function updateMemberAction(
       sort: typeof parsed.data.sort === "number" ? parsed.data.sort : existing.sort,
       is_active: parsed.data.isActive === "on",
       club_id: targetClub,
+      // Only replace the photo when a new file was uploaded; otherwise keep the current one.
+      ...(photo.path ? { photo_path: photo.path } : {}),
     })
     .eq("id", id);
-  if (error?.code === "23505") return { error: "That email is already used by another member." };
+  if (error?.code === "23505") return { error: "That roll number or email is already registered." };
   if (error) return { error: "Could not save your changes. Try again." };
 
   await writeAudit({
@@ -224,78 +228,53 @@ export async function saveAttendanceAction(formData: FormData): Promise<void> {
   redirect(`/admin/attendance/sessions/${sessionId}?saved=1`);
 }
 
-// ── Member login access (spec §5.1) — own-club-scoped generate-link / reset ─────
+// ── Self-registration approval + join-link (spec §5) — own-club-scoped ──────────
 
-/** Own-club-scoped guard shared by both member-login actions below. */
-async function requireOwnClubMember(memberId: string) {
+export async function onboardMemberAction(formData: FormData): Promise<void> {
   const session = await getAdminSession();
-  if (!session) return { error: "Your session expired. Sign in again." as string };
-  if (!z.string().uuid().safeParse(memberId).success) return { error: "Missing member reference." };
-  const member = await getMemberForEdit(memberId);
-  if (!member) return { error: "That member no longer exists." };
-  if (!member.email) return { error: "Add an email for this member first." };
-  if (!canManage(session, "manage:members", member.clubId)) return { error: "You can't manage that member." };
-  return { session, member };
+  if (!session) redirect("/admin/login");
+  const id = String(formData.get("id") ?? "");
+  if (!z.string().uuid().safeParse(id).success) redirect("/admin/attendance/members");
+  const member = await getMemberForEdit(id);
+  if (!member) redirect("/admin/attendance/members");
+  if (!canManage(session, "manage:members", member.clubId)) redirect("/admin/attendance/members");
+  const admin = createAdminClient();
+  await admin.from("club_members").update({ approved_at: new Date().toISOString() }).eq("id", id);
+  await writeAudit({
+    actorId: session.id, action: "update", entity: "club_member", entityId: id, after: { onboarded: true },
+  });
+  redirect(`/admin/attendance/members?club=${member.clubId}`);
 }
 
-export async function generateMemberLinkAction(
-  _prev: MemberInviteState,
-  formData: FormData,
-): Promise<MemberInviteState> {
-  const memberId = String(formData.get("memberId") ?? "");
-  const gate = await requireOwnClubMember(memberId);
-  if ("error" in gate) return { error: gate.error };
-
-  await ensureAuthRow(memberId);
-  const { token } = await createMemberInvite({ memberId, createdBy: gate.session.id });
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+export async function rejectMemberAction(formData: FormData): Promise<void> {
+  const session = await getAdminSession();
+  if (!session) redirect("/admin/login");
+  const id = String(formData.get("id") ?? "");
+  if (!z.string().uuid().safeParse(id).success) redirect("/admin/attendance/members");
+  const member = await getMemberForEdit(id);
+  if (!member) redirect("/admin/attendance/members");
+  if (!canManage(session, "manage:members", member.clubId)) redirect("/admin/attendance/members");
+  // Reject only removes a still-pending self-registration — never a live member.
+  if (member.approvedAt) redirect(`/admin/attendance/members?club=${member.clubId}`);
+  const admin = createAdminClient();
+  await admin.from("club_members").delete().eq("id", id);
   await writeAudit({
-    actorId: gate.session.id, action: "invite", entity: "club_member", entityId: memberId,
-    after: { action: "login-link" },
+    actorId: session.id, action: "delete", entity: "club_member", entityId: id,
+    before: { name: member.name, pending: true },
   });
-  const inviteUrl = `${base}/member/accept-invite?token=${token}`;
-  try {
-    await enqueueEmail({
-      template: "member_login_link",
-      toEmail: gate.member.email!,
-      toName: gate.member.name,
-      subject: "Set up your CSE Council member login",
-      payload: { inviteUrl, name: gate.member.name },
-      priority: 1,
-    });
-  } catch {
-    /* never lose the URL over an email hiccup — it's still returned + shown on screen */
-  }
-  return { inviteUrl };
+  redirect(`/admin/attendance/members?club=${member.clubId}`);
 }
 
-export async function resetMemberAccessAction(
-  _prev: MemberInviteState,
-  formData: FormData,
-): Promise<MemberInviteState> {
-  const memberId = String(formData.get("memberId") ?? "");
-  const gate = await requireOwnClubMember(memberId);
-  if ("error" in gate) return { error: gate.error };
-
-  await resetMemberAccess(memberId); // clears creds + bumps epoch (logs them out)
-  const { token } = await createMemberInvite({ memberId, createdBy: gate.session.id });
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+export async function resetJoinTokenAction(formData: FormData): Promise<void> {
+  const session = await getAdminSession();
+  if (!session) redirect("/admin/login");
+  const clubId = String(formData.get("clubId") ?? "");
+  if (!z.string().uuid().safeParse(clubId).success) redirect("/admin/attendance/members");
+  if (!canManage(session, "manage:members", clubId)) redirect("/admin/attendance/members");
+  const admin = createAdminClient();
+  await admin.from("clubs").update({ join_token: crypto.randomUUID() }).eq("id", clubId);
   await writeAudit({
-    actorId: gate.session.id, action: "reset", entity: "club_member", entityId: memberId,
-    after: { action: "reset-access" },
+    actorId: session.id, action: "update", entity: "club", entityId: clubId, after: { joinTokenReset: true },
   });
-  const inviteUrl = `${base}/member/accept-invite?token=${token}`;
-  try {
-    await enqueueEmail({
-      template: "member_login_link",
-      toEmail: gate.member.email!,
-      toName: gate.member.name,
-      subject: "Set up your CSE Council member login",
-      payload: { inviteUrl, name: gate.member.name },
-      priority: 1,
-    });
-  } catch {
-    /* never lose the URL over an email hiccup — it's still returned + shown on screen */
-  }
-  return { inviteUrl };
+  redirect(`/admin/attendance/members?club=${clubId}`);
 }
