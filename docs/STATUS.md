@@ -20,6 +20,25 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-08-28)
 
+> ### ✅ SHIPPED & LIVE — Join form: inline field errors + mobile-first redesign (`main`, pushed to prod 2026-08-28)
+> The public self-registration page (`/join/[token]`) was dropping the register
+> API's per-field validation messages and showing only a generic
+> **"Please check the form."** — so a rejected submit (commonly an email whose
+> digits don't match the roll number: the schema requires `vtu<roll>@veltech.edu.in`)
+> left the user with no idea what to fix. `SelfRegisterForm` now renders each 400
+> `fields` error inline under its input (`.field.err`), plus a **standing hint** on
+> the email field spelling out the roll-number match. The page itself was
+> reshaped mobile-first: dropped the inert `container` class + the nested `<main>`
+> (layout already provides one), centered ≤520px column, form in a `.panel` card,
+> roll/phone paired in a grid that stacks on narrow phones, full-width CTA, and a
+> header branded with the club's own colour + tagline (`getClubByJoinToken` now
+> also selects `tagline, color`). Gate green (typecheck ✓ / lint ✓ / 114 tests ✓ /
+> build ✓); dev-server verified: page 200 with `--club-accent`, and the register
+> API returns `{"fields":{"email":"Email digits must match your roll number."}}`
+> which the form now shows. **⚠️ Product check owed:** confirm real students' roll
+> numbers always equal their email digits — if not, relax the email↔roll rule in
+> `src/lib/roster/validation.ts`.
+
 > ### ✅ SHIPPED & LIVE — Manual attendance + self-registration (merged to `main`, deployed to prod 2026-08-28)
 > The large rework on `feat/manual-attendance` is **fast-forward-merged to `main` (@ `747cdf0`)
 > and live in production** (https://cse-ccc.vercel.app). **Replaces** the club-member **QR
