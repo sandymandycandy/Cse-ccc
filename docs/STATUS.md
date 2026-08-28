@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-08-27.**
+> `docs/superpowers/plans/`. **Last updated: 2026-08-28.**
 
 ## What this is
 
@@ -25,7 +25,11 @@ end-to-end**, not a checklist of components.
 > **Replaces** the club-member **QR attendance** system and the **PIN/TOTP member
 > login portal** with a simpler manual flow. Code-complete for all 11 plan tasks;
 > **gate green (typecheck ✓ / lint ✓ / 118 tests ✓ / build ✓).** Plan + spec:
-> `docs/superpowers/{plans,specs}/2026-08-28-manual-attendance*`.
+> `docs/superpowers/{plans,specs}/2026-08-28-manual-attendance*`. **Latest commit
+> `c39cf2a`** — `fix(roster): 404 non-uuid join tokens instead of 500`
+> (`getClubByJoinToken` short-circuits a non-uuid token to null so `/join/[token]` and
+> `POST /api/roster/register` take their clean not-found path instead of 500-ing on the
+> malformed uuid literal).
 > - **What it does now:** (a) a per-club **self-registration link** (`/join/[token]`)
 >   → public form (name/roll/veltech-email/phone/≤200 KB photo) → row lands **pending**
 >   (`approved_at IS NULL`); (b) head **Onboard/Reject** + full member CRUD with photo
@@ -39,16 +43,16 @@ end-to-end**, not a checklist of components.
 >   `html5-qrcode` dep. **Kept `qrcode`** — still needed by admin TOTP enrollment and the
 >   **event** self-scan QR (that flow is untouched). `proxy.ts` matcher is now
 >   `/admin/:path*` only.
-> - **⚠️⚠️ HARD BLOCKER — the additive migration is NOT yet applied to the live DB.**
+> - **✅ RESOLVED (verified 2026-08-28) — the additive migration IS applied to the live DB.**
 >   `20260828000000_manual_attendance_additive.sql` (adds `clubs.join_token`,
 >   `club_members.approved_at`, `club_attendance_sessions.session_date/start_time/end_time`,
->   and the private `member-photos` bucket) was **written + committed but never run** — a
->   live-DB probe this session confirmed all four columns + the bucket are **MISSING**.
->   Until it is applied, **dev AND prod will 500** on the missing columns (dev uses the
->   live DB). It is **additive/safe to apply now** (all `add … if not exists`). Apply via
->   the **Supabase MCP** `apply_migration` (name `manual_attendance_additive`) — an OAuth
->   flow was started this session but needs the owner to authorize — or paste the SQL into
->   the **Supabase SQL editor**. **This must happen before merge/deploy.**
+>   and the private `member-photos` bucket) is **applied + tracked** in Supabase migration
+>   history as `20260828102055 manual_attendance_additive`. Live-DB probe this session
+>   confirmed: all columns present with correct types (`join_token uuid NOT NULL default
+>   gen_random_uuid()`), **all 11 clubs have distinct join_tokens**, `club_members` = 23
+>   rows / **0 pending** (all `approved_at` set), the `club_members_roll_unique` index +
+>   `member-photos` bucket both present. So dev/prod **no longer 500** on these columns.
+>   (This was flagged MISSING in a prior session; it has since been applied.)
 > - **Post-deploy drop migration:** `20260828010000_drop_member_portal.sql` (drops
 >   `member_invites`, `club_member_auth`, `qr_ttl_seconds`, the one-open index) — apply
 >   **only after** the new code is live (old code still referenced those objects).
