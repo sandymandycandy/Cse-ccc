@@ -18,7 +18,49 @@ end-to-end**, not a checklist of components.
 
 ---
 
-## 🚦 START HERE — current git/deploy state (2026-08-27)
+## 🚦 START HERE — current git/deploy state (2026-08-28)
+
+> ### 🔨 IN PROGRESS — Manual attendance + self-registration (`feat/manual-attendance`, 2026-08-28)
+> A large rework on branch **`feat/manual-attendance`** (NOT merged, NOT deployed).
+> **Replaces** the club-member **QR attendance** system and the **PIN/TOTP member
+> login portal** with a simpler manual flow. Code-complete for all 11 plan tasks;
+> **gate green (typecheck ✓ / lint ✓ / 118 tests ✓ / build ✓).** Plan + spec:
+> `docs/superpowers/{plans,specs}/2026-08-28-manual-attendance*`.
+> - **What it does now:** (a) a per-club **self-registration link** (`/join/[token]`)
+>   → public form (name/roll/veltech-email/phone/≤200 KB photo) → row lands **pending**
+>   (`approved_at IS NULL`); (b) head **Onboard/Reject** + full member CRUD with photo
+>   (private `member-photos` bucket, signed-URL reads); (c) sessions are **scheduled
+>   meetings** (name + date + start/end time) with **manual present/absent marking**
+>   (Save diffs the present-set — no QR, no open/close); (d) a public **roll-number
+>   attendance lookup** (`/attendance`) showing name + club + % + history only (PII
+>   stays server-side). Attendance % now keys on **session_date** (≥ member join date).
+> - **REMOVED:** `/member/**`, `/m/[token]`, `/lib/member/**`, `/components/member/**`,
+>   the club QR scan/feed routes + camera scanner, static member-token helpers, and the
+>   `html5-qrcode` dep. **Kept `qrcode`** — still needed by admin TOTP enrollment and the
+>   **event** self-scan QR (that flow is untouched). `proxy.ts` matcher is now
+>   `/admin/:path*` only.
+> - **⚠️⚠️ HARD BLOCKER — the additive migration is NOT yet applied to the live DB.**
+>   `20260828000000_manual_attendance_additive.sql` (adds `clubs.join_token`,
+>   `club_members.approved_at`, `club_attendance_sessions.session_date/start_time/end_time`,
+>   and the private `member-photos` bucket) was **written + committed but never run** — a
+>   live-DB probe this session confirmed all four columns + the bucket are **MISSING**.
+>   Until it is applied, **dev AND prod will 500** on the missing columns (dev uses the
+>   live DB). It is **additive/safe to apply now** (all `add … if not exists`). Apply via
+>   the **Supabase MCP** `apply_migration` (name `manual_attendance_additive`) — an OAuth
+>   flow was started this session but needs the owner to authorize — or paste the SQL into
+>   the **Supabase SQL editor**. **This must happen before merge/deploy.**
+> - **Post-deploy drop migration:** `20260828010000_drop_member_portal.sql` (drops
+>   `member_invites`, `club_member_auth`, `qr_ttl_seconds`, the one-open index) — apply
+>   **only after** the new code is live (old code still referenced those objects).
+> - **Owed human-only walkthroughs** (once the additive migration lands): share a club's
+>   `/join/<token>` link → self-register → head **Onboards** at `/admin/attendance/members`
+>   → **create a session** (date + slot) → **mark present/absent + Save** → **check
+>   attendance by roll** at `/attendance`. Plus a **runtime curl** of
+>   `POST /api/roster/register` (route handlers curl fine — 404 bad token / 400 bad field /
+>   one valid insert then delete the row + photo object, since the DB is shared).
+> - **OBSOLETED by this branch** — the QR-attendance + member-portal "owed walkthrough"
+>   items below (rotating-QR phone test, `/admin/attendance/scan` camera test, member
+>   PIN/TOTP login walk, member login-link email) — that entire surface is deleted.
 
 > ### ✅ CURRENT STATE — `main == origin/main @ 50857aa`, clean (2026-08-27)
 > Everything below is **merged to `main` and live in prod** — there are **no unmerged
