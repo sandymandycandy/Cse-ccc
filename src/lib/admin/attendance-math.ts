@@ -1,6 +1,6 @@
 /**
  * Pure attendance math shared by the club dashboard roster (`rosterWithPercent`)
- * and the member self-view (`getMemberAttendance`) so the two can never disagree.
+ * and the public roll lookup (`getMemberAttendanceByRoll`) so the two can never disagree.
  * Kept free of `server-only` and DB imports so it is unit-testable (mirrors the
  * pure `calendar-layout.ts` / `resources.ts` extraction pattern).
  *
