@@ -73,6 +73,20 @@ export function checkContactLimits(input: { ip: string; email: string }): RateRe
   return checks.find((c) => !c.ok) ?? { ok: true, remaining: 0, retryAfterSeconds: 0 };
 }
 
+/** Self-registration: 5 per IP / 10 min, plus 3 per roll / hour. First trip wins. */
+export function checkMemberSignupLimits(input: { ip: string; roll: string }): RateResult {
+  const checks: RateResult[] = [
+    rateLimit(`signup:ip:${input.ip}`, 5, 10 * MIN),
+    rateLimit(`signup:roll:${input.roll}`, 3, HOUR),
+  ];
+  return checks.find((c) => !c.ok) ?? { ok: true, remaining: 0, retryAfterSeconds: 0 };
+}
+
+/** Public roll lookup: 20 per IP / 10 min. */
+export function checkRollLookupLimits(ip: string): RateResult {
+  return rateLimit(`lookup:ip:${ip}`, 20, 10 * MIN);
+}
+
 /**
  * Admin login limits: 3 attempts, then a 1-minute lockout — enforced per IP
  * **and** per account, so the lock survives an attacker rotating IPs. The 4th
