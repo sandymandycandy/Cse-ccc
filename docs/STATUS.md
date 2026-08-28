@@ -36,9 +36,9 @@ end-to-end**, not a checklist of components.
 >   200 (no regression); `POST /api/roster/register` bad token → 404 (route handler, no write);
 >   `/admin/attendance/members` → 307→login (guard). Read/redirect/guard paths confirmed.
 > - **What it does now:** (a) a per-club **self-registration link** (`/join/[token]`)
->   → public form (name/roll/veltech-email/phone/≤200 KB photo) → row lands **pending**
->   (`approved_at IS NULL`); (b) head **Onboard/Reject** + full member CRUD with photo
->   (private `member-photos` bucket, signed-URL reads); (c) sessions are **scheduled
+>   → public form (name/roll/veltech-email/phone) → row lands **pending**
+>   (`approved_at IS NULL`); (b) head **Onboard/Reject** + full member CRUD; (c) sessions
+>   are **scheduled
 >   meetings** (name + date + start/end time) with **manual present/absent marking**
 >   (Save diffs the present-set — no QR, no open/close); (d) a public **roll-number
 >   attendance lookup** (`/attendance`) showing name + club + % + history only (PII
@@ -67,11 +67,14 @@ end-to-end**, not a checklist of components.
 > - **✅ Runtime rejection-path curls DONE (prod, 2026-08-28):** `POST /api/roster/register` →
 >   404 non-uuid token / 404 nonexistent-uuid token / 400 bad fields, all **without writing**
 >   (`club_members` held at 23 rows / 0 pending before and after). **STILL OWED — one human-only
->   browser walk:** share a club's `/join/<token>` → self-register (one real submit w/ photo) →
+>   browser walk:** share a club's `/join/<token>` → self-register (one real submit) →
 >   head **Onboards** at `/admin/attendance/members` → **create a session** (date + slot) →
->   **mark present/absent + Save** → **check by roll** at `/attendance`. (Server-action POSTs + a
->   real photo upload can't be curled; delete the test row + photo object after — the DB is
->   shared/live.)
+>   **mark present/absent + Save** → **check by roll** at `/attendance`. (Server-action POSTs
+>   can't be curled; delete the test row after — the DB is shared/live.)
+> - **Member photos REMOVED (c32ef86, deployed 2026-08-28):** per owner, all photo
+>   requirements were dropped from both the public join form and the admin member add/edit
+>   form. `club_members.photo_path` and the `member-photos` bucket remain but are now unused
+>   (kept rather than destructively dropped).
 > - **OBSOLETED by this branch** — the QR-attendance + member-portal "owed walkthrough"
 >   items below (rotating-QR phone test, `/admin/attendance/scan` camera test, member
 >   PIN/TOTP login walk, member login-link email) — that entire surface is deleted.
