@@ -13,6 +13,18 @@ export async function listClubsBrief(): Promise<{ id: string; name: string }[]> 
   return data ?? [];
 }
 
+/** Resolve a self-registration link token to its club. Service-role only. */
+export async function getClubByJoinToken(token: string): Promise<{ id: string; name: string } | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("clubs")
+    .select("id, name")
+    .eq("join_token", token)
+    .maybeSingle();
+  if (error) throw error;
+  return data ?? null;
+}
+
 /** A club's public profile as the editor sees it. Only the self-editable text
  *  fields — structural columns (slug, category, colour, is_active) aren't here. */
 export interface AdminClubRow {

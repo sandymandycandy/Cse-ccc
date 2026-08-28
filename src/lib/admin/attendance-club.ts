@@ -1,8 +1,10 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { summarizeAttendance } from "./attendance-math";
+import { diffPresence } from "./attendance-presence";
 
 const NO_MARKS: ReadonlySet<string> = new Set();
+const SESSION_COLS = "id, title, status, opened_at, closed_at, club_id, session_date, start_time, end_time";
 
 export interface SessionRow {
   id: string;
@@ -12,6 +14,33 @@ export interface SessionRow {
   closedAt: string | null;
   presentCount: number;
   clubId: string;
+  sessionDate: string | null;
+  startTime: string | null;
+  endTime: string | null;
+}
+
+interface RawSession {
+  id: string;
+  title: string;
+  status: "open" | "closed";
+  opened_at: string;
+  closed_at: string | null;
+  club_id: string;
+  session_date: string | null;
+  start_time: string | null;
+  end_time: string | null;
+}
+
+function mapSession(s: RawSession, presentCount: number): SessionRow {
+  return {
+    id: s.id, title: s.title, status: s.status, openedAt: s.opened_at, closedAt: s.closed_at,
+    clubId: s.club_id, presentCount, sessionDate: s.session_date, startTime: s.start_time, endTime: s.end_time,
+  };
+}
+
+/** A session's date as YYYY-MM-DD: the scheduled date, or (legacy rows) the open date. */
+function sessionDateOf(s: { session_date: string | null; opened_at: string }): string {
+  return (s.session_date ?? s.opened_at).slice(0, 10);
 }
 
 async function countPresent(sessionId: string): Promise<number> {
@@ -23,37 +52,156 @@ async function countPresent(sessionId: string): Promise<number> {
   return count ?? 0;
 }
 
+/** Legacy: the single open session for a club (open/close is retired; kept until the
+ *  QR scan page that still reads it is removed). */
 export async function getOpenSession(clubId: string): Promise<SessionRow | null> {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("club_attendance_sessions")
-    .select("id, title, status, opened_at, closed_at, club_id")
-    .eq("club_id", clubId)
-    .eq("status", "open")
-    .maybeSingle();
+    .select(SESSION_COLS)
+    .eq("club_id", clubId).eq("status", "open").maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  return {
-    id: data.id, title: data.title, status: data.status, openedAt: data.opened_at,
-    closedAt: data.closed_at, clubId: data.club_id, presentCount: await countPresent(data.id),
-  };
+  return mapSession(data, await countPresent(data.id));
 }
 
 export async function listSessions(clubId: string): Promise<SessionRow[]> {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("club_attendance_sessions")
-    .select("id, title, status, opened_at, closed_at, club_id")
+    .select(SESSION_COLS)
     .eq("club_id", clubId)
+    .order("session_date", { ascending: false, nullsFirst: false })
     .order("opened_at", { ascending: false })
     .limit(200);
   if (error) throw error;
-  const rows = data ?? [];
-  return Promise.all(rows.map(async (s) => ({
-    id: s.id, title: s.title, status: s.status, openedAt: s.opened_at,
-    closedAt: s.closed_at, clubId: s.club_id, presentCount: await countPresent(s.id),
-  })));
+  return Promise.all((data ?? []).map(async (s) => mapSession(s, await countPresent(s.id))));
 }
+
+export async function createSession(input: {
+  clubId: string; title: string; sessionDate: string; startTime: string; endTime: string; openedBy: string;
+}): Promise<string> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("club_attendance_sessions")
+    .insert({
+      club_id: input.clubId, title: input.title, opened_by: input.openedBy,
+      session_date: input.sessionDate, start_time: input.startTime, end_time: input.endTime,
+    })
+    .select("id").single();
+  if (error || !data) throw error ?? new Error("session insert failed");
+  return data.id;
+}
+
+/** The marking view: every approved+active member with a seeded present flag. */
+export async function getSessionMarking(
+  sessionId: string,
+): Promise<{ session: SessionRow; roster: { memberId: string; name: string; present: boolean }[] } | null> {
+  const admin = createAdminClient();
+  const { data: s } = await admin
+    .from("club_attendance_sessions").select(SESSION_COLS).eq("id", sessionId).maybeSingle();
+  if (!s) return null;
+
+  const { data: marks } = await admin
+    .from("club_attendance").select("member_id").eq("session_id", sessionId);
+  const present = new Set((marks ?? []).map((m) => m.member_id));
+
+  const { data: members } = await admin
+    .from("club_members")
+    .select("id, name")
+    .eq("club_id", s.club_id).eq("is_active", true).not("approved_at", "is", null)
+    .order("name");
+
+  const roster = (members ?? []).map((m) => ({ memberId: m.id, name: m.name, present: present.has(m.id) }));
+  return { session: mapSession(s, present.size), roster };
+}
+
+/** Persist a session's present-set: insert the newly-present rows, delete the newly-absent. */
+export async function savePresence(sessionId: string, desiredIds: string[], markedBy: string): Promise<void> {
+  const admin = createAdminClient();
+  const { data: marks } = await admin
+    .from("club_attendance").select("member_id").eq("session_id", sessionId);
+  const current = new Set((marks ?? []).map((m) => m.member_id));
+  const desired = new Set(desiredIds);
+  const { toAdd, toRemove } = diffPresence(current, desired);
+  if (toAdd.length > 0) {
+    await admin.from("club_attendance")
+      .insert(toAdd.map((memberId) => ({ session_id: sessionId, member_id: memberId, marked_by: markedBy })));
+  }
+  if (toRemove.length > 0) {
+    await admin.from("club_attendance").delete().eq("session_id", sessionId).in("member_id", toRemove);
+  }
+}
+
+export interface RosterPct {
+  memberId: string; name: string; attended: number; eligible: number; pct: number;
+}
+
+/** Per approved member: attendance % across ALL of the club's sessions dated on/after they joined. */
+export async function rosterWithPercent(clubId: string): Promise<RosterPct[]> {
+  const admin = createAdminClient();
+  const { data: members } = await admin
+    .from("club_members")
+    .select("id, name, created_at")
+    .eq("club_id", clubId).eq("is_active", true).not("approved_at", "is", null).order("name");
+  const { data: sessions } = await admin
+    .from("club_attendance_sessions")
+    .select("id, session_date, opened_at").eq("club_id", clubId);
+  const { data: marks } = await admin
+    .from("club_attendance")
+    .select("member_id, session_id, club_attendance_sessions!inner(club_id)")
+    .eq("club_attendance_sessions.club_id", clubId);
+
+  const sess = (sessions ?? []).map((s) => ({ id: s.id, date: sessionDateOf(s) }));
+  const attendedByMember = new Map<string, Set<string>>();
+  for (const m of marks ?? []) {
+    const set = attendedByMember.get(m.member_id) ?? new Set<string>();
+    set.add(m.session_id);
+    attendedByMember.set(m.member_id, set);
+  }
+  return (members ?? []).map((mem) => {
+    const { attended, eligible, pct } = summarizeAttendance(sess, mem.created_at.slice(0, 10), attendedByMember.get(mem.id) ?? NO_MARKS);
+    return { memberId: mem.id, name: mem.name, attended, eligible, pct };
+  });
+}
+
+export type RollLookup =
+  | { status: "pending"; name: string; clubName: string | null }
+  | {
+      status: "active"; name: string; clubName: string | null;
+      attended: number; eligible: number; pct: number;
+      history: { title: string; date: string; present: boolean }[];
+    };
+
+/** Public roll-number lookup. Returns name + club + %/history for an approved member,
+ *  a pending marker for an unapproved one, or null if no such roll. PII is never included. */
+export async function getMemberAttendanceByRoll(roll: string): Promise<RollLookup | null> {
+  const admin = createAdminClient();
+  const { data: m } = await admin
+    .from("club_members")
+    .select("id, name, created_at, approved_at, club_id, clubs(name)")
+    .eq("roll_no", roll).maybeSingle();
+  if (!m) return null;
+  const clubName = m.clubs?.name ?? null;
+  if (!m.approved_at) return { status: "pending", name: m.name, clubName };
+
+  const { data: sessions } = await admin
+    .from("club_attendance_sessions")
+    .select("id, title, session_date, opened_at").eq("club_id", m.club_id);
+  const { data: marks } = await admin
+    .from("club_attendance").select("session_id").eq("member_id", m.id);
+  const attendedIds = new Set((marks ?? []).map((x) => x.session_id));
+
+  const rows = (sessions ?? [])
+    .map((s) => ({ id: s.id, title: s.title, date: sessionDateOf(s) }))
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+  const joined = m.created_at.slice(0, 10);
+  const { attended, eligible, pct } = summarizeAttendance(rows, joined, attendedIds);
+  const history = rows.filter((s) => s.date >= joined).map((s) => ({ title: s.title, date: s.date, present: attendedIds.has(s.id) }));
+  return { status: "active", name: m.name, clubName, attended, eligible, pct, history };
+}
+
+// ── Legacy readers still consumed by the QR/member surface (removed in Task 10) ──
 
 export interface SessionDetail {
   session: SessionRow;
@@ -64,70 +212,18 @@ export interface SessionDetail {
 export async function getSessionDetail(sessionId: string): Promise<SessionDetail | null> {
   const admin = createAdminClient();
   const { data: s } = await admin
-    .from("club_attendance_sessions")
-    .select("id, title, status, opened_at, closed_at, club_id")
-    .eq("id", sessionId).maybeSingle();
+    .from("club_attendance_sessions").select(SESSION_COLS).eq("id", sessionId).maybeSingle();
   if (!s) return null;
 
   const { data: marks } = await admin
-    .from("club_attendance")
-    .select("member_id, marked_at, club_members(name)")
-    .eq("session_id", sessionId);
-  const present = (marks ?? []).map((m) => ({
-    memberId: m.member_id, name: m.club_members?.name ?? "—", markedAt: m.marked_at,
-  }));
+    .from("club_attendance").select("member_id, marked_at, club_members(name)").eq("session_id", sessionId);
+  const present = (marks ?? []).map((m) => ({ memberId: m.member_id, name: m.club_members?.name ?? "—", markedAt: m.marked_at }));
   const presentIds = new Set(present.map((p) => p.memberId));
 
   const { data: roster } = await admin
-    .from("club_members")
-    .select("id, name")
-    .eq("club_id", s.club_id).eq("is_active", true).order("name");
+    .from("club_members").select("id, name").eq("club_id", s.club_id).eq("is_active", true).order("name");
   const absent = (roster ?? []).filter((m) => !presentIds.has(m.id)).map((m) => ({ memberId: m.id, name: m.name }));
-
-  return {
-    session: {
-      id: s.id, title: s.title, status: s.status, openedAt: s.opened_at,
-      closedAt: s.closed_at, clubId: s.club_id, presentCount: present.length,
-    },
-    present, absent,
-  };
-}
-
-export interface RosterPct {
-  memberId: string; name: string; attended: number; eligible: number; pct: number;
-}
-
-export async function rosterWithPercent(clubId: string): Promise<RosterPct[]> {
-  const admin = createAdminClient();
-  const { data: members } = await admin
-    .from("club_members")
-    .select("id, name, created_at")
-    .eq("club_id", clubId).eq("is_active", true).order("name");
-  const { data: sessions } = await admin
-    .from("club_attendance_sessions")
-    .select("id, opened_at").eq("club_id", clubId).eq("status", "closed");
-  const { data: marks } = await admin
-    .from("club_attendance")
-    .select("member_id, session_id, club_attendance_sessions!inner(club_id)")
-    .eq("club_attendance_sessions.club_id", clubId);
-
-  const sess = sessions ?? [];
-  const closedIds = new Set(sess.map((s) => s.id));
-  // Per member: the CLOSED sessions they were marked at. A mark on a still-open
-  // session is dropped so `attended` is drawn from the same set as `eligible`
-  // (see summarizeAttendance) — the dashboard then agrees with the member
-  // self-view and can never exceed 100%.
-  const attendedByMember = new Map<string, Set<string>>();
-  for (const m of marks ?? []) {
-    if (!closedIds.has(m.session_id)) continue;
-    const set = attendedByMember.get(m.member_id) ?? new Set<string>();
-    set.add(m.session_id);
-    attendedByMember.set(m.member_id, set);
-  }
-  return (members ?? []).map((mem) => {
-    const { attended, eligible, pct } = summarizeAttendance(sess, mem.created_at, attendedByMember.get(mem.id) ?? NO_MARKS);
-    return { memberId: mem.id, name: mem.name, attended, eligible, pct };
-  });
+  return { session: mapSession(s, present.length), present, absent };
 }
 
 export async function liveFeed(
@@ -138,8 +234,7 @@ export async function liveFeed(
     .from("club_attendance_sessions").select("status").eq("id", sessionId).maybeSingle();
   if (!s) return null;
   const { data: marks } = await admin
-    .from("club_attendance")
-    .select("member_id, marked_at, club_members(name)")
+    .from("club_attendance").select("member_id, marked_at, club_members(name)")
     .eq("session_id", sessionId).order("marked_at", { ascending: false });
   const present = (marks ?? []).map((m) => ({ memberId: m.member_id, name: m.club_members?.name ?? "—" }));
   return { open: s.status === "open", count: present.length, present };
@@ -165,19 +260,16 @@ export async function getMemberAttendance(memberId: string): Promise<MemberSelfV
 
   const { data: sessions } = await admin
     .from("club_attendance_sessions")
-    .select("id, title, opened_at").eq("club_id", m.club_id).eq("status", "closed")
-    .order("opened_at", { ascending: false });
+    .select("id, title, session_date, opened_at").eq("club_id", m.club_id);
   const { data: marks } = await admin
     .from("club_attendance").select("session_id").eq("member_id", memberId);
   const attendedIds = new Set((marks ?? []).map((x) => x.session_id));
 
-  const all = sessions ?? [];
-  const { attended, eligible, pct } = summarizeAttendance(all, m.created_at, attendedIds);
-  // History lists the same eligible set (closed sessions opened on/after join).
-  const eligibleSessions = all.filter((s) => s.opened_at >= m.created_at);
-  return {
-    name: m.name, clubName: m.clubs?.name ?? null, role: m.role,
-    attended, eligible, pct,
-    history: eligibleSessions.map((s) => ({ title: s.title, at: s.opened_at, present: attendedIds.has(s.id) })),
-  };
+  const rows = (sessions ?? [])
+    .map((s) => ({ id: s.id, title: s.title, date: sessionDateOf(s) }))
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+  const joined = m.created_at.slice(0, 10);
+  const { attended, eligible, pct } = summarizeAttendance(rows, joined, attendedIds);
+  const history = rows.filter((s) => s.date >= joined).map((s) => ({ title: s.title, at: s.date, present: attendedIds.has(s.id) }));
+  return { name: m.name, clubName: m.clubs?.name ?? null, role: m.role, attended, eligible, pct, history };
 }
