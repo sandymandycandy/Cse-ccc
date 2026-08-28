@@ -8,7 +8,7 @@ import { canManage } from "@/lib/auth/capabilities";
 import { resolveOwningClub } from "@/lib/admin/club-scope";
 import { writeAudit } from "@/lib/admin/audit";
 import { getMemberForEdit } from "@/lib/admin/members";
-import { getOpenSession } from "@/lib/admin/attendance-club";
+import { createSession, savePresence, getSessionMarking } from "@/lib/admin/attendance-club";
 import { createMemberInvite } from "@/lib/member/invites";
 import { resetMemberAccess, ensureAuthRow } from "@/lib/member/auth";
 import { enqueueEmail } from "@/lib/email";
@@ -166,10 +166,12 @@ export async function deleteMemberAction(formData: FormData): Promise<void> {
 const SessionSchema = z.object({
   title: z.string().trim().min(2).max(140),
   clubId: z.union([z.literal(""), z.string().uuid()]),
-  qrTtlSeconds: z.coerce.number().int().min(5).max(600).optional(),
+  sessionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date."),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/, "Pick a start time."),
+  endTime: z.string().regex(/^\d{2}:\d{2}$/, "Pick an end time."),
 });
 
-export async function openSessionAction(
+export async function createSessionAction(
   _prev: SessionFormState,
   formData: FormData,
 ): Promise<SessionFormState> {
@@ -179,9 +181,12 @@ export async function openSessionAction(
   const parsed = SessionSchema.safeParse({
     title: formData.get("title"),
     clubId: formData.get("clubId") ?? "",
-    qrTtlSeconds: formData.get("qrTtlSeconds") ?? undefined,
+    sessionDate: formData.get("sessionDate"),
+    startTime: formData.get("startTime"),
+    endTime: formData.get("endTime"),
   });
-  if (!parsed.success) return { error: "Give the session a title." };
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the session details." };
+  if (parsed.data.endTime <= parsed.data.startTime) return { error: "End time must be after the start time." };
 
   const resolved = resolveOwningClub(session, "manage:members", parsed.data.clubId);
   if ("error" in resolved) return { error: resolved.error };
@@ -189,42 +194,34 @@ export async function openSessionAction(
   const clubId = resolved.clubId;
   if (!canManage(session, "manage:members", clubId)) return { error: "You can't run sessions for that club." };
 
-  // One open session per club at a time (also enforced by a partial unique index).
-  const already = await getOpenSession(clubId);
-  if (already) return { error: "A session is already open for this club. Close it first." };
-
-  const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("club_attendance_sessions")
-    .insert({ club_id: clubId, title: parsed.data.title, opened_by: session.id, status: "open", qr_ttl_seconds: parsed.data.qrTtlSeconds ?? 60 })
-    .select("id").single();
-  if (error || !data) return { error: "Could not open the session. Try again." };
-
+  const id = await createSession({
+    clubId, title: parsed.data.title, sessionDate: parsed.data.sessionDate,
+    startTime: parsed.data.startTime, endTime: parsed.data.endTime, openedBy: session.id,
+  });
   await writeAudit({
     actorId: session.id, action: "open", entity: "club_attendance_session",
-    entityId: data.id, after: { title: parsed.data.title, clubId },
+    entityId: id, after: { title: parsed.data.title, clubId, date: parsed.data.sessionDate },
   });
-  redirect(`/admin/attendance/sessions/${data.id}`);
+  redirect(`/admin/attendance/sessions/${id}`);
 }
 
-export async function closeSessionAction(formData: FormData): Promise<void> {
+export async function saveAttendanceAction(formData: FormData): Promise<void> {
   const session = await getAdminSession();
   if (!session) redirect("/admin/login");
-  const id = String(formData.get("id") ?? "");
-  if (!z.string().uuid().safeParse(id).success) redirect("/admin/attendance");
+  const sessionId = String(formData.get("sessionId") ?? "");
+  if (!z.string().uuid().safeParse(sessionId).success) redirect("/admin/attendance");
 
-  const admin = createAdminClient();
-  const { data: s } = await admin
-    .from("club_attendance_sessions").select("club_id, status").eq("id", id).maybeSingle();
-  if (!s) redirect("/admin/attendance");
-  if (!canManage(session, "manage:members", s.club_id)) redirect("/admin/attendance");
+  const detail = await getSessionMarking(sessionId);
+  if (!detail) redirect("/admin/attendance");
+  if (!canManage(session, "manage:members", detail.session.clubId)) redirect("/admin/attendance");
 
-  if (s.status === "open") {
-    await admin.from("club_attendance_sessions")
-      .update({ status: "closed", closed_at: new Date().toISOString() }).eq("id", id);
-    await writeAudit({ actorId: session.id, action: "close", entity: "club_attendance_session", entityId: id });
-  }
-  redirect(`/admin/attendance/sessions/${id}`);
+  const present = formData.getAll("present").map(String).filter((v) => z.string().uuid().safeParse(v).success);
+  await savePresence(sessionId, present, session.id);
+  await writeAudit({
+    actorId: session.id, action: "update", entity: "club_attendance_session",
+    entityId: sessionId, after: { present: present.length },
+  });
+  redirect(`/admin/attendance/sessions/${sessionId}?saved=1`);
 }
 
 // ── Member login access (spec §5.1) — own-club-scoped generate-link / reset ─────

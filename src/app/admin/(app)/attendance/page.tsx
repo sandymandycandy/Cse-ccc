@@ -2,8 +2,8 @@ import Link from "next/link";
 import { requireViewPage } from "@/lib/auth/guards";
 import { canManage, canViewClub, grantFor } from "@/lib/auth/capabilities";
 import { listClubsBrief } from "@/lib/admin/clubs";
-import { rosterWithPercent, listSessions, getOpenSession } from "@/lib/admin/attendance-club";
-import { OpenSessionForm } from "@/components/admin/OpenSessionForm";
+import { rosterWithPercent, listSessions } from "@/lib/admin/attendance-club";
+import { CreateSessionForm } from "@/components/admin/CreateSessionForm";
 import { istNumericDate } from "@/lib/datetime";
 
 export default async function AttendanceDashboard({ searchParams }: { searchParams: Promise<{ club?: string }> }) {
@@ -21,8 +21,8 @@ export default async function AttendanceDashboard({ searchParams }: { searchPara
   }
   const canManageClub = canManage(session, "manage:members", clubId);
 
-  const [roster, sessions, open] = await Promise.all([
-    rosterWithPercent(clubId), listSessions(clubId), getOpenSession(clubId),
+  const [roster, sessions] = await Promise.all([
+    rosterWithPercent(clubId), listSessions(clubId),
   ]);
 
   return (
@@ -42,15 +42,10 @@ export default async function AttendanceDashboard({ searchParams }: { searchPara
       ) : null}
 
       <section style={{ marginTop: 20 }}>
-        {open ? (
-          <div className="note">
-            Session open: <strong>{open.title}</strong> · {open.presentCount} present.{" "}
-            <Link href={`/admin/attendance/sessions/${open.id}`} style={{ color: "var(--forest)" }}>Open live view →</Link>
-          </div>
-        ) : canManageClub ? (
-          <OpenSessionForm clubId={grant === "all" ? clubId : null} />
+        {canManageClub ? (
+          <CreateSessionForm clubId={grant === "all" ? clubId : null} />
         ) : (
-          <p className="body-text" style={{ color: "var(--ink-3)" }}>No open session.</p>
+          <p className="body-text" style={{ color: "var(--ink-3)" }}>Only club heads can create sessions.</p>
         )}
       </section>
 
@@ -70,10 +65,14 @@ export default async function AttendanceDashboard({ searchParams }: { searchPara
       {sessions.length === 0 ? <p className="body-text" style={{ color: "var(--ink-3)" }}>No sessions yet.</p> : (
         <div className="tablewrap">
           <table className="admin">
-            <thead><tr><th>Title</th><th>When</th><th>Status</th><th>Present</th></tr></thead>
+            <thead><tr><th>Session</th><th>Date</th><th>Slot</th><th>Present</th></tr></thead>
             <tbody>{sessions.map((s) => (
-              <tr key={s.id}><td><Link href={`/admin/attendance/sessions/${s.id}`} style={{ color: "var(--forest)" }}>{s.title}</Link></td>
-                <td>{istNumericDate(s.openedAt)}</td><td>{s.status}</td><td>{s.presentCount}</td></tr>
+              <tr key={s.id}>
+                <td><Link href={`/admin/attendance/sessions/${s.id}`} style={{ color: "var(--forest)" }}>{s.title}</Link></td>
+                <td>{istNumericDate(s.sessionDate ?? s.openedAt)}</td>
+                <td>{s.startTime && s.endTime ? `${s.startTime.slice(0, 5)}–${s.endTime.slice(0, 5)}` : "—"}</td>
+                <td>{s.presentCount}</td>
+              </tr>
             ))}</tbody>
           </table>
         </div>
