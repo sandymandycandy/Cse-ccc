@@ -128,6 +128,8 @@ export interface EventForEdit {
   capacity: number | null;
   clubId: string | null;
   status: string;
+  selectionMode: "seats" | "shortlist";
+  registrationForm: unknown;
 }
 
 /**
@@ -144,7 +146,7 @@ export async function getEventForEdit(
     .from("events")
     .select(
       "id, title, description, starts_at, ends_at, venue_text, poster_path, capacity, status, " +
-        "event_clubs ( club_id, is_primary )",
+        "selection_mode, registration_form, event_clubs ( club_id, is_primary )",
     )
     .eq("id", eventId)
     .maybeSingle();
@@ -161,6 +163,8 @@ export async function getEventForEdit(
     poster_path: string | null;
     capacity: number | null;
     status: string;
+    selection_mode: "seats" | "shortlist" | null;
+    registration_form: unknown;
     event_clubs: { club_id: string; is_primary: boolean }[];
   };
   const primary = row.event_clubs.find((l) => l.is_primary) ?? row.event_clubs[0];
@@ -183,6 +187,8 @@ export async function getEventForEdit(
     capacity: row.capacity,
     clubId,
     status: row.status,
+    selectionMode: row.selection_mode ?? "seats",
+    registrationForm: row.registration_form ?? null,
   };
 }
 

@@ -5,6 +5,7 @@ import { getClubOptions, getEventForEdit } from "@/lib/admin/queries";
 import { EventForm } from "@/components/admin/EventForm";
 import { CancelEventForm } from "@/components/admin/CancelEventForm";
 import { istLocalInput } from "@/lib/datetime";
+import { defaultFormFor } from "@/lib/registration-form/schema";
 import { updateEventAction, duplicateEventAction } from "../../actions";
 
 export default async function EditEventPage({
@@ -56,6 +57,8 @@ export default async function EditEventPage({
           endsAtLocal: istLocalInput(event.endsAt),
           capacity: event.capacity != null ? String(event.capacity) : "",
           posterUrl: event.posterUrl,
+          selectionMode: event.selectionMode,
+          registrationForm: JSON.stringify(event.registrationForm ?? defaultFormFor()),
         }}
       />
 

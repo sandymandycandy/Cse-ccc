@@ -9,7 +9,9 @@ import { canManage } from "@/lib/auth/capabilities";
 import { enqueueEmail } from "@/lib/email";
 import { writeAudit } from "@/lib/admin/audit";
 import { handleImageUpload } from "@/lib/admin/image-upload";
+import { validateFormSchema, defaultFormFor } from "@/lib/registration-form/schema";
 import { istDateKey, istLocalToUTC } from "@/lib/datetime";
+import type { Json } from "@/lib/database.types";
 import type { AdminRole } from "@/lib/auth/capabilities";
 import type { EventFormState } from "@/lib/admin/form-state";
 
@@ -32,6 +34,8 @@ const CreateSchema = z
     startsAt: z.string().min(1),
     endsAt: z.string().min(1),
     capacity: z.coerce.number().int().min(0).max(100000).optional().or(z.literal("")),
+    selectionMode: z.enum(["seats", "shortlist"]).default("seats"),
+    registrationForm: z.string().optional(), // JSON; validated with validateFormSchema
   })
   .strict();
 
@@ -44,7 +48,25 @@ function parseEvent(formData: FormData) {
     startsAt: formData.get("startsAt"),
     endsAt: formData.get("endsAt"),
     capacity: formData.get("capacity") || "",
+    selectionMode: formData.get("selectionMode") || "seats",
+    registrationForm: formData.get("registrationForm") || undefined,
   });
+}
+
+/** Validate the builder's JSON, falling back to the default six-field form. */
+function parseRegistrationForm(
+  json: string | undefined,
+): { ok: true; value: Json } | { ok: false; error: string } {
+  if (!json) return { ok: true, value: defaultFormFor() as unknown as Json };
+  let raw: unknown;
+  try {
+    raw = JSON.parse(json);
+  } catch {
+    return { ok: false, error: "The registration form is malformed." };
+  }
+  const parsed = validateFormSchema(raw);
+  if (!parsed.ok) return { ok: false, error: parsed.errors[0] ?? "Fix the registration form." };
+  return { ok: true, value: parsed.fields as unknown as Json };
 }
 
 export async function createEventAction(
@@ -56,12 +78,15 @@ export async function createEventAction(
 
   const parsed = parseEvent(formData);
   if (!parsed.success) return { error: "Check the form — some fields are missing or invalid." };
-  const { title, description, clubId, venueText, capacity } = parsed.data;
+  const { title, description, clubId, venueText, capacity, selectionMode } = parsed.data;
 
   // Capability + club scope: a club-scoped role may only create for its own club.
   if (!canManage(session, "manage:events", clubId)) {
     return { error: "You can't create events for that club." };
   }
+
+  const form = parseRegistrationForm(parsed.data.registrationForm);
+  if (!form.ok) return { error: form.error };
 
   const startsAt = istLocalToUTC(parsed.data.startsAt);
   const endsAt = istLocalToUTC(parsed.data.endsAt);
@@ -119,6 +144,8 @@ export async function createEventAction(
       venue_text: venue,
       poster_path: poster.path ?? null,
       capacity: typeof capacity === "number" ? capacity : null,
+      selection_mode: selectionMode,
+      registration_form: form.value,
       status: "published",
       approval_status: autoApproved ? "approved" : "pending",
       approved_by: autoApproved ? session.id : null,
@@ -184,7 +211,10 @@ export async function updateEventAction(
 
   const parsed = parseEvent(formData);
   if (!parsed.success) return { error: "Check the form — some fields are missing or invalid." };
-  const { title, description, clubId, venueText, capacity } = parsed.data;
+  const { title, description, clubId, venueText, capacity, selectionMode } = parsed.data;
+
+  const form = parseRegistrationForm(parsed.data.registrationForm);
+  if (!form.ok) return { error: form.error };
 
   const admin = createAdminClient();
 
@@ -272,6 +302,8 @@ export async function updateEventAction(
     ends_at: string;
     venue_text: string | null;
     capacity: number | null;
+    selection_mode: "seats" | "shortlist";
+    registration_form: Json;
     poster_path?: string;
   } = {
     title,
@@ -280,6 +312,8 @@ export async function updateEventAction(
     ends_at: endsAt,
     venue_text: venue,
     capacity: typeof capacity === "number" ? capacity : null,
+    selection_mode: selectionMode,
+    registration_form: form.value,
   };
   if (poster.path) update.poster_path = poster.path;
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { defaultFormFor } from "@/lib/registration-form/schema";
 import type { EventFormState } from "@/lib/admin/form-state";
 
 interface Option {
@@ -18,6 +19,8 @@ export interface EventFormInitial {
   endsAtLocal: string;
   capacity: string;
   posterUrl: string | null;
+  selectionMode: "seats" | "shortlist";
+  registrationForm: string;
 }
 
 type EventAction = (
@@ -133,9 +136,25 @@ export function EventForm({
       </div>
 
       <div className="field">
+        <label htmlFor="selectionMode">Registration type</label>
+        <select id="selectionMode" name="selectionMode" defaultValue={initial?.selectionMode ?? "seats"}>
+          <option value="seats">Seats — first come, capacity-limited</option>
+          <option value="shortlist">Shortlist — collect everyone, you pick later</option>
+        </select>
+        <span className="hint">Shortlist ignores capacity; you select applicants afterward.</span>
+      </div>
+
+      <div className="field">
         <label htmlFor="capacity">Capacity (optional)</label>
         <input id="capacity" name="capacity" type="number" min={0} defaultValue={initial?.capacity} placeholder="Leave blank for unlimited" />
       </div>
+
+      {/* Registration form schema — replaced by the visual builder in Task 8 */}
+      <input
+        type="hidden"
+        name="registrationForm"
+        defaultValue={initial?.registrationForm ?? JSON.stringify(defaultFormFor())}
+      />
 
       <div className="field">
         <label htmlFor="image">Cover photo (optional)</label>
