@@ -1697,22 +1697,39 @@ export type Database = {
         }
         Returns: string
       }
-      register_for_event: {
-        Args: {
-          p_confirm_token_hash: string
-          p_department: string
-          p_email: string
-          p_event_id: string
-          p_phone: string
-          p_roll_no: string
-          p_student_name: string
-          p_year: number
-        }
-        Returns: {
-          registration_id: string
-          status: string
-        }[]
-      }
+      register_for_event:
+        | {
+            Args: {
+              p_custom_answers?: Json
+              p_department?: string
+              p_email?: string
+              p_event_id: string
+              p_phone?: string
+              p_roll_no?: string
+              p_student_name?: string
+              p_year?: number
+            }
+            Returns: {
+              registration_id: string
+              status: string
+            }[]
+          }
+        | {
+            Args: {
+              p_confirm_token_hash: string
+              p_department: string
+              p_email: string
+              p_event_id: string
+              p_phone: string
+              p_roll_no: string
+              p_student_name: string
+              p_year: number
+            }
+            Returns: {
+              registration_id: string
+              status: string
+            }[]
+          }
     }
     Enums: {
       admin_role:
