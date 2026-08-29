@@ -157,7 +157,12 @@ export default async function EventDetailPage({ params }: Params) {
             <div className="label" style={{ marginBottom: 12 }}>
               {isFull ? "Join the waitlist" : "Register"}
             </div>
-            <RegisterForm eventId={event.id} isFull={isFull} />
+            <RegisterForm
+              eventId={event.id}
+              schema={event.registrationForm}
+              isFull={isFull}
+              mode={event.selectionMode}
+            />
           </div>
         </Panel>
       </div>

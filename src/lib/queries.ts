@@ -2,6 +2,7 @@ import "server-only";
 import { createPublicClient } from "@/lib/supabase/server";
 import { orderStandings } from "@/lib/results";
 import { isSafeHttpUrl } from "@/lib/url";
+import { validateFormSchema, type FormField } from "@/lib/registration-form/schema";
 import type { Database } from "@/lib/database.types";
 import type {
   CalendarEvent,
@@ -129,19 +130,26 @@ export interface EventDetail extends EventSummary {
   endsAt: string;
   isAllDay: boolean;
   posterUrl: string | null;
+  selectionMode: "seats" | "shortlist";
+  registrationForm: FormField[] | null;
 }
 
 export async function getEventDetail(id: string): Promise<EventDetail | null> {
   const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("events")
-    .select("id, title, description, rules, starts_at, ends_at, capacity, is_all_day, venue_text, poster_path, " +
+    .select("id, title, description, rules, starts_at, ends_at, capacity, is_all_day, venue_text, poster_path, selection_mode, registration_form, " +
       "venues ( name ), event_clubs ( is_primary, clubs ( name, short_name ) )")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  const row = data as unknown as EventJoinRow & { rules: string | null; poster_path: string | null };
+  const row = data as unknown as EventJoinRow & {
+    rules: string | null;
+    poster_path: string | null;
+    selection_mode: "seats" | "shortlist" | null;
+    registration_form: unknown;
+  };
   const counts = await registeredCounts([row.id]);
   const summary = toSummary(row, counts.get(row.id) ?? 0);
   return {
@@ -154,6 +162,12 @@ export async function getEventDetail(id: string): Promise<EventDetail | null> {
     posterUrl: row.poster_path
       ? supabase.storage.from("event-posters").getPublicUrl(row.poster_path).data.publicUrl
       : null,
+    selectionMode: row.selection_mode ?? "seats",
+    registrationForm: (() => {
+      if (!row.registration_form) return null;
+      const parsed = validateFormSchema(row.registration_form);
+      return parsed.ok ? parsed.fields : null;
+    })(),
   };
 }
 

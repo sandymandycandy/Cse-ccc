@@ -2,51 +2,48 @@
 
 import { useState } from "react";
 import { Button } from "./ui/Button";
-import { Note } from "./ui/Surface";
-import { DEPARTMENTS } from "@/lib/departments";
+import { defaultFormFor, type FormField } from "@/lib/registration-form/schema";
 
-type Result = {
-  status?: string;
-  error?: string;
-  confirmUrl?: string;
-};
-
-const TERMINAL = new Set(["registered", "waitlisted", "duplicate"]);
+type Result = { status?: string; error?: string; fields?: Record<string, string> };
+const TERMINAL = new Set(["registered", "submitted", "waitlisted", "duplicate"]);
 
 export function RegisterForm({
   eventId,
+  schema,
   isFull,
+  mode = "seats",
 }: {
   eventId: string;
+  schema: FormField[] | null;
   isFull: boolean;
+  mode?: "seats" | "shortlist";
 }) {
+  const fields = schema && schema.length > 0 ? schema : defaultFormFor();
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const payload = {
-      eventId,
-      studentName: String(fd.get("studentName") ?? ""),
-      rollNo: String(fd.get("rollNo") ?? ""),
-      email: String(fd.get("email") ?? ""),
-      phone: String(fd.get("phone") ?? ""),
-      department: String(fd.get("department") ?? ""),
-      year: String(fd.get("year") ?? ""),
-      website: String(fd.get("website") ?? ""), // honeypot
-    };
-
+    const answers: Record<string, unknown> = {};
+    for (const field of fields) {
+      if (field.kind === "checkboxes") answers[field.id] = fd.getAll(field.id).map(String);
+      else answers[field.id] = String(fd.get(field.id) ?? "");
+    }
     setSubmitting(true);
     setResult(null);
     try {
       const res = await fetch("/api/registrations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ eventId, answers, website: String(fd.get("website") ?? "") }),
       });
       const data = (await res.json().catch(() => ({}))) as Result;
-      setResult(res.ok ? data : { error: data.error ?? "Something went wrong.", status: data.status });
+      setResult(
+        res.ok
+          ? data
+          : { error: data.error ?? "Something went wrong.", status: data.status, fields: data.fields },
+      );
     } catch {
       setResult({ error: "Network error. Please try again." });
     } finally {
@@ -54,9 +51,8 @@ export function RegisterForm({
     }
   }
 
-  // Terminal success states hide the form.
   if (result && result.status && TERMINAL.has(result.status)) {
-    return <ResultMessage result={result} />;
+    return <ResultMessage status={result.status} mode={mode} />;
   }
 
   return (
@@ -69,46 +65,9 @@ export function RegisterForm({
         </div>
       ) : null}
 
-      <div className="field">
-        <label htmlFor="rf-name">Full name</label>
-        <input id="rf-name" name="studentName" required autoComplete="name" placeholder="Your full name" />
-      </div>
-      <div className="field">
-        <label htmlFor="rf-roll">Roll number</label>
-        <input id="rf-roll" name="rollNo" required autoCapitalize="characters" placeholder="vtuxxxxx" />
-        <span className="hint">Used to prevent duplicate registrations.</span>
-      </div>
-      <div className="field">
-        <label htmlFor="rf-email">College email</label>
-        <input id="rf-email" name="email" type="email" required autoComplete="email" placeholder="vtuxxxxx@veltech.edu.in" />
-        <span className="hint">We&rsquo;ll send a one-tap link to confirm your seat.</span>
-      </div>
-      <div className="field">
-        <label htmlFor="rf-phone">Mobile number</label>
-        <input id="rf-phone" name="phone" inputMode="numeric" required autoComplete="tel" placeholder="10-digit mobile number" />
-      </div>
-      <div style={{ display: "flex", gap: 12 }}>
-        <div className="field" style={{ flex: 1 }}>
-          <label htmlFor="rf-dept">Department</label>
-          <select id="rf-dept" name="department" required defaultValue="CSE">
-            {DEPARTMENTS.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field" style={{ width: 96 }}>
-          <label htmlFor="rf-year">Year</label>
-          <select id="rf-year" name="year" required defaultValue="1">
-            {[1, 2, 3, 4].map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      {fields.map((field) => (
+        <FieldInput key={field.id} field={field} error={result?.fields?.[field.id]} />
+      ))}
 
       {/* honeypot: real users never see or fill this */}
       <input
@@ -127,41 +86,93 @@ export function RegisterForm({
         style={{ marginTop: 4, borderRadius: "var(--r-sm)" }}
         disabled={submitting}
       >
-        {submitting ? "Submitting…" : isFull ? "Join the waitlist" : "Register"}
+        {submitting ? "Submitting…" : isFull ? "Join the waitlist" : mode === "shortlist" ? "Submit" : "Register"}
       </Button>
-      <div
-        style={{
-          marginTop: 10,
-          textAlign: "center",
-          font: "400 11.5px var(--sans)",
-          color: "var(--ink-3)",
-        }}
-      >
-        Free for all CSE students.
-      </div>
     </form>
   );
 }
 
-function ResultMessage({ result }: { result: Result }) {
-  if (result.status === "registered") {
+function FieldInput({ field, error }: { field: FormField; error?: string }) {
+  const id = `rf-${field.id}`;
+  const common = { id, name: field.id, required: field.required } as const;
+  return (
+    <div className={`field${error ? " err" : ""}`}>
+      <label htmlFor={id}>
+        {field.label}
+        {field.required ? "" : " (optional)"}
+      </label>
+      {field.kind === "paragraph" ? (
+        <textarea {...common} rows={4} maxLength={4000} />
+      ) : field.kind === "dropdown" ? (
+        <select {...common} defaultValue="">
+          <option value="" disabled>
+            Choose…
+          </option>
+          {(field.options ?? []).map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </select>
+      ) : field.kind === "radio" ? (
+        <div className="stack" style={{ gap: 6 }}>
+          {(field.options ?? []).map((o) => (
+            <label key={o} style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 400 }}>
+              <input type="radio" name={field.id} value={o} required={field.required} /> {o}
+            </label>
+          ))}
+        </div>
+      ) : field.kind === "checkboxes" ? (
+        <div className="stack" style={{ gap: 6 }}>
+          {(field.options ?? []).map((o) => (
+            <label key={o} style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 400 }}>
+              <input type="checkbox" name={field.id} value={o} /> {o}
+            </label>
+          ))}
+        </div>
+      ) : field.kind === "date" ? (
+        <input {...common} type="date" />
+      ) : field.kind === "number" ? (
+        <input {...common} type="number" inputMode="numeric" />
+      ) : field.kind === "link" ? (
+        <input {...common} type="url" inputMode="url" placeholder="https://drive.google.com/…" />
+      ) : (
+        <input
+          {...common}
+          placeholder={
+            field.identity === "email"
+              ? "vtuxxxxx@veltech.edu.in"
+              : field.identity === "roll"
+                ? "vtuxxxxx"
+                : undefined
+          }
+        />
+      )}
+      {error ? (
+        <span className="hint" role="alert">
+          {error}
+        </span>
+      ) : field.help ? (
+        <span className="hint">{field.help}</span>
+      ) : null}
+    </div>
+  );
+}
+
+function ResultMessage({ status, mode }: { status: string; mode: "seats" | "shortlist" }) {
+  if (status === "registered" || status === "submitted") {
     return (
       <div>
-        <h3 style={{ fontSize: 22 }}>Almost there ✓</h3>
+        <h3 style={{ fontSize: 22 }}>{mode === "shortlist" ? "Submitted ✓" : "You're registered ✓"}</h3>
         <p className="body-text" style={{ marginTop: 8 }}>
-          We&rsquo;ve emailed you a one-tap link — confirm within 30 minutes to
-          lock in your seat.
+          {mode === "shortlist"
+            ? "Thanks — the club will review submissions and email you if you're selected."
+            : "Your spot is confirmed. See you there!"}
         </p>
-        {result.confirmUrl ? (
-          <Note style={{ marginTop: 12 }}>
-            Dev mode (no mail sender configured): confirm directly →{" "}
-            <a href={result.confirmUrl}>confirm my seat</a>
-          </Note>
-        ) : null}
       </div>
     );
   }
-  if (result.status === "waitlisted") {
+  if (status === "waitlisted") {
     return (
       <div>
         <h3 style={{ fontSize: 22 }}>You&rsquo;re on the waitlist</h3>
@@ -171,13 +182,11 @@ function ResultMessage({ result }: { result: Result }) {
       </div>
     );
   }
-  // duplicate
   return (
     <div>
       <h3 style={{ fontSize: 22 }}>Already registered</h3>
       <p className="body-text" style={{ marginTop: 8 }}>
-        This roll number is already registered for this event. Check your email
-        for the confirmation link.
+        You&rsquo;ve already submitted this form for this event.
       </p>
     </div>
   );
