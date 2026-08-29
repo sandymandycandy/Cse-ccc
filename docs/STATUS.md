@@ -18,7 +18,54 @@ end-to-end**, not a checklist of components.
 
 ---
 
-## 🚦 START HERE — current git/deploy state (2026-08-28)
+## 🚦 START HERE — current git/deploy state (2026-08-29)
+
+> ### 🟡 SHIPPED TO BRANCH, PRE-MERGE — Custom event registration form builder (`feat/event-registration-form-builder`, 2026-08-29)
+> **Feature A** of the events rework. A club now builds a from-scratch,
+> Google-Forms-style registration form when it creates/edits an event (identity
+> blocks + custom questions incl. a Drive/URL **link** field); **submit = confirmed**
+> (the old one-tap email confirmation is gone); an explicit **seats vs shortlist**
+> mode; and a shortlisting step that emails only the selected. **All 12 plan tasks
+> done. Gate green: typecheck ✓ / lint ✓ / 134 tests ✓ / build ✓** (was 114 — added
+> the pure `schema`/`answers` suites). Dev-server read smoke green (see below).
+> **NOT yet merged to `main` / not deployed.** Plan + spec:
+> `docs/superpowers/{plans,specs}/2026-08-29-event-registration-form-builder*`.
+> - **What's in it:** two pure modules `src/lib/registration-form/{schema,answers}.ts`
+>   are the server-side security boundary (validate the stored schema; validate + map
+>   answers, ignore unknown keys); a schema-driven public `RegisterForm`; a visual
+>   `RegistrationFormBuilder` in the admin event form; `register_for_event` **v2** RPC
+>   (optional identity + `custom_answers`, dedup **roll→email→none**, seats/shortlist);
+>   dynamic response columns in `/admin/events/[id]/registrations` + CSV; shortlist +
+>   `registration_shortlisted` email (generic renderer, no new template code).
+> - **Migrations — APPLIED + VERIFIED LIVE this session** (both additive; live prod on
+>   old code keeps working, the v2 RPC is a *new* jsonb overload alongside the old
+>   8-arg text one): `20260829000000_event_registration_forms` (adds
+>   `events.selection_mode`+`registration_form`, `registrations.custom_answers`+
+>   `shortlisted_at`, makes `student_name/roll_no/email` **nullable**, partial-unique
+>   dedup indexes) and `20260829010000_register_for_event_v2`. Live probe confirmed:
+>   all four columns present, identity cols nullable, v2 jsonb RPC present, **2
+>   overloads** total (old text one still there — see held drop below).
+> - **🔒 Security fix in this branch (`2c0899a`):** a background review caught an
+>   **IDOR** — `shortlistAction`'s bulk `update({shortlisted_at})` filtered only by
+>   registration id, so an own-club admin could shortlist another event's/club's rows
+>   by passing their ids. Now scoped to `event_id` too (matches the read + unshortlist).
+> - **Read smoke (dev server, 2026-08-29):** `/events/<id>` → 200 (default 6-field
+>   form on existing null-schema events); `POST /api/registrations {answers:{}}` → 400
+>   with per-field `fields` for all 6 required identity blocks (no write); bad event →
+>   404; `/admin/events/<id>/registrations` (no cookie) → 307→login.
+> - **⚠️ OWED — one human-only browser walkthrough** (server-action POSTs can't be
+>   curled): create a **shortlist** event with a **link** question → submit as a
+>   student on `/events/<id>` → head **Shortlist selected & email** at
+>   `/admin/events/<id>/registrations` → confirm `shortlisted_at` set + a queued
+>   `registration_shortlisted` row in `email_log`. Also exercise a **seats** event
+>   create/edit through the builder (reorder/add a custom field, save) and the CSV
+>   export header (custom labels + `Shortlisted`). Delete any test rows after (shared DB).
+> - **⏸️ HELD post-deploy migration — apply AFTER the deploy succeeds:**
+>   `drop function if exists public.register_for_event(uuid,text,text,text,text,text,int,text);`
+>   (name `drop_register_v1`) drops the now-unused old 8-arg overload. Held until deploy
+>   so a `git revert` rollback still has a working old RPC.
+> - **Next:** Feature B (manual event attendance) is the following spec and depends on
+>   `shortlisted_at` defined here.
 
 > ### ✅ SHIPPED & LIVE — Join form: inline field errors + mobile-first redesign (`main`, pushed to prod 2026-08-28)
 > The public self-registration page (`/join/[token]`) was dropping the register
