@@ -1,7 +1,7 @@
 import { requireSession } from "@/lib/auth/guards";
 import { canManage } from "@/lib/auth/capabilities";
 import { getEventForAttendance } from "@/lib/admin/attendance";
-import { listRegistrations } from "@/lib/admin/registrations";
+import { listRegistrations, getEventFormSchema } from "@/lib/admin/registrations";
 import { toCsv } from "@/lib/csv";
 import { writeAudit } from "@/lib/admin/audit";
 
@@ -16,21 +16,41 @@ export async function GET(request: Request) {
     return Response.json({ error: "Not permitted." }, { status: 403 });
   }
 
-  const regs = await listRegistrations(eventId);
-  const csv = toCsv(
-    ["Name", "Roll No", "Department", "Year", "Email", "Phone", "Confirmed", "Attended", "Method"],
-    regs.map((r) => [
-      r.name,
-      r.roll,
-      r.department,
-      r.year,
-      r.email,
-      r.phone,
-      r.confirmed ? "yes" : "no",
-      r.attended ? "yes" : "no",
-      r.method ?? "",
-    ]),
-  );
+  const [regs, { schema }] = await Promise.all([
+    listRegistrations(eventId),
+    getEventFormSchema(eventId),
+  ]);
+  const customFields = schema.filter((f) => !f.identity);
+  const headers = [
+    "Name",
+    "Roll No",
+    "Department",
+    "Year",
+    "Email",
+    "Phone",
+    "Confirmed",
+    "Attended",
+    "Method",
+    "Shortlisted",
+    ...customFields.map((f) => f.label),
+  ];
+  const rows = regs.map((r) => [
+    r.name,
+    r.roll,
+    r.department,
+    r.year,
+    r.email,
+    r.phone,
+    r.confirmed ? "yes" : "no",
+    r.attended ? "yes" : "no",
+    r.method ?? "",
+    r.shortlistedAt ? "yes" : "no",
+    ...customFields.map((f) => {
+      const v = r.customAnswers?.[f.id];
+      return Array.isArray(v) ? v.join("; ") : v != null ? String(v) : "";
+    }),
+  ]);
+  const csv = toCsv(headers, rows);
 
   await writeAudit({
     actorId: guard.session.id,
