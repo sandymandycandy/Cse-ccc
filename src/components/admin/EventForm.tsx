@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { defaultFormFor } from "@/lib/registration-form/schema";
+import { RegistrationFormBuilder } from "./RegistrationFormBuilder";
 import type { EventFormState } from "@/lib/admin/form-state";
 
 interface Option {
@@ -149,11 +150,8 @@ export function EventForm({
         <input id="capacity" name="capacity" type="number" min={0} defaultValue={initial?.capacity} placeholder="Leave blank for unlimited" />
       </div>
 
-      {/* Registration form schema — replaced by the visual builder in Task 8 */}
-      <input
-        type="hidden"
-        name="registrationForm"
-        defaultValue={initial?.registrationForm ?? JSON.stringify(defaultFormFor())}
+      <RegistrationFormBuilder
+        initialJson={initial?.registrationForm ?? JSON.stringify(defaultFormFor())}
       />
 
       <div className="field">
