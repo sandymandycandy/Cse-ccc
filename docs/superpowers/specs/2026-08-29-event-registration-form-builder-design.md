@@ -155,7 +155,8 @@ interface FormField {
 
 ### File policy
 
-Per file: **≤ 5 MB**, mime allowlist `pdf, png, jpeg, webp, gif`. Object key
+Per file: **≤ 5 MB**, mime allowlist `pdf, docx, png, jpeg, webp, gif` (docx =
+`application/vnd.openxmlformats-officedocument.wordprocessingml.document`). Object key
 `registration-uploads/<eventId>/<registrationId or nonce>/<nonce>-<safeName>`.
 Orphan-clean any uploaded objects if the DB insert then fails.
 
