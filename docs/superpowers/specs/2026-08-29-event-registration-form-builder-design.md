@@ -4,9 +4,9 @@
 **Date:** 2026-08-29
 **Spec ref:** BUILD_PLAN §9 (registration), §12.4 (registration PII), SECURITY_SPEC §5
 **Owner ask (2026-08-29):** make "Register Now" a Google-Forms-style builder created
-with the event; from-scratch fields incl. file upload; smart identity blocks;
-explicit seats-vs-shortlist mode; drop one-tap confirmation; add a shortlisting
-round with a "selected for the next round" email.
+with the event; from-scratch fields incl. a **Drive/URL link** field (no native file
+upload); smart identity blocks; explicit seats-vs-shortlist mode; drop one-tap
+confirmation; add a shortlisting round with a "selected for the next round" email.
 
 > This is **Feature A** of a two-feature batch. **Feature B** (manual event
 > attendance replacing the QR self-scan) is a separate spec and ships after A.
@@ -17,16 +17,21 @@ round with a "selected for the next round" email.
 
 Replace the fixed six-field public registration form with a **per-event form the
 club builds when they create the event** — add / remove / reorder questions of
-many types (text, paragraph, dropdown, radio, checkboxes, date, number, **file
-upload**) plus **identity blocks** (name, roll, email, phone, department, year)
-that keep the downstream pipeline working when included. Registration becomes
-**submit = confirmed** (no email confirmation step). Events choose a **selection
-mode**: seat-limited first-come, or **shortlist** (collect everyone, the club head
-selects some and emails them).
+many types (text, paragraph, dropdown, radio, checkboxes, date, number, **Drive/URL
+link**) plus **identity blocks** (name, roll, email, phone, department, year) that
+keep the downstream pipeline working when included. Registration becomes **submit =
+confirmed** (no email confirmation step). Events choose a **selection mode**:
+seat-limited first-come, or **shortlist** (collect everyone, the club head selects
+some and emails them).
 
-The guiding test: "a club spins up an application form — free-form questions,
-maybe a file upload — collects submissions, shortlists, and emails the selected,
-without anyone touching code."
+The guiding test: "a club spins up an application form — free-form questions, maybe
+a 'paste your Drive link' field — collects submissions, shortlists, and emails the
+selected, without anyone touching code."
+
+**File collection = a link field, not native upload.** Students paste a share link
+(Google Drive/Docs, etc.); we store the validated URL. This keeps the submit path
+JSON-only and avoids a storage bucket, multipart handling, size/type policy, and
+signed-URL plumbing. (Native upload was considered and deliberately dropped.)
 
 ## What already exists (reused, not rebuilt)
 
@@ -46,8 +51,9 @@ without anyone touching code."
 - **Email** — `enqueueEmail` + the single generic branded renderer
   (`src/lib/email/templates.ts`) auto-builds an action button from the payload's
   `url`/`confirmUrl`/`inviteUrl`. A new template name needs **no** renderer work.
-- **Reusables** — `handleImageUpload`-style Storage pattern, `canManage`/`grantFor`
-  guards, `writeAudit`, `resolveOwningClub`.
+- **`isSafeHttpUrl`** (`src/lib/url.ts`) — the existing safe-URL check (used by the
+  resources vertical + markdown link check); reused to validate link answers.
+- **Reusables** — `canManage`/`grantFor` guards, `writeAudit`, `resolveOwningClub`.
 
 ## Selection mode (new per-event concept)
 
@@ -108,9 +114,7 @@ create index if not exists registrations_shortlisted_idx
   on public.registrations (event_id) where shortlisted_at is not null;
 ```
 
-- **Private Storage bucket `registration-uploads`** (not public — student uploads
-  may be sensitive). Created via MCP (like `member-photos`), RLS: no anon access;
-  all I/O via service role; admin reads through short-lived signed URLs.
+- **No Storage bucket.** Link answers are plain URLs — nothing is uploaded.
 - Regenerate `src/lib/database.types.ts` via the Supabase **MCP**
   `generate_typescript_types` (the CLI truncates it — see STATUS gotcha).
 
@@ -123,7 +127,7 @@ renders unchanged**.
 ```ts
 type FieldKind =
   | "short_text" | "paragraph" | "dropdown" | "radio"
-  | "checkboxes" | "date" | "number" | "file";
+  | "checkboxes" | "date" | "number" | "link";
 type Identity = "name" | "roll" | "email" | "phone" | "department" | "year";
 
 interface FormField {
@@ -141,24 +145,26 @@ interface FormField {
   of `kind`: email pattern + `.toLowerCase()`, roll `^[A-Z0-9]{6,15}$` +
   `.toUpperCase()`, phone `^[6-9]\d{9}$`, department ∈ `DEPARTMENTS`, year 1–5,
   name `^[\p{L}\p{M} .'-]+$`. At most one block per identity.
+- **`link` fields** collect one safe `https` URL (a "paste your Drive link" field).
 - **Schema invariants** (validated server-side on event save): 1–40 fields; unique
-  ids; label 1–120; choice kinds have 1–20 non-empty options; `file` fields obey
-  the file policy below; `≤ 3` file fields per form.
+  ids; label 1–120; choice kinds (`dropdown/radio/checkboxes`) have 1–20 non-empty
+  options; non-choice kinds carry no options; at most one block per identity.
 
 ### Answer storage (`registrations`)
 
 - Identity blocks → the real columns (`student_name/roll_no/email/phone/department/
   year`).
 - Everything else → `custom_answers jsonb`, keyed by field id:
-  - scalar kinds → string/number; `checkboxes` → `string[]`;
-  - `file` → `{ path, filename, size, type }` (object path in `registration-uploads`).
+  - scalar kinds (`short_text/paragraph/dropdown/radio/date/number`) → string/number;
+  - `checkboxes` → `string[]`;
+  - `link` → a validated `https` URL string (e.g. a Google Drive share link).
 
-### File policy
+### Link field policy
 
-Per file: **≤ 5 MB**, mime allowlist `pdf, docx, png, jpeg, webp, gif` (docx =
-`application/vnd.openxmlformats-officedocument.wordprocessingml.document`). Object key
-`registration-uploads/<eventId>/<registrationId or nonce>/<nonce>-<safeName>`.
-Orphan-clean any uploaded objects if the DB insert then fails.
+A `link` answer is a single URL validated with `isSafeHttpUrl` (`src/lib/url.ts`) —
+`http`/`https` only, no `javascript:`/`data:` schemes. Stored as-is; the public form
+shows a hint suggesting a Drive/Docs "anyone with the link" share URL. Max length
+2000 chars. No upload, no storage object.
 
 ## Dedup rules (in the reworked RPC, under the event row lock)
 
@@ -180,17 +186,17 @@ for club/vice heads. Public submit stays session-less.
 
 | Layer | File | Responsibility |
 |---|---|---|
-| Types/logic | `src/lib/registration-form/schema.ts` | `FormField` types, default template, `validateFormSchema`, `defaultFormFor(event)` — pure |
-| Types/logic | `src/lib/registration-form/answers.ts` | `validateAnswers(schema, values, files)` → `{identity, customAnswers, files}` or field errors — pure over parsed input |
+| Types/logic | `src/lib/registration-form/schema.ts` | `FormField` types, `DEFAULT_FORM` template, `validateFormSchema`, `defaultFormFor(event)` — pure |
+| Types/logic | `src/lib/registration-form/answers.ts` | `validateAnswers(schema, values)` → `{identity, customAnswers}` or `{fieldErrors}` — pure |
 | Builder UI | `src/components/admin/RegistrationFormBuilder.tsx` | client editor: palette, field cards, reorder, options editor → hidden JSON input |
 | Event form | `src/components/admin/EventForm.tsx` (extend) | embed builder + `selection_mode` control |
 | Event actions | `src/app/admin/(app)/events/actions.ts` (extend) | parse+validate `registrationForm` JSON & `selectionMode`; store on `events` |
-| Public form | `src/components/RegisterForm.tsx` (rewrite) | schema-driven renderer, multipart submit |
-| Submit API | `src/app/api/registrations/route.ts` (rewrite) | multipart; load schema; `validateAnswers`; upload files; call RPC |
+| Public form | `src/components/RegisterForm.tsx` (rewrite) | schema-driven renderer; JSON submit |
+| Submit API | `src/app/api/registrations/route.ts` (rewrite) | load schema; `validateAnswers`; call RPC |
 | RPC | `supabase/migrations/…_register_v2.sql` | `register_for_event` v2 (optional identity + `custom_answers` + mode + dedup) |
 | Shortlist | `src/app/admin/(app)/events/[id]/registrations/actions.ts` (extend) | `shortlistAction` / `unshortlistAction` → set `shortlisted_at` + enqueue email |
 | Responses UI | `src/app/admin/(app)/events/[id]/registrations/page.tsx` (extend) | dynamic columns; shortlist controls |
-| Responses data | `src/lib/admin/registrations.ts` (extend) | return `custom_answers` + schema for column headers; signed URLs for files |
+| Responses data | `src/lib/admin/registrations.ts` (extend) | return `custom_answers` + schema for column headers |
 | CSV | `src/app/api/admin/registrations/export/route.ts` (extend) | dynamic columns from schema |
 | Email | `src/lib/email/templates.ts` (data only) | `registration_shortlisted` name (generic renderer, no code) |
 
@@ -199,37 +205,36 @@ for club/vice heads. Public submit stays session-less.
 - `validateFormSchema(json)` — enforces the schema invariants above; returns typed
   `FormField[]` or a list of problems. Used by event create/update **and** the
   builder.
-- `validateAnswers(schema, values, fileMeta)` — per field: required check, type
-  coercion, option membership (radio/dropdown/checkboxes), identity regexes,
-  file-policy (type/size) on already-parsed file metadata. Returns
-  `{ identity: {...}, customAnswers: {...} }` or `{ fieldErrors: {id: msg} }`.
-  **This is the security boundary** — the client builder/renderer is convenience;
-  the server never trusts posted field lists, only the event's stored schema.
+- `validateAnswers(schema, values)` — per field: required check, type coercion,
+  option membership (radio/dropdown/checkboxes), identity regexes, `link` safe-URL
+  check. Returns `{ identity: {...}, customAnswers: {...} }` or
+  `{ fieldErrors: {id: msg} }`. **This is the security boundary** — the client
+  builder/renderer is convenience; the server never trusts posted field lists, only
+  the event's stored schema, and rejects any answer key not in it.
 
 ### Builder UI (`RegistrationFormBuilder`)
 
-- "Add block" palette: identity blocks (disabled once added) + custom kinds.
+- "Add block" palette: identity blocks (disabled once added) + custom kinds
+  (short text, paragraph, dropdown, radio, checkboxes, date, number, **link**).
 - Ordered field cards: label, required toggle, help, options editor (choice kinds),
   move up/down, delete. Identity cards show a lock icon + fixed validation note.
-- Serializes to a hidden `registrationForm` input (JSON). Seeded with
-  `defaultFormFor` on new events; hydrated from `events.registration_form` on edit.
+- Serializes to a hidden `registrationForm` input (JSON). Seeded with `DEFAULT_FORM`
+  on new events; hydrated from `events.registration_form` on edit.
 - Matches "paper" admin styling; no drag lib required (up/down buttons), keeping it
   mobile-friendly and dependency-free.
 
 ### Submit API (rewrite of `/api/registrations`)
 
-1. Size cap (100 KB for the field part; files streamed within a total cap).
-   Content-Type must be `multipart/form-data`.
+1. Body size cap (100 KB, existing). JSON body: `{ eventId, answers: {fieldId: value},
+   website, turnstile }`.
 2. Load event + `registration_form` (service role); resolve effective schema
    (`defaultFormFor` when null) and `selection_mode`.
 3. Rate-limit (existing), honeypot (`website` empty), Turnstile-ready.
 4. `validateAnswers` against the **stored** schema → identity map + custom answers,
    or 400 with `{ fields: {...} }` (the public form renders these inline, like the
    join form does).
-5. Upload files to `registration-uploads`; collect `{path,filename,size,type}`.
-6. Call `register_for_event` v2 with optional identity + `custom_answers` + mode.
-   On non-`registered/submitted/waitlisted` outcome, orphan-clean uploads.
-7. Response: `{ status }` where status ∈ `registered | submitted | waitlisted |
+5. Call `register_for_event` v2 with optional identity + `custom_answers` + mode.
+6. Response: `{ status }` where status ∈ `registered | submitted | waitlisted |
    duplicate | closed | full`. No `confirmUrl` (confirmation removed).
 
 ### RPC v2 (`register_for_event`)
@@ -261,23 +266,24 @@ Signature gains `p_custom_answers jsonb` and makes identity params nullable; dro
 ### Responses view + CSV (dynamic columns)
 
 - `listRegistrations(eventId)` also returns the event's schema + each row's
-  `custom_answers` (+ signed URLs for file answers, short TTL).
+  `custom_answers`.
 - Table renders: identity columns present in the schema, then one column per custom
-  field (files as a download link). Shortlist events show a **Shortlisted** column +
-  the shortlist controls; the header counts show `N submitted · M shortlisted`.
-- CSV export emits the same dynamic columns (files as filename + signed URL).
+  field (link answers as a clickable URL). Shortlist events show a **Shortlisted**
+  column + the shortlist controls; the header counts show `N submitted · M
+  shortlisted`.
+- CSV export emits the same dynamic columns (links as the URL string).
 
 ## Data flow
 
 1. Organiser creates an event → picks **selection mode** → **builds the form**
    (defaults pre-seeded) → save; schema validated server-side, stored on `events`.
-2. Public event page renders the schema-driven form; a student submits (multipart).
-3. Server validates against the stored schema, uploads files, calls RPC → row
-   inserted **confirmed**; `registered` (seat) / `submitted` (shortlist) /
-   `waitlisted` / `duplicate`.
-4. Organiser opens **Registrations** → sees dynamic columns + files. For a
-   shortlist event: selects people → **Shortlist & email** → selected get the
-   "next round" mail; `shortlisted_at` set.
+2. Public event page renders the schema-driven form; a student submits (JSON).
+3. Server validates against the stored schema, calls RPC → row inserted
+   **confirmed**; `registered` (seat) / `submitted` (shortlist) / `waitlisted` /
+   `duplicate`.
+4. Organiser opens **Registrations** → sees dynamic columns (incl. any pasted
+   links). For a shortlist event: selects people → **Shortlist & email** → selected
+   get the "next round" mail; `shortlisted_at` set.
 5. (Feature B) The event's **Attendance** roster lists **only shortlisted** rows for
    manual present/absent marking → `attended`.
 
@@ -288,9 +294,8 @@ Signature gains `p_custom_answers jsonb` and makes identity params nullable; dro
   now-removed confirmation step.
 - Existing registrations: already have `confirmed_at`; `custom_answers`/
   `shortlisted_at` null — render fine.
-- The additive migration + private bucket applied to the **live/shared DB** via MCP
-  (dev and prod share it — see STATUS gotcha); `database.types.ts` regenerated via
-  MCP.
+- The additive migration applied to the **live/shared DB** via MCP (dev and prod
+  share it — see STATUS gotcha); `database.types.ts` regenerated via MCP.
 
 ## Error handling
 
@@ -298,36 +303,38 @@ Signature gains `p_custom_answers jsonb` and makes identity params nullable; dro
   stored. (Builder also blocks obviously-broken states client-side.)
 - Answer validation failure → 400 `{ fields:{id:msg} }`; the public form shows each
   inline (reuse the join-form inline-error pattern), never a silent generic error.
-- File too large / wrong type → per-field error; no partial upload persists.
+- A `link` answer that isn't a safe `http(s)` URL → per-field error.
 - Over capacity (seats) → `waitlisted` or `full` surfaced in the UI.
 - Duplicate (roll/email per rules) → `duplicate` message.
 - Cross-club admin (grant `own`, other club) → guard 403; anon on admin routes →
   401 (existing).
-- RPC/DB failure after upload → uploaded objects orphan-cleaned.
 
 ## Testing
 
-- **Unit (vitest):** `validateFormSchema` (bad kinds, empty options, duplicate ids,
-  too many fields/files, duplicate identity); `validateAnswers` (required, option
-  membership, identity regexes, checkbox arrays, file type/size, unknown field
-  rejected); `defaultFormFor` equals today's six fields; dedup-rule selection
-  (roll → email → none). The `manage:registrations`/`manage:events` grants already
-  covered.
+- **Unit (vitest):** `validateFormSchema` (bad kinds, empty options, options on a
+  non-choice kind, duplicate ids, too many fields, duplicate identity);
+  `validateAnswers` (required, option membership, identity regexes, checkbox arrays,
+  `link` safe-URL accept/reject, unknown field rejected); `defaultFormFor` equals
+  today's six fields; dedup-rule selection (roll → email → none). The
+  `manage:registrations`/`manage:events` grants already covered.
 - **RPC/integration:** with the service-role client — seats capacity/waitlist,
   shortlist `submitted`, dedup by roll and by email, nullable-identity insert,
   `confirmed_at` set on insert. Seed rows then delete (shared DB gotcha).
-- **Route/manual:** multipart submit happy-path + a file, and a rejected submit
-  showing inline field errors. Server-action POSTs (shortlist/email) verified in a
-  browser or via direct DB effect + read assertion (curl gotcha). Prod smoke:
+- **Route/manual:** JSON submit happy-path (incl. a link answer), and a rejected
+  submit showing inline field errors. Server-action POSTs (shortlist/email) verified
+  in a browser or via direct DB effect + read assertion (curl gotcha). Prod smoke:
   `/events/[id]` 200 with a custom form; `/api/registrations` rejection paths 400
   without a write.
 
 ## Out of scope (YAGNI)
 
+- **Native file upload.** Deliberately dropped in favour of a Drive/URL link field
+  (no bucket, no multipart, no size/type policy). Revisit only if link-paste proves
+  insufficient.
 - **Multiple sequential shortlist rounds.** v1 is a single shortlist stage; the mail
   says "selected for the next round." Multi-stage is a later add on `shortlisted_at`.
 - **Conditional/branching questions, sections, response editing after submit,
-  per-question file-count > policy, drag-and-drop reordering** (up/down is enough).
+  drag-and-drop reordering** (up/down is enough).
 - **Feature B (manual attendance)** — its own spec; consumes `shortlisted_at`.
 - Reworking results/rounds, certificates, or the member/roster systems.
 
@@ -335,7 +342,8 @@ Signature gains `p_custom_answers jsonb` and makes identity params nullable; dro
 
 - Form model: **from scratch** with **smart identity blocks** (downstream lights up
   when identity is included; off when omitted).
-- Field types: **full palette incl. file upload**.
+- Field types: full palette; **file collection is a Drive/URL link field, not native
+  upload**.
 - Seats vs shortlist: **explicit mode toggle** on the event (not inferred from
   capacity).
 - Confirmation: **removed** — submit = confirmed.
