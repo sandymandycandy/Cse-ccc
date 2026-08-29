@@ -3,7 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { requireViewPage } from "@/lib/auth/guards";
 import { canManage, grantFor } from "@/lib/auth/capabilities";
 import { getEventForAttendance } from "@/lib/admin/attendance";
-import { listRegistrations } from "@/lib/admin/registrations";
+import { listRegistrations, getEventFormSchema } from "@/lib/admin/registrations";
+import { isSafeHttpUrl } from "@/lib/url";
 import { toggleAttendanceAction } from "./actions";
 
 export default async function RegistrationsPage({
@@ -23,7 +24,11 @@ export default async function RegistrationsPage({
   if (!canViewThis) redirect("/admin/events");
   const canEdit = canManage(session, "manage:registrations", ev.clubId);
 
-  const regs = await listRegistrations(id);
+  const [regs, { schema }] = await Promise.all([
+    listRegistrations(id),
+    getEventFormSchema(id),
+  ]);
+  const customFields = schema.filter((f) => !f.identity);
   const confirmed = regs.filter((r) => r.confirmed).length;
   const attended = regs.filter((r) => r.attended).length;
 
@@ -63,6 +68,9 @@ export default async function RegistrationsPage({
                 <th>Name</th>
                 <th>Roll</th>
                 <th>Dept · Yr</th>
+                {customFields.map((f) => (
+                  <th key={f.id}>{f.label}</th>
+                ))}
                 <th>Confirmed</th>
                 <th>Attended</th>
                 {canEdit ? <th>Check-in</th> : null}
@@ -77,6 +85,28 @@ export default async function RegistrationsPage({
                     {r.department ?? "—"}
                     {r.year ? ` · ${r.year}` : ""}
                   </td>
+                  {customFields.map((f) => {
+                    const v = r.customAnswers?.[f.id];
+                    if (f.kind === "link" && typeof v === "string" && isSafeHttpUrl(v)) {
+                      return (
+                        <td key={f.id}>
+                          <a
+                            href={v}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: "var(--forest)" }}
+                          >
+                            link ↗
+                          </a>
+                        </td>
+                      );
+                    }
+                    return (
+                      <td key={f.id}>
+                        {Array.isArray(v) ? v.join(", ") : v != null ? String(v) : "—"}
+                      </td>
+                    );
+                  })}
                   <td>{r.confirmed ? "Yes" : "—"}</td>
                   <td>
                     {r.attended ? (
