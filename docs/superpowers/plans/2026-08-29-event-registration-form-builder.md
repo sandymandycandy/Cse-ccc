@@ -611,10 +611,12 @@ Create `supabase/migrations/20260829010000_register_for_event_v2.sql`:
 -- register_for_event v2 — optional identity + custom_answers + selection mode.
 -- Dedup: roll if present, else email if present, else none. Submit is now
 -- immediately confirmed (confirmed_at = now()); no confirmation token/hold.
--- Drops the old 8-arg signature (…, p_confirm_token_hash) explicitly.
+-- Adds a NEW overload (…, p_custom_answers jsonb) that COEXISTS with the old
+-- 8-arg (…, p_confirm_token_hash text) function, so live prod (old code on
+-- main) keeps working during the dev window. PostgREST resolves by the named
+-- args each caller passes. The old overload is dropped later in a held
+-- post-deploy migration, once the new code is deployed (see Task 12).
 -- ============================================================================
-
-drop function if exists public.register_for_event(uuid,text,text,text,text,text,int,text);
 
 create or replace function public.register_for_event(
   p_event_id       uuid,
@@ -1648,7 +1650,7 @@ Claude-Session: https://claude.ai/code/session_01Sy8nxfyxpiEndT2mwN1tQe"
 
 - [ ] **Step 5: Integration handoff**
 
-Use `superpowers:finishing-a-development-branch` to decide merge vs PR. Per repo workflow: fast-forward-merge to `main` → `git push origin main` auto-deploys to prod. Before merging, complete the owed human walkthrough (server-action POSTs can't be curled). **Then** start Feature B (manual event attendance) from its own spec.
+Use `superpowers:finishing-a-development-branch` to decide merge vs PR. Per repo workflow: fast-forward-merge to `main` → `git push origin main` auto-deploys to prod. Before merging, complete the owed human walkthrough (server-action POSTs can't be curled). **After the deploy succeeds**, apply a **held post-deploy migration** dropping the now-unused old RPC overload: `drop function if exists public.register_for_event(uuid,text,text,text,text,text,int,text);` (name `drop_register_v1`) — held until deploy so a `git revert` rollback of the deploy still has a working old RPC. **Then** start Feature B (manual event attendance) from its own spec.
 
 ---
 
