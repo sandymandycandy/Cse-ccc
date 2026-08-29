@@ -322,10 +322,11 @@ export async function updateEventAction(
       .eq("event_id", eventId)
       .not("confirmed_at", "is", null);
     for (const r of regs ?? []) {
+      if (!r.email) continue;
       await enqueueEmail({
         template: "event_updated",
         toEmail: r.email,
-        toName: r.student_name,
+        toName: r.student_name ?? undefined,
         subject: `Updated: ${title}`,
         payload: { eventId, title, url: base ? `${base}/events/${eventId}` : undefined, timeChanged, venueChanged },
         priority: 2,
@@ -466,10 +467,11 @@ export async function cancelEventAction(
     .eq("event_id", eventId)
     .not("confirmed_at", "is", null);
   for (const r of regs ?? []) {
+    if (!r.email) continue;
     await enqueueEmail({
       template: "event_cancelled",
       toEmail: r.email,
-      toName: r.student_name,
+      toName: r.student_name ?? undefined,
       subject: `Cancelled: ${ev.title}`,
       payload: { eventId, title: ev.title, reason: reason || null },
       priority: 2,

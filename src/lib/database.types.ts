@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -547,6 +547,7 @@ export type Database = {
         Row: {
           closed_at: string | null
           club_id: string
+          end_time: string | null
           event_id: string | null
           id: string
           opened_at: string
@@ -554,13 +555,13 @@ export type Database = {
           qr_ttl_seconds: number | null
           session_date: string | null
           start_time: string | null
-          end_time: string | null
           status: Database["public"]["Enums"]["club_session_status"]
           title: string
         }
         Insert: {
           closed_at?: string | null
           club_id: string
+          end_time?: string | null
           event_id?: string | null
           id?: string
           opened_at?: string
@@ -568,13 +569,13 @@ export type Database = {
           qr_ttl_seconds?: number | null
           session_date?: string | null
           start_time?: string | null
-          end_time?: string | null
           status?: Database["public"]["Enums"]["club_session_status"]
           title: string
         }
         Update: {
           closed_at?: string | null
           club_id?: string
+          end_time?: string | null
           event_id?: string | null
           id?: string
           opened_at?: string
@@ -582,7 +583,6 @@ export type Database = {
           qr_ttl_seconds?: number | null
           session_date?: string | null
           start_time?: string | null
-          end_time?: string | null
           status?: Database["public"]["Enums"]["club_session_status"]
           title?: string
         }
@@ -997,11 +997,13 @@ export type Database = {
           is_all_day: boolean
           poster_path: string | null
           registration_closes_at: string | null
+          registration_form: Json | null
           registration_opens_at: string | null
           rejection_reason: string | null
           reminder_sent: boolean
           rescheduled_from: string | null
           rules: string | null
+          selection_mode: Database["public"]["Enums"]["selection_mode"]
           starts_at: string
           status: Database["public"]["Enums"]["event_status"]
           title: string
@@ -1025,11 +1027,13 @@ export type Database = {
           is_all_day?: boolean
           poster_path?: string | null
           registration_closes_at?: string | null
+          registration_form?: Json | null
           registration_opens_at?: string | null
           rejection_reason?: string | null
           reminder_sent?: boolean
           rescheduled_from?: string | null
           rules?: string | null
+          selection_mode?: Database["public"]["Enums"]["selection_mode"]
           starts_at: string
           status?: Database["public"]["Enums"]["event_status"]
           title: string
@@ -1053,11 +1057,13 @@ export type Database = {
           is_all_day?: boolean
           poster_path?: string | null
           registration_closes_at?: string | null
+          registration_form?: Json | null
           registration_opens_at?: string | null
           rejection_reason?: string | null
           reminder_sent?: boolean
           rescheduled_from?: string | null
           rules?: string | null
+          selection_mode?: Database["public"]["Enums"]["selection_mode"]
           starts_at?: string
           status?: Database["public"]["Enums"]["event_status"]
           title?: string
@@ -1318,13 +1324,15 @@ export type Database = {
           confirm_token_hash: string | null
           confirmed_at: string | null
           created_at: string
+          custom_answers: Json | null
           department: string | null
-          email: string
+          email: string | null
           event_id: string
           id: string
           phone: string | null
-          roll_no: string
-          student_name: string
+          roll_no: string | null
+          shortlisted_at: string | null
+          student_name: string | null
           team_members: Json | null
           year: number | null
         }
@@ -1337,13 +1345,15 @@ export type Database = {
           confirm_token_hash?: string | null
           confirmed_at?: string | null
           created_at?: string
+          custom_answers?: Json | null
           department?: string | null
-          email: string
+          email?: string | null
           event_id: string
           id?: string
           phone?: string | null
-          roll_no: string
-          student_name: string
+          roll_no?: string | null
+          shortlisted_at?: string | null
+          student_name?: string | null
           team_members?: Json | null
           year?: number | null
         }
@@ -1356,13 +1366,15 @@ export type Database = {
           confirm_token_hash?: string | null
           confirmed_at?: string | null
           created_at?: string
+          custom_answers?: Json | null
           department?: string | null
-          email?: string
+          email?: string | null
           event_id?: string
           id?: string
           phone?: string | null
-          roll_no?: string
-          student_name?: string
+          roll_no?: string | null
+          shortlisted_at?: string | null
+          student_name?: string | null
           team_members?: Json | null
           year?: number | null
         }
@@ -1725,6 +1737,7 @@ export type Database = {
       recruitment_status: "open" | "closed" | "waitlist"
       resource_kind: "drive" | "doc" | "template"
       round_status: "pending" | "active" | "completed"
+      selection_mode: "seats" | "shortlist"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1875,6 +1888,7 @@ export const Constants = {
       recruitment_status: ["open", "closed", "waitlist"],
       resource_kind: ["drive", "doc", "template"],
       round_status: ["pending", "active", "completed"],
+      selection_mode: ["seats", "shortlist"],
     },
   },
 } as const

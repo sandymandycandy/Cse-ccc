@@ -106,7 +106,9 @@ export async function getRoundRoster(
       .eq("event_id", round.event_id)
       .eq("attended", true)
       .order("roll_no", { ascending: true });
-    const rows = (regs ?? []).map((r) => emptyEntry(r.roll_no, r.student_name, r.id));
+    const rows = (regs ?? []).flatMap((r) =>
+      r.roll_no != null ? [emptyEntry(r.roll_no, r.student_name, r.id)] : [],
+    );
     return { rows, seededFrom: `attended (${rows.length})` };
   }
 

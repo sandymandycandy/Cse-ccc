@@ -31,8 +31,8 @@ export async function POST(request: Request) {
     .eq("confirm_token_hash", hashToken(parsed.data.token))
     .maybeSingle();
 
-  // Only a confirmed registration can enroll a device.
-  if (!reg || !reg.confirmed_at) {
+  // Only a confirmed registration that collected a roll + email can enroll a device.
+  if (!reg || !reg.confirmed_at || !reg.roll_no || !reg.email) {
     return Response.json({ error: "Not eligible." }, { status: 404 });
   }
 
