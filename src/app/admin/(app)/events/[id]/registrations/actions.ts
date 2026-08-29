@@ -77,7 +77,13 @@ export async function shortlistAction(formData: FormData): Promise<void> {
     .eq("event_id", eventId)
     .in("id", ids);
   const now = new Date().toISOString();
-  await admin.from("registrations").update({ shortlisted_at: now }).in("id", ids);
+  // Scope the write to this event as well as the ids — otherwise an own-club admin
+  // could shortlist another event's (or club's) registrations by passing their ids.
+  await admin
+    .from("registrations")
+    .update({ shortlisted_at: now })
+    .eq("event_id", eventId)
+    .in("id", ids);
 
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
   for (const r of rows ?? []) {
