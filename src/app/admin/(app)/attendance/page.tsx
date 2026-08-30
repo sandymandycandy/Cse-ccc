@@ -65,12 +65,13 @@ export default async function AttendanceDashboard({ searchParams }: { searchPara
       {sessions.length === 0 ? <p className="body-text" style={{ color: "var(--ink-3)" }}>No sessions yet.</p> : (
         <div className="tablewrap">
           <table className="admin">
-            <thead><tr><th>Session</th><th>Date</th><th>Slot</th><th>Present</th></tr></thead>
+            <thead><tr><th>Session</th><th>Date</th><th>Slot</th><th>Status</th><th>Present</th></tr></thead>
             <tbody>{sessions.map((s) => (
               <tr key={s.id}>
                 <td><Link href={`/admin/attendance/sessions/${s.id}`} style={{ color: "var(--forest)" }}>{s.title}</Link></td>
                 <td>{istNumericDate(s.sessionDate ?? s.openedAt)}</td>
                 <td>{s.startTime && s.endTime ? `${s.startTime.slice(0, 5)}–${s.endTime.slice(0, 5)}` : "—"}</td>
+                <td><span className={`abadge${s.status === "closed" ? "" : " abadge-approved"}`}>{s.status === "closed" ? "Closed" : "Open"}</span></td>
                 <td>{s.presentCount}</td>
               </tr>
             ))}</tbody>

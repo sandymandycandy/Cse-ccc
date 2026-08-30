@@ -65,6 +65,15 @@ export async function listSessions(clubId: string): Promise<SessionRow[]> {
   return Promise.all((data ?? []).map(async (s) => mapSession(s, await countPresent(s.id))));
 }
 
+/** Flip a session open⇄closed. Closing stamps `closed_at`; reopening clears it. */
+export async function setSessionStatus(sessionId: string, status: "open" | "closed"): Promise<void> {
+  const admin = createAdminClient();
+  await admin
+    .from("club_attendance_sessions")
+    .update({ status, closed_at: status === "closed" ? new Date().toISOString() : null })
+    .eq("id", sessionId);
+}
+
 export async function createSession(input: {
   clubId: string; title: string; sessionDate: string; startTime: string; endTime: string; openedBy: string;
 }): Promise<string> {
