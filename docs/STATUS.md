@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-08-28.**
+> `docs/superpowers/plans/`. **Last updated: 2026-08-30.**
 
 ## What this is
 
@@ -20,7 +20,48 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-08-30)
 
-> ### 🟡 SHIPPED TO BRANCH, PRE-MERGE — Team registration forms (`feat/team-registration-forms`, 2026-08-30)
+> ### ✅ ALL MERGED & LIVE — `main == origin/main @ 0790dfd` (clean, 0 ahead / 0 behind)
+> The two "pre-merge" feature blocks below **have since been merged to `main`, pushed,
+> and auto-deployed to prod**, and four more changes landed on top. Nothing is in flight
+> in the working tree. **Gate green this session (2026-08-30): typecheck ✓ / lint ✓ /
+> 162 tests ✓ / build ✓.** Shipped since the last STATUS snapshot, newest first:
+> - **`c7d18a8` Event approval review page + reject→resubmit loop** — an event head opens
+>   a **read-only Review page** per pending event (full details + the whole registration
+>   form incl. team/section/Other blocks) and **Approves or Rejects-with-reason** there
+>   (the approval queue links to it instead of deciding blind); a rejected event shows its
+>   reason as a banner on the club head's edit page, and **editing+saving a rejected event
+>   auto-resubmits it** (`approval_status`→pending, reason cleared, approvers re-notified).
+>   **No DB migration** (`approval_status` / `rejection_reason` / `approved_by` exist).
+> - **`70154e2` Attendance session close/draft + admin error boundary** — club sessions now
+>   stay open after creation; a head **saves marks as a draft** (session stays open) and
+>   **closes explicitly** with a button (Reopen for closed ones); `saveAndCloseAction` /
+>   `reopenSessionAction` (own-club scoped, audited) + `setSessionStatus`, status badge on
+>   the session page + Status column on the dashboard. Plus an admin-area `error.tsx` so a
+>   transient server hiccup shows a retry, not a bare crash. **No DB migration** (existing
+>   `status`/`closed_at`).
+> - **`2ebdb67` fix — dark-mode `<select>` option readability** — Windows/Chrome painted
+>   near-white option text on a white system bg (options invisible except the highlighted
+>   row); option bg/color now pinned to the theme tokens.
+> - **`c368720` fix — team min/max as dropdowns + leader clarification** — the Max number
+>   input clamped on every keystroke, so you couldn't set 2 or 3; replaced Min/Max with
+>   1..10 dropdowns (max ≥ min) + a hint that the count is members *besides* the leader.
+> - **Feature C — Team registration forms** (`d6d3632`, the first block below) — merged.
+> - **Feature A — Custom event registration form builder** (the second block below) — merged.
+>
+> **⏸️ Two post-deploy DROP migrations remain HELD (owner's call).** Both are now safe to
+> apply — their replacement code is long since live — but are kept so a `git revert`
+> rollback of the deploy still has working old objects. Apply later via Supabase MCP
+> `apply_migration` when the owner is ready:
+> - `drop_register_v1` — `drop function if exists public.register_for_event(uuid,text,text,text,text,text,int,text);`
+>   (drops the now-unused old 8-arg RPC overload; the v2 jsonb RPC is live).
+> - `drop_member_portal` — `20260828010000_drop_member_portal.sql` (drops `member_invites`,
+>   `club_member_auth`, `qr_ttl_seconds`, the one-open index).
+>
+> **⚠️ Owed human-only browser walkthroughs still stand** for the two registration-form
+> features (server-action POSTs can't be curled) — exact steps are in the two now-merged
+> blocks immediately below.
+
+> ### ✅ MERGED & LIVE (was: SHIPPED TO BRANCH, PRE-MERGE) — Team registration forms (`feat/team-registration-forms`, 2026-08-30)
 > **Feature C** — full Google-Forms customization on the event registration builder,
 > branched from `main` (which already has the form builder). Adds **section
 > heading/description blocks**, a structured **team-members block** (admin sets
@@ -42,7 +83,7 @@ end-to-end**, not a checklist of components.
 >   "Allow Other" toggle; public `RegisterForm` renders sections, repeatable member
 >   cards, and the Other control (team + Other held in React state, merged at submit);
 >   `shortlistAction` fans out the `registration_shortlisted` email to all members.
-> - **NOT yet merged to `main` / not deployed.** Plan + spec:
+> - **MERGED to `main` + deployed** (`d6d3632`). Plan + spec:
 >   `docs/superpowers/{plans,specs}/2026-08-30-team-registration-forms*`.
 > - **⚠️ OWED — one human-only browser walkthrough** (server-action POSTs can't be
 >   curled): build an event form with a **Section** + a **Team block** (min/max +
@@ -54,7 +95,7 @@ end-to-end**, not a checklist of components.
 >   the leader) → **Mark team present** and confirm `attended`. Also check the CSV
 >   header carries the `Member N …` columns. Delete test rows after (shared DB).
 
-> ### 🟡 SHIPPED TO BRANCH, PRE-MERGE — Custom event registration form builder (`feat/event-registration-form-builder`, 2026-08-29)
+> ### ✅ MERGED & LIVE (was: SHIPPED TO BRANCH, PRE-MERGE) — Custom event registration form builder (`feat/event-registration-form-builder`, 2026-08-29)
 > **Feature A** of the events rework. A club now builds a from-scratch,
 > Google-Forms-style registration form when it creates/edits an event (identity
 > blocks + custom questions incl. a Drive/URL **link** field); **submit = confirmed**
@@ -62,7 +103,7 @@ end-to-end**, not a checklist of components.
 > mode; and a shortlisting step that emails only the selected. **All 12 plan tasks
 > done. Gate green: typecheck ✓ / lint ✓ / 134 tests ✓ / build ✓** (was 114 — added
 > the pure `schema`/`answers` suites). Dev-server read smoke green (see below).
-> **NOT yet merged to `main` / not deployed.** Plan + spec:
+> **MERGED to `main` + deployed.** Plan + spec:
 > `docs/superpowers/{plans,specs}/2026-08-29-event-registration-form-builder*`.
 > - **What's in it:** two pure modules `src/lib/registration-form/{schema,answers}.ts`
 >   are the server-side security boundary (validate the stored schema; validate + map
