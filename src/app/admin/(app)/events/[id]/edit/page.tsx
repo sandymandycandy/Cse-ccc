@@ -38,9 +38,17 @@ export default async function EditEventPage({
     <div className="admin-page" style={{ maxWidth: 640 }}>
       <div className="eyebrow">Events</div>
       <h1 style={{ margin: "6px 0 0" }}>Edit event</h1>
+      {event.approvalStatus === "rejected" ? (
+        <div className="note" style={{ marginTop: 12, borderLeftColor: "var(--rust)" }}>
+          <strong>Not approved.</strong>
+          {event.rejectionReason ? ` ${event.rejectionReason}` : ""} Make your changes and save — the
+          event is <strong>resubmitted for approval</strong>.
+        </div>
+      ) : null}
       <p className="lead" style={{ marginTop: 8 }}>
-        Changes save immediately and don&rsquo;t change the event&rsquo;s approval
-        status. Confirmed registrants are emailed whenever you change the details.
+        {event.approvalStatus === "rejected"
+          ? "Saving resends this event to the approval queue. Confirmed registrants are emailed whenever you change the details."
+          : "Changes save immediately and don’t change the event’s approval status. Confirmed registrants are emailed whenever you change the details."}
       </p>
       <EventForm
         action={updateEventAction}
