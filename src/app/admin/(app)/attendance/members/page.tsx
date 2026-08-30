@@ -76,10 +76,11 @@ export default async function MembersPage({
       ) : (
         <div className="tablewrap" style={{ marginTop: 18 }}>
           <table className="admin">
-            <thead><tr><th>Name</th><th>Roll</th><th>Active</th><th>Edit</th></tr></thead>
+            <thead><tr><th style={{ width: 44 }}>#</th><th>Name</th><th>Roll</th><th>Active</th><th>Edit</th></tr></thead>
             <tbody>
-              {members.map((m) => (
+              {members.map((m, i) => (
                 <tr key={m.id}>
+                  <td>{i + 1}</td>
                   <td style={{ fontWeight: 500 }}>{m.name}</td>
                   <td>{m.rollNo ?? "—"}</td>
                   <td>{m.isActive ? "Yes" : "No"}</td>

@@ -39,11 +39,14 @@ export function SessionRoster({
         </div>
       ) : null}
       <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: 4 }}>
-        {roster.map((r) => {
+        {roster.map((r, i) => {
           const on = present.has(r.memberId);
           return (
             <li key={r.memberId} className="rule" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 6 }}>
-              <span style={{ fontWeight: 500 }}>{r.name}</span>
+              <span style={{ fontWeight: 500 }}>
+                <span className="label" style={{ display: "inline-block", minWidth: 30, color: "var(--ink-3)" }}>{i + 1}</span>
+                {r.name}
+              </span>
               {on ? <input type="hidden" name="present" value={r.memberId} /> : null}
               {canEdit ? (
                 <button type="button" className="btn btn-sm"

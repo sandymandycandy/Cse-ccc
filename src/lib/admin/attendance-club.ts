@@ -129,6 +129,24 @@ export async function savePresence(sessionId: string, desiredIds: string[], mark
   }
 }
 
+/** Headcount for the analytics panel: total roster, how many are active, and how
+ *  many are still pending a head's onboarding (self-registered, approved_at IS NULL). */
+export async function membershipCounts(
+  clubId: string,
+): Promise<{ total: number; active: number; pending: number }> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("club_members")
+    .select("is_active, approved_at")
+    .eq("club_id", clubId);
+  const rows = data ?? [];
+  return {
+    total: rows.length,
+    active: rows.filter((r) => r.is_active).length,
+    pending: rows.filter((r) => r.approved_at == null).length,
+  };
+}
+
 export interface RosterPct {
   memberId: string; name: string; attended: number; eligible: number; pct: number;
 }

@@ -2,13 +2,18 @@ import Link from "next/link";
 import { requireViewPage } from "@/lib/auth/guards";
 import { canManage, canViewClub, grantFor } from "@/lib/auth/capabilities";
 import { listClubsBrief } from "@/lib/admin/clubs";
-import { rosterWithPercent, listSessions } from "@/lib/admin/attendance-club";
+import { rosterWithPercent, listSessions, membershipCounts } from "@/lib/admin/attendance-club";
+import { computeClubAnalytics, pctOfStrength } from "@/lib/admin/attendance-analytics";
+import { AttendanceAnalytics } from "@/components/admin/AttendanceAnalytics";
 import { CreateSessionForm } from "@/components/admin/CreateSessionForm";
 import { istNumericDate } from "@/lib/datetime";
 
-export default async function AttendanceDashboard({ searchParams }: { searchParams: Promise<{ club?: string }> }) {
+const WATCHLIST_THRESHOLDS = [50, 60, 75, 85];
+
+export default async function AttendanceDashboard({ searchParams }: { searchParams: Promise<{ club?: string; below?: string }> }) {
   const session = await requireViewPage("manage:members");
-  const { club } = await searchParams;
+  const { club, below } = await searchParams;
+  const belowThreshold = WATCHLIST_THRESHOLDS.includes(Number(below)) ? Number(below) : 75;
   const grant = grantFor(session.role, "manage:members");
   // Council-wide grants (all managers, faculty read-only) can view every club and
   // need a club picker; own-scoped heads are pinned to their own club.
@@ -21,9 +26,19 @@ export default async function AttendanceDashboard({ searchParams }: { searchPara
   }
   const canManageClub = canManage(session, "manage:members", clubId);
 
-  const [roster, sessions] = await Promise.all([
-    rosterWithPercent(clubId), listSessions(clubId),
+  const [roster, sessions, membership] = await Promise.all([
+    rosterWithPercent(clubId), listSessions(clubId), membershipCounts(clubId),
   ]);
+  const strength = roster.length;
+  const analytics = computeClubAnalytics({
+    membership,
+    roster,
+    sessions: sessions.map((s) => ({
+      id: s.id, title: s.title, status: s.status, presentCount: s.presentCount,
+      date: (s.sessionDate ?? s.openedAt).slice(0, 10),
+    })),
+    belowThreshold,
+  });
 
   return (
     <div className="admin-page">
@@ -49,13 +64,15 @@ export default async function AttendanceDashboard({ searchParams }: { searchPara
         )}
       </section>
 
+      <AttendanceAnalytics analytics={analytics} clubParam={councilWide ? clubId : null} />
+
       <h2 style={{ font: "400 18px var(--serif)", margin: "28px 0 8px" }}>Roster attendance</h2>
       {roster.length === 0 ? <p className="body-text" style={{ color: "var(--ink-3)" }}>No active members yet.</p> : (
         <div className="tablewrap">
           <table className="admin">
-            <thead><tr><th>Member</th><th>Attended</th><th>Eligible</th><th>%</th></tr></thead>
-            <tbody>{roster.map((r) => (
-              <tr key={r.memberId}><td style={{ fontWeight: 500 }}>{r.name}</td><td>{r.attended}</td><td>{r.eligible}</td><td>{r.pct}%</td></tr>
+            <thead><tr><th style={{ width: 44 }}>#</th><th>Member</th><th>Attended</th><th>Eligible</th><th>%</th></tr></thead>
+            <tbody>{roster.map((r, i) => (
+              <tr key={r.memberId}><td>{i + 1}</td><td style={{ fontWeight: 500 }}>{r.name}</td><td>{r.attended}</td><td>{r.eligible}</td><td>{r.pct}%</td></tr>
             ))}</tbody>
           </table>
         </div>
@@ -65,14 +82,16 @@ export default async function AttendanceDashboard({ searchParams }: { searchPara
       {sessions.length === 0 ? <p className="body-text" style={{ color: "var(--ink-3)" }}>No sessions yet.</p> : (
         <div className="tablewrap">
           <table className="admin">
-            <thead><tr><th>Session</th><th>Date</th><th>Slot</th><th>Status</th><th>Present</th></tr></thead>
+            <thead><tr><th>Session</th><th>Date</th><th>Slot</th><th>Status</th><th>Present</th><th>% strength</th><th></th></tr></thead>
             <tbody>{sessions.map((s) => (
               <tr key={s.id}>
-                <td><Link href={`/admin/attendance/sessions/${s.id}`} style={{ color: "var(--forest)" }}>{s.title}</Link></td>
+                <td style={{ fontWeight: 500 }}>{s.title}</td>
                 <td>{istNumericDate(s.sessionDate ?? s.openedAt)}</td>
                 <td>{s.startTime && s.endTime ? `${s.startTime.slice(0, 5)}–${s.endTime.slice(0, 5)}` : "—"}</td>
                 <td><span className={`abadge${s.status === "closed" ? "" : " abadge-approved"}`}>{s.status === "closed" ? "Closed" : "Open"}</span></td>
                 <td>{s.presentCount}</td>
+                <td>{pctOfStrength(s.presentCount, strength)}%</td>
+                <td><Link href={`/admin/attendance/sessions/${s.id}`} className="btn btn-sm">Open</Link></td>
               </tr>
             ))}</tbody>
           </table>
