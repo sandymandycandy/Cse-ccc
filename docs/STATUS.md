@@ -20,11 +20,25 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-08-30)
 
-> ### ✅ ALL MERGED & LIVE — `main == origin/main @ 0790dfd` (clean, 0 ahead / 0 behind)
+> ### ✅ ALL MERGED & LIVE — `main == origin/main @ 5e6798c` (clean, 0 ahead / 0 behind)
 > The two "pre-merge" feature blocks below **have since been merged to `main`, pushed,
-> and auto-deployed to prod**, and four more changes landed on top. Nothing is in flight
+> and auto-deployed to prod**, and several more changes landed on top. Nothing is in flight
 > in the working tree. **Gate green this session (2026-08-30): typecheck ✓ / lint ✓ /
-> 162 tests ✓ / build ✓.** Shipped since the last STATUS snapshot, newest first:
+> 174 tests ✓ / build ✓.** Shipped since the last STATUS snapshot, newest first:
+> - **`5e6798c` Attendance analytics + session Open button + member serial numbers** — the
+>   club attendance dashboard (`/admin/attendance`) gains an **analytics panel**: membership
+>   strength (total/active/pending-onboarding), club-wide attendance rate + avg present per
+>   session, per-session most/least attended with % of strength, and a **low-attendance
+>   watchlist** (50/60/75/85 threshold via `?below=`). *Session history* rows get an explicit
+>   **Open** button (title no longer the click target) + a **% strength** column; **serial
+>   numbers (#)** run down every member list (dashboard roster, session marking roster,
+>   members-management table). Built on a new **pure, unit-tested** module
+>   `src/lib/admin/attendance-analytics.ts` (`computeClubAnalytics`, +12 tests) fed by data
+>   the dashboard already loads — only one new query (`membershipCounts` headcount). Club-
+>   scoped like the rest of the dashboard. Read-path smoke-tested live (coding club: 173
+>   members, panel numbers correct, session detail + S.No render, `?below=` selector works).
+>   **⚠️ OWED — one human browser click-through:** open a session via the new button, mark
+>   present, confirm the watchlist shrinks + the % columns move. **No DB migration.**
 > - **`c7d18a8` Event approval review page + reject→resubmit loop** — an event head opens
 >   a **read-only Review page** per pending event (full details + the whole registration
 >   form incl. team/section/Other blocks) and **Approves or Rejects-with-reason** there
