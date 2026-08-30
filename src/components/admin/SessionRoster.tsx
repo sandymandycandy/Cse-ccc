@@ -1,11 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { saveAttendanceAction } from "@/app/admin/(app)/attendance/actions";
+import {
+  saveAttendanceAction,
+  saveAndCloseAction,
+  reopenSessionAction,
+} from "@/app/admin/(app)/attendance/actions";
 
 interface Row { memberId: string; name: string; present: boolean }
 
-export function SessionRoster({ sessionId, roster, canEdit }: { sessionId: string; roster: Row[]; canEdit: boolean }) {
+export function SessionRoster({
+  sessionId, roster, canEdit, status,
+}: {
+  sessionId: string; roster: Row[]; canEdit: boolean; status: "open" | "closed";
+}) {
+  const closed = status === "closed";
   const [present, setPresent] = useState<Set<string>>(() => new Set(roster.filter((r) => r.present).map((r) => r.memberId)));
   const toggle = (id: string) => setPresent((prev) => {
     const next = new Set(prev);
@@ -19,8 +28,9 @@ export function SessionRoster({ sessionId, roster, canEdit }: { sessionId: strin
   return (
     <form action={saveAttendanceAction}>
       <input type="hidden" name="sessionId" value={sessionId} />
-      <div className="att-count" style={{ marginBottom: 12 }}>
-        <strong>{present.size}</strong><span>of {roster.length} present</span>
+      <div className="att-count" style={{ marginBottom: 12, display: "flex", gap: 10, alignItems: "center" }}>
+        <span><strong>{present.size}</strong> of {roster.length} present</span>
+        <span className={`abadge${closed ? "" : " abadge-approved"}`}>{closed ? "Closed" : "Open"}</span>
       </div>
       {canEdit ? (
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
@@ -47,7 +57,21 @@ export function SessionRoster({ sessionId, roster, canEdit }: { sessionId: strin
           );
         })}
       </ul>
-      {canEdit ? <button className="btn btn-primary" style={{ marginTop: 16 }}>Save attendance</button> : null}
+      {canEdit ? (
+        <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap", alignItems: "center" }}>
+          <button className="btn btn-primary">Save attendance (draft)</button>
+          {closed ? (
+            <button className="btn" formAction={reopenSessionAction}>Reopen session</button>
+          ) : (
+            <button className="btn" formAction={saveAndCloseAction}>Save &amp; close session</button>
+          )}
+          <span className="hint">
+            {closed
+              ? "Reopen to keep editing. Draft saves keep the session open."
+              : "“Save (draft)” keeps the session open so you can keep marking. Closing finalises it."}
+          </span>
+        </div>
+      ) : null}
     </form>
   );
 }

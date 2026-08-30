@@ -8,7 +8,7 @@ import { canManage } from "@/lib/auth/capabilities";
 import { resolveOwningClub } from "@/lib/admin/club-scope";
 import { writeAudit } from "@/lib/admin/audit";
 import { getMemberForEdit } from "@/lib/admin/members";
-import { createSession, savePresence, getSessionMarking } from "@/lib/admin/attendance-club";
+import { createSession, savePresence, getSessionMarking, setSessionStatus } from "@/lib/admin/attendance-club";
 import type { MemberFormState, SessionFormState } from "@/lib/admin/form-state";
 
 const MemberSchema = z.object({
@@ -217,6 +217,46 @@ export async function saveAttendanceAction(formData: FormData): Promise<void> {
     entityId: sessionId, after: { present: present.length },
   });
   redirect(`/admin/attendance/sessions/${sessionId}?saved=1`);
+}
+
+/** Save the current marks AND close the session (explicit finalise). Own-club scoped. */
+export async function saveAndCloseAction(formData: FormData): Promise<void> {
+  const session = await getAdminSession();
+  if (!session) redirect("/admin/login");
+  const sessionId = String(formData.get("sessionId") ?? "");
+  if (!z.string().uuid().safeParse(sessionId).success) redirect("/admin/attendance");
+
+  const detail = await getSessionMarking(sessionId);
+  if (!detail) redirect("/admin/attendance");
+  if (!canManage(session, "manage:members", detail.session.clubId)) redirect("/admin/attendance");
+
+  const present = formData.getAll("present").map(String).filter((v) => z.string().uuid().safeParse(v).success);
+  await savePresence(sessionId, present, session.id);
+  await setSessionStatus(sessionId, "closed");
+  await writeAudit({
+    actorId: session.id, action: "close", entity: "club_attendance_session",
+    entityId: sessionId, after: { present: present.length, closed: true },
+  });
+  redirect(`/admin/attendance/sessions/${sessionId}?closed=1`);
+}
+
+/** Reopen a closed session so marks can be edited again. Own-club scoped. */
+export async function reopenSessionAction(formData: FormData): Promise<void> {
+  const session = await getAdminSession();
+  if (!session) redirect("/admin/login");
+  const sessionId = String(formData.get("sessionId") ?? "");
+  if (!z.string().uuid().safeParse(sessionId).success) redirect("/admin/attendance");
+
+  const detail = await getSessionMarking(sessionId);
+  if (!detail) redirect("/admin/attendance");
+  if (!canManage(session, "manage:members", detail.session.clubId)) redirect("/admin/attendance");
+
+  await setSessionStatus(sessionId, "open");
+  await writeAudit({
+    actorId: session.id, action: "reopen", entity: "club_attendance_session",
+    entityId: sessionId, after: { reopened: true },
+  });
+  redirect(`/admin/attendance/sessions/${sessionId}?reopened=1`);
 }
 
 // ── Self-registration approval + join-link (spec §5) — own-club-scoped ──────────
