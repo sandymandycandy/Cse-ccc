@@ -18,7 +18,41 @@ end-to-end**, not a checklist of components.
 
 ---
 
-## 🚦 START HERE — current git/deploy state (2026-08-29)
+## 🚦 START HERE — current git/deploy state (2026-08-30)
+
+> ### 🟡 SHIPPED TO BRANCH, PRE-MERGE — Team registration forms (`feat/team-registration-forms`, 2026-08-30)
+> **Feature C** — full Google-Forms customization on the event registration builder,
+> branched from `main` (which already has the form builder). Adds **section
+> heading/description blocks**, a structured **team-members block** (admin sets
+> min/max, cap 10, per-member name/VTU-ID/email/phone; student gets repeatable
+> "+ Add member" cards), and an **"Other" write-in** on dropdown/radio/checkbox
+> questions. **Shortlisting emails every team member** (leader + each member email,
+> deduped/capped); **attendance is team-level** (reuses `registrations.attended`,
+> button relabelled "Mark team present", member count shown by the name). **Solo =
+> the default** (no team block). **No DB migration, no RPC change** — all inside the
+> existing `events.registration_form` / `registrations.custom_answers` jsonb.
+> **Gate green: typecheck ✓ / lint ✓ / 162 tests ✓ / build ✓** (was 134 — added
+> `columns`/`recipients` suites + team/Other cases in `schema`/`answers`).
+> - **What's in it:** `registration-form/schema.ts` + `answers.ts` extended (the
+>   anon-submit security boundary — bounds member/subfield counts + string lengths);
+>   two new pure modules `registration-form/{columns,recipients}.ts` — `answerColumns`
+>   flattens a team into `Member N …` columns shared by the admin table **and** CSV so
+>   they can't diverge, `shortlistRecipients` collects leader+member emails; builder
+>   UI (`RegistrationFormBuilder`) gains Section/Team palette + a `TeamEditor` + an
+>   "Allow Other" toggle; public `RegisterForm` renders sections, repeatable member
+>   cards, and the Other control (team + Other held in React state, merged at submit);
+>   `shortlistAction` fans out the `registration_shortlisted` email to all members.
+> - **NOT yet merged to `main` / not deployed.** Plan + spec:
+>   `docs/superpowers/{plans,specs}/2026-08-30-team-registration-forms*`.
+> - **⚠️ OWED — one human-only browser walkthrough** (server-action POSTs can't be
+>   curled): build an event form with a **Section** + a **Team block** (min/max +
+>   member fields) + a dropdown with **Allow Other** → submit as a student on
+>   `/events/<id>` (add/remove members, pick "Other" and type a value) → confirm the
+>   row's `custom_answers` holds the member array + Other text → on a **shortlist**
+>   event, **Shortlist selected & email** and confirm one queued
+>   `registration_shortlisted` row in `email_log` **per distinct member email** (plus
+>   the leader) → **Mark team present** and confirm `attended`. Also check the CSV
+>   header carries the `Member N …` columns. Delete test rows after (shared DB).
 
 > ### 🟡 SHIPPED TO BRANCH, PRE-MERGE — Custom event registration form builder (`feat/event-registration-form-builder`, 2026-08-29)
 > **Feature A** of the events rework. A club now builds a from-scratch,
