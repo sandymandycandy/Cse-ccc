@@ -83,3 +83,61 @@ describe("validateAnswers", () => {
     }
   });
 });
+
+describe("team & other answers", () => {
+  const team = f({
+    id: "team", kind: "team", required: true, label: "Team",
+    minMembers: 1, maxMembers: 3,
+    members: [
+      { key: "name", label: "Name", kind: "short_text", required: true },
+      { key: "email", label: "Email", kind: "email", required: true },
+    ],
+  });
+
+  it("accepts a valid team and stores an array of member objects", () => {
+    const r = validateAnswers([team], { team: [{ name: "Asha", email: "A@x.io" }] });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.customAnswers.team).toEqual([{ name: "Asha", email: "a@x.io" }]);
+  });
+  it("drops a fully-empty member row", () => {
+    const r = validateAnswers([team], { team: [{ name: "Asha", email: "a@x.io" }, { name: "", email: "" }] });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect((r.data.customAnswers.team as unknown[]).length).toBe(1);
+  });
+  it("rejects when a required team has no members", () => {
+    expect(validateAnswers([team], { team: [] }).ok).toBe(false);
+  });
+  it("rejects more members than max", () => {
+    const four = Array.from({ length: 4 }, (_, i) => ({ name: `N${i}`, email: `n${i}@x.io` }));
+    expect(validateAnswers([team], { team: four }).ok).toBe(false);
+  });
+  it("rejects a member with a bad email", () => {
+    expect(validateAnswers([team], { team: [{ name: "Asha", email: "nope" }] }).ok).toBe(false);
+  });
+  it("rejects a member missing a required subfield", () => {
+    expect(validateAnswers([team], { team: [{ name: "Asha" }] }).ok).toBe(false);
+  });
+
+  it("accepts an 'Other' write-in on a radio with allowOther", () => {
+    const schema = [f({ id: "src", kind: "radio", required: true, options: ["A", "B"], allowOther: true })];
+    const r = validateAnswers(schema, { src: "Somewhere else" });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.customAnswers.src).toBe("Somewhere else");
+  });
+  it("still rejects an unknown radio value when allowOther is false", () => {
+    const schema = [f({ id: "src", kind: "radio", required: true, options: ["A", "B"] })];
+    expect(validateAnswers(schema, { src: "X" }).ok).toBe(false);
+  });
+  it("accepts one Other value among checkboxes", () => {
+    const schema = [f({ id: "days", kind: "checkboxes", required: true, options: ["Mon", "Tue"], allowOther: true })];
+    const r = validateAnswers(schema, { days: ["Mon", "Custom day"] });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.customAnswers.days).toEqual(["Mon", "Custom day"]);
+  });
+  it("skips section blocks entirely", () => {
+    const schema = [f({ id: "s", kind: "section", required: true, label: "Heading" })];
+    const r = validateAnswers(schema, {});
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.customAnswers).not.toHaveProperty("s");
+  });
+});
