@@ -2,6 +2,7 @@ import { requireSession } from "@/lib/auth/guards";
 import { canManage } from "@/lib/auth/capabilities";
 import { getEventForAttendance } from "@/lib/admin/attendance";
 import { listRegistrations, getEventFormSchema } from "@/lib/admin/registrations";
+import { answerColumns } from "@/lib/registration-form/columns";
 import { toCsv } from "@/lib/csv";
 import { writeAudit } from "@/lib/admin/audit";
 
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
     listRegistrations(eventId),
     getEventFormSchema(eventId),
   ]);
-  const customFields = schema.filter((f) => !f.identity);
+  const columns = answerColumns(schema);
   const headers = [
     "Name",
     "Roll No",
@@ -32,7 +33,7 @@ export async function GET(request: Request) {
     "Attended",
     "Method",
     "Shortlisted",
-    ...customFields.map((f) => f.label),
+    ...columns.map((c) => c.label),
   ];
   const rows = regs.map((r) => [
     r.name,
@@ -45,10 +46,7 @@ export async function GET(request: Request) {
     r.attended ? "yes" : "no",
     r.method ?? "",
     r.shortlistedAt ? "yes" : "no",
-    ...customFields.map((f) => {
-      const v = r.customAnswers?.[f.id];
-      return Array.isArray(v) ? v.join("; ") : v != null ? String(v) : "";
-    }),
+    ...columns.map((c) => c.get(r.customAnswers)),
   ]);
   const csv = toCsv(headers, rows);
 

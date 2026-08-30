@@ -4,6 +4,7 @@ import { requireViewPage } from "@/lib/auth/guards";
 import { canManage, grantFor } from "@/lib/auth/capabilities";
 import { getEventForAttendance } from "@/lib/admin/attendance";
 import { listRegistrations, getEventFormSchema } from "@/lib/admin/registrations";
+import { answerColumns } from "@/lib/registration-form/columns";
 import { isSafeHttpUrl } from "@/lib/url";
 import { toggleAttendanceAction, shortlistAction, unshortlistAction } from "./actions";
 
@@ -28,7 +29,8 @@ export default async function RegistrationsPage({
     listRegistrations(id),
     getEventFormSchema(id),
   ]);
-  const customFields = schema.filter((f) => !f.identity);
+  const columns = answerColumns(schema);
+  const hasTeam = schema.some((f) => f.kind === "team");
   const isShortlist = selectionMode === "shortlist";
   const confirmed = regs.filter((r) => r.confirmed).length;
   const attended = regs.filter((r) => r.attended).length;
@@ -85,8 +87,8 @@ export default async function RegistrationsPage({
                   <th>Name</th>
                   <th>Roll</th>
                   <th>Dept · Yr</th>
-                  {customFields.map((f) => (
-                    <th key={f.id}>{f.label}</th>
+                  {columns.map((c) => (
+                    <th key={c.key}>{c.label}</th>
                   ))}
                   {isShortlist ? <th>Shortlisted</th> : null}
                   <th>Confirmed</th>
@@ -108,17 +110,24 @@ export default async function RegistrationsPage({
                         />
                       </td>
                     ) : null}
-                    <td style={{ fontWeight: 500 }}>{r.name}</td>
+                    <td style={{ fontWeight: 500 }}>
+                      {r.name}
+                      {hasTeam ? (
+                        <span className="label" style={{ marginLeft: 6, fontWeight: 400 }}>
+                          · 👥 {teamSize(r.customAnswers, schema)}
+                        </span>
+                      ) : null}
+                    </td>
                     <td>{r.roll}</td>
                     <td>
                       {r.department ?? "—"}
                       {r.year ? ` · ${r.year}` : ""}
                     </td>
-                    {customFields.map((f) => {
-                      const v = r.customAnswers?.[f.id];
-                      if (f.kind === "link" && typeof v === "string" && isSafeHttpUrl(v)) {
+                    {columns.map((c) => {
+                      const v = c.get(r.customAnswers);
+                      if (c.kind === "link" && isSafeHttpUrl(v)) {
                         return (
-                          <td key={f.id}>
+                          <td key={c.key}>
                             <a
                               href={v}
                               target="_blank"
@@ -130,11 +139,7 @@ export default async function RegistrationsPage({
                           </td>
                         );
                       }
-                      return (
-                        <td key={f.id}>
-                          {Array.isArray(v) ? v.join(", ") : v != null ? String(v) : "—"}
-                        </td>
-                      );
+                      return <td key={c.key}>{v || "—"}</td>;
                     })}
                   {isShortlist ? (
                     <td>
@@ -178,7 +183,7 @@ export default async function RegistrationsPage({
                             type="submit"
                             className={`btn btn-sm ${r.attended ? "btn-ghost" : "btn-accent"}`}
                           >
-                            {r.attended ? "Undo" : "Mark present"}
+                            {r.attended ? "Undo" : hasTeam ? "Mark team present" : "Mark present"}
                           </button>
                         </form>
                       </td>
@@ -192,4 +197,14 @@ export default async function RegistrationsPage({
       )}
     </div>
   );
+}
+
+/** Number of members captured in the first team block of this registration. */
+function teamSize(
+  custom: Record<string, unknown> | null,
+  schema: { id: string; kind: string }[],
+): number {
+  const team = schema.find((f) => f.kind === "team");
+  const list = team ? custom?.[team.id] : undefined;
+  return Array.isArray(list) ? list.length : 0;
 }
