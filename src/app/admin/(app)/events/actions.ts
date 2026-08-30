@@ -223,7 +223,7 @@ export async function updateEventAction(
     .from("events")
     .select(
       "id, title, description, starts_at, ends_at, venue_text, poster_path, capacity, status, " +
-        "event_clubs ( club_id, is_primary )",
+        "approval_status, event_clubs ( club_id, is_primary )",
     )
     .eq("id", eventId)
     .maybeSingle();
@@ -238,6 +238,7 @@ export async function updateEventAction(
     poster_path: string | null;
     capacity: number | null;
     status: string;
+    approval_status: string;
     event_clubs: { club_id: string; is_primary: boolean }[];
   };
   const currentClubId =
@@ -335,6 +336,31 @@ export async function updateEventAction(
       .eq("event_id", eventId)
       .eq("is_primary", true);
     if (linkErr) return { error: "Saved, but couldn't update the hosting club. Try again." };
+  }
+
+  // Resubmit: editing a REJECTED event sends it back to the approval queue with a
+  // clean slate, and re-notifies the approvers. (Approved/pending events keep
+  // their status — editing them never re-triggers approval.)
+  if (existing.approval_status === "rejected") {
+    await admin
+      .from("events")
+      .update({ approval_status: "pending", rejection_reason: null, approved_by: null })
+      .eq("id", eventId);
+    const { data: heads } = await admin
+      .from("admin_users")
+      .select("email, full_name")
+      .eq("role", "events_head")
+      .eq("is_active", true);
+    for (const h of heads ?? []) {
+      await enqueueEmail({
+        template: "event_submitted",
+        toEmail: h.email,
+        toName: h.full_name,
+        subject: `Event resubmitted: ${title}`,
+        payload: { eventId, title },
+        priority: 2,
+      });
+    }
   }
 
   // Notify confirmed registrants when ANYTHING material changed on a published
@@ -547,7 +573,7 @@ async function decide(
     .eq("approval_status", "pending")
     .select("id, title, created_by")
     .maybeSingle();
-  if (!ev) return;
+  if (!ev) redirect("/admin/events/approvals");
 
   if (ev.created_by) {
     const { data: submitter } = await admin
@@ -579,6 +605,7 @@ async function decide(
 
   revalidatePath("/admin/events/approvals");
   revalidatePath("/admin/events");
+  redirect("/admin/events/approvals");
 }
 
 export async function approveEventAction(formData: FormData): Promise<void> {

@@ -128,6 +128,8 @@ export interface EventForEdit {
   capacity: number | null;
   clubId: string | null;
   status: string;
+  approvalStatus: "pending" | "approved" | "rejected";
+  rejectionReason: string | null;
   selectionMode: "seats" | "shortlist";
   registrationForm: unknown;
 }
@@ -146,7 +148,7 @@ export async function getEventForEdit(
     .from("events")
     .select(
       "id, title, description, starts_at, ends_at, venue_text, poster_path, capacity, status, " +
-        "selection_mode, registration_form, event_clubs ( club_id, is_primary )",
+        "approval_status, rejection_reason, selection_mode, registration_form, event_clubs ( club_id, is_primary )",
     )
     .eq("id", eventId)
     .maybeSingle();
@@ -163,6 +165,8 @@ export async function getEventForEdit(
     poster_path: string | null;
     capacity: number | null;
     status: string;
+    approval_status: "pending" | "approved" | "rejected";
+    rejection_reason: string | null;
     selection_mode: "seats" | "shortlist" | null;
     registration_form: unknown;
     event_clubs: { club_id: string; is_primary: boolean }[];
@@ -187,8 +191,93 @@ export async function getEventForEdit(
     capacity: row.capacity,
     clubId,
     status: row.status,
+    approvalStatus: row.approval_status,
+    rejectionReason: row.rejection_reason,
     selectionMode: row.selection_mode ?? "seats",
     registrationForm: row.registration_form ?? null,
+  };
+}
+
+export interface EventForReview {
+  id: string;
+  title: string;
+  description: string | null;
+  startsAt: string;
+  endsAt: string;
+  venueText: string | null;
+  posterUrl: string | null;
+  capacity: number | null;
+  club: string | null;
+  selectionMode: "seats" | "shortlist";
+  registrationForm: unknown;
+  approvalStatus: "pending" | "approved" | "rejected";
+  rejectionReason: string | null;
+  submittedBy: string | null;
+}
+
+/**
+ * A full read-only view of one event for the approver's review page. No club
+ * scope: approvers hold an "all" grant (the page still guards `approve:events`).
+ */
+export async function getEventForReview(eventId: string): Promise<EventForReview | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("events")
+    .select(
+      "id, title, description, starts_at, ends_at, venue_text, poster_path, capacity, " +
+        "approval_status, rejection_reason, selection_mode, registration_form, created_by, " +
+        "event_clubs ( is_primary, clubs ( name ) )",
+    )
+    .eq("id", eventId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+
+  const row = data as unknown as {
+    id: string;
+    title: string;
+    description: string | null;
+    starts_at: string;
+    ends_at: string;
+    venue_text: string | null;
+    poster_path: string | null;
+    capacity: number | null;
+    approval_status: "pending" | "approved" | "rejected";
+    rejection_reason: string | null;
+    selection_mode: "seats" | "shortlist" | null;
+    registration_form: unknown;
+    created_by: string | null;
+    event_clubs: { is_primary: boolean; clubs: { name: string } | null }[];
+  };
+  const primary = row.event_clubs.find((l) => l.is_primary) ?? row.event_clubs[0];
+
+  let submittedBy: string | null = null;
+  if (row.created_by) {
+    const { data: u } = await admin
+      .from("admin_users")
+      .select("full_name")
+      .eq("id", row.created_by)
+      .maybeSingle();
+    submittedBy = u?.full_name ?? null;
+  }
+
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    venueText: row.venue_text,
+    posterUrl: row.poster_path
+      ? admin.storage.from("event-posters").getPublicUrl(row.poster_path).data.publicUrl
+      : null,
+    capacity: row.capacity,
+    club: primary?.clubs?.name ?? null,
+    selectionMode: row.selection_mode ?? "seats",
+    registrationForm: row.registration_form ?? null,
+    approvalStatus: row.approval_status,
+    rejectionReason: row.rejection_reason,
+    submittedBy,
   };
 }
 
