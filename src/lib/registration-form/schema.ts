@@ -2,8 +2,16 @@ import { DEPARTMENTS } from "@/lib/departments";
 
 export type FieldKind =
   | "short_text" | "paragraph" | "dropdown" | "radio"
-  | "checkboxes" | "date" | "number" | "link";
+  | "checkboxes" | "date" | "number" | "link"
+  | "section" | "team";
 export type Identity = "name" | "roll" | "email" | "phone" | "department" | "year";
+
+export interface MemberSubfield {
+  key: string;
+  label: string;
+  kind: "short_text" | "email" | "roll" | "phone";
+  required: boolean;
+}
 
 export interface FormField {
   id: string;
@@ -13,12 +21,22 @@ export interface FormField {
   help?: string;
   required: boolean;
   options?: string[];
+  description?: string; // section only
+  allowOther?: boolean; // choice kinds only
+  members?: MemberSubfield[]; // team only
+  minMembers?: number; // team only
+  maxMembers?: number; // team only
 }
 
 const KINDS: ReadonlySet<string> = new Set<FieldKind>([
-  "short_text", "paragraph", "dropdown", "radio", "checkboxes", "date", "number", "link",
+  "short_text", "paragraph", "dropdown", "radio", "checkboxes",
+  "date", "number", "link", "section", "team",
 ]);
 export const CHOICE_KINDS: ReadonlySet<FieldKind> = new Set(["dropdown", "radio", "checkboxes"]);
+export const LAYOUT_KINDS: ReadonlySet<FieldKind> = new Set<FieldKind>(["section"]);
+export const MAX_MEMBERS = 10;
+export const MAX_SUBFIELDS = 8;
+const MEMBER_KINDS: ReadonlySet<string> = new Set(["short_text", "email", "roll", "phone"]);
 const IDENTITIES: ReadonlySet<string> = new Set<Identity>([
   "name", "roll", "email", "phone", "department", "year",
 ]);
@@ -42,6 +60,37 @@ export function defaultFormFor(): FormField[] {
 }
 
 const MAX_FIELDS = 40;
+
+function validateMembers(
+  f: Record<string, unknown>,
+  id: string,
+  errors: string[],
+): { members: MemberSubfield[]; minMembers: number; maxMembers: number } {
+  const rawMembers = Array.isArray(f.members) ? f.members : [];
+  if (rawMembers.length === 0) errors.push(`Team "${id}" needs at least one member field.`);
+  if (rawMembers.length > MAX_SUBFIELDS)
+    errors.push(`Team "${id}" has too many member fields (max ${MAX_SUBFIELDS}).`);
+  const keys = new Set<string>();
+  const members: MemberSubfield[] = [];
+  for (const rm of rawMembers) {
+    const m = (rm ?? {}) as Record<string, unknown>;
+    const key = String(m.key ?? "").trim();
+    const label = String(m.label ?? "").trim();
+    const kind = String(m.kind ?? "");
+    if (!key) errors.push(`A member field in "${id}" is missing a key.`);
+    else if (keys.has(key)) errors.push(`Duplicate member field key "${key}" in "${id}".`);
+    else keys.add(key);
+    if (!MEMBER_KINDS.has(kind)) errors.push(`Member field "${key}" has an unknown type.`);
+    if (!label || label.length > 80) errors.push(`Member field "${key}" needs a label ≤ 80 chars.`);
+    members.push({ key, label, kind: kind as MemberSubfield["kind"], required: Boolean(m.required) });
+  }
+  const minMembers = Number.isInteger(f.minMembers) ? (f.minMembers as number) : 1;
+  const maxMembers = Number.isInteger(f.maxMembers) ? (f.maxMembers as number) : 4;
+  if (minMembers < 1) errors.push(`Team "${id}" min members must be ≥ 1.`);
+  if (maxMembers < minMembers) errors.push(`Team "${id}" max members must be ≥ min.`);
+  if (maxMembers > MAX_MEMBERS) errors.push(`Team "${id}" max members must be ≤ ${MAX_MEMBERS}.`);
+  return { members, minMembers, maxMembers };
+}
 
 export function validateFormSchema(
   input: unknown,
@@ -77,6 +126,13 @@ export function validateFormSchema(
     }
 
     const isChoice = CHOICE_KINDS.has(kind as FieldKind);
+    const isSection = kind === "section";
+    const isTeam = kind === "team";
+
+    if ((isSection || isTeam) && identity !== null) {
+      errors.push(`"${id}" (${kind}) cannot be an identity block.`);
+    }
+
     const options = Array.isArray(f.options)
       ? f.options.map((o) => String(o).trim()).filter(Boolean)
       : undefined;
@@ -87,11 +143,21 @@ export function validateFormSchema(
       errors.push(`"${id}" (${kind}) must not have options.`);
     }
 
+    if (f.allowOther && !isChoice) errors.push(`"${id}" (${kind}) cannot use an "Other" option.`);
+
+    let members: MemberSubfield[] | undefined;
+    let minMembers: number | undefined;
+    let maxMembers: number | undefined;
+    if (isTeam) ({ members, minMembers, maxMembers } = validateMembers(f, id, errors));
+
     fields.push({
       id, kind: kind as FieldKind, identity: identity as Identity | null, label,
       help: f.help ? String(f.help).slice(0, 300) : undefined,
-      required: Boolean(f.required),
+      required: isSection ? false : Boolean(f.required),
       options: isChoice ? options : undefined,
+      description: isSection && f.description ? String(f.description).slice(0, 500) : undefined,
+      allowOther: isChoice ? Boolean(f.allowOther) : undefined,
+      members, minMembers, maxMembers,
     });
   }
 

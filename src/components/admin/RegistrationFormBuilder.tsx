@@ -4,9 +4,11 @@ import { useMemo, useState } from "react";
 import {
   CHOICE_KINDS,
   defaultFormFor,
+  MAX_MEMBERS,
   type FieldKind,
   type FormField,
   type Identity,
+  type MemberSubfield,
 } from "@/lib/registration-form/schema";
 import { DEPARTMENTS } from "@/lib/departments";
 
@@ -91,6 +93,25 @@ export function RegistrationFormBuilder({ initialJson }: { initialJson: string }
       },
     ]);
   }
+  function addSection() {
+    setFields((f) => [
+      ...f,
+      { id: newId(), kind: "section", identity: null, label: "Section title", required: false, description: "" },
+    ]);
+  }
+  function addTeam() {
+    setFields((f) => [
+      ...f,
+      {
+        id: newId(), kind: "team", identity: null, label: "Team members", required: false,
+        minMembers: 1, maxMembers: 4,
+        members: [
+          { key: "name", label: "Name", kind: "short_text", required: true },
+          { key: "email", label: "Email", kind: "email", required: true },
+        ],
+      },
+    ]);
+  }
 
   return (
     <div className="field">
@@ -126,14 +147,16 @@ export function RegistrationFormBuilder({ initialJson }: { initialJson: string }
               <span className="label">
                 {field.identity ? `${field.identity} · ${field.kind}` : field.kind}
               </span>
-              <label style={{ display: "flex", gap: 6, alignItems: "center", fontWeight: 400 }}>
-                <input
-                  type="checkbox"
-                  checked={field.required}
-                  onChange={(e) => update(i, { required: e.target.checked })}
-                />{" "}
-                Required
-              </label>
+              {field.kind !== "section" ? (
+                <label style={{ display: "flex", gap: 6, alignItems: "center", fontWeight: 400 }}>
+                  <input
+                    type="checkbox"
+                    checked={field.required}
+                    onChange={(e) => update(i, { required: e.target.checked })}
+                  />{" "}
+                  Required
+                </label>
+              ) : null}
             </div>
             {!field.identity && CHOICE_KINDS.has(field.kind) ? (
               <textarea
@@ -152,7 +175,30 @@ export function RegistrationFormBuilder({ initialJson }: { initialJson: string }
                 placeholder="One option per line"
               />
             ) : null}
-            {!field.identity ? (
+            {field.kind === "section" ? (
+              <textarea
+                style={{ marginTop: 8 }}
+                rows={2}
+                aria-label="Section description"
+                value={field.description ?? ""}
+                onChange={(e) => update(i, { description: e.target.value })}
+                placeholder="Description (optional)"
+              />
+            ) : null}
+            {!field.identity && CHOICE_KINDS.has(field.kind) ? (
+              <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8, fontWeight: 400 }}>
+                <input
+                  type="checkbox"
+                  checked={!!field.allowOther}
+                  onChange={(e) => update(i, { allowOther: e.target.checked })}
+                />{" "}
+                Allow an &ldquo;Other&rdquo; write-in
+              </label>
+            ) : null}
+            {field.kind === "team" ? (
+              <TeamEditor field={field} onChange={(patch) => update(i, patch)} />
+            ) : null}
+            {!field.identity && field.kind !== "section" ? (
               <input
                 style={{ marginTop: 8 }}
                 aria-label="Help text"
@@ -195,7 +241,106 @@ export function RegistrationFormBuilder({ initialJson }: { initialJson: string }
             </button>
           ))}
         </div>
+        <div className="label" style={{ marginTop: 10 }}>
+          Add layout
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+          <button type="button" className="btn btn-sm btn-ghost" onClick={() => addSection()}>
+            + Section heading
+          </button>
+          <button type="button" className="btn btn-sm btn-ghost" onClick={() => addTeam()}>
+            + Team members
+          </button>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function TeamEditor({
+  field,
+  onChange,
+}: {
+  field: FormField;
+  onChange: (patch: Partial<FormField>) => void;
+}) {
+  const members = field.members ?? [];
+  const setMember = (idx: number, patch: Partial<MemberSubfield>) =>
+    onChange({ members: members.map((m, k) => (k === idx ? { ...m, ...patch } : m)) });
+  const addMember = () =>
+    onChange({
+      members: [
+        ...members,
+        { key: `m${Date.now().toString(36)}`, label: "Field", kind: "short_text", required: false },
+      ],
+    });
+  const removeMember = (idx: number) => onChange({ members: members.filter((_, k) => k !== idx) });
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <label style={{ fontWeight: 400 }}>
+          Min
+          <input
+            type="number"
+            min={1}
+            max={field.maxMembers ?? MAX_MEMBERS}
+            value={field.minMembers ?? 1}
+            onChange={(e) => onChange({ minMembers: Math.max(1, Number(e.target.value) || 1) })}
+            style={{ width: 64, marginLeft: 6 }}
+          />
+        </label>
+        <label style={{ fontWeight: 400 }}>
+          Max
+          <input
+            type="number"
+            min={field.minMembers ?? 1}
+            max={MAX_MEMBERS}
+            value={field.maxMembers ?? 4}
+            onChange={(e) => onChange({ maxMembers: Math.min(MAX_MEMBERS, Number(e.target.value) || 1) })}
+            style={{ width: 64, marginLeft: 6 }}
+          />
+        </label>
+      </div>
+      <div className="label" style={{ marginTop: 8 }}>
+        Per-member fields
+      </div>
+      <div className="stack" style={{ gap: 6, marginTop: 4 }}>
+        {members.map((m, idx) => (
+          <div key={idx} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input
+              aria-label="Member field label"
+              value={m.label}
+              style={{ flex: 1 }}
+              onChange={(e) => setMember(idx, { label: e.target.value })}
+            />
+            <select
+              aria-label="Member field type"
+              value={m.kind}
+              onChange={(e) => setMember(idx, { kind: e.target.value as MemberSubfield["kind"] })}
+            >
+              <option value="short_text">Text</option>
+              <option value="email">Email</option>
+              <option value="roll">VTU ID</option>
+              <option value="phone">Phone</option>
+            </select>
+            <label style={{ display: "flex", gap: 4, alignItems: "center", fontWeight: 400 }}>
+              <input
+                type="checkbox"
+                checked={m.required}
+                onChange={(e) => setMember(idx, { required: e.target.checked })}
+              />{" "}
+              Req
+            </label>
+            <button type="button" className="btn btn-sm btn-ghost" onClick={() => removeMember(idx)}>
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+      <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 6 }} onClick={addMember}>
+        + Member field
+      </button>
     </div>
   );
 }

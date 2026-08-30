@@ -55,3 +55,84 @@ describe("validateFormSchema", () => {
     expect(validateFormSchema([{ ...base, label: "  " }]).ok).toBe(false);
   });
 });
+
+describe("section & team & allowOther", () => {
+  const base = { id: "q1", kind: "short_text", identity: null, label: "Q", required: false };
+
+  it("accepts a section block with a description and no options", () => {
+    const r = validateFormSchema([
+      { ...base, kind: "section", label: "Team Details", description: "Fill for all members" },
+    ]);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.fields[0].required).toBe(false); // forced false
+  });
+  it("rejects a section that carries options", () => {
+    expect(validateFormSchema([{ ...base, kind: "section", options: ["a"] }]).ok).toBe(false);
+  });
+  it("rejects a section with an identity", () => {
+    expect(validateFormSchema([{ ...base, kind: "section", identity: "name" }]).ok).toBe(false);
+  });
+
+  it("accepts a valid team block", () => {
+    const r = validateFormSchema([
+      {
+        ...base, kind: "team", label: "Team members",
+        minMembers: 1, maxMembers: 4,
+        members: [
+          { key: "name", label: "Name", kind: "short_text", required: true },
+          { key: "email", label: "Email", kind: "email", required: true },
+        ],
+      },
+    ]);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.fields[0].members?.length).toBe(2);
+  });
+  it("rejects a team with no members", () => {
+    expect(
+      validateFormSchema([{ ...base, kind: "team", members: [], minMembers: 1, maxMembers: 4 }]).ok,
+    ).toBe(false);
+  });
+  it("rejects a team with maxMembers over the cap", () => {
+    expect(
+      validateFormSchema([
+        { ...base, kind: "team", minMembers: 1, maxMembers: 99,
+          members: [{ key: "n", label: "N", kind: "short_text", required: true }] },
+      ]).ok,
+    ).toBe(false);
+  });
+  it("rejects a team where min > max", () => {
+    expect(
+      validateFormSchema([
+        { ...base, kind: "team", minMembers: 5, maxMembers: 3,
+          members: [{ key: "n", label: "N", kind: "short_text", required: true }] },
+      ]).ok,
+    ).toBe(false);
+  });
+  it("rejects a member subfield with an unknown kind", () => {
+    expect(
+      validateFormSchema([
+        { ...base, kind: "team", minMembers: 1, maxMembers: 2,
+          members: [{ key: "n", label: "N", kind: "file", required: true }] },
+      ]).ok,
+    ).toBe(false);
+  });
+  it("rejects duplicate member subfield keys", () => {
+    expect(
+      validateFormSchema([
+        { ...base, kind: "team", minMembers: 1, maxMembers: 2,
+          members: [
+            { key: "n", label: "A", kind: "short_text", required: true },
+            { key: "n", label: "B", kind: "email", required: false },
+          ] },
+      ]).ok,
+    ).toBe(false);
+  });
+
+  it("keeps allowOther only on choice kinds", () => {
+    const ok = validateFormSchema([{ ...base, kind: "radio", options: ["a"], allowOther: true }]);
+    expect(ok.ok).toBe(true);
+    if (ok.ok) expect(ok.fields[0].allowOther).toBe(true);
+    const bad = validateFormSchema([{ ...base, kind: "short_text", allowOther: true }]);
+    expect(bad.ok).toBe(false);
+  });
+});

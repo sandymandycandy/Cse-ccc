@@ -7,6 +7,8 @@ import { getAdminSession } from "@/lib/auth/guards";
 import { canManage } from "@/lib/auth/capabilities";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getEventForAttendance } from "@/lib/admin/attendance";
+import { getEventFormSchema } from "@/lib/admin/registrations";
+import { shortlistRecipients } from "@/lib/registration-form/recipients";
 import { enqueueEmail } from "@/lib/email";
 import { writeAudit } from "@/lib/admin/audit";
 
@@ -70,10 +72,10 @@ export async function shortlistAction(formData: FormData): Promise<void> {
   if (ids.length === 0) redirect(`/admin/events/${eventId}/registrations`);
 
   const admin = createAdminClient();
-  // Email only the newly-selected (currently not shortlisted) rows that have an email.
+  // Email only the newly-selected (currently not shortlisted) rows.
   const { data: rows } = await admin
     .from("registrations")
-    .select("id, email, student_name, shortlisted_at")
+    .select("id, email, student_name, shortlisted_at, custom_answers")
     .eq("event_id", eventId)
     .in("id", ids);
   const now = new Date().toISOString();
@@ -86,16 +88,24 @@ export async function shortlistAction(formData: FormData): Promise<void> {
     .in("id", ids);
 
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  const { schema } = await getEventFormSchema(eventId);
   for (const r of rows ?? []) {
-    if (r.shortlisted_at || !r.email) continue; // already shortlisted or no email → no mail
-    await enqueueEmail({
-      template: "registration_shortlisted",
-      toEmail: r.email,
-      toName: r.student_name ?? "",
-      subject: `You're selected — ${ev.title}`,
-      payload: { eventTitle: ev.title, url: base ? `${base}/events/${eventId}` : undefined },
-      priority: 2,
-    });
+    if (r.shortlisted_at) continue; // already shortlisted → don't re-email
+    const recipients = shortlistRecipients(
+      schema,
+      r.custom_answers as Record<string, unknown> | null,
+      r.email,
+    );
+    for (const to of recipients) {
+      await enqueueEmail({
+        template: "registration_shortlisted",
+        toEmail: to,
+        toName: r.student_name ?? "",
+        subject: `You're selected — ${ev.title}`,
+        payload: { eventTitle: ev.title, url: base ? `${base}/events/${eventId}` : undefined },
+        priority: 2,
+      });
+    }
   }
   await writeAudit({
     actorId: session.id,
