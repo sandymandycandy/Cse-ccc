@@ -361,6 +361,13 @@
     outline: none;
     box-shadow: 0 0 0 3px var(--forest-tint);
   }
+  /* Native <option> popups don't inherit the theme background on Windows/Chrome,
+     so in dark mode the pale --ink text lands on a white system popup and turns
+     invisible. Pin option colours to the theme so every select stays readable. */
+  select option {
+    background: var(--paper-2);
+    color: var(--ink);
+  }
   .field .hint { font: 400 11.5px var(--sans); color: var(--ink-3); }
   .field.err input { border-color: var(--rust); }
   .field.err .hint { color: var(--rust); }
