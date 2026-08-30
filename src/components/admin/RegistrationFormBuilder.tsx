@@ -278,30 +278,46 @@ function TeamEditor({
 
   return (
     <div style={{ marginTop: 8 }}>
-      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <label style={{ fontWeight: 400 }}>
           Min
-          <input
-            type="number"
-            min={1}
-            max={field.maxMembers ?? MAX_MEMBERS}
+          <select
             value={field.minMembers ?? 1}
-            onChange={(e) => onChange({ minMembers: Math.max(1, Number(e.target.value) || 1) })}
-            style={{ width: 64, marginLeft: 6 }}
-          />
+            onChange={(e) => {
+              const min = Number(e.target.value);
+              onChange({ minMembers: min, maxMembers: Math.max(min, field.maxMembers ?? 4) });
+            }}
+            style={{ marginLeft: 6 }}
+          >
+            {Array.from({ length: MAX_MEMBERS }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
         </label>
         <label style={{ fontWeight: 400 }}>
           Max
-          <input
-            type="number"
-            min={field.minMembers ?? 1}
-            max={MAX_MEMBERS}
+          <select
             value={field.maxMembers ?? 4}
-            onChange={(e) => onChange({ maxMembers: Math.min(MAX_MEMBERS, Number(e.target.value) || 1) })}
-            style={{ width: 64, marginLeft: 6 }}
-          />
+            onChange={(e) => {
+              const max = Number(e.target.value);
+              onChange({ maxMembers: max, minMembers: Math.min(max, field.minMembers ?? 1) });
+            }}
+            style={{ marginLeft: 6 }}
+          >
+            {Array.from({ length: MAX_MEMBERS }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
+      <span className="hint" style={{ marginTop: 6, display: "block" }}>
+        Number of members to collect <strong>besides the team leader</strong> — the
+        name/roll/email fields above capture the leader. (Team of 4 → set Max&nbsp;3.)
+      </span>
       <div className="label" style={{ marginTop: 8 }}>
         Per-member fields
       </div>
