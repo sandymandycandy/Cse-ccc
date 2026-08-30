@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "./ui/Button";
-import { defaultFormFor, type FormField } from "@/lib/registration-form/schema";
+import { defaultFormFor, LAYOUT_KINDS, type FormField } from "@/lib/registration-form/schema";
 
 type Result = { status?: string; error?: string; fields?: Record<string, string> };
 const TERMINAL = new Set(["registered", "submitted", "waitlisted", "duplicate"]);
@@ -21,14 +21,40 @@ export function RegisterForm({
   const fields = schema && schema.length > 0 ? schema : defaultFormFor();
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
+  const [teams, setTeams] = useState<Record<string, Record<string, string>[]>>(() => {
+    const init: Record<string, Record<string, string>[]> = {};
+    for (const f of fields) {
+      if (f.kind === "team") {
+        const rows = Math.max(1, f.minMembers ?? 1);
+        init[f.id] = Array.from({ length: rows }, () => ({}));
+      }
+    }
+    return init;
+  });
+  const [otherText, setOtherText] = useState<Record<string, string>>({});
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const answers: Record<string, unknown> = {};
     for (const field of fields) {
-      if (field.kind === "checkboxes") answers[field.id] = fd.getAll(field.id).map(String);
-      else answers[field.id] = String(fd.get(field.id) ?? "");
+      if (LAYOUT_KINDS.has(field.kind)) continue;
+      if (field.kind === "team") {
+        answers[field.id] = teams[field.id] ?? [];
+      } else if (field.kind === "checkboxes") {
+        let vals = fd.getAll(field.id).map(String);
+        if (field.allowOther && vals.includes("__other__")) {
+          vals = vals.filter((v) => v !== "__other__");
+          if (otherText[field.id]) vals.push(otherText[field.id]);
+        }
+        answers[field.id] = vals;
+      } else if ((field.kind === "radio" || field.kind === "dropdown") && field.allowOther) {
+        let v = String(fd.get(field.id) ?? "");
+        if (v === "__other__") v = otherText[field.id] ?? "";
+        answers[field.id] = v;
+      } else {
+        answers[field.id] = String(fd.get(field.id) ?? "");
+      }
     }
     setSubmitting(true);
     setResult(null);
@@ -65,9 +91,40 @@ export function RegisterForm({
         </div>
       ) : null}
 
-      {fields.map((field) => (
-        <FieldInput key={field.id} field={field} error={result?.fields?.[field.id]} />
-      ))}
+      {fields.map((field) => {
+        if (field.kind === "section") {
+          return (
+            <div key={field.id} style={{ marginTop: 18, marginBottom: 4 }}>
+              <h3 style={{ fontSize: 18 }}>{field.label}</h3>
+              {field.description ? (
+                <p className="hint" style={{ marginTop: 4 }}>
+                  {field.description}
+                </p>
+              ) : null}
+            </div>
+          );
+        }
+        if (field.kind === "team") {
+          return (
+            <TeamField
+              key={field.id}
+              field={field}
+              rows={teams[field.id] ?? [{}]}
+              error={result?.fields?.[field.id]}
+              onChange={(rows) => setTeams((t) => ({ ...t, [field.id]: rows }))}
+            />
+          );
+        }
+        return (
+          <FieldInput
+            key={field.id}
+            field={field}
+            error={result?.fields?.[field.id]}
+            otherText={otherText[field.id] ?? ""}
+            onOther={(v) => setOtherText((s) => ({ ...s, [field.id]: v }))}
+          />
+        );
+      })}
 
       {/* honeypot: real users never see or fill this */}
       <input
@@ -92,7 +149,17 @@ export function RegisterForm({
   );
 }
 
-function FieldInput({ field, error }: { field: FormField; error?: string }) {
+function FieldInput({
+  field,
+  error,
+  otherText,
+  onOther,
+}: {
+  field: FormField;
+  error?: string;
+  otherText?: string;
+  onOther?: (v: string) => void;
+}) {
   const id = `rf-${field.id}`;
   const common = { id, name: field.id, required: field.required } as const;
   return (
@@ -104,16 +171,29 @@ function FieldInput({ field, error }: { field: FormField; error?: string }) {
       {field.kind === "paragraph" ? (
         <textarea {...common} rows={4} maxLength={4000} />
       ) : field.kind === "dropdown" ? (
-        <select {...common} defaultValue="">
-          <option value="" disabled>
-            Choose…
-          </option>
-          {(field.options ?? []).map((o) => (
-            <option key={o} value={o}>
-              {o}
+        <>
+          <select {...common} defaultValue="">
+            <option value="" disabled>
+              Choose…
             </option>
-          ))}
-        </select>
+            {(field.options ?? []).map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+            ))}
+            {field.allowOther ? <option value="__other__">Other…</option> : null}
+          </select>
+          {field.allowOther ? (
+            <input
+              type="text"
+              aria-label="Other"
+              placeholder="Other (if not listed)"
+              value={otherText ?? ""}
+              onChange={(e) => onOther?.(e.target.value)}
+              style={{ marginTop: 6 }}
+            />
+          ) : null}
+        </>
       ) : field.kind === "radio" ? (
         <div className="stack" style={{ gap: 6 }}>
           {(field.options ?? []).map((o) => (
@@ -121,6 +201,18 @@ function FieldInput({ field, error }: { field: FormField; error?: string }) {
               <input type="radio" name={field.id} value={o} required={field.required} /> {o}
             </label>
           ))}
+          {field.allowOther ? (
+            <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 400 }}>
+              <input type="radio" name={field.id} value="__other__" /> Other:
+              <input
+                type="text"
+                aria-label="Other"
+                value={otherText ?? ""}
+                onChange={(e) => onOther?.(e.target.value)}
+                style={{ marginLeft: 6 }}
+              />
+            </label>
+          ) : null}
         </div>
       ) : field.kind === "checkboxes" ? (
         <div className="stack" style={{ gap: 6 }}>
@@ -129,6 +221,18 @@ function FieldInput({ field, error }: { field: FormField; error?: string }) {
               <input type="checkbox" name={field.id} value={o} /> {o}
             </label>
           ))}
+          {field.allowOther ? (
+            <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 400 }}>
+              <input type="checkbox" name={field.id} value="__other__" /> Other:
+              <input
+                type="text"
+                aria-label="Other"
+                value={otherText ?? ""}
+                onChange={(e) => onOther?.(e.target.value)}
+                style={{ marginLeft: 6 }}
+              />
+            </label>
+          ) : null}
         </div>
       ) : field.kind === "date" ? (
         <input {...common} type="date" />
@@ -188,6 +292,76 @@ function ResultMessage({ status, mode }: { status: string; mode: "seats" | "shor
       <p className="body-text" style={{ marginTop: 8 }}>
         You&rsquo;ve already submitted this form for this event.
       </p>
+    </div>
+  );
+}
+
+function TeamField({
+  field,
+  rows,
+  error,
+  onChange,
+}: {
+  field: FormField;
+  rows: Record<string, string>[];
+  error?: string;
+  onChange: (rows: Record<string, string>[]) => void;
+}) {
+  const subs = field.members ?? [];
+  const max = field.maxMembers ?? 10;
+  const min = field.minMembers ?? 1;
+  const setCell = (idx: number, key: string, v: string) =>
+    onChange(rows.map((r, k) => (k === idx ? { ...r, [key]: v } : r)));
+  const addRow = () => {
+    if (rows.length < max) onChange([...rows, {}]);
+  };
+  const removeRow = (idx: number) => {
+    if (rows.length > min) onChange(rows.filter((_, k) => k !== idx));
+  };
+
+  return (
+    <div className={`field${error ? " err" : ""}`}>
+      <label>
+        {field.label}
+        {field.required ? "" : " (optional)"}
+      </label>
+      <div className="stack" style={{ gap: 10 }}>
+        {rows.map((row, idx) => (
+          <div key={idx} className="card" style={{ padding: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span className="label">Member {idx + 1}</span>
+              {rows.length > min ? (
+                <button type="button" className="btn btn-sm btn-ghost" onClick={() => removeRow(idx)}>
+                  Remove
+                </button>
+              ) : null}
+            </div>
+            {subs.map((sf) => (
+              <div className="field" key={sf.key} style={{ marginTop: 6 }}>
+                <label>
+                  {sf.label}
+                  {sf.required ? "" : " (optional)"}
+                </label>
+                <input
+                  type={sf.kind === "email" ? "email" : sf.kind === "phone" ? "tel" : "text"}
+                  value={row[sf.key] ?? ""}
+                  onChange={(e) => setCell(idx, sf.key, e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+      {rows.length < max ? (
+        <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 6 }} onClick={addRow}>
+          + Add member
+        </button>
+      ) : null}
+      {error ? (
+        <span className="hint" role="alert">
+          {error}
+        </span>
+      ) : null}
     </div>
   );
 }
