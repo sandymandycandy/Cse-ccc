@@ -18,9 +18,37 @@ end-to-end**, not a checklist of components.
 
 ---
 
-## 🚦 START HERE — current git/deploy state (2026-08-30)
+## 🚦 START HERE — current git/deploy state (2026-08-31)
 
-> ### ✅ ALL MERGED & LIVE — `main == origin/main @ 5e6798c` (clean, 0 ahead / 0 behind)
+> ### 🟡 IN FLIGHT — Feature B: manual event attendance (`feat/manual-event-attendance`, PRE-MERGE)
+> **NOT yet merged or deployed** — the one thing currently in flight. Retires the event **QR
+> self-scan** entirely and makes event attendance **manual-only**, marked inline on the
+> registrations table. Branched from `main` (@ `d00d38a`). **Gate green: typecheck ✓ / lint ✓ /
+> 176 tests ✓ / build ✓** (was 174 — added the `attendance-eligibility` suite, +2).
+> - **What's in it:** the whole self-scan surface is **deleted** — the student scan page
+>   (`/a/[session]`), `ScanRunner`/`EnrollDevice`/`LiveAttendance`, the rotating-code + scan +
+>   device-enroll API routes (`/api/attendance/{code,scan}`, `/api/devices/enroll`), the
+>   organiser check-in-window page (`/admin/events/[id]/attendance`), and `src/lib/attendance.ts`.
+>   `src/lib/admin/attendance.ts` is trimmed to just `getEventForAttendance`. Attendance is now
+>   marked by the existing per-row **Mark present / Undo** toggle on the registrations table,
+>   scoped by a new pure `isAttendanceEligible` helper (**seats → every confirmed row; shortlist
+>   → shortlisted only**) enforced in the UI **and** as a server-side guard in
+>   `toggleAttendanceAction` (undo always allowed). The dead "Check-in" link is gone; the Attended
+>   badge reads "Present".
+> - **No additive migration.** One **HELD** drop migration
+>   `20260831000000_drop_event_self_scan.sql` (name `drop_event_self_scan`) drops the now-dead
+>   `attendance_scans`, `attendance_sessions`, `student_devices` — **not applied**, held for
+>   rollback safety like `drop_member_portal` / `drop_register_v1`.
+> - **⚠️ OWED — one human-only browser walkthrough** (server-action POSTs can't be curled): on a
+>   **shortlist** event, confirm only shortlisted rows show **Mark present**, mark one → Attended
+>   flips to "Present", **Undo** clears it, and a non-shortlisted row shows just "—" (no button);
+>   on a **seats** event, confirm every confirmed row is markable. Reuse an existing event; undo
+>   after (shared/live DB).
+> - **Plan + spec:** `docs/superpowers/{plans,specs}/2026-08-31-manual-event-attendance*`.
+> - **Next after merge:** fast-forward `feat/manual-event-attendance` → `main` → push (auto-deploy),
+>   then apply the held `drop_event_self_scan` once the deploy is healthy (owner's call).
+
+> ### ✅ ALL MERGED & LIVE (except the in-flight branch above) — `main == origin/main @ 5e6798c` (clean)
 > The two "pre-merge" feature blocks below **have since been merged to `main`, pushed,
 > and auto-deployed to prod**, and several more changes landed on top. Nothing is in flight
 > in the working tree. **Gate green this session (2026-08-30): typecheck ✓ / lint ✓ /
