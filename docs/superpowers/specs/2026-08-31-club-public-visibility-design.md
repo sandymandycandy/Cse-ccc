@@ -45,8 +45,9 @@ untouched; clicking **Publish** brings it back. A club_head sees no such control
   `ClubCreateSchema`). All writes are service-role + `writeAudit`.
 - **Public club queries** (`src/lib/queries.ts`, anon client) — `getClubsWithCounts`
   (home + `/clubs`), `getCalendarClubs` (calendar chips), `getClubBySlug`
-  (`/clubs/[slug]`). All three **already** filter `.eq("is_active", true)`; the new
-  visibility filter sits right beside it.
+  (`/clubs/[slug]`). The two **list** queries already filter `.eq("is_active", true)`;
+  `getClubBySlug` currently filters **neither** flag (the pre-existing leak). The new
+  visibility filter sits beside the existing rule.
 - **`is_active`** stays as-is with its existing "operational" meaning — still edited in
   the structural block, still gates admin event-club pickers. **Not repurposed.**
 
@@ -71,15 +72,25 @@ works (there is no RLS policy on `is_active` either; anon reads go through these
 
 ### 2. Public query filters (`src/lib/queries.ts`)
 
-Add `.eq("is_public", true)` to three functions — a one-line change each:
+The single public-visibility rule becomes **`is_active = true AND is_public = true`**,
+applied to all three functions. `is_active` keeps its coarse operational meaning;
+`is_public` is the new council toggle. A club is shown publicly iff both are true —
+consistent across every public surface.
 
-- **`getClubsWithCounts`** — hides the club's card on the **home page** and the
+- **`getClubsWithCounts`** — add `.eq("is_public", true)` beside the existing
+  `.eq("is_active", true)`; hides the club's card on the **home page** and the
   **`/clubs`** directory.
-- **`getCalendarClubs`** — drops the club's **calendar filter chip**.
-- **`getClubBySlug`** — a hidden club's **`/clubs/[slug]`** now resolves to `null` →
-  the page's existing `notFound()` fires. **This closes the leak.** `getEventsForClub`
-  needs no change: it is only reached *after* `getClubBySlug` succeeds, so a hidden club
-  never reaches it.
+- **`getCalendarClubs`** — add `.eq("is_public", true)` beside `.eq("is_active", true)`;
+  drops the club's **calendar filter chip**.
+- **`getClubBySlug`** — add **both** `.eq("is_active", true)` and `.eq("is_public", true)`
+  (it filters neither today). A hidden **or** inactive club's **`/clubs/[slug]`** now
+  resolves to `null` → the page's existing `notFound()` fires. **This closes the
+  `is_public` leak and the latent `is_active` one.** `getEventsForClub` needs no change:
+  it is only reached *after* `getClubBySlug` succeeds, so a hidden club never reaches it.
+
+This is back-compat-safe: `is_public` defaults `true`, so the two list queries hide
+nothing new, and `getClubBySlug` only newly hides clubs that were *already* absent from
+the directory (inactive ones), which have no public inbound link.
 
 ### 3. Admin — surface the toggle (council-only)
 
