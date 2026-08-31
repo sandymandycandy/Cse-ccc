@@ -48,6 +48,7 @@ export type Capability =
   | "manage:clubs" // a club's own name / tagline / description
   | "manage:contact" // the public contact-form inbox (council-wide)
   | "manage:members"
+  | "manage:council" // the council / leadership attendance roster + sessions (org-wide)
   | "manage:resources"
   | "manage:venues"
   | "manage:admins"
@@ -126,6 +127,12 @@ const MATRIX: Record<Capability, Partial<Record<AdminRole, Grant>>> = {
   "manage:members": {
     faculty_advisor: "read", president: "all", vice_president: "all",
     tech_head: "all", club_head: "own", vice_head: "own",
+  },
+  // The council / leadership attendance body is org-wide (no club scope), so only
+  // all/read/none. Taken by president + VP + tech head; faculty view-only. Club
+  // heads/vice-heads sit on the roster but hold no grant here.
+  "manage:council": {
+    faculty_advisor: "read", president: "all", vice_president: "all", tech_head: "all",
   },
   "manage:resources": {
     faculty_advisor: "read", president: "all", vice_president: "all",
