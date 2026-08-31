@@ -5,6 +5,7 @@ import { canManage, canView } from "@/lib/auth/capabilities";
 import { rosterWithPercent, listSessions } from "@/lib/admin/attendance-council";
 import { pctOfStrength } from "@/lib/admin/attendance-analytics";
 import { CouncilCreateSessionForm } from "@/components/admin/CouncilCreateSessionForm";
+import { CouncilRoster } from "@/components/admin/CouncilRoster";
 import { istNumericDate } from "@/lib/datetime";
 
 export default async function CouncilDashboard() {
@@ -31,16 +32,7 @@ export default async function CouncilDashboard() {
       </section>
 
       <h2 style={{ font: "400 18px var(--serif)", margin: "28px 0 8px" }}>Roster attendance</h2>
-      {roster.length === 0 ? <p className="body-text" style={{ color: "var(--ink-3)" }}>No active members yet.</p> : (
-        <div className="tablewrap">
-          <table className="admin">
-            <thead><tr><th style={{ width: 44 }}>#</th><th>Member</th><th>Role</th><th>Attended</th><th>Eligible</th><th>%</th></tr></thead>
-            <tbody>{roster.map((r, i) => (
-              <tr key={r.memberId}><td>{i + 1}</td><td style={{ fontWeight: 500 }}>{r.name}</td><td>{r.designation}</td><td>{r.attended}</td><td>{r.eligible}</td><td>{r.pct}%</td></tr>
-            ))}</tbody>
-          </table>
-        </div>
-      )}
+      <CouncilRoster rows={roster} />
 
       <h2 style={{ font: "400 18px var(--serif)", margin: "28px 0 8px" }}>Meeting history</h2>
       {sessions.length === 0 ? <p className="body-text" style={{ color: "var(--ink-3)" }}>No meetings yet.</p> : (
