@@ -20,13 +20,14 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-08-31)
 
-> ### 🟡 IN FLIGHT — Council / leadership attendance (`feat/council-attendance`, PRE-MERGE)
-> **NOT yet merged or deployed** — the one thing currently in flight (branched from `main` @
-> `f29c8a4`). A **third attendance surface** (distinct from club-member and event attendance) for
-> the org-wide council: the 6 layer-2 core roles + all club heads + vice-heads, self-registered via
-> a **join link → pending → manual onboard**, marked present/absent by **president + VP + tech
-> head**. **Gate green: typecheck ✓ / lint ✓ / 181 tests ✓ / build ✓** (was 176 — added the
-> council capability + validator suites, +5).
+> ### ✅ MERGED & PUSHED TO PROD — Council / leadership attendance (2026-08-31)
+> Fast-forward-merged into `main` and **pushed to `origin/main` (@ `d19c203`, 0 ahead / 0 behind) —
+> Vercel auto-deploy triggered**; the `feat/council-attendance` branch is deleted. A **third
+> attendance surface** (distinct from club-member and event attendance) for the org-wide council:
+> the 6 layer-2 core roles + all club heads + vice-heads, self-registered via a **join link →
+> pending → manual onboard**, marked present/absent by **president + VP + tech head**. **Gate green
+> on the merged result: typecheck ✓ / lint ✓ / 181 tests ✓ / build ✓** (was 176 — added the council
+> capability + validator suites, +5).
 > - **What's in it:** new `council_*` tables (`council_members`, `council_attendance_sessions`,
 >   `council_attendance`, `council_settings` singleton join token) + a new **`manage:council`**
 >   capability (pres/VP/tech = all, faculty = read; club heads sit on the roster but can't manage
