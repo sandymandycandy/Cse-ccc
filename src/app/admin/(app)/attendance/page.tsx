@@ -67,9 +67,6 @@ export default async function AttendanceDashboard({ searchParams }: { searchPara
 
       <AttendanceAnalytics analytics={analytics} clubParam={councilWide ? clubId : null} />
 
-      <h2 style={{ font: "400 18px var(--serif)", margin: "28px 0 8px" }}>Roster attendance</h2>
-      <AttendanceRoster rows={roster} />
-
       <h2 style={{ font: "400 18px var(--serif)", margin: "28px 0 8px" }}>Session history</h2>
       {sessions.length === 0 ? <p className="body-text" style={{ color: "var(--ink-3)" }}>No sessions yet.</p> : (
         <div className="tablewrap">
@@ -89,6 +86,9 @@ export default async function AttendanceDashboard({ searchParams }: { searchPara
           </table>
         </div>
       )}
+
+      <h2 style={{ font: "400 18px var(--serif)", margin: "28px 0 8px" }}>Roster attendance</h2>
+      <AttendanceRoster rows={roster} />
     </div>
   );
 }

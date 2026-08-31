@@ -31,9 +31,6 @@ export default async function CouncilDashboard() {
         )}
       </section>
 
-      <h2 style={{ font: "400 18px var(--serif)", margin: "28px 0 8px" }}>Roster attendance</h2>
-      <CouncilRoster rows={roster} />
-
       <h2 style={{ font: "400 18px var(--serif)", margin: "28px 0 8px" }}>Meeting history</h2>
       {sessions.length === 0 ? <p className="body-text" style={{ color: "var(--ink-3)" }}>No meetings yet.</p> : (
         <div className="tablewrap">
@@ -53,6 +50,9 @@ export default async function CouncilDashboard() {
           </table>
         </div>
       )}
+
+      <h2 style={{ font: "400 18px var(--serif)", margin: "28px 0 8px" }}>Roster attendance</h2>
+      <CouncilRoster rows={roster} />
     </div>
   );
 }
