@@ -18,7 +18,34 @@ end-to-end**, not a checklist of components.
 
 ---
 
-## 🚦 START HERE — current git/deploy state (2026-08-31)
+## 🚦 START HERE — current git/deploy state (2026-09-01)
+
+> ### 🟡 SHIPPED TO BRANCH, PRE-MERGE — Attendance name/roll search + roll-no on session (`feat/attendance-search`, 2026-09-01)
+> **NOT yet merged or deployed** — branched from `main` @ `fc3217b`. Owner asks: a **name/roll
+> search box** on the attendance lists, and the member's **roll no shown when taking attendance**
+> (session roster) with a search there too — across **both** the club and council surfaces. **No DB
+> migration** (`roll_no` already exists on `club_members`/`council_members`; admin-only PII already
+> shown on the members pages). **Gate green: typecheck ✓ / lint ✓ / 187 tests ✓ / build ✓** (was 181
+> — added the pure `roster-filter` suite, +6).
+> - **What's in it:** a pure client-safe `matchesQuery(name, rollNo, q)`
+>   (`src/lib/admin/roster-filter.ts`, case-insensitive name-or-roll, +6 tests). `rosterWithPercent` +
+>   `getSessionMarking` (club **and** council data layers) now return `rollNo`. New client components
+>   with an instant search box: **`AttendanceRoster`** (club dashboard "Roster attendance" — adds a
+>   **Roll** column + search), **`MembersTable`** (club members list — search), **`CouncilRoster`** +
+>   **`CouncilMembersTable`** (council mirrors). Both **session marking rosters** (`SessionRoster`,
+>   `CouncilSessionRoster`) now show each member's **roll** and gain a **search** box.
+> - **Data-integrity note:** the session roster submits the present-set via hidden inputs; those now
+>   render for the **full** roster (not just filtered rows) so a search filter can **never drop a
+>   mark** on save. Bulk **Mark all present / Clear** act on the **visible (filtered)** rows.
+> - **Route smoke (dev server):** app boots; `/admin/attendance`, `/admin/council`,
+>   `/admin/attendance/members`, `/admin/council/members` (no cookie) → 307→login (guards intact).
+> - **⚠️ OWED — human browser walkthrough** (interactive search + server-action marking can't be
+>   curled): log into `/admin/attendance` → search the roster by name and by roll; open a session →
+>   confirm each member's **roll** shows and the **search** filters; mark a filtered subset + **Save**
+>   and confirm marks for **non-visible** present members are **kept**. Repeat on `/admin/council`.
+> - **Next (owner's call):** merge `feat/attendance-search` → `main` → push (auto-deploys).
+>   Independent of the `feat/club-visibility` branch (disjoint files; STATUS.md is the only shared
+>   file — expect a trivial START-HERE merge nudge if both land).
 
 > ### ✅ MERGED & PUSHED TO PROD — Council / leadership attendance (2026-08-31)
 > Fast-forward-merged into `main` and **pushed to `origin/main` (@ `d19c203`, 0 ahead / 0 behind) —
