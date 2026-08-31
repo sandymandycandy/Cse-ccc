@@ -20,6 +20,39 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-08-31)
 
+> ### 🟡 IN FLIGHT — Council / leadership attendance (`feat/council-attendance`, PRE-MERGE)
+> **NOT yet merged or deployed** — the one thing currently in flight (branched from `main` @
+> `f29c8a4`). A **third attendance surface** (distinct from club-member and event attendance) for
+> the org-wide council: the 6 layer-2 core roles + all club heads + vice-heads, self-registered via
+> a **join link → pending → manual onboard**, marked present/absent by **president + VP + tech
+> head**. **Gate green: typecheck ✓ / lint ✓ / 181 tests ✓ / build ✓** (was 176 — added the
+> council capability + validator suites, +5).
+> - **What's in it:** new `council_*` tables (`council_members`, `council_attendance_sessions`,
+>   `council_attendance`, `council_settings` singleton join token) + a new **`manage:council`**
+>   capability (pres/VP/tech = all, faculty = read; club heads sit on the roster but can't manage
+>   it). Public **`/council/join/[token]`** self-register (pending) → `POST /api/council/register`;
+>   admin **`/admin/council`** dashboard (create meeting + roster % + meeting history),
+>   **`/admin/council/members`** (pending/onboarded split, onboard/reject, manual add/edit, copy +
+>   rotate join link), **`/admin/council/sessions/[id]`** present/absent marking. Reuses the pure
+>   `summarizeAttendance`/`diffPresence` engine; dedicated `CouncilMemberForm`/`CouncilSessionRoster`
+>   /`CouncilJoinLinkPanel`/`CouncilCreateSessionForm` (the club ones are club-coupled). **v1 =
+>   admin-side only**: no public roll-lookup, no analytics panel, **free-text designation** (all
+>   deferred).
+> - **Migration IS applied** to the live DB (additive, via MCP): `20260831010000_council_attendance`.
+>   Live probe confirmed 4 tables + seeded singleton token.
+> - **Route smoke (dev server, live):** `/council/join/<bad>` → 404, `/council/join/<real>` → 200;
+>   `POST /api/council/register` → 404 (no/ bad token) / 400 with per-field errors (incl.
+>   designation) — **no write** (council_members held at 0); `/admin/council*` (no cookie) →
+>   307→login.
+> - **⚠️ OWED — one human-only browser walkthrough** (server-action POSTs can't be curled):
+>   self-register on the council join link → **Onboard** as pres/VP/tech → **create a meeting** →
+>   mark present/absent + **Save** → confirm the member's % moves; confirm a **club_head** login
+>   sees **no** Council manage controls. (Shared/live DB — delete the test member after.)
+> - **Plan + spec:** `docs/superpowers/{plans,specs}/2026-08-31-council-attendance*`.
+> - **Next (owner's call):** merge `feat/council-attendance` → `main` → `git push origin main`
+>   (auto-deploys). Then **Feature 2** — the club **publish/visibility toggle** — is still queued
+>   (its own brainstorm → spec → plan).
+
 > ### ✅ MERGED & PUSHED TO PROD — Feature B: manual event attendance (2026-08-31)
 > Fast-forward-merged into `main` and **pushed to `origin/main` (@ `afbe97b`, 0 ahead / 0 behind) —
 > Vercel auto-deploy triggered**. The `feat/manual-event-attendance` branch is deleted. Retires the
