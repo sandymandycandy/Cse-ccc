@@ -173,3 +173,53 @@ export async function savePresence(sessionId: string, desiredIds: string[], mark
     await admin.from("council_attendance").delete().eq("session_id", sessionId).in("member_id", toRemove);
   }
 }
+
+export interface CouncilAttendanceRegister {
+  /** Meeting columns, chronological (oldest first). */
+  sessions: { id: string; title: string; date: string }[];
+  rows: {
+    name: string; rollNo: string | null; designation: string;
+    /** Aligned with `sessions`: present / absent / na (meeting predates the member's join). */
+    cells: ("present" | "absent" | "na")[];
+    attended: number; eligible: number; pct: number;
+  }[];
+}
+
+/** The full council attendance register (members × meetings) for CSV export.
+ *  Totals reuse `summarizeAttendance`, so they match the dashboard roster exactly. */
+export async function attendanceRegister(): Promise<CouncilAttendanceRegister> {
+  const admin = createAdminClient();
+  const { data: members } = await admin
+    .from("council_members").select("id, full_name, roll_no, designation, created_at")
+    .eq("is_active", true).not("approved_at", "is", null).order("full_name");
+  const { data: sessionsRaw } = await admin
+    .from("council_attendance_sessions").select("id, title, session_date, opened_at");
+  const { data: marks } = await admin.from("council_attendance").select("member_id, session_id");
+
+  const sessions = (sessionsRaw ?? [])
+    .map((s) => ({ id: s.id, title: s.title, date: sessionDateOf(s) }))
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  const sess = sessions.map((s) => ({ id: s.id, date: s.date }));
+
+  const attendedByMember = new Map<string, Set<string>>();
+  for (const m of marks ?? []) {
+    const set = attendedByMember.get(m.member_id) ?? new Set<string>();
+    set.add(m.session_id);
+    attendedByMember.set(m.member_id, set);
+  }
+
+  const rows = (members ?? []).map((mem) => {
+    const joined = mem.created_at.slice(0, 10);
+    const marked = attendedByMember.get(mem.id) ?? NO_MARKS;
+    const cells = sessions.map((s): "present" | "absent" | "na" =>
+      s.date < joined ? "na" : marked.has(s.id) ? "present" : "absent",
+    );
+    const { attended, eligible, pct } = summarizeAttendance(sess, joined, marked);
+    return {
+      name: mem.full_name, rollNo: mem.roll_no, designation: mem.designation,
+      cells, attended, eligible, pct,
+    };
+  });
+
+  return { sessions, rows };
+}

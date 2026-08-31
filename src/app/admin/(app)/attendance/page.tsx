@@ -45,7 +45,10 @@ export default async function AttendanceDashboard({ searchParams }: { searchPara
     <div className="admin-page">
       <div className="admin-page-head">
         <div><div className="eyebrow">Attendance</div><h1 style={{ margin: "6px 0 0" }}>Dashboard</h1></div>
-        <Link href={`/admin/attendance/members${councilWide ? `?club=${clubId}` : ""}`} className="btn">{canManageClub ? "Manage members" : "View members"}</Link>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <a href={`/api/admin/attendance/export?club=${clubId}`} className="btn">Export attendance (CSV)</a>
+          <Link href={`/admin/attendance/members${councilWide ? `?club=${clubId}` : ""}`} className="btn">{canManageClub ? "Manage members" : "View members"}</Link>
+        </div>
       </div>
 
       {councilWide && clubs.length > 0 ? (

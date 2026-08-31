@@ -20,7 +20,10 @@ export default async function CouncilDashboard() {
     <div className="admin-page">
       <div className="admin-page-head">
         <div><div className="eyebrow">Council</div><h1 style={{ margin: "6px 0 0" }}>Dashboard</h1></div>
-        <Link href="/admin/council/members" className="btn">{canEdit ? "Manage members" : "View members"}</Link>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <a href="/api/admin/council/export" className="btn">Export attendance (CSV)</a>
+          <Link href="/admin/council/members" className="btn">{canEdit ? "Manage members" : "View members"}</Link>
+        </div>
       </div>
 
       <section style={{ marginTop: 20 }}>
