@@ -30,6 +30,9 @@ export default async function AdminAppLayout({
     ...(canView(session, "manage:members")
       ? [{ href: "/admin/attendance", label: "Attendance" }]
       : []),
+    ...(canView(session, "manage:council")
+      ? [{ href: "/admin/council", label: "Council" }]
+      : []),
     ...(canView(session, "manage:resources")
       ? [{ href: "/admin/resources", label: "Resources" }]
       : []),
