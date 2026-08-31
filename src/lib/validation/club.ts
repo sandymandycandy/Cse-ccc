@@ -49,6 +49,7 @@ export const ClubStructuralSchema = z.object({
   category: z.enum(CLUB_CATEGORIES),
   color: z.string().trim().regex(HEX_COLOR_RE, "hex"),
   isActive: z.boolean(),
+  isPublic: z.boolean(),
   sort: z.coerce.number().int().min(0).max(9999),
 });
 

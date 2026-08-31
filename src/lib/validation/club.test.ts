@@ -16,6 +16,7 @@ const validCreate = {
   tagline: "We build things",
   description: "A club for programmers.",
   isActive: true,
+  isPublic: true,
   sort: "3",
 };
 
@@ -105,15 +106,31 @@ describe("ClubProfileSchema / ClubStructuralSchema split", () => {
     expect(r.success).toBe(true);
   });
 
-  it("structural schema validates slug/category/colour/active/sort", () => {
+  it("structural schema validates slug/category/colour/active/public/sort", () => {
     const r = ClubStructuralSchema.safeParse({
       slug: "coding-club",
       category: "media",
       color: "#000000",
       isActive: false,
+      isPublic: false,
       sort: "0",
     });
     expect(r.success).toBe(true);
-    if (r.success) expect(r.data.isActive).toBe(false);
+    if (r.success) {
+      expect(r.data.isActive).toBe(false);
+      expect(r.data.isPublic).toBe(false);
+    }
+  });
+
+  it("requires isPublic on the structural schema", () => {
+    expect(
+      ClubStructuralSchema.safeParse({
+        slug: "coding-club",
+        category: "media",
+        color: "#000000",
+        isActive: false,
+        sort: "0",
+      }).success,
+    ).toBe(false);
   });
 });

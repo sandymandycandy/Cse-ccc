@@ -33,6 +33,7 @@ function structuralFrom(formData: FormData) {
     category: formData.get("category") ?? "",
     color: formData.get("color") ?? "",
     isActive: formData.get("isActive") != null,
+    isPublic: formData.get("isPublic") != null,
     sort: formData.get("sort") ?? "0",
   };
 }
@@ -72,6 +73,7 @@ export async function createClubAction(
       tagline: d.tagline ?? null,
       description: d.description ?? null,
       is_active: d.isActive,
+      is_public: d.isPublic,
       sort: d.sort,
     })
     .select("id")
@@ -141,10 +143,12 @@ export async function updateClubAction(
     update.category = structural.data.category;
     update.color = structural.data.color;
     update.is_active = structural.data.isActive;
+    update.is_public = structural.data.isPublic;
     update.sort = structural.data.sort;
     after.slug = structural.data.slug;
     after.category = structural.data.category;
     after.isActive = structural.data.isActive;
+    after.isPublic = structural.data.isPublic;
   }
 
   const admin = createAdminClient();

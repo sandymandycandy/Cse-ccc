@@ -42,6 +42,7 @@ export interface AdminClubRow {
   category: ClubCategory;
   tagline: string | null;
   isActive: boolean;
+  isPublic: boolean;
   updatedAt: string;
 }
 
@@ -55,6 +56,7 @@ export interface ClubForEdit {
   tagline: string | null;
   description: string | null;
   isActive: boolean;
+  isPublic: boolean;
   sort: number;
 }
 
@@ -63,7 +65,7 @@ export async function listClubsForAdmin(): Promise<AdminClubRow[]> {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("clubs")
-    .select("id, name, short_name, category, tagline, is_active, updated_at")
+    .select("id, name, short_name, category, tagline, is_active, is_public, updated_at")
     .order("sort")
     .order("name");
   if (error) throw error;
@@ -74,6 +76,7 @@ export async function listClubsForAdmin(): Promise<AdminClubRow[]> {
     category: c.category,
     tagline: c.tagline,
     isActive: c.is_active,
+    isPublic: c.is_public,
     updatedAt: c.updated_at,
   }));
 }
@@ -82,7 +85,7 @@ export async function getClubForEdit(id: string): Promise<ClubForEdit | null> {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("clubs")
-    .select("id, name, short_name, slug, category, color, tagline, description, is_active, sort")
+    .select("id, name, short_name, slug, category, color, tagline, description, is_active, is_public, sort")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
@@ -97,6 +100,7 @@ export async function getClubForEdit(id: string): Promise<ClubForEdit | null> {
     tagline: data.tagline,
     description: data.description,
     isActive: data.is_active,
+    isPublic: data.is_public,
     sort: data.sort,
   };
 }

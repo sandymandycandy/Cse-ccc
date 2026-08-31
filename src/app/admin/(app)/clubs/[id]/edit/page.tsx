@@ -44,6 +44,7 @@ export default async function EditClubPage({
           tagline: club.tagline,
           description: club.description,
           isActive: club.isActive,
+          isPublic: club.isPublic,
           sort: club.sort,
         }}
       />

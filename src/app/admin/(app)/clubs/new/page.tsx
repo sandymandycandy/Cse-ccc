@@ -32,6 +32,7 @@ export default async function NewClubPage() {
           tagline: null,
           description: null,
           isActive: true,
+          isPublic: true,
           sort: 0,
         }}
       />

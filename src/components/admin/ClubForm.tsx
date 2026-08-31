@@ -21,6 +21,7 @@ export interface ClubInitial {
   tagline: string | null;
   description: string | null;
   isActive: boolean;
+  isPublic: boolean;
   sort: number;
 }
 
@@ -163,15 +164,26 @@ export function ClubForm({
       </div>
 
       {canEditStructural ? (
-        <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <input
-            type="checkbox"
-            name="isActive"
-            defaultChecked={initial.isActive}
-            style={{ width: "auto" }}
-          />
-          <span>Active (listed on the public site)</span>
-        </label>
+        <>
+          <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <input
+              type="checkbox"
+              name="isActive"
+              defaultChecked={initial.isActive}
+              style={{ width: "auto" }}
+            />
+            <span>Active (club is operational)</span>
+          </label>
+          <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <input
+              type="checkbox"
+              name="isPublic"
+              defaultChecked={initial.isPublic}
+              style={{ width: "auto" }}
+            />
+            <span>Show on public site</span>
+          </label>
+        </>
       ) : null}
 
       <button type="submit" className="btn btn-primary" disabled={pending}>
