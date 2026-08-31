@@ -20,13 +20,12 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-08-31)
 
-> ### 🟢 MERGED TO LOCAL `main` — NOT pushed / NOT deployed — Feature B: manual event attendance (2026-08-31)
-> Fast-forward-merged into local `main` (@ `db0dbd3`); the `feat/manual-event-attendance` branch
-> is deleted. **`main` is 7 commits ahead of `origin/main` — a `git push origin main` is owed to
-> deploy** (auto-deploys to prod). Retires the event **QR self-scan** entirely and makes event
-> attendance **manual-only**, marked inline on the registrations table. **Gate green on the merged
-> result: typecheck ✓ / lint ✓ / 176 tests ✓ / build ✓** (was 174 — added the
-> `attendance-eligibility` suite, +2).
+> ### ✅ MERGED & PUSHED TO PROD — Feature B: manual event attendance (2026-08-31)
+> Fast-forward-merged into `main` and **pushed to `origin/main` (@ `afbe97b`, 0 ahead / 0 behind) —
+> Vercel auto-deploy triggered**. The `feat/manual-event-attendance` branch is deleted. Retires the
+> event **QR self-scan** entirely and makes event attendance **manual-only**, marked inline on the
+> registrations table. **Gate green on the merged result: typecheck ✓ / lint ✓ / 176 tests ✓ /
+> build ✓** (was 174 — added the `attendance-eligibility` suite, +2).
 > - **What's in it:** the whole self-scan surface is **deleted** — the student scan page
 >   (`/a/[session]`), `ScanRunner`/`EnrollDevice`/`LiveAttendance`, the rotating-code + scan +
 >   device-enroll API routes (`/api/attendance/{code,scan}`, `/api/devices/enroll`), the
@@ -47,9 +46,8 @@ end-to-end**, not a checklist of components.
 >   on a **seats** event, confirm every confirmed row is markable. Reuse an existing event; undo
 >   after (shared/live DB).
 > - **Plan + spec:** `docs/superpowers/{plans,specs}/2026-08-31-manual-event-attendance*`.
-> - **Next (owner's call):** `git push origin main` to deploy the 7 pending commits, then apply the
->   held `drop_event_self_scan` migration once the deploy is healthy — alongside the other held
->   drops (`drop_register_v1`, `drop_member_portal`).
+> - **Next (owner's call):** apply the held `drop_event_self_scan` migration once the deploy is
+>   confirmed healthy — alongside the other held drops (`drop_register_v1`, `drop_member_portal`).
 
 > ### ✅ ALL MERGED & LIVE (except the in-flight branch above) — `main == origin/main @ 5e6798c` (clean)
 > The two "pre-merge" feature blocks below **have since been merged to `main`, pushed,
