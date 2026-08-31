@@ -791,6 +791,153 @@ export type Database = {
         }
         Relationships: []
       }
+      council_attendance: {
+        Row: {
+          id: string
+          marked_at: string
+          marked_by: string | null
+          member_id: string
+          session_id: string
+        }
+        Insert: {
+          id?: string
+          marked_at?: string
+          marked_by?: string | null
+          member_id: string
+          session_id: string
+        }
+        Update: {
+          id?: string
+          marked_at?: string
+          marked_by?: string | null
+          member_id?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "council_attendance_marked_by_fkey"
+            columns: ["marked_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "council_attendance_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "council_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "council_attendance_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "council_attendance_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      council_attendance_sessions: {
+        Row: {
+          closed_at: string | null
+          end_time: string | null
+          id: string
+          opened_at: string
+          opened_by: string | null
+          session_date: string | null
+          start_time: string | null
+          status: Database["public"]["Enums"]["council_session_status"]
+          title: string
+        }
+        Insert: {
+          closed_at?: string | null
+          end_time?: string | null
+          id?: string
+          opened_at?: string
+          opened_by?: string | null
+          session_date?: string | null
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["council_session_status"]
+          title: string
+        }
+        Update: {
+          closed_at?: string | null
+          end_time?: string | null
+          id?: string
+          opened_at?: string
+          opened_by?: string | null
+          session_date?: string | null
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["council_session_status"]
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "council_attendance_sessions_opened_by_fkey"
+            columns: ["opened_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      council_members: {
+        Row: {
+          approved_at: string | null
+          created_at: string
+          designation: string
+          email: string | null
+          full_name: string
+          id: string
+          is_active: boolean
+          phone: string | null
+          roll_no: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          created_at?: string
+          designation: string
+          email?: string | null
+          full_name: string
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          roll_no?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          created_at?: string
+          designation?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          roll_no?: string | null
+        }
+        Relationships: []
+      }
+      council_settings: {
+        Row: {
+          created_at: string
+          id: string
+          join_token: string
+          singleton: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          join_token?: string
+          singleton?: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          join_token?: string
+          singleton?: boolean
+        }
+        Relationships: []
+      }
       email_log: {
         Row: {
           created_at: string
@@ -1748,6 +1895,7 @@ export type Database = {
       checkin_method: "door" | "self" | "manual"
       club_category: "tech" | "media" | "cultural" | "wellness" | "career"
       club_session_status: "open" | "closed"
+      council_session_status: "open" | "closed"
       email_status: "pending" | "sent" | "failed"
       event_status: "draft" | "published" | "cancelled" | "completed"
       member_role: "head" | "vice_head" | "member"
@@ -1899,6 +2047,7 @@ export const Constants = {
       checkin_method: ["door", "self", "manual"],
       club_category: ["tech", "media", "cultural", "wellness", "career"],
       club_session_status: ["open", "closed"],
+      council_session_status: ["open", "closed"],
       email_status: ["pending", "sent", "failed"],
       event_status: ["draft", "published", "cancelled", "completed"],
       member_role: ["head", "vice_head", "member"],
