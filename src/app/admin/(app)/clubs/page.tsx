@@ -3,6 +3,7 @@ import { requireViewPage } from "@/lib/auth/guards";
 import { canManage, grantFor } from "@/lib/auth/capabilities";
 import { listClubsForAdmin } from "@/lib/admin/clubs";
 import { istNumericDate } from "@/lib/datetime";
+import { setClubVisibilityAction } from "./actions";
 
 export default async function AdminClubsPage() {
   const session = await requireViewPage("manage:clubs");
@@ -44,6 +45,7 @@ export default async function AdminClubsPage() {
                 <th>Category</th>
                 <th>Tagline</th>
                 <th>Active</th>
+                <th>Public</th>
                 <th>Updated</th>
                 <th>Edit</th>
               </tr>
@@ -55,6 +57,26 @@ export default async function AdminClubsPage() {
                   <td>{c.category}</td>
                   <td style={{ color: "var(--ink-2)" }}>{c.tagline ?? "—"}</td>
                   <td>{c.isActive ? "Yes" : <span style={{ color: "var(--rust)" }}>No</span>}</td>
+                  <td>
+                    {c.isPublic ? (
+                      <span style={{ color: "var(--forest)" }}>Public</span>
+                    ) : (
+                      <span style={{ color: "var(--rust)", fontWeight: 500 }}>Hidden</span>
+                    )}
+                    {grant === "all" ? (
+                      <form action={setClubVisibilityAction} style={{ display: "inline" }}>
+                        <input type="hidden" name="id" value={c.id} />
+                        <input
+                          type="hidden"
+                          name="makePublic"
+                          value={c.isPublic ? "false" : "true"}
+                        />
+                        <button type="submit" className="btn btn-sm" style={{ marginLeft: 8 }}>
+                          {c.isPublic ? "Hide" : "Publish"}
+                        </button>
+                      </form>
+                    ) : null}
+                  </td>
                   <td>{istNumericDate(c.updatedAt)}</td>
                   <td>
                     {canManage(session, "manage:clubs", c.id) ? (

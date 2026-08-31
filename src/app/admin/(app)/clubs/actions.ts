@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminSession } from "@/lib/auth/guards";
@@ -175,4 +176,37 @@ export async function updateClubAction(
   });
 
   redirect("/admin/clubs");
+}
+
+/** One-click publish/hide from the clubs list. Council-only (grant `all`);
+ *  audited. Reads `id` (uuid) + `makePublic` ("true"/"false") from the form. */
+export async function setClubVisibilityAction(formData: FormData): Promise<void> {
+  const session = await getAdminSession();
+  if (!session) return;
+  if (grantFor(session.role, "manage:clubs") !== "all") return;
+
+  const id = String(formData.get("id") ?? "");
+  if (!z.string().uuid().safeParse(id).success) return;
+  const isPublic = formData.get("makePublic") === "true";
+
+  const existing = await getClubForEdit(id);
+  if (!existing) return;
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("clubs")
+    .update({ is_public: isPublic, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) return;
+
+  await writeAudit({
+    actorId: session.id,
+    action: "update",
+    entity: "club",
+    entityId: id,
+    before: { isPublic: existing.isPublic },
+    after: { isPublic },
+  });
+
+  revalidatePath("/admin/clubs");
 }
