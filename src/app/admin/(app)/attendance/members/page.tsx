@@ -4,6 +4,7 @@ import { grantFor } from "@/lib/auth/capabilities";
 import { canCreateForCapability } from "@/lib/admin/club-scope";
 import { listMembers, listPendingMembers, getClubJoinToken } from "@/lib/admin/members";
 import { JoinLinkPanel } from "@/components/admin/JoinLinkPanel";
+import { MembersTable } from "@/components/admin/MembersTable";
 import { onboardMemberAction, rejectMemberAction } from "../actions";
 
 export default async function MembersPage({
@@ -71,26 +72,7 @@ export default async function MembersPage({
         </section>
       ) : null}
 
-      {members.length === 0 ? (
-        <div className="cal-empty" style={{ marginTop: 18 }}>No members yet.</div>
-      ) : (
-        <div className="tablewrap" style={{ marginTop: 18 }}>
-          <table className="admin">
-            <thead><tr><th style={{ width: 44 }}>#</th><th>Name</th><th>Roll</th><th>Active</th><th>Edit</th></tr></thead>
-            <tbody>
-              {members.map((m, i) => (
-                <tr key={m.id}>
-                  <td>{i + 1}</td>
-                  <td style={{ fontWeight: 500 }}>{m.name}</td>
-                  <td>{m.rollNo ?? "—"}</td>
-                  <td>{m.isActive ? "Yes" : "No"}</td>
-                  <td><Link href={`/admin/attendance/members/${m.id}/edit`} className="label" style={{ color: "var(--forest)" }}>Edit →</Link></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <MembersTable members={members} />
     </div>
   );
 }

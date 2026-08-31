@@ -5,6 +5,7 @@ import { listClubsBrief } from "@/lib/admin/clubs";
 import { rosterWithPercent, listSessions, membershipCounts } from "@/lib/admin/attendance-club";
 import { computeClubAnalytics, pctOfStrength } from "@/lib/admin/attendance-analytics";
 import { AttendanceAnalytics } from "@/components/admin/AttendanceAnalytics";
+import { AttendanceRoster } from "@/components/admin/AttendanceRoster";
 import { CreateSessionForm } from "@/components/admin/CreateSessionForm";
 import { istNumericDate } from "@/lib/datetime";
 
@@ -67,16 +68,7 @@ export default async function AttendanceDashboard({ searchParams }: { searchPara
       <AttendanceAnalytics analytics={analytics} clubParam={councilWide ? clubId : null} />
 
       <h2 style={{ font: "400 18px var(--serif)", margin: "28px 0 8px" }}>Roster attendance</h2>
-      {roster.length === 0 ? <p className="body-text" style={{ color: "var(--ink-3)" }}>No active members yet.</p> : (
-        <div className="tablewrap">
-          <table className="admin">
-            <thead><tr><th style={{ width: 44 }}>#</th><th>Member</th><th>Attended</th><th>Eligible</th><th>%</th></tr></thead>
-            <tbody>{roster.map((r, i) => (
-              <tr key={r.memberId}><td>{i + 1}</td><td style={{ fontWeight: 500 }}>{r.name}</td><td>{r.attended}</td><td>{r.eligible}</td><td>{r.pct}%</td></tr>
-            ))}</tbody>
-          </table>
-        </div>
-      )}
+      <AttendanceRoster rows={roster} />
 
       <h2 style={{ font: "400 18px var(--serif)", margin: "28px 0 8px" }}>Session history</h2>
       {sessions.length === 0 ? <p className="body-text" style={{ color: "var(--ink-3)" }}>No sessions yet.</p> : (
