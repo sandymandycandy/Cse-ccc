@@ -24,9 +24,18 @@ export async function POST(request: Request) {
   }
   const parsed = ContactSchema.safeParse(body);
   if (!parsed.success) {
-    // Detail goes to the log, not the response.
-    console.warn("contact validation failed", parsed.error.flatten().fieldErrors);
-    return Response.json({ error: "Please check the form and try again." }, { status: 400 });
+    const fieldErrors = parsed.error.flatten().fieldErrors;
+    console.warn("contact validation failed", fieldErrors);
+    // Surface per-field messages for the visible fields only — never the honeypot
+    // ("website") or the bot token — so filling the honeypot still fails generically.
+    const fields: Record<string, string> = {};
+    for (const key of ["name", "email", "subject", "message"] as const) {
+      const msg = fieldErrors[key]?.[0];
+      if (msg) fields[key] = msg;
+    }
+    return Object.keys(fields).length > 0
+      ? Response.json({ error: "Please fix the highlighted fields.", fields }, { status: 400 })
+      : Response.json({ error: "Please check the form and try again." }, { status: 400 });
   }
   const input = parsed.data;
   const ip = clientIp(request);
