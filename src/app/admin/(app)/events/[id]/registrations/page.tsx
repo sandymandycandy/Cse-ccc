@@ -6,6 +6,7 @@ import { getEventForAttendance } from "@/lib/admin/attendance";
 import { listRegistrations, getEventFormSchema } from "@/lib/admin/registrations";
 import { answerColumns } from "@/lib/registration-form/columns";
 import { isSafeHttpUrl } from "@/lib/url";
+import { isAttendanceEligible } from "@/lib/admin/attendance-eligibility";
 import { toggleAttendanceAction, shortlistAction, unshortlistAction } from "./actions";
 
 export default async function RegistrationsPage({
@@ -52,9 +53,6 @@ export default async function RegistrationsPage({
           </p>
         </div>
         <div className="stack" style={{ gap: 10 }}>
-          <Link href={`/admin/events/${id}/attendance`} className="btn btn-ghost btn-sm">
-            Check-in
-          </Link>
           <a
             href={`/api/admin/registrations/export?event=${id}`}
             className="btn btn-primary btn-sm"
@@ -166,27 +164,29 @@ export default async function RegistrationsPage({
                     <td>{r.confirmed ? "Yes" : "—"}</td>
                     <td>
                       {r.attended ? (
-                        <span className="abadge abadge-approved">
-                          {r.method ?? "yes"}
-                        </span>
+                        <span className="abadge abadge-approved">Present</span>
                       ) : (
                         "—"
                       )}
                     </td>
                     {canEdit ? (
-                      <td>
-                        <form action={toggleAttendanceAction}>
-                          <input type="hidden" name="registrationId" value={r.id} />
-                          <input type="hidden" name="eventId" value={id} />
-                          <input type="hidden" name="attend" value={r.attended ? "0" : "1"} />
-                          <button
-                            type="submit"
-                            className={`btn btn-sm ${r.attended ? "btn-ghost" : "btn-accent"}`}
-                          >
-                            {r.attended ? "Undo" : hasTeam ? "Mark team present" : "Mark present"}
-                          </button>
-                        </form>
-                      </td>
+                      isAttendanceEligible(r, selectionMode) ? (
+                        <td>
+                          <form action={toggleAttendanceAction}>
+                            <input type="hidden" name="registrationId" value={r.id} />
+                            <input type="hidden" name="eventId" value={id} />
+                            <input type="hidden" name="attend" value={r.attended ? "0" : "1"} />
+                            <button
+                              type="submit"
+                              className={`btn btn-sm ${r.attended ? "btn-ghost" : "btn-accent"}`}
+                            >
+                              {r.attended ? "Undo" : hasTeam ? "Mark team present" : "Mark present"}
+                            </button>
+                          </form>
+                        </td>
+                      ) : (
+                        <td>—</td>
+                      )
                     ) : null}
                 </tr>
               ))}

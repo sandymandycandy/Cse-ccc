@@ -8,6 +8,7 @@ import { canManage } from "@/lib/auth/capabilities";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getEventForAttendance } from "@/lib/admin/attendance";
 import { getEventFormSchema } from "@/lib/admin/registrations";
+import { isAttendanceEligible } from "@/lib/admin/attendance-eligibility";
 import { shortlistRecipients } from "@/lib/registration-form/recipients";
 import { enqueueEmail } from "@/lib/email";
 import { writeAudit } from "@/lib/admin/audit";
@@ -31,6 +32,24 @@ export async function toggleAttendanceAction(formData: FormData): Promise<void> 
   if (!ev || !canManage(session, "manage:registrations", ev.clubId)) return;
 
   const admin = createAdminClient();
+
+  // Marking present is scoped: a shortlist event admits only shortlisted rows.
+  // An undo (clearing `attended`) is always allowed so an unshortlisted-after-
+  // marking row can still be corrected.
+  if (attend) {
+    const { selectionMode } = await getEventFormSchema(eventId);
+    const { data: reg } = await admin
+      .from("registrations")
+      .select("shortlisted_at")
+      .eq("id", registrationId)
+      .eq("event_id", eventId)
+      .maybeSingle();
+    if (!reg) return;
+    if (!isAttendanceEligible({ shortlistedAt: reg.shortlisted_at }, selectionMode)) {
+      return; // shortlist event, not shortlisted → not markable
+    }
+  }
+
   await admin
     .from("registrations")
     .update({
