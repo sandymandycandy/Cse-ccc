@@ -20,6 +20,37 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-08-31)
 
+> ### 🟡 SHIPPED TO BRANCH, PRE-MERGE — Club public visibility toggle (Feature 2) (`feat/club-visibility`, 2026-08-31)
+> **NOT yet merged or deployed** — the one thing currently in flight (branched from `main` @
+> `fc3217b`). Gives the council a per-club **Publish / Hide** toggle that removes a club from the
+> **public site only** while it stays fully manageable in admin. **Gate green: typecheck ✓ / lint ✓
+> / 182 tests ✓ / build ✓** (was 181 — added a required-`isPublic` schema case, +1).
+> - **What's in it:** new additive column **`clubs.is_public`** (`boolean not null default true`),
+>   distinct from `is_active` ("operational"). The public-visibility rule is now
+>   **`is_active AND is_public`** across all three anon-client club queries in `src/lib/queries.ts`
+>   (`getClubsWithCounts` = home + `/clubs`; `getCalendarClubs` = calendar chips; `getClubBySlug`
+>   gains **both** filters — closing the pre-existing `/clubs/[slug]` leak where an inactive club's
+>   page still rendered). Admin: a **council-only** one-click **Publish/Hide** button + **Hidden**
+>   badge (new `Public` column) on `/admin/clubs` via `setClubVisibilityAction` (audited,
+>   `revalidatePath`); a **"Show on public site"** checkbox in the club editor/create form (the old
+>   `is_active` box relabelled **"Active (club is operational)"** to end the conflation). New clubs
+>   default **visible**. Gated exactly as the existing structural fields
+>   (`grantFor(role,"manage:clubs") === "all"`); club heads see none of it.
+> - **Migration IS applied** to the live DB (additive, via MCP): `club_public_visibility`
+>   (`20260831020000`). Live probe confirmed the column + all 13 clubs `is_public = true` (no regression).
+> - **Route smoke (dev server, live DB):** inserted a throwaway **hidden** club (`is_active=true,
+>   is_public=false`) → `/clubs/<it>` → **404** and **absent** from `/clubs`; a real visible club
+>   `/clubs/coding` → 200, `/clubs` + `/calendar` → 200 (no regression); `/admin/clubs` (no cookie) →
+>   307→login. Throwaway **deleted** after (shared/live DB).
+> - **⚠️ OWED — one human-only browser walkthrough** (server-action POSTs can't be curled): as
+>   council, **Hide** a club on `/admin/clubs` → confirm it vanishes from home, `/clubs`,
+>   `/clubs/[slug]` (404), and the calendar chips, while its admin/edit pages still work →
+>   **Publish** to restore. Confirm a **club_head** login sees no Public badge / Hide button and no
+>   "Show on public site" checkbox in their editor.
+> - **Plan + spec:** `docs/superpowers/{plans,specs}/2026-08-31-club-public-visibility*`.
+> - **Next (owner's call):** merge `feat/club-visibility` → `main` → `git push origin main`
+>   (auto-deploys). No drop migration for this feature.
+
 > ### ✅ MERGED & PUSHED TO PROD — Council / leadership attendance (2026-08-31)
 > Fast-forward-merged into `main` and **pushed to `origin/main` (@ `d19c203`, 0 ahead / 0 behind) —
 > Vercel auto-deploy triggered**; the `feat/council-attendance` branch is deleted. A **third
