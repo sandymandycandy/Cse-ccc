@@ -244,6 +244,7 @@ export async function getCalendarClubs(): Promise<
     .from("clubs")
     .select("slug, short_name, color")
     .eq("is_active", true)
+    .eq("is_public", true)
     .order("sort", { ascending: true });
   if (error) throw error;
   return (data ?? []).map((c) => ({
@@ -285,6 +286,7 @@ export async function getClubsWithCounts(): Promise<
     .from("clubs")
     .select("slug, name, short_name, category, color, tagline, description")
     .eq("is_active", true)
+    .eq("is_public", true)
     .order("sort", { ascending: true });
   if (error) throw error;
 
@@ -316,6 +318,8 @@ export async function getClubBySlug(
     .from("clubs")
     .select("slug, name, short_name, category, color, tagline, description")
     .eq("slug", slug)
+    .eq("is_active", true)
+    .eq("is_public", true)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
