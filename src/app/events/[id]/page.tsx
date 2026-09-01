@@ -5,8 +5,9 @@ import { Panel } from "@/components/ui/Surface";
 import { SeatBadge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { RegisterForm } from "@/components/RegisterForm";
+import { RegistrationCountdown } from "@/components/RegistrationCountdown";
 import { getEventDetail, getPublishedResults } from "@/lib/queries";
-import { istFullDate, istTimeRange } from "@/lib/datetime";
+import { istFullDate, istTime, istTimeRange } from "@/lib/datetime";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -30,6 +31,7 @@ export default async function EventDetailPage({ params }: Params) {
   const seatsLeft = Math.max(0, event.capacity - event.registered);
   const pct = event.capacity > 0 ? (event.registered / event.capacity) * 100 : 0;
   const isFull = event.status === "full";
+  const phase = event.registrationPhase;
 
   return (
     <section className="section" style={{ paddingTop: 56 }}>
@@ -154,15 +156,32 @@ export default async function EventDetailPage({ params }: Params) {
           ) : null}
 
           <div style={{ marginTop: 20, paddingTop: 18, borderTop: "1px solid var(--line-2)" }}>
-            <div className="label" style={{ marginBottom: 12 }}>
-              {isFull ? "Join the waitlist" : "Register"}
-            </div>
-            <RegisterForm
-              eventId={event.id}
-              schema={event.registrationForm}
-              isFull={isFull}
-              mode={event.selectionMode}
-            />
+            {phase === "before" && event.registrationOpensAt ? (
+              <>
+                <div className="label" style={{ marginBottom: 12 }}>Register</div>
+                <RegistrationCountdown opensAt={event.registrationOpensAt} />
+                <p className="body-text" style={{ marginTop: 10, fontSize: 13, color: "var(--ink-2)" }}>
+                  Opens {istFullDate(event.registrationOpensAt)} at {istTime(event.registrationOpensAt)} IST.
+                </p>
+              </>
+            ) : phase === "closed" ? (
+              <>
+                <div className="label" style={{ marginBottom: 12 }}>Register</div>
+                <p className="body-text">Registration for this event has closed.</p>
+              </>
+            ) : (
+              <>
+                <div className="label" style={{ marginBottom: 12 }}>
+                  {isFull ? "Join the waitlist" : "Register"}
+                </div>
+                <RegisterForm
+                  eventId={event.id}
+                  schema={event.registrationForm}
+                  isFull={isFull}
+                  mode={event.selectionMode}
+                />
+              </>
+            )}
           </div>
         </Panel>
       </div>

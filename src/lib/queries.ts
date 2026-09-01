@@ -3,6 +3,7 @@ import { createPublicClient } from "@/lib/supabase/server";
 import { orderStandings } from "@/lib/results";
 import { isSafeHttpUrl } from "@/lib/url";
 import { validateFormSchema, type FormField } from "@/lib/registration-form/schema";
+import { registrationPhase, type RegPhase } from "@/lib/registration/phase";
 import type { Database } from "@/lib/database.types";
 import type {
   CalendarEvent,
@@ -132,6 +133,9 @@ export interface EventDetail extends EventSummary {
   posterUrl: string | null;
   selectionMode: "seats" | "shortlist";
   registrationForm: FormField[] | null;
+  registrationOpensAt: string | null;
+  registrationClosesAt: string | null;
+  registrationPhase: RegPhase;
 }
 
 export async function getEventDetail(id: string): Promise<EventDetail | null> {
@@ -139,6 +143,7 @@ export async function getEventDetail(id: string): Promise<EventDetail | null> {
   const { data, error } = await supabase
     .from("events")
     .select("id, title, description, rules, starts_at, ends_at, capacity, is_all_day, venue_text, poster_path, selection_mode, registration_form, " +
+      "registration_opens_at, registration_closes_at, " +
       "venues ( name ), event_clubs ( is_primary, clubs ( name, short_name ) )")
     .eq("id", id)
     .maybeSingle();
@@ -149,6 +154,8 @@ export async function getEventDetail(id: string): Promise<EventDetail | null> {
     poster_path: string | null;
     selection_mode: "seats" | "shortlist" | null;
     registration_form: unknown;
+    registration_opens_at: string | null;
+    registration_closes_at: string | null;
   };
   const counts = await registeredCounts([row.id]);
   const summary = toSummary(row, counts.get(row.id) ?? 0);
@@ -168,6 +175,13 @@ export async function getEventDetail(id: string): Promise<EventDetail | null> {
       const parsed = validateFormSchema(row.registration_form);
       return parsed.ok ? parsed.fields : null;
     })(),
+    registrationOpensAt: row.registration_opens_at,
+    registrationClosesAt: row.registration_closes_at,
+    registrationPhase: registrationPhase(
+      Date.now(),
+      row.registration_opens_at,
+      row.registration_closes_at,
+    ),
   };
 }
 
