@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import {
-  saveAttendanceAction,
   saveAndCloseAction,
   reopenSessionAction,
 } from "@/app/admin/(app)/attendance/actions";
@@ -35,7 +34,7 @@ export function SessionRoster({
   if (roster.length === 0) return <p className="body-text" style={{ color: "var(--ink-3)" }}>No approved members yet.</p>;
 
   return (
-    <form action={saveAttendanceAction}>
+    <form action={closed ? reopenSessionAction : saveAndCloseAction}>
       <input type="hidden" name="sessionId" value={sessionId} />
       {/* Present inputs for the FULL roster (not just filtered rows) so a search
           filter never drops a mark on save. */}
@@ -49,6 +48,7 @@ export function SessionRoster({
         type="search"
         value={q}
         onChange={(e) => setQ(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
         placeholder="Search name or roll…"
         aria-label="Search members by name or roll number"
       />
@@ -86,16 +86,13 @@ export function SessionRoster({
       )}
       {canEdit ? (
         <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap", alignItems: "center" }}>
-          <button className="btn btn-primary">Save attendance (draft)</button>
-          {closed ? (
-            <button className="btn" formAction={reopenSessionAction}>Reopen session</button>
-          ) : (
-            <button className="btn" formAction={saveAndCloseAction}>Save &amp; close session</button>
-          )}
+          <button className="btn btn-primary">
+            {closed ? "Reopen session" : "Save & close session"}
+          </button>
           <span className="hint">
             {closed
-              ? "Reopen to keep editing. Draft saves keep the session open."
-              : "“Save (draft)” keeps the session open so you can keep marking. Closing finalises it."}
+              ? "Reopen to edit this session again."
+              : "Saves the marked attendance and closes the session."}
           </span>
         </div>
       ) : null}
