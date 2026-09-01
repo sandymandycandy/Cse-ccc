@@ -66,11 +66,9 @@ export function SessionRoster({
             const on = present.has(r.memberId);
             return (
               <li key={r.memberId} className="rule sroster-row">
-                <span className="sroster-name">
-                  <span className="label sroster-idx">{i + 1}</span>
-                  {r.name}
-                  {r.rollNo ? <span className="label" style={{ display: "block", marginLeft: 30, fontWeight: 400, color: "var(--ink-3)" }}>{r.rollNo}</span> : null}
-                </span>
+                <span className="label sroster-idx">{i + 1}</span>
+                <span className="sroster-name">{r.name}</span>
+                <span className="sroster-roll">{r.rollNo ?? "—"}</span>
                 {canEdit ? (
                   <button type="button" className="btn btn-sm"
                     onClick={() => toggle(r.memberId)}

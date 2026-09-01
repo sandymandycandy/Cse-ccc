@@ -1316,15 +1316,17 @@
     box-shadow: 0 0 0 3px var(--forest-tint);
   }
   .sroster-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+  /* Row as aligned columns: index · name · roll · toggle. */
   .sroster-row {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) auto auto;
     align-items: center;
-    gap: 12px;
+    gap: 4px 10px;
     padding-bottom: 6px;
   }
   .sroster-name { min-width: 0; font-weight: 500; }
-  .sroster-idx { display: inline-block; min-width: 30px; color: var(--ink-3); }
+  .sroster-idx { color: var(--ink-3); }
+  .sroster-roll { color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
   .sroster-row .btn-sm { flex-shrink: 0; }
   .att-qr {
     background: #fff; /* stays scannable in night mode */
