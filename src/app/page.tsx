@@ -6,21 +6,24 @@ import { WeekStrip } from "@/components/WeekStrip";
 import { ClubCard } from "@/components/ClubCard";
 import { UpcomingCarousel } from "@/components/UpcomingCarousel";
 import { GalleryStrip } from "@/components/GalleryStrip";
+import { istFullDate } from "@/lib/datetime";
 import {
   getUpcomingEvents,
   getClubsWithCounts,
   getAchievements,
   getWeekStrip,
   getPublicGallery,
+  getPublishedAnnouncements,
 } from "@/lib/queries";
 
 export default async function HomePage() {
-  const [events, clubs, achievements, week, gallery] = await Promise.all([
+  const [events, clubs, achievements, week, gallery, announcements] = await Promise.all([
     getUpcomingEvents(6),
     getClubsWithCounts(),
     getAchievements(4),
     getWeekStrip(),
     getPublicGallery(),
+    getPublishedAnnouncements(),
   ]);
 
   const thisWeekCount = week.filter((d) => d.event).length;
@@ -141,6 +144,40 @@ export default async function HomePage() {
                   {a.detail}
                 </p>
               </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {/* ── Announcements ── */}
+      {announcements.length > 0 ? (
+        <section className="section">
+          <div className="sec-head">
+            <h2>Announcements</h2>
+            <Link
+              href="/announcements"
+              className="label"
+              style={{ color: "var(--forest)" }}
+            >
+              All notices →
+            </Link>
+          </div>
+          <div className="grid2">
+            {announcements.slice(0, 3).map((a) => (
+              <Link
+                key={a.slug}
+                href={`/announcements/${a.slug}`}
+                className="card"
+                style={{ display: "block", color: "var(--ink)" }}
+              >
+                <div className="label" style={{ color: "var(--ink-3)" }}>
+                  {istFullDate(a.publishedAt)}
+                </div>
+                <h3 style={{ marginTop: 10, fontSize: 22 }}>{a.title}</h3>
+                <p className="body-text" style={{ marginTop: 8 }}>
+                  {a.excerpt}
+                </p>
+              </Link>
             ))}
           </div>
         </section>

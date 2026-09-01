@@ -11,6 +11,8 @@ const LINKS = [
   { href: "/events", label: "Events" },
   { href: "/calendar", label: "Calendar" },
   { href: "/clubs", label: "Clubs" },
+  { href: "/gallery", label: "Gallery" },
+  { href: "/announcements", label: "Announcements" },
   { href: "/team", label: "Team" },
 ] as const;
 
