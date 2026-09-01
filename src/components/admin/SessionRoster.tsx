@@ -45,12 +45,12 @@ export function SessionRoster({
         <span className={`abadge${closed ? "" : " abadge-approved"}`}>{closed ? "Closed" : "Open"}</span>
       </div>
       <input
+        className="sroster-search"
         type="search"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Search name or roll…"
         aria-label="Search members by name or roll number"
-        style={{ maxWidth: 280, marginBottom: 12 }}
       />
       {canEdit ? (
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
@@ -61,13 +61,13 @@ export function SessionRoster({
       {filtered.length === 0 ? (
         <p className="body-text" style={{ color: "var(--ink-3)" }}>No members match “{q}”.</p>
       ) : (
-        <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: 4 }}>
+        <ul className="sroster-list">
           {filtered.map((r, i) => {
             const on = present.has(r.memberId);
             return (
-              <li key={r.memberId} className="rule" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 6 }}>
-                <span style={{ fontWeight: 500 }}>
-                  <span className="label" style={{ display: "inline-block", minWidth: 30, color: "var(--ink-3)" }}>{i + 1}</span>
+              <li key={r.memberId} className="rule sroster-row">
+                <span className="sroster-name">
+                  <span className="label sroster-idx">{i + 1}</span>
                   {r.name}
                   {r.rollNo ? <span className="label" style={{ display: "block", marginLeft: 30, fontWeight: 400, color: "var(--ink-3)" }}>{r.rollNo}</span> : null}
                 </span>

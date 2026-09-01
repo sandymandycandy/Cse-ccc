@@ -1288,6 +1288,39 @@
     letter-spacing: 0.14em;
     color: var(--ink-3);
   }
+
+  /* Attendance session marking roster (/admin/{attendance,council}/sessions/[id]).
+     Phone-first: a search that goes full-width on small screens (and >=16px so iOS
+     doesn't zoom on focus), and rows that keep the Present/Absent toggle pinned to
+     the right while a long name wraps instead of crowding it off the screen. */
+  .sroster-search {
+    width: 100%;
+    max-width: 320px;
+    padding: 11px 14px;
+    border: 1px solid var(--line-3);
+    border-radius: var(--r-sm);
+    background: var(--paper-2);
+    color: var(--ink);
+    font: 400 14px var(--sans);
+    min-height: 44px;
+    margin-bottom: 12px;
+  }
+  .sroster-search:focus {
+    border-color: var(--forest);
+    outline: none;
+    box-shadow: 0 0 0 3px var(--forest-tint);
+  }
+  .sroster-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+  .sroster-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 6px;
+  }
+  .sroster-name { min-width: 0; font-weight: 500; }
+  .sroster-idx { display: inline-block; min-width: 30px; color: var(--ink-3); }
+  .sroster-row .btn-sm { flex-shrink: 0; }
   .att-qr {
     background: #fff; /* stays scannable in night mode */
     padding: 12px;
@@ -1389,5 +1422,12 @@ img {
   /* Small buttons get a full touch target on phones. */
   .btn-sm {
     min-height: 44px;
+  }
+
+  /* Session roster search spans the full width on phones and renders at 16px so
+     iOS Safari doesn't zoom the page in when it's focused. */
+  .sroster-search {
+    max-width: none;
+    font-size: 16px;
   }
 }
