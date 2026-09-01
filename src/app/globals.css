@@ -554,6 +554,69 @@
     white-space: nowrap;
   }
 
+  /* gallery band — auto-scrolling photo strip (shares the `tick` keyframe with
+     the ticker). Trailing padding per item (not a flex gap) keeps the -50%
+     loop seamless. Pauses on hover; motion off under reduced-motion (globals). */
+  .gallery-strip {
+    padding: 16px var(--pad);
+    border-block: 1px solid var(--line);
+    background: var(--paper-2);
+    overflow: hidden;
+  }
+  .gallery-strip .track {
+    display: flex;
+    width: max-content;
+    animation: tick 70s linear infinite;
+  }
+  .gallery-strip:hover .track { animation-play-state: paused; }
+  .gallery-strip .track > a {
+    flex: none;
+    padding-right: 12px;
+    display: block;
+    line-height: 0;
+  }
+  .gallery-strip img {
+    height: 132px;
+    width: auto;
+    border-radius: var(--r-md);
+    border: 1px solid var(--line-2b);
+    object-fit: cover;
+    display: block;
+  }
+  @media (max-width: 599px) {
+    .gallery-strip img { height: 104px; }
+  }
+
+  /* home carousel — arrows + dots for the rotating "Next up" panel */
+  .hcar-nav { display: inline-flex; align-items: center; gap: 8px; }
+  .hcar-arrow {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--line-3);
+    border-radius: var(--r-sm);
+    background: var(--card);
+    color: var(--ink);
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+  }
+  .hcar-arrow:hover { border-color: var(--ink); }
+  .hcar-dots { display: inline-flex; align-items: center; gap: 6px; }
+  .hcar-dot {
+    width: 7px;
+    height: 7px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--line-4);
+    cursor: pointer;
+    transition: background 0.18s;
+  }
+  .hcar-dot[aria-current="true"] { background: var(--forest); }
+
   /* ── calendar (BUILD_PLAN §5) ──────────────────────────────────────────── */
 
   /* toolbar: period label · view tabs · prev/today/next */
