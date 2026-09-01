@@ -264,15 +264,21 @@
     border-radius: var(--r-pill);
     font: 600 14px var(--sans);
     cursor: pointer;
-    border: 1px solid transparent;
-    transition: transform 0.12s, filter 0.18s;
+    /* The base .btn IS the secondary/outline button — a visible border, a subtle
+       raised surface and readable text in both themes. Without this a plain .btn
+       (no -primary/-accent modifier) renders as bare text. */
+    border: 1px solid var(--line-4);
+    background: var(--paper-2);
+    color: var(--ink);
+    transition: transform 0.12s, filter 0.18s, border-color 0.18s;
     min-height: 44px;
   }
+  .btn:hover { filter: brightness(0.96); border-color: var(--ink-2); }
   .btn:active { transform: translateY(1px); }
-  .btn-primary { background: var(--ink); color: var(--paper); }
-  .btn-primary:hover { filter: brightness(1.25); }
-  .btn-accent { background: var(--forest); color: #faf9f5; }
-  .btn-accent:hover { filter: brightness(1.1); }
+  .btn-primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .btn-primary:hover { filter: brightness(1.25); border-color: var(--ink); }
+  .btn-accent { background: var(--forest); color: #faf9f5; border-color: var(--forest); }
+  .btn-accent:hover { filter: brightness(1.1); border-color: var(--forest); }
   .btn-ghost { border-color: var(--line-4); color: var(--ink); background: transparent; }
   .btn-ghost:hover { border-color: var(--ink); color: var(--ink); }
   .btn-sm { padding: 9px 17px; font-size: 12.5px; min-height: 36px; }
