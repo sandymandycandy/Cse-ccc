@@ -10,6 +10,7 @@ import { enqueueEmail } from "@/lib/email";
 import { writeAudit } from "@/lib/admin/audit";
 import { handleImageUpload } from "@/lib/admin/image-upload";
 import { validateFormSchema, defaultFormFor } from "@/lib/registration-form/schema";
+import { parseSchedule } from "@/lib/registration/schedule";
 import { istDateKey, istLocalToUTC } from "@/lib/datetime";
 import type { Json } from "@/lib/database.types";
 import type { AdminRole } from "@/lib/auth/capabilities";
@@ -36,6 +37,9 @@ const CreateSchema = z
     capacity: z.coerce.number().int().min(0).max(100000).optional().or(z.literal("")),
     selectionMode: z.enum(["seats", "shortlist"]).default("seats"),
     registrationForm: z.string().optional(), // JSON; validated with validateFormSchema
+    registrationOpensAt: z.string().optional(), // IST datetime-local; validated in parseSchedule
+    registrationClosesAt: z.string().optional(),
+    waitlistEnabled: z.coerce.boolean().optional(),
   })
   .strict();
 
@@ -50,6 +54,9 @@ function parseEvent(formData: FormData) {
     capacity: formData.get("capacity") || "",
     selectionMode: formData.get("selectionMode") || "seats",
     registrationForm: formData.get("registrationForm") || undefined,
+    registrationOpensAt: formData.get("registrationOpensAt") || undefined,
+    registrationClosesAt: formData.get("registrationClosesAt") || undefined,
+    waitlistEnabled: formData.get("waitlistEnabled") === "on",
   });
 }
 
@@ -94,6 +101,13 @@ export async function createEventAction(
   if (new Date(endsAt) <= new Date(startsAt)) {
     return { error: "The event must end after it starts." };
   }
+
+  const sched = parseSchedule(
+    parsed.data.registrationOpensAt ?? "",
+    parsed.data.registrationClosesAt ?? "",
+    startsAt,
+  );
+  if (!sched.ok) return { error: sched.error };
 
   const admin = createAdminClient();
 
@@ -146,6 +160,9 @@ export async function createEventAction(
       capacity: typeof capacity === "number" ? capacity : null,
       selection_mode: selectionMode,
       registration_form: form.value,
+      registration_opens_at: sched.opensAt,
+      registration_closes_at: sched.closesAt,
+      waitlist_enabled: parsed.data.waitlistEnabled ?? true,
       status: "published",
       approval_status: autoApproved ? "approved" : "pending",
       approved_by: autoApproved ? session.id : null,
@@ -261,6 +278,13 @@ export async function updateEventAction(
     return { error: "The event must end after it starts." };
   }
 
+  const sched = parseSchedule(
+    parsed.data.registrationOpensAt ?? "",
+    parsed.data.registrationClosesAt ?? "",
+    startsAt,
+  );
+  if (!sched.ok) return { error: sched.error };
+
   // Blackout check (§13.2).
   const { data: blackouts } = await admin
     .from("blackout_dates")
@@ -305,6 +329,9 @@ export async function updateEventAction(
     capacity: number | null;
     selection_mode: "seats" | "shortlist";
     registration_form: Json;
+    registration_opens_at: string | null;
+    registration_closes_at: string | null;
+    waitlist_enabled: boolean;
     poster_path?: string;
   } = {
     title,
@@ -315,6 +342,9 @@ export async function updateEventAction(
     capacity: typeof capacity === "number" ? capacity : null,
     selection_mode: selectionMode,
     registration_form: form.value,
+    registration_opens_at: sched.opensAt,
+    registration_closes_at: sched.closesAt,
+    waitlist_enabled: parsed.data.waitlistEnabled ?? true,
   };
   if (poster.path) update.poster_path = poster.path;
 

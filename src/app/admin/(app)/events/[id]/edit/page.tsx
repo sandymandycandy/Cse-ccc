@@ -67,6 +67,9 @@ export default async function EditEventPage({
           posterUrl: event.posterUrl,
           selectionMode: event.selectionMode,
           registrationForm: JSON.stringify(event.registrationForm ?? defaultFormFor()),
+          registrationOpensAtLocal: event.registrationOpensAt ? istLocalInput(event.registrationOpensAt) : "",
+          registrationClosesAtLocal: event.registrationClosesAt ? istLocalInput(event.registrationClosesAt) : "",
+          waitlistEnabled: event.waitlistEnabled,
         }}
       />
 

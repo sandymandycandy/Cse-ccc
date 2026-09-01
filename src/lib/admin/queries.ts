@@ -132,6 +132,9 @@ export interface EventForEdit {
   rejectionReason: string | null;
   selectionMode: "seats" | "shortlist";
   registrationForm: unknown;
+  registrationOpensAt: string | null;
+  registrationClosesAt: string | null;
+  waitlistEnabled: boolean;
 }
 
 /**
@@ -148,7 +151,9 @@ export async function getEventForEdit(
     .from("events")
     .select(
       "id, title, description, starts_at, ends_at, venue_text, poster_path, capacity, status, " +
-        "approval_status, rejection_reason, selection_mode, registration_form, event_clubs ( club_id, is_primary )",
+        "approval_status, rejection_reason, selection_mode, registration_form, " +
+        "registration_opens_at, registration_closes_at, waitlist_enabled, " +
+        "event_clubs ( club_id, is_primary )",
     )
     .eq("id", eventId)
     .maybeSingle();
@@ -169,6 +174,9 @@ export async function getEventForEdit(
     rejection_reason: string | null;
     selection_mode: "seats" | "shortlist" | null;
     registration_form: unknown;
+    registration_opens_at: string | null;
+    registration_closes_at: string | null;
+    waitlist_enabled: boolean | null;
     event_clubs: { club_id: string; is_primary: boolean }[];
   };
   const primary = row.event_clubs.find((l) => l.is_primary) ?? row.event_clubs[0];
@@ -195,6 +203,9 @@ export async function getEventForEdit(
     rejectionReason: row.rejection_reason,
     selectionMode: row.selection_mode ?? "seats",
     registrationForm: row.registration_form ?? null,
+    registrationOpensAt: row.registration_opens_at,
+    registrationClosesAt: row.registration_closes_at,
+    waitlistEnabled: row.waitlist_enabled ?? true,
   };
 }
 

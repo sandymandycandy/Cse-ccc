@@ -22,6 +22,9 @@ export interface EventFormInitial {
   posterUrl: string | null;
   selectionMode: "seats" | "shortlist";
   registrationForm: string;
+  registrationOpensAtLocal: string;
+  registrationClosesAtLocal: string;
+  waitlistEnabled: boolean;
 }
 
 type EventAction = (
@@ -148,6 +151,42 @@ export function EventForm({
       <div className="field">
         <label htmlFor="capacity">Capacity (optional)</label>
         <input id="capacity" name="capacity" type="number" min={0} defaultValue={initial?.capacity} placeholder="Leave blank for unlimited" />
+      </div>
+
+      <div className="admin-form-row">
+        <div className="field">
+          <label htmlFor="registrationOpensAt">Registration opens (IST) — optional</label>
+          <input
+            id="registrationOpensAt"
+            name="registrationOpensAt"
+            type="datetime-local"
+            defaultValue={initial?.registrationOpensAtLocal}
+          />
+          <span className="hint">Leave blank to open right away. Until then students see a live countdown.</span>
+        </div>
+        <div className="field">
+          <label htmlFor="registrationClosesAt">Registration closes (IST) — optional</label>
+          <input
+            id="registrationClosesAt"
+            name="registrationClosesAt"
+            type="datetime-local"
+            defaultValue={initial?.registrationClosesAtLocal}
+          />
+        </div>
+      </div>
+
+      <div className="field">
+        <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 400 }}>
+          <input
+            type="checkbox"
+            name="waitlistEnabled"
+            defaultChecked={initial ? initial.waitlistEnabled : true}
+          />
+          Allow a waitlist when the seats fill
+        </label>
+        <span className="hint">
+          Extra students join a waitlist you can promote from on the registrations page.
+        </span>
       </div>
 
       <RegistrationFormBuilder
