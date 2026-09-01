@@ -554,37 +554,37 @@
     white-space: nowrap;
   }
 
-  /* gallery band — auto-scrolling photo strip (shares the `tick` keyframe with
-     the ticker). Trailing padding per item (not a flex gap) keeps the -50%
-     loop seamless. Pauses on hover; motion off under reduced-motion (globals). */
+  /* gallery strip — auto-scrolling photo card that sits under the hero's events
+     carousel (shares the `tick` keyframe with the ticker). Trailing padding per
+     item (not a flex gap) keeps the -50% loop seamless. Pauses on hover; motion
+     off under reduced-motion (globals). Self-contained rounded card so it reads
+     as a sibling of the .panel above it. */
   .gallery-strip {
-    padding: 16px var(--pad);
-    border-block: 1px solid var(--line);
+    padding: 10px;
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-xl);
     background: var(--paper-2);
     overflow: hidden;
   }
   .gallery-strip .track {
     display: flex;
     width: max-content;
-    animation: tick 70s linear infinite;
+    animation: tick 55s linear infinite;
   }
   .gallery-strip:hover .track { animation-play-state: paused; }
   .gallery-strip .track > a {
     flex: none;
-    padding-right: 12px;
+    padding-right: 10px;
     display: block;
     line-height: 0;
   }
   .gallery-strip img {
-    height: 132px;
+    height: 108px;
     width: auto;
     border-radius: var(--r-md);
     border: 1px solid var(--line-2b);
     object-fit: cover;
     display: block;
-  }
-  @media (max-width: 599px) {
-    .gallery-strip img { height: 104px; }
   }
 
   /* home carousel — arrows + dots for the rotating "Next up" panel */

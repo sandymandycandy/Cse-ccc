@@ -65,12 +65,12 @@ export default async function HomePage() {
             </div>
           </div>
 
-          <UpcomingCarousel events={events} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
+            <UpcomingCarousel events={events} />
+            <GalleryStrip photos={gallery} />
+          </div>
         </div>
       </section>
-
-      {/* ── Gallery band ── */}
-      <GalleryStrip photos={gallery} />
 
       {/* ── This week ── */}
       <section className="section">
