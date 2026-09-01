@@ -1484,6 +1484,7 @@ export type Database = {
           shortlisted_at: string | null
           student_name: string | null
           team_members: Json | null
+          waitlist_position: number | null
           year: number | null
         }
         Insert: {
@@ -1505,6 +1506,7 @@ export type Database = {
           shortlisted_at?: string | null
           student_name?: string | null
           team_members?: Json | null
+          waitlist_position?: number | null
           year?: number | null
         }
         Update: {
@@ -1526,6 +1528,7 @@ export type Database = {
           shortlisted_at?: string | null
           student_name?: string | null
           team_members?: Json | null
+          waitlist_position?: number | null
           year?: number | null
         }
         Relationships: [
