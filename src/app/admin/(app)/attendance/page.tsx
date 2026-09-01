@@ -52,11 +52,11 @@ export default async function AttendanceDashboard({ searchParams }: { searchPara
       </div>
 
       {councilWide && clubs.length > 0 ? (
-        <form method="get" style={{ marginTop: 12 }}>
-          <select name="club" defaultValue={clubId} style={{ maxWidth: 260 }}>
+        <form method="get" style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <select name="club" defaultValue={clubId} className="select-input" style={{ maxWidth: 260 }}>
             {clubs.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <button className="btn btn-sm" style={{ marginLeft: 8 }}>View</button>
+          <button className="btn btn-sm">View</button>
         </form>
       ) : null}
 

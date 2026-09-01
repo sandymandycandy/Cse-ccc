@@ -1295,10 +1295,11 @@
     color: var(--ink-3);
   }
 
-  /* Shared search box for the admin roster/members/session tables. Design-system
-     styled (bare <input type=search> would render unstyled); goes full-width on
-     phones (and >=16px so iOS doesn't zoom on focus). */
-  .search-input {
+  /* Shared search/select box for the admin dashboards & tables. Design-system
+     styled (a bare <input type=search> / <select> would render unstyled); goes
+     full-width on phones (and >=16px so iOS doesn't zoom on focus). */
+  .search-input,
+  .select-input {
     width: 100%;
     max-width: 320px;
     padding: 11px 14px;
@@ -1308,9 +1309,10 @@
     color: var(--ink);
     font: 400 14px var(--sans);
     min-height: 44px;
-    margin-bottom: 12px;
   }
-  .search-input:focus {
+  .search-input { margin-bottom: 12px; }
+  .search-input:focus,
+  .select-input:focus {
     border-color: var(--forest);
     outline: none;
     box-shadow: 0 0 0 3px var(--forest-tint);
@@ -1431,9 +1433,10 @@ img {
     min-height: 44px;
   }
 
-  /* Admin search boxes span the full width on phones and render at 16px so iOS
-     Safari doesn't zoom the page in when they're focused. */
-  .search-input {
+  /* Admin search/select boxes span the full width on phones and render at 16px
+     so iOS Safari doesn't zoom the page in when they're focused. */
+  .search-input,
+  .select-input {
     max-width: none;
     font-size: 16px;
   }
