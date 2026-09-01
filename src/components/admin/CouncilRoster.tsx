@@ -24,12 +24,12 @@ export function CouncilRoster({ rows }: { rows: Row[] }) {
   return (
     <>
       <input
+        className="search-input"
         type="search"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Search name or roll…"
         aria-label="Search roster by name or roll number"
-        style={{ maxWidth: 280, marginBottom: 12 }}
       />
       {filtered.length === 0 ? (
         <p className="body-text" style={{ color: "var(--ink-3)" }}>No members match “{q}”.</p>

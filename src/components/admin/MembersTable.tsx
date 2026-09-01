@@ -19,12 +19,12 @@ export function MembersTable({ members }: { members: Member[] }) {
   return (
     <div style={{ marginTop: 18 }}>
       <input
+        className="search-input"
         type="search"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Search name or roll…"
         aria-label="Search members by name or roll number"
-        style={{ maxWidth: 280, marginBottom: 12 }}
       />
       {filtered.length === 0 ? (
         <div className="cal-empty">{q ? `No members match “${q}”.` : "No members yet."}</div>

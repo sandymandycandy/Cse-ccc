@@ -1295,11 +1295,10 @@
     color: var(--ink-3);
   }
 
-  /* Attendance session marking roster (/admin/{attendance,council}/sessions/[id]).
-     Phone-first: a search that goes full-width on small screens (and >=16px so iOS
-     doesn't zoom on focus), and rows that keep the Present/Absent toggle pinned to
-     the right while a long name wraps instead of crowding it off the screen. */
-  .sroster-search {
+  /* Shared search box for the admin roster/members/session tables. Design-system
+     styled (bare <input type=search> would render unstyled); goes full-width on
+     phones (and >=16px so iOS doesn't zoom on focus). */
+  .search-input {
     width: 100%;
     max-width: 320px;
     padding: 11px 14px;
@@ -1311,7 +1310,7 @@
     min-height: 44px;
     margin-bottom: 12px;
   }
-  .sroster-search:focus {
+  .search-input:focus {
     border-color: var(--forest);
     outline: none;
     box-shadow: 0 0 0 3px var(--forest-tint);
@@ -1430,9 +1429,9 @@ img {
     min-height: 44px;
   }
 
-  /* Session roster search spans the full width on phones and renders at 16px so
-     iOS Safari doesn't zoom the page in when it's focused. */
-  .sroster-search {
+  /* Admin search boxes span the full width on phones and render at 16px so iOS
+     Safari doesn't zoom the page in when they're focused. */
+  .search-input {
     max-width: none;
     font-size: 16px;
   }

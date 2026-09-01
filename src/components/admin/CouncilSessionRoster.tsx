@@ -44,7 +44,7 @@ export function CouncilSessionRoster({
         <span className={`abadge${closed ? "" : " abadge-approved"}`}>{closed ? "Closed" : "Open"}</span>
       </div>
       <input
-        className="sroster-search"
+        className="search-input"
         type="search"
         value={q}
         onChange={(e) => setQ(e.target.value)}
