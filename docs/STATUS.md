@@ -20,8 +20,9 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-01)
 
-> ### 🟡 SHIPPED TO BRANCH, PRE-MERGE — Attendance search/export + form fixes (batch) (`feat/attendance-search`, 2026-09-01)
-> **NOT yet merged or deployed** — branched from `main` @ `fc3217b`. Owner asks: a **name/roll
+> ### ✅ MERGED & PUSHED TO PROD — Attendance search/export + form fixes (batch) (2026-09-01)
+> **Merged to `main` and pushed to `origin/main` — Vercel auto-deploy triggered** (merged alongside
+> `feat/club-visibility`; both branches deleted). Branched from `main` @ `fc3217b`. Owner asks: a **name/roll
 > search box** on the attendance lists, and the member's **roll no shown when taking attendance**
 > (session roster) with a search there too — across **both** the club and council surfaces. **No DB
 > migration** (`roll_no` already exists on `club_members`/`council_members`; admin-only PII already
@@ -62,13 +63,14 @@ end-to-end**, not a checklist of components.
 > - **⏳ Pending owner input:** the "free for all CSE students" → "open to all university students"
 >   copy is **not** in the code or DB (searched clubs/events/announcements) — owner to name the
 >   club/event to edit (or edit it in the admin editor).
-> - **Next (owner's call):** merge `feat/attendance-search` → `main` → push (auto-deploys). Bundles
->   several unrelated fixes; can be split into separate branches on request.
+> - **✅ Merged & pushed** alongside `feat/club-visibility` (2026-09-01). Gate green on the merged
+>   `main`: typecheck ✓ / lint ✓ / **190 tests** ✓ / build ✓.
 >   Independent of the `feat/club-visibility` branch (disjoint files; STATUS.md is the only shared
 >   file — expect a trivial START-HERE merge nudge if both land).
 
-> ### 🟡 SHIPPED TO BRANCH, PRE-MERGE — Club public visibility toggle (Feature 2) (`feat/club-visibility`, 2026-08-31)
-> **NOT yet merged or deployed** — the one thing currently in flight (branched from `main` @
+> ### ✅ MERGED & PUSHED TO PROD — Club public visibility toggle (Feature 2) (2026-08-31)
+> **Merged to `main` and pushed to `origin/main` — Vercel auto-deploy triggered** (branch deleted;
+> branched from `main` @
 > `fc3217b`). Gives the council a per-club **Publish / Hide** toggle that removes a club from the
 > **public site only** while it stays fully manageable in admin. **Gate green: typecheck ✓ / lint ✓
 > / 182 tests ✓ / build ✓** (was 181 — added a required-`isPublic` schema case, +1).
@@ -95,8 +97,7 @@ end-to-end**, not a checklist of components.
 >   **Publish** to restore. Confirm a **club_head** login sees no Public badge / Hide button and no
 >   "Show on public site" checkbox in their editor.
 > - **Plan + spec:** `docs/superpowers/{plans,specs}/2026-08-31-club-public-visibility*`.
-> - **Next (owner's call):** merge `feat/club-visibility` → `main` → `git push origin main`
->   (auto-deploys). No drop migration for this feature.
+> - **✅ Merged & pushed** (2026-09-01, alongside `feat/attendance-search`). No drop migration for this feature.
 
 > ### ✅ MERGED & PUSHED TO PROD — Council / leadership attendance (2026-08-31)
 > Fast-forward-merged into `main` and **pushed to `origin/main` (@ `d19c203`, 0 ahead / 0 behind) —
