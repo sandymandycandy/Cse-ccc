@@ -7,7 +7,13 @@ import { listRegistrations, getEventFormSchema } from "@/lib/admin/registrations
 import { answerColumns } from "@/lib/registration-form/columns";
 import { isSafeHttpUrl } from "@/lib/url";
 import { isAttendanceEligible } from "@/lib/admin/attendance-eligibility";
-import { toggleAttendanceAction, shortlistAction, unshortlistAction } from "./actions";
+import { splitRegistrations } from "@/lib/registration/waitlist";
+import {
+  toggleAttendanceAction,
+  shortlistAction,
+  unshortlistAction,
+  promoteWaitlistAction,
+} from "./actions";
 
 export default async function RegistrationsPage({
   params,
@@ -33,9 +39,12 @@ export default async function RegistrationsPage({
   const columns = answerColumns(schema);
   const hasTeam = schema.some((f) => f.kind === "team");
   const isShortlist = selectionMode === "shortlist";
-  const confirmed = regs.filter((r) => r.confirmed).length;
   const attended = regs.filter((r) => r.attended).length;
   const shortlisted = regs.filter((r) => r.shortlistedAt).length;
+  // Seats mode splits confirmed (the main table) from the waitlist; shortlist
+  // mode has no waitlist, so the main table shows everything.
+  const { confirmed: confirmedRows, waitlist: waitlistRows } = splitRegistrations(regs);
+  const rows = isShortlist ? regs : confirmedRows;
 
   return (
     <div className="admin-page">
@@ -49,7 +58,9 @@ export default async function RegistrationsPage({
           <p className="body-text" style={{ marginTop: 6 }}>
             {isShortlist
               ? `${regs.length} submitted · ${shortlisted} shortlisted`
-              : `${regs.length} registered · ${confirmed} confirmed · ${attended} attended`}
+              : `${confirmedRows.length} registered · ${attended} attended${
+                  waitlistRows.length ? ` · ${waitlistRows.length} waitlisted` : ""
+                }`}
           </p>
         </div>
         <div className="stack" style={{ gap: 10 }}>
@@ -95,7 +106,7 @@ export default async function RegistrationsPage({
                 </tr>
               </thead>
               <tbody>
-                {regs.map((r) => (
+                {rows.map((r) => (
                   <tr key={r.id}>
                     {isShortlist && canEdit ? (
                       <td>
@@ -193,6 +204,54 @@ export default async function RegistrationsPage({
               </tbody>
             </table>
           </div>
+
+          {!isShortlist && waitlistRows.length > 0 ? (
+            <div style={{ marginTop: 28 }}>
+              <div className="label" style={{ marginBottom: 8 }}>
+                Waitlist ({waitlistRows.length})
+              </div>
+              <div className="tablewrap">
+                <table className="admin">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Name</th>
+                      <th>Roll</th>
+                      <th>Dept · Yr</th>
+                      {canEdit ? <th>Promote</th> : null}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {waitlistRows.map((r) => (
+                      <tr key={r.id}>
+                        <td>{r.waitlistPosition}</td>
+                        <td style={{ fontWeight: 500 }}>{r.name}</td>
+                        <td>{r.roll}</td>
+                        <td>
+                          {r.department ?? "—"}
+                          {r.year ? ` · ${r.year}` : ""}
+                        </td>
+                        {canEdit ? (
+                          <td>
+                            <form action={promoteWaitlistAction}>
+                              <input type="hidden" name="registrationId" value={r.id} />
+                              <input type="hidden" name="eventId" value={id} />
+                              <button type="submit" className="btn btn-sm btn-accent">
+                                Promote to registered
+                              </button>
+                            </form>
+                          </td>
+                        ) : null}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <span className="hint">
+                Promoting confirms the student (past capacity if needed) and emails them.
+              </span>
+            </div>
+          ) : null}
         </>
       )}
     </div>

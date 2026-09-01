@@ -136,6 +136,58 @@ export async function shortlistAction(formData: FormData): Promise<void> {
   redirect(`/admin/events/${eventId}/registrations?shortlisted=1`);
 }
 
+/**
+ * Promote one waitlisted registration to confirmed (own-club scoped; audited).
+ * Sets confirmed_at + clears the position; allowed past capacity (a deliberate
+ * organiser override). Emails the student if they gave an email.
+ */
+export async function promoteWaitlistAction(formData: FormData): Promise<void> {
+  const session = await getAdminSession();
+  if (!session) return;
+
+  const registrationId = String(formData.get("registrationId") ?? "");
+  const eventId = String(formData.get("eventId") ?? "");
+  if (!uuid.safeParse(registrationId).success || !uuid.safeParse(eventId).success) return;
+
+  const ev = await getEventForAttendance(eventId);
+  if (!ev || !canManage(session, "manage:registrations", ev.clubId)) return;
+
+  const admin = createAdminClient();
+  const { data: reg } = await admin
+    .from("registrations")
+    .select("id, email, student_name, confirmed_at")
+    .eq("id", registrationId)
+    .eq("event_id", eventId)
+    .maybeSingle();
+  if (!reg || reg.confirmed_at) return; // gone, or already confirmed
+
+  await admin
+    .from("registrations")
+    .update({ confirmed_at: new Date().toISOString(), waitlist_position: null })
+    .eq("id", registrationId)
+    .eq("event_id", eventId);
+
+  if (reg.email) {
+    const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+    await enqueueEmail({
+      template: "registration_promoted",
+      toEmail: reg.email,
+      toName: reg.student_name ?? "",
+      subject: `A seat opened up — ${ev.title}`,
+      payload: { eventTitle: ev.title, url: base ? `${base}/events/${eventId}` : undefined },
+      priority: 2,
+    });
+  }
+
+  await writeAudit({
+    actorId: session.id,
+    action: "waitlist_promote",
+    entity: "registration",
+    entityId: registrationId,
+  });
+  revalidatePath(`/admin/events/${eventId}/registrations`);
+}
+
 /** Clear a single row's shortlist state (own-club scoped; audited). */
 export async function unshortlistAction(formData: FormData): Promise<void> {
   const session = await getAdminSession();
