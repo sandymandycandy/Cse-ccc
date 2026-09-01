@@ -12,12 +12,12 @@ import {
 } from "@/lib/registration-form/schema";
 import { DEPARTMENTS } from "@/lib/departments";
 
-const IDENTITY_BLOCKS: { identity: Identity; kind: FieldKind; label: string; options?: string[] }[] = [
+const IDENTITY_BLOCKS: { identity: Identity; kind: FieldKind; label: string; options?: string[]; allowOther?: boolean }[] = [
   { identity: "name", kind: "short_text", label: "Full name" },
   { identity: "roll", kind: "short_text", label: "Roll number" },
   { identity: "email", kind: "short_text", label: "College email" },
   { identity: "phone", kind: "short_text", label: "Mobile number" },
-  { identity: "department", kind: "dropdown", label: "Department", options: [...DEPARTMENTS] },
+  { identity: "department", kind: "dropdown", label: "Department", options: [...DEPARTMENTS], allowOther: true },
   { identity: "year", kind: "dropdown", label: "Year", options: ["1", "2", "3", "4", "5"] },
 ];
 
@@ -77,6 +77,7 @@ export function RegistrationFormBuilder({ initialJson }: { initialJson: string }
         label: b.label,
         required: true,
         options: b.options ? [...b.options] : undefined,
+        allowOther: b.allowOther,
       },
     ]);
   }

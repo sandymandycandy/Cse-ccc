@@ -50,7 +50,7 @@ export const DEFAULT_FORM: FormField[] = [
     help: "vtuxxxxx@veltech.edu.in" },
   { id: "phone", kind: "short_text", identity: "phone", label: "Mobile number", required: true },
   { id: "department", kind: "dropdown", identity: "department", label: "Department",
-    required: true, options: [...DEPARTMENTS] },
+    required: true, options: [...DEPARTMENTS], allowOther: true },
   { id: "year", kind: "dropdown", identity: "year", label: "Year", required: true,
     options: ["1", "2", "3", "4", "5"] },
 ];

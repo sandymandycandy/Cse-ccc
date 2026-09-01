@@ -102,10 +102,14 @@ function pushCustom(
   fieldErrors: Record<string, string>,
 ) {
   if (field.identity === "department") {
-    if (!DEPARTMENTS.includes(value as (typeof DEPARTMENTS)[number])) {
+    const dept = String(value).trim();
+    const known = DEPARTMENTS.includes(dept as (typeof DEPARTMENTS)[number]);
+    // A listed department is always fine; a free-text write-in is accepted only
+    // when the field enables "Other" (so any university department can register).
+    if (!dept || (!known && !field.allowOther)) {
       fieldErrors[field.id] = "Pick a department."; return;
     }
-    identity.department = value as string;
+    identity.department = dept.slice(0, 80);
   } else if (field.identity === "year") {
     const y = Number(value);
     if (!Number.isInteger(y) || y < 1 || y > 5) { fieldErrors[field.id] = "Pick a valid year."; return; }
