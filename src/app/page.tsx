@@ -65,10 +65,7 @@ export default async function HomePage() {
             </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
-            <UpcomingCarousel events={events} />
-            <GalleryStrip photos={gallery} />
-          </div>
+          <UpcomingCarousel events={events} />
         </div>
       </section>
 
@@ -101,6 +98,9 @@ export default async function HomePage() {
           <EmptyState>Nothing scheduled yet — check back soon.</EmptyState>
         )}
       </section>
+
+      {/* ── Gallery band ── */}
+      <GalleryStrip photos={gallery} />
 
       {/* ── The clubs ── */}
       <section className="section">
