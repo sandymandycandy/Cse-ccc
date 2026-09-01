@@ -1138,6 +1138,7 @@ export type Database = {
           cancellation_reason: string | null
           cancelled_at: string | null
           capacity: number | null
+          certificate_config: Json | null
           certificate_template: string | null
           created_at: string
           created_by: string | null
@@ -1168,6 +1169,7 @@ export type Database = {
           cancellation_reason?: string | null
           cancelled_at?: string | null
           capacity?: number | null
+          certificate_config?: Json | null
           certificate_template?: string | null
           created_at?: string
           created_by?: string | null
@@ -1198,6 +1200,7 @@ export type Database = {
           cancellation_reason?: string | null
           cancelled_at?: string | null
           capacity?: number | null
+          certificate_config?: Json | null
           certificate_template?: string | null
           created_at?: string
           created_by?: string | null

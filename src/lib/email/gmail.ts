@@ -28,6 +28,11 @@ export async function sendViaGmail(args: SendArgs): Promise<SendResult> {
       subject: args.subject,
       html: args.html,
       text: args.text,
+      attachments: args.attachments?.map((a) => ({
+        filename: a.filename,
+        content: a.content,
+        contentType: a.contentType,
+      })),
     });
     return { ok: true, id: info.messageId ?? "" };
   } catch (e) {

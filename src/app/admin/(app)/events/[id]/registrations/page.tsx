@@ -64,6 +64,12 @@ export default async function RegistrationsPage({
           </p>
         </div>
         <div className="stack" style={{ gap: 10 }}>
+          <Link
+            href={`/admin/events/${id}/certificates`}
+            className="btn btn-ghost btn-sm"
+          >
+            Certificates
+          </Link>
           <a
             href={`/api/admin/registrations/export?event=${id}`}
             className="btn btn-primary btn-sm"
