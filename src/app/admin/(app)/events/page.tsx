@@ -31,6 +31,7 @@ export default async function AdminEventsPage() {
                 <th>Club</th>
                 <th>When</th>
                 <th>Approval</th>
+                <th>Attendance</th>
                 <th>Results</th>
                 <th>Edit</th>
               </tr>
@@ -53,6 +54,15 @@ export default async function AdminEventsPage() {
                   </td>
                   <td>
                     <ApprovalBadge status={e.approvalStatus} />
+                  </td>
+                  <td>
+                    <Link
+                      href={`/admin/events/${e.id}/registrations`}
+                      className="label"
+                      style={{ color: "var(--forest)" }}
+                    >
+                      Mark →
+                    </Link>
                   </td>
                   <td>
                     <Link
