@@ -60,17 +60,7 @@ export default async function AttendanceDashboard({ searchParams }: { searchPara
         </form>
       ) : null}
 
-      <section style={{ marginTop: 20 }}>
-        {canManageClub ? (
-          <CreateSessionForm clubId={grant === "all" ? clubId : null} />
-        ) : (
-          <p className="body-text" style={{ color: "var(--ink-3)" }}>Only club heads can create sessions.</p>
-        )}
-      </section>
-
-      <AttendanceAnalytics analytics={analytics} clubParam={councilWide ? clubId : null} />
-
-      <h2 style={{ font: "400 18px var(--serif)", margin: "28px 0 8px" }}>Session history</h2>
+      <h2 style={{ font: "400 18px var(--serif)", margin: "20px 0 8px" }}>Session history</h2>
       {sessions.length === 0 ? <p className="body-text" style={{ color: "var(--ink-3)" }}>No sessions yet.</p> : (
         <div className="tablewrap">
           <table className="admin">
@@ -89,6 +79,16 @@ export default async function AttendanceDashboard({ searchParams }: { searchPara
           </table>
         </div>
       )}
+
+      <section style={{ marginTop: 20 }}>
+        {canManageClub ? (
+          <CreateSessionForm clubId={grant === "all" ? clubId : null} />
+        ) : (
+          <p className="body-text" style={{ color: "var(--ink-3)" }}>Only club heads can create sessions.</p>
+        )}
+      </section>
+
+      <AttendanceAnalytics analytics={analytics} clubParam={councilWide ? clubId : null} />
 
       <h2 style={{ font: "400 18px var(--serif)", margin: "28px 0 8px" }}>Roster attendance</h2>
       <AttendanceRoster rows={roster} />

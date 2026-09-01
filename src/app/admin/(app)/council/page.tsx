@@ -26,15 +26,7 @@ export default async function CouncilDashboard() {
         </div>
       </div>
 
-      <section style={{ marginTop: 20 }}>
-        {canEdit ? (
-          <CouncilCreateSessionForm />
-        ) : (
-          <p className="body-text" style={{ color: "var(--ink-3)" }}>Only the president, VP, or tech head can create meetings.</p>
-        )}
-      </section>
-
-      <h2 style={{ font: "400 18px var(--serif)", margin: "28px 0 8px" }}>Meeting history</h2>
+      <h2 style={{ font: "400 18px var(--serif)", margin: "20px 0 8px" }}>Meeting history</h2>
       {sessions.length === 0 ? <p className="body-text" style={{ color: "var(--ink-3)" }}>No meetings yet.</p> : (
         <div className="tablewrap">
           <table className="admin">
@@ -53,6 +45,14 @@ export default async function CouncilDashboard() {
           </table>
         </div>
       )}
+
+      <section style={{ marginTop: 20 }}>
+        {canEdit ? (
+          <CouncilCreateSessionForm />
+        ) : (
+          <p className="body-text" style={{ color: "var(--ink-3)" }}>Only the president, VP, or tech head can create meetings.</p>
+        )}
+      </section>
 
       <h2 style={{ font: "400 18px var(--serif)", margin: "28px 0 8px" }}>Roster attendance</h2>
       <CouncilRoster rows={roster} />
