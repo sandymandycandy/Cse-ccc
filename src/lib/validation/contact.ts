@@ -27,7 +27,7 @@ export const ContactSchema = z
     message: z
       .string()
       .trim()
-      .min(10, "Please write at least 10 characters.")
+      .min(5, "Please write at least 5 characters.")
       .max(4000, "Message is too long (max 4000 characters)."),
     website: z.string().max(0, "bot").optional().default(""), // honeypot
     turnstile: z.string().optional(),

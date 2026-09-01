@@ -90,11 +90,11 @@ export function ContactForm() {
       </div>
       <div className={rowClass("message")}>
         <label htmlFor="cf-message">Message</label>
-        <textarea id="cf-message" name="message" required rows={6} minLength={10} maxLength={4000} placeholder="How can we help?" />
+        <textarea id="cf-message" name="message" required rows={6} minLength={5} maxLength={4000} placeholder="How can we help?" />
         {fieldErrors.message ? (
           <span className="hint" role="alert">{fieldErrors.message}</span>
         ) : (
-          <span className="hint">At least 10 characters.</span>
+          <span className="hint">At least 5 characters.</span>
         )}
       </div>
 
