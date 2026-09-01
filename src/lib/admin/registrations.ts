@@ -16,6 +16,7 @@ export interface RegistrationRow {
   method: string | null;
   customAnswers: Record<string, unknown> | null;
   shortlistedAt: string | null;
+  waitlistPosition: number | null;
 }
 
 export async function listRegistrations(eventId: string): Promise<RegistrationRow[]> {
@@ -23,7 +24,7 @@ export async function listRegistrations(eventId: string): Promise<RegistrationRo
   const { data, error } = await admin
     .from("registrations")
     .select(
-      "id, student_name, roll_no, department, year, email, phone, confirmed_at, attended, checkin_method, custom_answers, shortlisted_at",
+      "id, student_name, roll_no, department, year, email, phone, confirmed_at, attended, checkin_method, custom_answers, shortlisted_at, waitlist_position",
     )
     .eq("event_id", eventId)
     .order("student_name", { ascending: true });
@@ -42,6 +43,7 @@ export async function listRegistrations(eventId: string): Promise<RegistrationRo
       checkin_method: string | null;
       custom_answers: Record<string, unknown> | null;
       shortlisted_at: string | null;
+      waitlist_position: number | null;
     }[]
   ).map((r) => ({
     id: r.id,
@@ -56,6 +58,7 @@ export async function listRegistrations(eventId: string): Promise<RegistrationRo
     method: r.checkin_method,
     customAnswers: r.custom_answers ?? null,
     shortlistedAt: r.shortlisted_at ?? null,
+    waitlistPosition: r.waitlist_position ?? null,
   }));
 }
 
