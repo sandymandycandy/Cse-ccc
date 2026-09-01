@@ -20,7 +20,7 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-01)
 
-> ### 🟡 SHIPPED TO BRANCH, PRE-MERGE — Attendance name/roll search + roll-no on session (`feat/attendance-search`, 2026-09-01)
+> ### 🟡 SHIPPED TO BRANCH, PRE-MERGE — Attendance search/export + form fixes (batch) (`feat/attendance-search`, 2026-09-01)
 > **NOT yet merged or deployed** — branched from `main` @ `fc3217b`. Owner asks: a **name/roll
 > search box** on the attendance lists, and the member's **roll no shown when taking attendance**
 > (session roster) with a search there too — across **both** the club and council surfaces. **No DB
@@ -43,7 +43,27 @@ end-to-end**, not a checklist of components.
 >   curled): log into `/admin/attendance` → search the roster by name and by roll; open a session →
 >   confirm each member's **roll** shows and the **search** filters; mark a filtered subset + **Save**
 >   and confirm marks for **non-visible** present members are **kept**. Repeat on `/admin/council`.
-> - **Next (owner's call):** merge `feat/attendance-search` → `main` → push (auto-deploys).
+> - **Also on this branch (same session, each committed + gate-green):**
+>   - **Session/Meeting history moved above the roster** on both dashboards.
+>   - **Excel-friendly CSV attendance register export** (both surfaces): `attendanceRegister`
+>     (members × sessions matrix, Present/Absent/blank + Attended/Eligible/% totals) → guarded `GET`
+>     routes (`/api/admin/{attendance,council}/export`) reusing the injection-safe `toCsv` (UTF-8 BOM
+>     → opens in Excel), audited; an **Export attendance (CSV)** button on each dashboard.
+>   - **Contact form errors** now show the **specific per-field reason** inline (was a generic "check
+>     the form"); the honeypot is never revealed; message **minimum lowered to 5** chars.
+>   - **Department "Other" → type-your-own** write-in on the event registration form (opens events to
+>     any university department): `allowOther` on the department field (default form + builder), static
+>     "Other" dropped from `DEPARTMENTS`, free-text dept accepted server-side. +2 tests.
+>   - **Whole batch gate green: typecheck ✓ / lint ✓ / 189 tests ✓ / build ✓.** Export routes smoke:
+>     `/api/admin/{attendance,council}/export` (no cookie) → **401** (registered + guarded).
+>   - **⚠️ OWED walkthroughs:** download the CSV from both dashboards + open in Excel; submit the
+>     contact form with a too-short message / bad email (see per-field errors); register for an event
+>     picking department **Other…** and typing a value → confirm it stores.
+> - **⏳ Pending owner input:** the "free for all CSE students" → "open to all university students"
+>   copy is **not** in the code or DB (searched clubs/events/announcements) — owner to name the
+>   club/event to edit (or edit it in the admin editor).
+> - **Next (owner's call):** merge `feat/attendance-search` → `main` → push (auto-deploys). Bundles
+>   several unrelated fixes; can be split into separate branches on request.
 >   Independent of the `feat/club-visibility` branch (disjoint files; STATUS.md is the only shared
 >   file — expect a trivial START-HERE merge nudge if both land).
 
