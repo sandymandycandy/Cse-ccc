@@ -20,6 +20,52 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-01)
 
+> ### 🟡 ON BRANCH `feat/registration-queue` — Scheduled registration + waiting room + waitlist (2026-09-01)
+> **NOT merged, NOT deployed.** Branched from `main`. Gives events a **scheduled
+> registration open time** (public countdown before it opens), a **"holding your place"
+> waiting-room submit** during the open-time rush (no raw errors; FCFS — the existing
+> per-event anti-oversell lock is untouched), and a **manual-promote waitlist** for the
+> overflow. Owner ask: ~1000 students racing for 60 seats + a settable start time the
+> event can be posted ahead of. **Gate green: typecheck ✓ / lint ✓ / 213 tests ✓ / build ✓**
+> (was 190 — +23: countdown/retry/schedule/phase/waitlist pure suites).
+> - **What's in it:** organiser sets **Registration opens/closes (IST)** + a **waitlist
+>   toggle** in the event form; `/events/[id]` shows a **live countdown** before open
+>   (auto-reloads into the form at the tick, with jitter to spread the herd), the form
+>   during, and a "closed" notice after. `register_for_event` now returns **`not_open`**
+>   (vs `closed`) before the open time, and **waitlists overflow as unconfirmed
+>   `registrations` rows** carrying a per-event **`waitlist_position`** (not the legacy
+>   `waitlist` table — so the public "X/60" count, which already ignores `confirmed_at
+>   NULL`, stays correct and promotion keeps the full submission). `RegisterForm` retries
+>   transient failures (429/503/network/`not_open`) with backoff and shows "You're #N in
+>   line". The **registrations page** splits confirmed vs a **Waitlist section** with a
+>   **Promote to registered** button (own-club scoped, audited, emails
+>   `registration_promoted`, allowed past capacity).
+> - **Migrations — APPLIED + VERIFIED LIVE (both additive, via MCP):**
+>   `20260901000000_registration_waitlist_position` (adds `registrations.waitlist_position`
+>   + partial index) and `20260901010000_register_for_event_waitlist` (the RPC revision;
+>   same jsonb signature — live prod on old code keeps working, and no live event has an
+>   open-time yet so the `not_open` path is dormant until this ships). `database.types.ts`
+>   hand-patched for the new column.
+> - **RPC verified in a rollback transaction (live, nothing persisted):** future-open →
+>   `not_open`; first into a 1-seat event → `registered`; next two → `waitlisted` pos 1
+>   then 2; same-roll resubmit → `duplicate`; bad id → `no_event`. Post-check: 0 leaked
+>   events, 0 waitlisted rows.
+> - **Dev-server smoke:** `/events` 200, `/events/<id>` 200 (phase branch renders),
+>   `/admin/events/<id>/registrations` (no cookie) → 307, `POST /api/registrations`
+>   (empty answers) → 400 (no write). Clean dev log.
+> - **⚠️ OWED — human-only browser walkthrough** (server-action POSTs / the live rush /
+>   the open-tick can't be curled): create a seats event (small capacity), set
+>   **Registration opens** a few minutes out, publish → confirm `/events/<id>` shows the
+>   **countdown** (no form) → at the tick the **form appears** → register to capacity →
+>   from another browser, overflow → **"You're #1 on the waitlist"** → in
+>   `/admin/events/<id>/registrations` confirm the **Waitlist** section + **Promote** →
+>   the student moves to confirmed and a `registration_promoted` row queues in
+>   `email_log`. Then set **Registration closes** in the past → page shows "closed".
+> - **Plan + spec:** `docs/superpowers/{plans,specs}/2026-09-01-registration-queue*`.
+> - **Next (owner's call):** the human walkthrough, then merge `feat/registration-queue`
+>   → `main` → push (auto-deploys). The legacy `public.waitlist` table is now unused but
+>   deliberately **not** dropped (a later held drop).
+
 > ### ✅ MERGED & PUSHED TO PROD — Attendance search/export + form fixes (batch) (2026-09-01)
 > **Merged to `main` and pushed to `origin/main` — Vercel auto-deploy triggered** (merged alongside
 > `feat/club-visibility`; both branches deleted). Branched from `main` @ `fc3217b`. Owner asks: a **name/roll
