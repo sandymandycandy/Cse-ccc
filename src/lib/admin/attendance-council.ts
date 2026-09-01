@@ -85,12 +85,12 @@ export async function getMemberForEdit(id: string): Promise<CouncilMember | null
 }
 
 export interface CouncilRosterPct {
-  memberId: string; name: string; designation: string; attended: number; eligible: number; pct: number;
+  memberId: string; name: string; rollNo: string | null; designation: string; attended: number; eligible: number; pct: number;
 }
 export async function rosterWithPercent(): Promise<CouncilRosterPct[]> {
   const admin = createAdminClient();
   const { data: members } = await admin
-    .from("council_members").select("id, full_name, designation, created_at")
+    .from("council_members").select("id, full_name, roll_no, designation, created_at")
     .eq("is_active", true).not("approved_at", "is", null).order("full_name");
   const { data: sessions } = await admin
     .from("council_attendance_sessions").select("id, session_date, opened_at");
@@ -106,7 +106,7 @@ export async function rosterWithPercent(): Promise<CouncilRosterPct[]> {
   return (members ?? []).map((mem) => {
     const { attended, eligible, pct } = summarizeAttendance(
       sess, mem.created_at.slice(0, 10), attendedByMember.get(mem.id) ?? NO_MARKS);
-    return { memberId: mem.id, name: mem.full_name, designation: mem.designation, attended, eligible, pct };
+    return { memberId: mem.id, name: mem.full_name, rollNo: mem.roll_no, designation: mem.designation, attended, eligible, pct };
   });
 }
 
@@ -144,7 +144,7 @@ export async function setSessionStatus(sessionId: string, status: "open" | "clos
 
 export async function getSessionMarking(
   sessionId: string,
-): Promise<{ session: CouncilSession; roster: { memberId: string; name: string; designation: string; present: boolean }[] } | null> {
+): Promise<{ session: CouncilSession; roster: { memberId: string; name: string; rollNo: string | null; designation: string; present: boolean }[] } | null> {
   const admin = createAdminClient();
   const { data: s } = await admin
     .from("council_attendance_sessions").select(SESSION_COLS).eq("id", sessionId).maybeSingle();
@@ -152,10 +152,10 @@ export async function getSessionMarking(
   const { data: marks } = await admin.from("council_attendance").select("member_id").eq("session_id", sessionId);
   const present = new Set((marks ?? []).map((m) => m.member_id));
   const { data: members } = await admin
-    .from("council_members").select("id, full_name, designation")
+    .from("council_members").select("id, full_name, roll_no, designation")
     .eq("is_active", true).not("approved_at", "is", null).order("full_name");
   const roster = (members ?? []).map((m) => ({
-    memberId: m.id, name: m.full_name, designation: m.designation, present: present.has(m.id),
+    memberId: m.id, name: m.full_name, rollNo: m.roll_no, designation: m.designation, present: present.has(m.id),
   }));
   return { session: mapSession(s, present.size), roster };
 }
@@ -172,4 +172,54 @@ export async function savePresence(sessionId: string, desiredIds: string[], mark
   if (toRemove.length > 0) {
     await admin.from("council_attendance").delete().eq("session_id", sessionId).in("member_id", toRemove);
   }
+}
+
+export interface CouncilAttendanceRegister {
+  /** Meeting columns, chronological (oldest first). */
+  sessions: { id: string; title: string; date: string }[];
+  rows: {
+    name: string; rollNo: string | null; designation: string;
+    /** Aligned with `sessions`: present / absent / na (meeting predates the member's join). */
+    cells: ("present" | "absent" | "na")[];
+    attended: number; eligible: number; pct: number;
+  }[];
+}
+
+/** The full council attendance register (members × meetings) for CSV export.
+ *  Totals reuse `summarizeAttendance`, so they match the dashboard roster exactly. */
+export async function attendanceRegister(): Promise<CouncilAttendanceRegister> {
+  const admin = createAdminClient();
+  const { data: members } = await admin
+    .from("council_members").select("id, full_name, roll_no, designation, created_at")
+    .eq("is_active", true).not("approved_at", "is", null).order("full_name");
+  const { data: sessionsRaw } = await admin
+    .from("council_attendance_sessions").select("id, title, session_date, opened_at");
+  const { data: marks } = await admin.from("council_attendance").select("member_id, session_id");
+
+  const sessions = (sessionsRaw ?? [])
+    .map((s) => ({ id: s.id, title: s.title, date: sessionDateOf(s) }))
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  const sess = sessions.map((s) => ({ id: s.id, date: s.date }));
+
+  const attendedByMember = new Map<string, Set<string>>();
+  for (const m of marks ?? []) {
+    const set = attendedByMember.get(m.member_id) ?? new Set<string>();
+    set.add(m.session_id);
+    attendedByMember.set(m.member_id, set);
+  }
+
+  const rows = (members ?? []).map((mem) => {
+    const joined = mem.created_at.slice(0, 10);
+    const marked = attendedByMember.get(mem.id) ?? NO_MARKS;
+    const cells = sessions.map((s): "present" | "absent" | "na" =>
+      s.date < joined ? "na" : marked.has(s.id) ? "present" : "absent",
+    );
+    const { attended, eligible, pct } = summarizeAttendance(sess, joined, marked);
+    return {
+      name: mem.full_name, rollNo: mem.roll_no, designation: mem.designation,
+      cells, attended, eligible, pct,
+    };
+  });
+
+  return { sessions, rows };
 }

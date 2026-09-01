@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { Button } from "./ui/Button";
 
-type Result = { ok?: boolean; error?: string };
+type FieldErrors = Record<string, string>;
+type Result = { ok?: boolean; error?: string; fields?: FieldErrors };
 
 export function ContactForm() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -22,6 +24,7 @@ export function ContactForm() {
 
     setSubmitting(true);
     setResult(null);
+    setFieldErrors({});
     try {
       const res = await fetch("/api/contact", {
         method: "POST",
@@ -29,7 +32,13 @@ export function ContactForm() {
         body: JSON.stringify(payload),
       });
       const data = (await res.json().catch(() => ({}))) as Result;
-      setResult(res.ok ? { ok: true } : { error: data.error ?? "Something went wrong." });
+      if (res.ok) {
+        setResult({ ok: true });
+      } else if (data.fields && Object.keys(data.fields).length > 0) {
+        setFieldErrors(data.fields);
+      } else {
+        setResult({ error: data.error ?? "Something went wrong." });
+      }
     } catch {
       setResult({ error: "Network error. Please try again." });
     } finally {
@@ -49,32 +58,44 @@ export function ContactForm() {
     );
   }
 
+  // `.field.err` gives the design system's rust treatment; the hint carries the message.
+  const rowClass = (k: string) => "field" + (fieldErrors[k] ? " err" : "");
+
   return (
     <form onSubmit={onSubmit} noValidate style={{ maxWidth: 560 }}>
       {result?.error ? (
-        <div className="field err" style={{ marginBottom: 14 }}>
-          <span className="hint" role="alert">
-            {result.error}
-          </span>
+        <div className="note" role="alert" style={{ borderLeftColor: "var(--rust)", marginBottom: 14 }}>
+          {result.error}
         </div>
       ) : null}
 
-      <div className="field">
+      <div className={rowClass("name")}>
         <label htmlFor="cf-name">Your name</label>
         <input id="cf-name" name="name" required maxLength={80} autoComplete="name" placeholder="Your full name" />
+        {fieldErrors.name ? <span className="hint" role="alert">{fieldErrors.name}</span> : null}
       </div>
-      <div className="field">
+      <div className={rowClass("email")}>
         <label htmlFor="cf-email">Email</label>
         <input id="cf-email" name="email" type="email" required maxLength={120} autoComplete="email" placeholder="vtuxxxxx@veltech.edu.in" />
-        <span className="hint">We&rsquo;ll reply here.</span>
+        {fieldErrors.email ? (
+          <span className="hint" role="alert">{fieldErrors.email}</span>
+        ) : (
+          <span className="hint">We&rsquo;ll reply here.</span>
+        )}
       </div>
-      <div className="field">
+      <div className={rowClass("subject")}>
         <label htmlFor="cf-subject">Subject</label>
         <input id="cf-subject" name="subject" maxLength={140} placeholder="Optional — what's this about?" />
+        {fieldErrors.subject ? <span className="hint" role="alert">{fieldErrors.subject}</span> : null}
       </div>
-      <div className="field">
+      <div className={rowClass("message")}>
         <label htmlFor="cf-message">Message</label>
-        <textarea id="cf-message" name="message" required rows={6} minLength={10} maxLength={4000} placeholder="How can we help?" />
+        <textarea id="cf-message" name="message" required rows={6} minLength={5} maxLength={4000} placeholder="How can we help?" />
+        {fieldErrors.message ? (
+          <span className="hint" role="alert">{fieldErrors.message}</span>
+        ) : (
+          <span className="hint">At least 5 characters.</span>
+        )}
       </div>
 
       {/* honeypot: real users never see or fill this */}

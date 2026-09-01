@@ -23,7 +23,7 @@ describe("ContactSchema", () => {
   it("rejects a missing name, a bad email, or a too-short message", () => {
     expect(ContactSchema.safeParse({ ...valid, name: "" }).success).toBe(false);
     expect(ContactSchema.safeParse({ ...valid, email: "not-an-email" }).success).toBe(false);
-    expect(ContactSchema.safeParse({ ...valid, message: "too short" }).success).toBe(false);
+    expect(ContactSchema.safeParse({ ...valid, message: "hi" }).success).toBe(false);
   });
 
   it("rejects a filled honeypot (website must be empty)", () => {

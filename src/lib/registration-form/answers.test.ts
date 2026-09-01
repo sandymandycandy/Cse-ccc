@@ -82,6 +82,22 @@ describe("validateAnswers", () => {
       expect(r.data.identity.year).toBe(3);
     }
   });
+
+  it("accepts a typed-in department when the field allows 'Other'", () => {
+    const schema = [
+      f({ id: "department", kind: "dropdown", identity: "department", required: true, options: ["CSE", "IT"], allowOther: true }),
+    ];
+    const r = validateAnswers(schema, { department: "Biotechnology" });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.identity.department).toBe("Biotechnology");
+  });
+
+  it("rejects an unlisted department when 'Other' is not allowed", () => {
+    const schema = [
+      f({ id: "department", kind: "dropdown", identity: "department", required: true, options: ["CSE", "IT"] }),
+    ];
+    expect(validateAnswers(schema, { department: "Biotechnology" }).ok).toBe(false);
+  });
 });
 
 describe("team & other answers", () => {
