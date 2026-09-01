@@ -91,7 +91,7 @@ export default async function RegistrationsPage({
                   {isShortlist ? <th>Shortlisted</th> : null}
                   <th>Confirmed</th>
                   <th>Attended</th>
-                  {canEdit ? <th>Check-in</th> : null}
+                  {canEdit ? <th>Mark</th> : null}
                 </tr>
               </thead>
               <tbody>
