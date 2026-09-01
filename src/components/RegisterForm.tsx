@@ -3,9 +3,47 @@
 import { useState } from "react";
 import { Button } from "./ui/Button";
 import { defaultFormFor, LAYOUT_KINDS, type FormField } from "@/lib/registration-form/schema";
+import { shouldRetry, nextDelay, MAX_ATTEMPTS, type RetryOutcome } from "@/lib/registration/retry";
 
-type Result = { status?: string; error?: string; fields?: Record<string, string> };
+type Result = {
+  status?: string;
+  error?: string;
+  fields?: Record<string, string>;
+  position?: number | null;
+};
 const TERMINAL = new Set(["registered", "submitted", "waitlisted", "duplicate"]);
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** One POST attempt, classified for the waiting-room retry loop. */
+async function submitOnce(
+  payload: unknown,
+): Promise<{ done: true; data: Result } | { done: false; retryAfter?: number }> {
+  let res: Response;
+  try {
+    res = await fetch("/api/registrations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    return { done: false }; // network blip → retry
+  }
+  const data = (await res.json().catch(() => ({}))) as Result;
+  const outcome: RetryOutcome = data.status
+    ? { kind: "status", status: data.status }
+    : { kind: "http", status: res.status };
+  if (shouldRetry(outcome)) {
+    const ra = Number(res.headers.get("retry-after") ?? "");
+    return { done: false, retryAfter: Number.isFinite(ra) && ra > 0 ? ra : undefined };
+  }
+  return {
+    done: true,
+    data: res.ok
+      ? data
+      : { error: data.error ?? "Something went wrong.", status: data.status, fields: data.fields, position: data.position },
+  };
+}
 
 export function RegisterForm({
   eventId,
@@ -20,6 +58,7 @@ export function RegisterForm({
 }) {
   const fields = schema && schema.length > 0 ? schema : defaultFormFor();
   const [submitting, setSubmitting] = useState(false);
+  const [waiting, setWaiting] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [teams, setTeams] = useState<Record<string, Record<string, string>[]>>(() => {
     const init: Record<string, Record<string, string>[]> = {};
@@ -57,28 +96,40 @@ export function RegisterForm({
       }
     }
     setSubmitting(true);
+    setWaiting(false);
     setResult(null);
-    try {
-      const res = await fetch("/api/registrations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventId, answers, website: String(fd.get("website") ?? "") }),
-      });
-      const data = (await res.json().catch(() => ({}))) as Result;
-      setResult(
-        res.ok
-          ? data
-          : { error: data.error ?? "Something went wrong.", status: data.status, fields: data.fields },
-      );
-    } catch {
-      setResult({ error: "Network error. Please try again." });
-    } finally {
-      setSubmitting(false);
+    const payload = { eventId, answers, website: String(fd.get("website") ?? "") };
+    // Waiting room: retry transient failures (busy server, or "not open yet" at
+    // the open tick) with backoff so nobody sees a raw error during the rush.
+    let final: Result | null = null;
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      const r = await submitOnce(payload);
+      if (r.done) {
+        final = r.data;
+        break;
+      }
+      setWaiting(true);
+      await sleep(nextDelay(attempt, r.retryAfter));
     }
+    setSubmitting(false);
+    setWaiting(false);
+    setResult(final ?? { error: "It's very busy right now. Please try again in a moment." });
+  }
+
+  if (waiting) {
+    return (
+      <div className="stack" style={{ gap: 8, textAlign: "center", padding: "12px 0" }}>
+        <div className="label">Holding your place…</div>
+        <p className="body-text">
+          You&rsquo;re in line. Hang tight — this can take a moment when a lot of people register at
+          once. Please don&rsquo;t close this tab.
+        </p>
+      </div>
+    );
   }
 
   if (result && result.status && TERMINAL.has(result.status)) {
-    return <ResultMessage status={result.status} mode={mode} />;
+    return <ResultMessage status={result.status} mode={mode} position={result.position} />;
   }
 
   return (
@@ -263,7 +314,15 @@ function FieldInput({
   );
 }
 
-function ResultMessage({ status, mode }: { status: string; mode: "seats" | "shortlist" }) {
+function ResultMessage({
+  status,
+  mode,
+  position,
+}: {
+  status: string;
+  mode: "seats" | "shortlist";
+  position?: number | null;
+}) {
   if (status === "registered" || status === "submitted") {
     return (
       <div>
@@ -281,7 +340,8 @@ function ResultMessage({ status, mode }: { status: string; mode: "seats" | "shor
       <div>
         <h3 style={{ fontSize: 22 }}>You&rsquo;re on the waitlist</h3>
         <p className="body-text" style={{ marginTop: 8 }}>
-          This event is full — we&rsquo;ll email you if a seat opens up.
+          {typeof position === "number" ? `You're #${position} in line. ` : ""}
+          This event is full — the organiser may pull you in if a seat opens up.
         </p>
       </div>
     );

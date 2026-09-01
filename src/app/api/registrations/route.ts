@@ -101,11 +101,24 @@ export async function POST(request: Request) {
     return Response.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 
-  const status = data?.[0]?.status ?? "full";
+  const row = data?.[0];
+  const status = row?.status ?? "full";
   if (status === "no_event") return Response.json({ error: "Event not found." }, { status: 404 });
+  // Not open yet (usually clock skew right at the open tick): the client's
+  // waiting room keeps retrying on this, so send it as a non-error 409.
+  if (status === "not_open") return Response.json({ status }, { status: 409 });
   if (status === "closed") {
     return Response.json({ status, error: "Registration for this event is closed." }, { status: 409 });
   }
-  // registered | submitted | waitlisted | duplicate | full → the client renders the message
+  // Waitlisted → look up the assigned position so the form can show "#N".
+  if (status === "waitlisted" && row?.registration_id) {
+    const { data: pos } = await admin
+      .from("registrations")
+      .select("waitlist_position")
+      .eq("id", row.registration_id)
+      .maybeSingle();
+    return Response.json({ status, position: pos?.waitlist_position ?? null });
+  }
+  // registered | submitted | duplicate | full → the client renders the message
   return Response.json({ status });
 }
