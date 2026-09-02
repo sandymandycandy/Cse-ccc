@@ -498,6 +498,77 @@
     table.admin td { padding: 11px 12px; font-size: 12.5px; }
   }
 
+  /* Opt-in (`.tablewrap.cards`): below 720px each row becomes a card of
+     label → value pairs instead of a 560px-wide sideways scroll, so a whole
+     registration is readable on a phone without panning. The header row is the
+     label source, carried per cell in data-label; data-primary marks the cell
+     that leads the card (the name) and data-action the full-width button row.
+     Tables without the class keep the scrolling layout unchanged. */
+  @media (max-width: 720px) {
+    .tablewrap.cards {
+      overflow-x: visible;
+      border: 0;
+      border-radius: 0;
+      background: none;
+    }
+    .tablewrap.cards table.admin { min-width: 0; display: block; }
+    .tablewrap.cards thead {
+      /* the labels move into the cells, so hide the header without hiding it
+         from assistive tech's reading order entirely */
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    .tablewrap.cards tbody { display: block; }
+    .tablewrap.cards tr {
+      display: block;
+      margin-bottom: 12px;
+      padding: 2px 15px 13px;
+      border: 1px solid var(--line-2b);
+      border-radius: var(--r-md);
+      background: var(--card);
+    }
+    .tablewrap.cards tr:last-child { margin-bottom: 0; }
+    .tablewrap.cards td {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 10px 0;
+      font-size: 13.5px;
+      border-bottom: 1px solid var(--line);
+    }
+    .tablewrap.cards td::before {
+      content: attr(data-label);
+      flex: 0 0 auto;
+      font: 500 10px var(--mono);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+    }
+    .tablewrap.cards td:last-child { border-bottom: none; }
+
+    /* the name heads the card rather than sitting in a labelled row */
+    .tablewrap.cards td[data-primary] {
+      display: block;
+      padding-top: 13px;
+      font: 400 19px / 1.25 var(--serif);
+    }
+    .tablewrap.cards td[data-primary]::before { content: none; }
+
+    /* actions span the card so they are a real tap target */
+    .tablewrap.cards td[data-action] {
+      display: block;
+      padding-top: 12px;
+      border-bottom: none;
+    }
+    .tablewrap.cards td[data-action]::before { content: none; }
+    .tablewrap.cards td[data-action] .btn { width: 100%; }
+  }
+
   /* home hero — text + next-event panel, stacks under 900px */
   .hero-grid {
     display: grid;

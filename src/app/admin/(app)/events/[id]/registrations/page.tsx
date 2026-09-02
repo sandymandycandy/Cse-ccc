@@ -65,6 +65,12 @@ export default async function RegistrationsPage({
         </div>
         <div className="stack" style={{ gap: 10 }}>
           <Link
+            href={`/admin/events/${id}/participants`}
+            className="btn btn-ghost btn-sm"
+          >
+            Who&rsquo;s registered
+          </Link>
+          <Link
             href={`/admin/events/${id}/certificates`}
             className="btn btn-ghost btn-sm"
           >
@@ -94,7 +100,7 @@ export default async function RegistrationsPage({
               </span>
             </form>
           ) : null}
-          <div className="tablewrap" style={{ marginTop: isShortlist && canEdit ? 12 : 18 }}>
+          <div className="tablewrap cards" style={{ marginTop: isShortlist && canEdit ? 12 : 18 }}>
             <table className="admin">
               <thead>
                 <tr>
@@ -115,7 +121,7 @@ export default async function RegistrationsPage({
                 {rows.map((r) => (
                   <tr key={r.id}>
                     {isShortlist && canEdit ? (
-                      <td>
+                      <td data-label="Select">
                         <input
                           type="checkbox"
                           name="selected"
@@ -125,7 +131,7 @@ export default async function RegistrationsPage({
                         />
                       </td>
                     ) : null}
-                    <td style={{ fontWeight: 500 }}>
+                    <td data-primary="" style={{ fontWeight: 500 }}>
                       {r.name}
                       {hasTeam ? (
                         <span className="label" style={{ marginLeft: 6, fontWeight: 400 }}>
@@ -133,8 +139,8 @@ export default async function RegistrationsPage({
                         </span>
                       ) : null}
                     </td>
-                    <td>{r.roll}</td>
-                    <td>
+                    <td data-label="Roll">{r.roll}</td>
+                    <td data-label="Dept · Yr">
                       {r.department ?? "—"}
                       {r.year ? ` · ${r.year}` : ""}
                     </td>
@@ -142,7 +148,7 @@ export default async function RegistrationsPage({
                       const v = c.get(r.customAnswers);
                       if (c.kind === "link" && isSafeHttpUrl(v)) {
                         return (
-                          <td key={c.key}>
+                          <td key={c.key} data-label={c.label}>
                             <a
                               href={v}
                               target="_blank"
@@ -154,10 +160,14 @@ export default async function RegistrationsPage({
                           </td>
                         );
                       }
-                      return <td key={c.key}>{v || "—"}</td>;
+                      return (
+                        <td key={c.key} data-label={c.label}>
+                          {v || "—"}
+                        </td>
+                      );
                     })}
                   {isShortlist ? (
-                    <td>
+                    <td data-label="Shortlisted">
                       {r.shortlistedAt ? (
                         <span
                           style={{ display: "inline-flex", gap: 8, alignItems: "center" }}
@@ -178,8 +188,8 @@ export default async function RegistrationsPage({
                       )}
                     </td>
                   ) : null}
-                    <td>{r.confirmed ? "Yes" : "—"}</td>
-                    <td>
+                    <td data-label="Confirmed">{r.confirmed ? "Yes" : "—"}</td>
+                    <td data-label="Attended">
                       {r.attended ? (
                         <span className="abadge abadge-approved">Present</span>
                       ) : (
@@ -188,7 +198,7 @@ export default async function RegistrationsPage({
                     </td>
                     {canEdit ? (
                       isAttendanceEligible(r, selectionMode) ? (
-                        <td>
+                        <td data-action="">
                           <form action={toggleAttendanceAction}>
                             <input type="hidden" name="registrationId" value={r.id} />
                             <input type="hidden" name="eventId" value={id} />
@@ -202,7 +212,7 @@ export default async function RegistrationsPage({
                           </form>
                         </td>
                       ) : (
-                        <td>—</td>
+                        <td data-label="Mark">—</td>
                       )
                     ) : null}
                 </tr>
@@ -216,7 +226,7 @@ export default async function RegistrationsPage({
               <div className="label" style={{ marginBottom: 8 }}>
                 Waitlist ({waitlistRows.length})
               </div>
-              <div className="tablewrap">
+              <div className="tablewrap cards">
                 <table className="admin">
                   <thead>
                     <tr>
@@ -230,15 +240,15 @@ export default async function RegistrationsPage({
                   <tbody>
                     {waitlistRows.map((r) => (
                       <tr key={r.id}>
-                        <td>{r.waitlistPosition}</td>
-                        <td style={{ fontWeight: 500 }}>{r.name}</td>
-                        <td>{r.roll}</td>
-                        <td>
+                        <td data-label="Position">{r.waitlistPosition}</td>
+                        <td data-primary="" style={{ fontWeight: 500 }}>{r.name}</td>
+                        <td data-label="Roll">{r.roll}</td>
+                        <td data-label="Dept · Yr">
                           {r.department ?? "—"}
                           {r.year ? ` · ${r.year}` : ""}
                         </td>
                         {canEdit ? (
-                          <td>
+                          <td data-action="">
                             <form action={promoteWaitlistAction}>
                               <input type="hidden" name="registrationId" value={r.id} />
                               <input type="hidden" name="eventId" value={id} />

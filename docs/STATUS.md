@@ -21,12 +21,51 @@ end-to-end**, not a checklist of components.
 ## 🚦 START HERE — current git/deploy state (2026-09-02)
 
 > **`main` = `origin/main` (clean, deployed) — nothing in flight.** Every block below is
-> merged and live: the **event card + event detail redesign and the team-leader form change**, the
+> merged and live: the **participants roster + responsive admin tables**, the
+> **event card + event detail redesign and the team-leader form change**, the
 > **registration queue / waiting room / waitlist**, the public **home redesign +
 > Gallery/Announcements nav**, and **participation certificates**. The local branches
 > `feat/registration-queue` and `feat/manual-attendance` are fully contained in `main` (verified with
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
+
+> ### ✅ MERGED & PUSHED TO PROD — Participants roster + mobile-readable admin tables (2026-09-02)
+> **Merged to `main` and pushed — Vercel auto-deployed.** Two owner asks: the registrations page
+> "is mentioned for attendance — I want a **separate button to see who all registered, all people**,
+> neatly aligned", and make it **readable on a phone**. **Gate green: typecheck ✓ / lint ✓ / 235
+> tests ✓ / build ✓** (was 228 — +7 for the pure `participants` suite). **No DB migration, no schema
+> change, no new query** — it reuses `listRegistrations` + `getEventFormSchema`.
+> - **Why it was needed:** `/admin/events/[id]/registrations` is the **attendance** surface. Its
+>   answer columns come from `answerColumns()`, which expands a team block to **`maxMembers ×
+>   subfields`** columns (PITCH DESK: 3 × 6 = 18), so the table is enormous *and* the members are
+>   effectively invisible — the row shows only the registrant plus a `👥 N` badge.
+> - **New page `/admin/events/[id]/participants`** ("Registered participants"): one numbered list of
+>   **people**, leader first then their members on their own rows — `# · Name · Roll · Dept·Yr ·
+>   Email · Phone · Team` (T-number + a Leader/Member badge). Waitlisted people get the same table in
+>   their own section. Same guard as the registrations page (`manage:registrations`, `all`/`read`
+>   see any club, `own` sees theirs) — verified 307→login with no cookie, and the route is in the
+>   build manifest.
+> - **Flattening is a pure tested module** (`src/lib/registration-form/participants.ts`): it reads a
+>   member's fields off the **club's own labels and field kinds** (`kind: roll/email/phone` first,
+>   then label regex for name/department/year), skips member rows left blank, and survives a
+>   malformed `custom_answers`. **Checked against the live PITCH DESK registration** (leader + 1
+>   member, all six member fields mapped) with a throwaway test that was deleted rather than
+>   committed — it held real student PII.
+> - **Two ways in:** admin **Events** list → new **`Registered` column → "People →"**, and a
+>   **"Who's registered"** button in the registrations page header (which gained an **"Attendance"**
+>   button back). The events table is now 8 columns.
+> - **Mobile: `.tablewrap.cards`** (`globals.css`) — an **opt-in** modifier. Below **720px** each
+>   `<tr>` becomes a card of label→value pairs (`td::before { content: attr(data-label) }`), instead
+>   of the old `min-width: 560px` sideways scroll. `data-primary` marks the cell that heads the card
+>   (the name, in serif); `data-action` makes the button row full-width and tappable. `<thead>` is
+>   visually hidden, not `display:none`. **Applied to the registrations + waitlist + participants
+>   tables only** — every other admin table is untouched and can adopt it by adding the class and
+>   `data-label`s.
+> - **⚠️ OWED — human browser walkthrough. Nothing here has been seen rendered:** these pages are
+>   behind admin auth and this session had no browser. Data and routing are verified; the *visual* is
+>   not. Open `/admin/events/<id>/participants` on a desktop **and a phone**, and check the
+>   registrations page's card layout at phone width.
+> - **Known gap:** the CSV export still uses the wide `answerColumns` shape; it was not changed.
 
 > ### ✅ MERGED & PUSHED TO PROD — Event card + event detail page redesign; team leader (2026-09-02)
 > **Merged to `main` and pushed — Vercel auto-deployed.** Owner ask, from screenshots: the home
