@@ -4,16 +4,6 @@ import { DEPARTMENTS } from "@/lib/departments";
 
 export type AnswerValue = string | number | string[] | Record<string, string>[];
 
-/**
- * Reserved payload key carrying the team's own name.
- *
- * It is not a schema field: every form with a team block gets the name, without
- * the club having to add it, and it lands in its own `registrations.team_name`
- * column rather than in the custom-answers blob. The leading underscores keep it
- * out of the id space clubs can create in the form builder.
- */
-export const TEAM_NAME_KEY = "__team_name";
-
 /** Team names are free-form (clubs let students be creative), only bounded. */
 const TEAM_NAME_MIN = 2;
 const TEAM_NAME_MAX = 80;
@@ -21,11 +11,9 @@ const TEAM_NAME_MAX = 80;
 export interface ValidatedAnswers {
   identity: {
     student_name?: string; roll_no?: string; email?: string;
-    phone?: string; department?: string; year?: number;
+    phone?: string; department?: string; year?: number; team_name?: string;
   };
   customAnswers: Record<string, AnswerValue>;
-  /** Present only on forms that have a team block, where it is required. */
-  teamName?: string;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -107,23 +95,8 @@ export function validateAnswers(
     }
   }
 
-  // The team's own name rides outside the schema (see TEAM_NAME_KEY): required
-  // on any form with a team block, absent everywhere else. A name submitted to a
-  // solo form is ignored rather than rejected — it cannot be stored anywhere.
-  let teamName: string | undefined;
-  if (schema.some((f) => f.kind === "team")) {
-    const v = String(values[TEAM_NAME_KEY] ?? "").trim();
-    if (v.length < TEAM_NAME_MIN) {
-      fieldErrors[TEAM_NAME_KEY] = "Give your team a name.";
-    } else if (v.length > TEAM_NAME_MAX) {
-      fieldErrors[TEAM_NAME_KEY] = `Keep it under ${TEAM_NAME_MAX} characters.`;
-    } else {
-      teamName = v;
-    }
-  }
-
   if (Object.keys(fieldErrors).length > 0) return { ok: false, fieldErrors };
-  return { ok: true, data: { identity, customAnswers, teamName } };
+  return { ok: true, data: { identity, customAnswers } };
 }
 
 function pushCustom(
@@ -170,6 +143,10 @@ function applyIdentity(
     case "phone":
       if (!PHONE_RE.test(v)) return "Enter a 10-digit mobile number";
       out.phone = v; return null;
+    case "team_name":
+      if (v.length < TEAM_NAME_MIN) return "Give your team a name";
+      if (v.length > TEAM_NAME_MAX) return `Keep it under ${TEAM_NAME_MAX} characters`;
+      out.team_name = v; return null;
     default:
       return null;
   }

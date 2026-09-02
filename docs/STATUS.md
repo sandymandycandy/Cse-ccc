@@ -191,6 +191,34 @@ end-to-end**, not a checklist of components.
 >   `src/lib/registration-form/participants.{ts,test.ts}`, `src/lib/podium.test.ts`,
 >   `src/app/admin/(app)/events/[id]/results/{actions.ts,ResultsEditor.tsx}`, `src/lib/database.types.ts`.
 
+> ### 🧾 IN FLIGHT — Team name is now a real identity block (2026-09-03)
+> **Uncommitted. ✅ Form backfill applied live.** Owner: "there's no team name in the identity block
+> in the events." **Gate: typecheck ✓ / lint ✓ / 323 tests ✓ / build ✓.**
+> - **What was wrong:** team name was NOT a schema field. It rode on a reserved payload key
+>   (`__team_name`) and was injected into the public form automatically whenever the form had a team
+>   block. It worked — but the **admin form builder gave no sign it was being collected**, so an admin
+>   looking through the identity blocks found nothing. Invisible behaviour.
+> - **Now:** `team_name` is an ordinary `Identity`, added and removed in the builder like Full name or
+>   Roll number, mapping to `registrations.team_name` through `applyIdentity`. The automatic injection
+>   is **gone** — keeping both would have asked for the name twice.
+> - **⚠️ TRADE-OFF THE OWNER ACCEPTED:** a club can now **omit** it, so a team event may collect no
+>   team name. This reverses the earlier "required on any form with a team block". It is still
+>   required *when present* (the block defaults to required, 2–80 chars).
+> - **⚠️ EXISTING FORMS WOULD HAVE SILENTLY BROKEN.** Removing the automatic field means any event
+>   already carrying a team block stops collecting a name. `20260903010000_team_name_identity_block.sql`
+>   inserts the block into those forms, directly **before** the team block. Applied live: PITCH DESK's
+>   form now reads … Year → **Team name** → Team members → PPT link. Idempotent (NOT EXISTS guard).
+> - **⚠️ `leaderLabel()` had to be excluded.** On a team event every identity label is prefixed for the
+>   leader ("Team leader roll number"). Applied to this field it produced **"Team leader team name"** —
+>   the name belongs to the TEAM, not the leader. `team_name` is now skipped in that prefixing.
+>   Verified in the rendered form: leader fields keep the prefix, "Team name" renders plain.
+> - **Verified in the rendered public form:** labels are Team leader full name / roll / college email /
+>   mobile / department / year, then **Team name**, then the members block; `__team_name` is gone.
+> - **Files:** `src/lib/registration-form/{schema.ts,answers.ts,answers.test.ts}`,
+>   `src/components/RegisterForm.tsx`, `src/components/admin/RegistrationFormBuilder.tsx`,
+>   `src/app/api/registrations/route.ts`, new
+>   `supabase/migrations/20260903010000_team_name_identity_block.sql`.
+
 > ### 🩹 IN FLIGHT — Results layout fix + member backfill (2026-09-03)
 > **Uncommitted.** Owner sent a screenshot: content squeezed into the left half of a wide monitor,
 > the runner cards in an awkward 2+1, and "where are their members". **Gate: typecheck ✓ / lint ✓ /

@@ -4,7 +4,11 @@ export type FieldKind =
   | "short_text" | "paragraph" | "dropdown" | "radio"
   | "checkboxes" | "date" | "number" | "link"
   | "section" | "team";
-export type Identity = "name" | "roll" | "email" | "phone" | "department" | "year";
+// `team_name` is the only identity that describes the ENTRY rather than the
+// person filling the form in. It maps to registrations.team_name, and a club
+// adds it to a team event the same way it adds any other identity block.
+export type Identity =
+  | "name" | "roll" | "email" | "phone" | "department" | "year" | "team_name";
 
 export interface MemberSubfield {
   key: string;
@@ -38,7 +42,7 @@ export const MAX_MEMBERS = 10;
 export const MAX_SUBFIELDS = 8;
 const MEMBER_KINDS: ReadonlySet<string> = new Set(["short_text", "email", "roll", "phone"]);
 const IDENTITIES: ReadonlySet<string> = new Set<Identity>([
-  "name", "roll", "email", "phone", "department", "year",
+  "name", "roll", "email", "phone", "department", "year", "team_name",
 ]);
 
 /** Today's fixed six-field form, expressed as identity blocks. */

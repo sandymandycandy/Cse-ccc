@@ -5,7 +5,6 @@ import { Button } from "./ui/Button";
 import { defaultFormFor, LAYOUT_KINDS, type FormField } from "@/lib/registration-form/schema";
 import { shouldRetry, nextDelay, MAX_ATTEMPTS, type RetryOutcome } from "@/lib/registration/retry";
 import { leaderLabel } from "@/lib/registration-form/team-labels";
-import { TEAM_NAME_KEY } from "@/lib/registration-form/answers";
 
 type Result = {
   status?: string;
@@ -97,11 +96,6 @@ export function RegisterForm({
         answers[field.id] = String(fd.get(field.id) ?? "");
       }
     }
-    // The team's own name is not a schema field — it rides on a reserved key
-    // and lands in its own column. Only forms with a team block collect it.
-    if (fields.some((f) => f.kind === "team")) {
-      answers[TEAM_NAME_KEY] = String(fd.get(TEAM_NAME_KEY) ?? "");
-    }
     setSubmitting(true);
     setWaiting(false);
     setResult(null);
@@ -168,41 +162,25 @@ export function RegisterForm({
           );
         }
         if (field.kind === "team") {
-          const nameError = result?.fields?.[TEAM_NAME_KEY];
           return (
-            <div key={field.id}>
-              {/* The team's own name — always asked for, so no club has to
-                  remember to add it, and it is what the roster reads by. */}
-              <div className={`field${nameError ? " err" : ""}`}>
-                <label htmlFor={TEAM_NAME_KEY}>Team name</label>
-                <input
-                  id={TEAM_NAME_KEY}
-                  name={TEAM_NAME_KEY}
-                  type="text"
-                  required
-                  maxLength={80}
-                  placeholder="What should we call your team?"
-                />
-                {nameError ? (
-                  <span className="hint" role="alert">
-                    {nameError}
-                  </span>
-                ) : null}
-              </div>
-              <TeamField
-                field={field}
-                rows={teams[field.id] ?? [{}]}
-                error={result?.fields?.[field.id]}
-                onChange={(rows) => setTeams((t) => ({ ...t, [field.id]: rows }))}
-              />
-            </div>
+            <TeamField
+              key={field.id}
+              field={field}
+              rows={teams[field.id] ?? [{}]}
+              error={result?.fields?.[field.id]}
+              onChange={(rows) => setTeams((t) => ({ ...t, [field.id]: rows }))}
+            />
           );
         }
         return (
           <FieldInput
             key={field.id}
             field={field}
-            label={hasTeam && field.identity ? leaderLabel(field.label) : field.label}
+            label={
+              hasTeam && field.identity && field.identity !== "team_name"
+                ? leaderLabel(field.label)
+                : field.label
+            }
             error={result?.fields?.[field.id]}
             otherText={otherText[field.id] ?? ""}
             onOther={(v) => setOtherText((s) => ({ ...s, [field.id]: v }))}

@@ -19,6 +19,8 @@ const IDENTITY_BLOCKS: { identity: Identity; kind: FieldKind; label: string; opt
   { identity: "phone", kind: "short_text", label: "Mobile number" },
   { identity: "department", kind: "dropdown", label: "Department", options: [...DEPARTMENTS], allowOther: true },
   { identity: "year", kind: "dropdown", label: "Year", options: ["1", "2", "3", "4", "5"] },
+  // Describes the entry, not the person. Only meaningful alongside a team block.
+  { identity: "team_name", kind: "short_text", label: "Team name" },
 ];
 
 const CUSTOM_KINDS: { kind: FieldKind; label: string }[] = [
