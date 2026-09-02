@@ -899,6 +899,18 @@
     gap: 16px;
     margin-top: 18px;
   }
+  /* The results page reads as a document, not a full-bleed sheet. Without this
+     cap a 2000px monitor stretched the standings across the whole width and
+     stranded the share control ~1900px from the title it belongs to. Same
+     treatment .contact and .evd already use. */
+  .results { max-width: 1080px; margin-inline: auto; }
+
+  /* NOT `.stack` — that is a horizontal flex row (see line ~190) meant for
+     button groups. Used as a vertical container it made every Panel a flex
+     item that shrink-wrapped to its content, which is what left half the
+     screen empty and squeezed the runner grid down to two columns. */
+  .results-rounds { display: grid; gap: 20px; margin-top: 26px; }
+
   /* ── Results: champion + runners-up ────────────────────────────────────
      The winner IS the page, so they get a full-width card and the only large
      type on it; second and third sit below as a quiet pair. Rank is carried by

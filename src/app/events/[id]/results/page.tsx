@@ -44,7 +44,7 @@ export default async function EventResultsPage({ params }: Params) {
   );
 
   return (
-    <section className="section" style={{ paddingTop: 56 }}>
+    <section className="section results" style={{ paddingTop: 56 }}>
       <div className="results-head">
         <div>
           <Link href={`/events/${id}`} className="label" style={{ color: "var(--forest)" }}>
@@ -66,7 +66,7 @@ export default async function EventResultsPage({ params }: Params) {
           Results haven&rsquo;t been published yet.
         </p>
       ) : (
-        <div className="stack" style={{ gap: 20, marginTop: 26 }}>
+        <div className="results-rounds">
           {rounds.map((round) => {
             const podium = podiumOf(round.results);
             const champions = podium.filter((r) => r.rank === 1);

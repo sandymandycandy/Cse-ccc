@@ -20,7 +20,7 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-02)
 
-> **`174df5f` shipped three blocks to prod (2026-09-03): the Gallery Manager role, team names +
+> **`174df5f` + `52590f7` shipped four blocks to prod (2026-09-03): the Gallery Manager role, team names +
 > roster search, and the results button + podium. ⚠️ ONE BLOCK IS IN FLIGHT** — the results-page
 > redesign below, uncommitted, though **its migrations ARE applied**. Read its PII note before
 > touching anything that reads registration data on a public page. Every block below is
@@ -190,6 +190,37 @@ end-to-end**, not a checklist of components.
 >   `src/app/globals.css`, `src/lib/queries.ts`, `src/lib/admin/results.ts`,
 >   `src/lib/registration-form/participants.{ts,test.ts}`, `src/lib/podium.test.ts`,
 >   `src/app/admin/(app)/events/[id]/results/{actions.ts,ResultsEditor.tsx}`, `src/lib/database.types.ts`.
+
+> ### 🩹 IN FLIGHT — Results layout fix + member backfill (2026-09-03)
+> **Uncommitted.** Owner sent a screenshot: content squeezed into the left half of a wide monitor,
+> the runner cards in an awkward 2+1, and "where are their members". **Gate: typecheck ✓ / lint ✓ /
+> 324 tests ✓ / build ✓.** Three symptoms, ONE root cause plus one data gap.
+> - **⚠️ ROOT CAUSE — `.stack` IS A HORIZONTAL FLEX ROW** (`display:flex; flex-wrap:wrap;
+>   align-items:center`, globals.css ~line 190). It exists for button groups. The results page used
+>   it as a VERTICAL container for the rounds, so every `Panel` became a flex item that
+>   **shrink-wrapped to its content** — which is what left half the screen empty, and squeezed the
+>   `.runners` grid to 2 columns even though its `auto-fit/minmax(210px)` rule was correct. The CSS
+>   was never the problem. Fixed with `.results-rounds { display: grid; gap: 20px }`.
+>   **Check other pages before reusing `.stack` as a column — the same misuse may exist elsewhere.**
+> - **Width cap:** `.section` is full-bleed, so on a ~2000px monitor the standings stretched the whole
+>   width and the share control was stranded ~1900px from the title it belongs to. Added
+>   `.results { max-width: 1080px; margin-inline: auto }`, matching what `.contact` (1080) and `.evd`
+>   (1180) already do.
+> - **✅ MEMBERS BACKFILLED — the data was there all along.** PITCH DESK *is* a team event (its form
+>   has a team block with member name / VTU / email / phone), and all 24 registrations carry members.
+>   They were missing only because the 21 result rows were seeded before `results.team_members`
+>   existed. Backfilled all 21 via SQL derived from each event's own form schema (team field id, name
+>   subfield by label, roll subfield by kind) — **not** hardcoded keys, so it worked generically.
+> - **⚠️ The backfill is the PII projection again, in SQL.** It builds `{name, roll}` ONLY. Verified
+>   after writing: **0 of 21 rows match `@` or a 10-digit number**, and the rendered public HTML
+>   contains **0 emails and 0 phone numbers**. Any future backfill must keep that guarantee — the
+>   member records it reads from also hold email addresses and phone numbers.
+> - **Correction to the previous block:** it claimed the PITCH DESK rows would "keep showing no team
+>   data". That was true of the snapshot, but wrong as advice — the source data existed and was
+>   recoverable. Team NAME is still blank for these rows (nobody was ever asked for one; that field
+>   postdates the registrations), so only members show.
+> - **⚠️ Still not seen at phone width** — the desktop screenshot is the only visual check so far.
+> - **Files:** `src/app/events/[id]/results/page.tsx`, `src/app/globals.css`, `docs/STATUS.md`.
 
 > ### ✅ MERGED & PUSHED TO PROD — Gallery Manager: a gallery-only admin role (2026-09-02)
 > **Uncommitted in the working tree on `main`. NOT committed, NOT deployed. The DB migration is
