@@ -191,7 +191,7 @@ end-to-end**, not a checklist of components.
 >   `src/lib/registration-form/participants.{ts,test.ts}`, `src/lib/podium.test.ts`,
 >   `src/app/admin/(app)/events/[id]/results/{actions.ts,ResultsEditor.tsx}`, `src/lib/database.types.ts`.
 
-> ### 📋 IN FLIGHT — Attendance dashboard split: create-first, analytics on its own page (2026-09-03)
+> ### 📋 IN FLIGHT — Attendance + Council split: create-first, analytics on its own page (2026-09-03)
 > **Uncommitted. No migration, no schema change.** Owner: session history below the create form, and
 > "all others" behind an Analytics button. **Gate: typecheck ✓ / lint ✓ / 323 tests ✓ / build ✓.**
 > - **The dashboard is now the "run a session" surface:** club picker → **create session** → session
@@ -212,8 +212,21 @@ end-to-end**, not a checklist of components.
 >   manifest, and correctly 307 an unauthenticated visitor to `/admin/login`; the rendered result has
 >   not been seen. **A human check is owed:** open `/admin/attendance`, confirm the create form leads
 >   and history sits below it, then click **Analytics** and confirm the club carries across.
+> - **✅ THE COUNCIL DASHBOARD GOT THE SAME TREATMENT** (owner: "not only for admin, for every club").
+>   It had the identical shape — meeting history above the create form, roster inline. Now: create
+>   meeting → meeting history, with analytics + roster at **`/admin/council/analytics`**.
+>   Grep confirmed these were the ONLY three pages using this pattern; no club page embeds attendance.
+> - **Council analytics are NEW, not just moved** — that page had no analytics panel at all. It reuses
+>   `computeClubAnalytics` because `CouncilRosterPct` already satisfies `AnalyticsMember`; the one
+>   addition is a `membershipCounts()` for `council_members`. **Do not fork the analytics maths for
+>   the council** — a meeting and a club session are the same shape and must stay one implementation.
+> - **To be explicit about the club question:** `/admin/attendance` IS the per-club page. A
+>   council-wide viewer picks the club; a club head is pinned to their own by `resolveAttendanceScope`.
+>   The restructure applies to every club and every role, not just one view.
 > - **Files:** new `src/lib/admin/attendance-scope.ts`, new
->   `src/app/admin/(app)/attendance/analytics/page.tsx`, `src/app/admin/(app)/attendance/page.tsx`.
+>   `src/app/admin/(app)/attendance/analytics/page.tsx`, new
+>   `src/app/admin/(app)/council/analytics/page.tsx`, `src/app/admin/(app)/attendance/page.tsx`,
+>   `src/app/admin/(app)/council/page.tsx`, `src/lib/admin/attendance-council.ts`.
 
 > ### 🧾 IN FLIGHT — Team name is now a real identity block (2026-09-03)
 > **Uncommitted. ✅ Form backfill applied live.** Owner: "there's no team name in the identity block

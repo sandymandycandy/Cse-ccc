@@ -110,6 +110,21 @@ export async function rosterWithPercent(): Promise<CouncilRosterPct[]> {
   });
 }
 
+/**
+ * Headcounts for the council analytics tiles, mirroring the club version. The
+ * council has no per-club scope, so this takes no argument.
+ */
+export async function membershipCounts(): Promise<{ total: number; active: number; pending: number }> {
+  const admin = createAdminClient();
+  const { data } = await admin.from("council_members").select("is_active, approved_at");
+  const rows = data ?? [];
+  return {
+    total: rows.length,
+    active: rows.filter((r) => r.is_active).length,
+    pending: rows.filter((r) => r.approved_at == null).length,
+  };
+}
+
 export async function listSessions(): Promise<CouncilSession[]> {
   const admin = createAdminClient();
   const { data, error } = await admin
