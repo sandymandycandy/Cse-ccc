@@ -774,19 +774,14 @@
     .evd-rule { display: none; }
   }
 
-  /* team roster — the first row is the leader and is marked as such */
+  /* registration form — team roster rows */
   .team-row { padding: 12px 14px; }
-  .team-row.is-leader {
-    border-color: var(--forest);
-    box-shadow: inset 3px 0 0 var(--forest);
-  }
   .team-row-head {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 10px;
   }
-  .team-row.is-leader .team-row-head .label { color: var(--forest); }
 
   /* ── calendar (BUILD_PLAN §5) ──────────────────────────────────────────── */
 

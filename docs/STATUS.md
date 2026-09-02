@@ -49,13 +49,17 @@ end-to-end**, not a checklist of components.
 >   the same text into `blurb` and `description`, and it was printing twice — `description` is now
 >   skipped when identical. Display-only; the DB rows are untouched.
 > - **Team leader** (`src/components/RegisterForm.tsx` + new `src/lib/registration-form/team-labels.ts`):
->   team row 0 is headed **"Team leader"** (forest, green left accent) instead of "Member 1", every
->   field on that row is **prefixed** ("Team leader name", "Team leader VTU number"), and later rows
->   **renumber from Member 2**. Prefixing reads off the club's own labels — it strips a redundant
->   leading "member"/"team member" so you never get "Team leader team member name", and preserves
->   acronyms so "VTU" doesn't become "Vtu". **The leader row can no longer be removed** (it was
->   removable, which would have silently promoted whoever was second). Label logic is a **pure tested
->   module**, matching how `retry`/`phase`/`waitlist` are organised.
+>   on a team event **the registrant IS the leader**, so the top-level **identity block is labelled as
+>   theirs field by field** — "Team leader full name", "Team leader roll number", … — and the
+>   **`Team members` roster below holds only the other members** (`Member 1`, `Member 2`, … as
+>   before, all removable past `minMembers`). Prefixing is defensive: it touches **identity fields
+>   only** (`field.identity !== null`), so a team deliverable like "Submit your PPT link" is left
+>   alone; it preserves acronyms ("Team leader VTU number", not "vTU"); and it won't stack words if a
+>   club already labels a field "Team leader …". Non-team forms are untouched. Label logic is a **pure
+>   tested module**, matching how `retry`/`phase`/`waitlist` are organised.
+>   ⚠️ **Two shipped iterations:** `65add56` first put a "Team leader" **row inside the roster** with
+>   prefixed member labels — that made the leader type their own name twice (once at the top, once in
+>   the row) and the owner corrected it. That version is fully reverted; this bullet is what is live.
 > - **CSS** (`globals.css`): new `.evc-*` (card) and `.evd-*` (detail) blocks + `.team-row`. The card
 >   is sized by a **`@container (max-width: 540px)` query, not a viewport one** — it is a hero column
 >   that is wide on a big monitor and narrow once the hero stacks at 899px, so it must lay itself out
@@ -63,7 +67,8 @@ end-to-end**, not a checklist of components.
 > - **⚠️ OWED — human browser walkthrough.** Everything here was verified against **served HTML** on a
 >   dev server (the Chrome extension was not connected, so nothing was checked by eye). Worth a look:
 >   the two cards at your real window width, the meta strip's dividers, and **+ Add member** →
->   confirm the second row reads "Member 2" and offers Remove while the leader row does not.
+>   confirm a **Member 2** row appears with a Remove button, and that the leader-prefixed identity
+>   labels at the top read correctly on a phone-width screen.
 > - **Not touched:** the `EventCard` used in the Upcoming events grid further down the home page still
 >   carries its own `OPEN` badge and old layout — a matching pass is unclaimed.
 

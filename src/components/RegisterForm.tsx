@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "./ui/Button";
 import { defaultFormFor, LAYOUT_KINDS, type FormField } from "@/lib/registration-form/schema";
 import { shouldRetry, nextDelay, MAX_ATTEMPTS, type RetryOutcome } from "@/lib/registration/retry";
-import { leaderLabel, memberHeading } from "@/lib/registration-form/team-labels";
+import { leaderLabel } from "@/lib/registration-form/team-labels";
 
 type Result = {
   status?: string;
@@ -133,6 +133,11 @@ export function RegisterForm({
     return <ResultMessage status={result.status} mode={mode} position={result.position} />;
   }
 
+  // On a team event the person filling this in IS the team leader, so the
+  // identity fields say so outright and the roster below holds only the other
+  // members — otherwise the leader types their own name twice.
+  const hasTeam = fields.some((f) => f.kind === "team");
+
   return (
     <form onSubmit={onSubmit} noValidate>
       {result?.error ? (
@@ -171,6 +176,7 @@ export function RegisterForm({
           <FieldInput
             key={field.id}
             field={field}
+            label={hasTeam && field.identity ? leaderLabel(field.label) : field.label}
             error={result?.fields?.[field.id]}
             otherText={otherText[field.id] ?? ""}
             onOther={(v) => setOtherText((s) => ({ ...s, [field.id]: v }))}
@@ -203,11 +209,14 @@ export function RegisterForm({
 
 function FieldInput({
   field,
+  label,
   error,
   otherText,
   onOther,
 }: {
   field: FormField;
+  /** Resolved label — the leader-prefixed one on a team event. */
+  label?: string;
   error?: string;
   otherText?: string;
   onOther?: (v: string) => void;
@@ -217,7 +226,7 @@ function FieldInput({
   return (
     <div className={`field${error ? " err" : ""}`}>
       <label htmlFor={id}>
-        {field.label}
+        {label ?? field.label}
         {field.required ? "" : " (optional)"}
       </label>
       {field.kind === "paragraph" ? (
@@ -388,28 +397,20 @@ function TeamField({
       </label>
       <div className="stack" style={{ gap: 10 }}>
         {rows.map((row, idx) => {
-          const isLeader = idx === 0;
           return (
-            <div key={idx} className={`card team-row${isLeader ? " is-leader" : ""}`}>
+            <div key={idx} className="card team-row">
               <div className="team-row-head">
-                <span className="label">{memberHeading(idx)}</span>
-                {/* the leader is row 0 by convention — removing it would silently
-                    promote someone else, so only the later rows can be removed */}
-                {!isLeader && rows.length > min ? (
+                <span className="label">Member {idx + 1}</span>
+                {rows.length > min ? (
                   <button type="button" className="btn btn-sm btn-ghost" onClick={() => removeRow(idx)}>
                     Remove
                   </button>
                 ) : null}
               </div>
-              {isLeader ? (
-                <span className="hint" style={{ display: "block", marginTop: 2 }}>
-                  Enter the leader&rsquo;s own details here.
-                </span>
-              ) : null}
               {subs.map((sf) => (
                 <div className="field" key={sf.key} style={{ marginTop: 6 }}>
                   <label>
-                    {isLeader ? leaderLabel(sf.label) : sf.label}
+                    {sf.label}
                     {sf.required ? "" : " (optional)"}
                   </label>
                   <input
