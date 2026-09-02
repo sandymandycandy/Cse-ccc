@@ -191,6 +191,30 @@ end-to-end**, not a checklist of components.
 >   `src/lib/registration-form/participants.{ts,test.ts}`, `src/lib/podium.test.ts`,
 >   `src/app/admin/(app)/events/[id]/results/{actions.ts,ResultsEditor.tsx}`, `src/lib/database.types.ts`.
 
+> ### 📋 IN FLIGHT — Attendance dashboard split: create-first, analytics on its own page (2026-09-03)
+> **Uncommitted. No migration, no schema change.** Owner: session history below the create form, and
+> "all others" behind an Analytics button. **Gate: typecheck ✓ / lint ✓ / 323 tests ✓ / build ✓.**
+> - **The dashboard is now the "run a session" surface:** club picker → **create session** → session
+>   history. Analytics and the per-member roster moved to **`/admin/attendance/analytics`**, reached
+>   by a primary **Analytics** button in the header. Reading and doing are separated.
+> - **⚠️ Club scope is now shared, not duplicated.** New `src/lib/admin/attendance-scope.ts` resolves
+>   which club a viewer sees and whether they may manage it. Both pages call it, so they cannot drift
+>   on access: **a club-scoped head stays pinned to their own club regardless of `?club=`.** If you
+>   add a third attendance page, use this — do not re-derive the grant inline.
+> - **The club picker is repeated on the analytics page on purpose.** That page is reached with
+>   `?club=` and the watchlist threshold form re-submits to itself, so without its own picker a
+>   council-wide viewer switching clubs would be stranded on the wrong club's numbers.
+> - **`?below=` (watchlist threshold) moved with the analytics** — the dashboard no longer reads it.
+>   The threshold form has no `action`, so it posts to whatever page hosts it; nothing to change.
+> - Session history also gained `.tablewrap cards` + `data-label`s, so it collapses to readable cards
+>   on a phone like the other admin tables.
+> - **⚠️ Layout not verified — admin pages need a login.** Both routes compile, appear in the build
+>   manifest, and correctly 307 an unauthenticated visitor to `/admin/login`; the rendered result has
+>   not been seen. **A human check is owed:** open `/admin/attendance`, confirm the create form leads
+>   and history sits below it, then click **Analytics** and confirm the club carries across.
+> - **Files:** new `src/lib/admin/attendance-scope.ts`, new
+>   `src/app/admin/(app)/attendance/analytics/page.tsx`, `src/app/admin/(app)/attendance/page.tsx`.
+
 > ### 🧾 IN FLIGHT — Team name is now a real identity block (2026-09-03)
 > **Uncommitted. ✅ Form backfill applied live.** Owner: "there's no team name in the identity block
 > in the events." **Gate: typecheck ✓ / lint ✓ / 323 tests ✓ / build ✓.**
