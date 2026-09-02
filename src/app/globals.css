@@ -378,6 +378,50 @@
   .field.err input { border-color: var(--rust); }
   .field.err .hint { color: var(--rust); }
 
+  /* ── contact page ─────────────────────────────────────────────────────────
+     The form is the whole point of the page, so it comes first in the DOM and
+     leads on a phone; on a desktop it moves to the right and the "faster
+     routes" aside takes the left, instead of pushing the form below the fold.
+     Capped and centred — a 560px ribbon of fields pinned to the left edge of a
+     wide monitor is not a layout. */
+  .contact { max-width: 1080px; margin-inline: auto; }
+  .contact-grid { display: grid; gap: 26px; margin-top: 30px; }
+  @media (min-width: 900px) {
+    .contact-grid {
+      grid-template-columns: minmax(0, 310px) minmax(0, 1fr);
+      gap: 44px;
+      align-items: start;
+    }
+    .contact-form-wrap { grid-column: 2; grid-row: 1; }
+    .contact-aside { grid-column: 1; grid-row: 1; }
+  }
+
+  /* a container query, not a viewport one: the form's width is set by the grid
+     column it lands in, which the viewport alone doesn't tell us */
+  .contact-form-wrap { container-type: inline-size; }
+  .cf-row { display: grid; gap: 0 18px; }
+  .cf-submit { width: 100%; }
+  @container (min-width: 440px) {
+    .cf-row { grid-template-columns: 1fr 1fr; }
+    .cf-submit { width: auto; min-width: 190px; }
+  }
+
+  .contact-aside { display: grid; gap: 20px; align-content: start; }
+  .contact-route { padding-top: 15px; border-top: 1px solid var(--line-2); }
+  .contact-route h3 { font: 400 17px / 1.25 var(--serif); }
+  .contact-route p {
+    margin-top: 5px;
+    font: 400 13px / 1.6 var(--sans);
+    color: var(--ink-2);
+  }
+  .contact-route a {
+    display: inline-block;
+    margin-top: 8px;
+    font: 500 10.5px var(--mono);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
   /* event row — the signature component (4col → 2col → stacked card) */
   .evrow {
     display: grid;

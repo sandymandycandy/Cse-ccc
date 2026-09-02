@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ContactSchema } from "@/lib/validation/contact";
 import { checkContactLimits } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
+import { notifyLeadershipOfQuery } from "@/lib/contact/notify";
 
 function clientIp(request: Request): string {
   const fwd = request.headers.get("x-forwarded-for");
@@ -65,16 +66,32 @@ export async function POST(request: Request) {
     );
   }
 
-  const { error } = await admin.from("contact_messages").insert({
-    name: input.name,
-    email: input.email,
-    subject: input.subject || null,
-    message: input.message,
-  });
+  const { data: saved, error } = await admin
+    .from("contact_messages")
+    .insert({
+      name: input.name,
+      email: input.email,
+      subject: input.subject || null,
+      message: input.message,
+    })
+    .select("id")
+    .single();
   if (error) {
     console.error("contact insert failed", error);
     return Response.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
+
+  // 6) tell the President + Vice President (owner ask, 2026-09-02). The message
+  // is already stored, so this is awaited but never allowed to fail the request —
+  // a mail outage must not tell the student their query was lost.
+  const origin = process.env.NEXT_PUBLIC_SITE_URL ?? new URL(request.url).origin;
+  await notifyLeadershipOfQuery({
+    name: input.name,
+    email: input.email,
+    subject: input.subject || null,
+    message: input.message,
+    inboxUrl: saved?.id ? `${origin}/admin/contact/${saved.id}` : null,
+  });
 
   return Response.json({ ok: true });
 }

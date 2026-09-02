@@ -21,7 +21,8 @@ end-to-end**, not a checklist of components.
 ## 🚦 START HERE — current git/deploy state (2026-09-02)
 
 > **`main` = `origin/main` (clean, deployed) — nothing in flight.** Every block below is
-> merged and live: **Faculty + VP full access (a security-boundary change — read that block)**, the
+> merged and live: the **contact page redesign + leadership query notifications**,
+> **Faculty + VP full access (a security-boundary change — read that block)**, the
 > **participants roster + responsive admin tables**, the
 > **event card + event detail redesign and the team-leader form change**, the
 > **registration queue / waiting room / waitlist**, the public **home redesign +
@@ -29,6 +30,51 @@ end-to-end**, not a checklist of components.
 > `feat/registration-queue` and `feat/manual-attendance` are fully contained in `main` (verified with
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
+
+> ### ✅ MERGED & PUSHED TO PROD — Contact page redesign + leadership notified of every query (2026-09-02)
+> **Merged to `main` and pushed — Vercel auto-deployed.** Two owner asks: make `/contact` "mobile
+> responsive and good for PC view", and "if anyone raised any query notify the president and vice
+> president with the query". **Gate green: typecheck ✓ / lint ✓ / 273 tests ✓ / build ✓** (was 254 —
+> +19 across the new pure `notify-payload` suite and the extended template suite). **No DB migration,
+> no schema change** — the notification rides the existing `email_log` queue.
+> - **`/contact` layout** (`src/app/contact/page.tsx`, `ContactForm.tsx`, `globals.css`): was a
+>   **560px column of fields pinned to the left**, leaving ~70% of a wide monitor empty. Now **capped
+>   at 1080px and centred**, with a **two-column grid ≥900px**: a "Faster routes" aside (clubs,
+>   events, what-happens-next `Note`) on the left, the form in a `Panel` on the right. **Name + Email
+>   pair onto one row** via a **`@container (min-width: 440px)`** query — the form's width comes from
+>   the grid column it lands in, which the viewport alone doesn't tell you. **The form is FIRST in the
+>   DOM** so it leads on a phone and the aside can't push it below the fold; desktop moves it right
+>   with `grid-column`, so tab order and visual order still agree. Submit goes full-width on narrow.
+>   The iOS zoom-on-focus rule (16px inputs <600px) was already in place from the earlier mobile pass.
+> - **⚠️ No real contact details were invented.** There is **no council email, phone or social link
+>   anywhere in the codebase**, so the aside links only internally (`/clubs`, `/events`) and states
+>   what actually happens to a message. If real details ever exist, that aside is where they go.
+> - **Leadership notification** (new `src/lib/contact/notify.ts` + pure `notify-payload.ts`, wired
+>   into `src/app/api/contact/route.ts`): after the message is stored, look up **active
+>   `admin_users` with role `president` or `vice_president`** and queue one email each via the
+>   existing `enqueueEmail` (**priority 3**, above the default 5). Subject leads with the sender's own
+>   subject (`New query: …`), falling back to `New query from <name>`. Message **truncated to 2000
+>   chars** in the mail (the form allows 4000); the full text is behind an **Open** button linking to
+>   `/admin/contact/<id>`.
+> - **⚠️ The shared email template could not show a query — it was extended.** `renderEmail` only ever
+>   emitted subject + greeting + an optional URL button, so a notification would have arrived saying
+>   nothing. It now also renders **`payload.details`** (label→value rows) and **`payload.body`**
+>   (quoted free text), in both the HTML and plain-text parts. **Both are HTML-escaped** — this is
+>   public user input in an email — with explicit XSS tests, and malformed `details` are ignored
+>   rather than thrown on. Other templates are unaffected (neither key present → nothing rendered).
+> - **A mail failure can never fail the submission:** the row is inserted first and the whole notify
+>   call is wrapped — errors are logged and swallowed. Zero recipients is also non-fatal; it logs a
+>   warning that a query arrived and nobody was told.
+> - **⚠️ Who is notified today: the PRESIDENT ONLY.** Live `admin_users` has 1 active president and
+>   **zero `vice_president` accounts**, so the VP half is dormant until such an account exists.
+> - **⚠️ No live email was sent from this session.** The dev server points at the **live** database,
+>   so an end-to-end test would have filed a real contact message and mailed a real person unprompted.
+>   Rendering + payload are unit-tested; delivery uses the same `enqueueEmail` path as every other
+>   email in the app. **A human end-to-end check is owed:** submit `/contact` on prod and confirm the
+>   mail lands with the query text and a working Open link.
+> - **Known gap:** the mail shows a **"Reply to" detail row, not a real `Reply-To` header**, and the
+>   footer still says "automated message, please don't reply" — replying means copying the address.
+>   Flagged to the owner; a real header is a small transport change if wanted.
 
 > ### 🔐 MERGED & PUSHED TO PROD — Faculty Advisor + Vice President get FULL access (2026-09-02)
 > **Merged to `main` and pushed — Vercel auto-deployed.** Owner ask, in two steps: "give faculty full

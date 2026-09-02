@@ -47,3 +47,68 @@ describe("renderEmail", () => {
     expect(() => renderEmail("totally-unknown", "s", null, null)).not.toThrow();
   });
 });
+
+describe("renderEmail — details + body (contact query notifications)", () => {
+  const q = {
+    details: [
+      { label: "From", value: "Tarun S" },
+      { label: "Reply to", value: "vtu28651@veltech.edu.in" },
+    ],
+    body: "Can a team of two enter?",
+  };
+
+  it("renders each detail's label and value", () => {
+    const { html } = renderEmail("contact_query", "New query", "Asha", q);
+    expect(html).toContain("From");
+    expect(html).toContain("Tarun S");
+    expect(html).toContain("Reply to");
+    expect(html).toContain("vtu28651@veltech.edu.in");
+  });
+
+  it("renders the body so the query is actually readable in the mail", () => {
+    const { html, text } = renderEmail("contact_query", "New query", "Asha", q);
+    expect(html).toContain("Can a team of two enter?");
+    expect(text).toContain("Can a team of two enter?");
+  });
+
+  it("puts the details in the plain-text part too", () => {
+    const { text } = renderEmail("contact_query", "New query", null, q);
+    expect(text).toContain("From: Tarun S");
+    expect(text).toContain("Reply to: vtu28651@veltech.edu.in");
+  });
+
+  it("ESCAPES the body — it is public user input, never markup", () => {
+    const { html } = renderEmail("contact_query", "New query", "A", {
+      body: "<img src=x onerror=alert(1)>",
+    });
+    expect(html).not.toContain("<img src=x");
+    expect(html).toContain("&lt;img");
+  });
+
+  it("escapes detail labels and values as well", () => {
+    const { html } = renderEmail("contact_query", "New query", "A", {
+      details: [{ label: "<b>L</b>", value: "<script>alert(1)</script>" }],
+    });
+    expect(html).not.toContain("<script>alert(1)</script>");
+    expect(html).not.toContain("<b>L</b>");
+    expect(html).toContain("&lt;script&gt;");
+  });
+
+  it("ignores malformed details instead of throwing", () => {
+    expect(() => renderEmail("t", "s", "a", { details: "nope" })).not.toThrow();
+    expect(() => renderEmail("t", "s", "a", { details: [null, 7, {}] })).not.toThrow();
+    const { html } = renderEmail("t", "s", "a", { details: [{ label: "", value: "x" }] });
+    expect(html).not.toContain(">x<");
+  });
+
+  it("renders a detail with a missing value as an empty cell, not \"undefined\"", () => {
+    const { text } = renderEmail("t", "s", "a", { details: [{ label: "Subject" }] });
+    expect(text).toContain("Subject: ");
+    expect(text).not.toContain("undefined");
+  });
+
+  it("still renders nothing extra when neither key is present", () => {
+    const { html } = renderEmail("event_updated", "Updated", "A", { title: "X" });
+    expect(html).not.toContain("border-left:3px solid");
+  });
+});

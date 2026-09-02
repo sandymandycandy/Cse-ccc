@@ -48,7 +48,7 @@ export function ContactForm() {
 
   if (result?.ok) {
     return (
-      <div style={{ maxWidth: 560 }}>
+      <div>
         <h3 style={{ fontSize: 22 }}>Message sent ✓</h3>
         <p className="body-text" style={{ marginTop: 8 }}>
           Thanks for reaching out — the council team will get back to you at the
@@ -62,26 +62,29 @@ export function ContactForm() {
   const rowClass = (k: string) => "field" + (fieldErrors[k] ? " err" : "");
 
   return (
-    <form onSubmit={onSubmit} noValidate style={{ maxWidth: 560 }}>
+    <form onSubmit={onSubmit} noValidate>
       {result?.error ? (
         <div className="note" role="alert" style={{ borderLeftColor: "var(--rust)", marginBottom: 14 }}>
           {result.error}
         </div>
       ) : null}
 
-      <div className={rowClass("name")}>
-        <label htmlFor="cf-name">Your name</label>
-        <input id="cf-name" name="name" required maxLength={80} autoComplete="name" placeholder="Your full name" />
-        {fieldErrors.name ? <span className="hint" role="alert">{fieldErrors.name}</span> : null}
-      </div>
-      <div className={rowClass("email")}>
-        <label htmlFor="cf-email">Email</label>
-        <input id="cf-email" name="email" type="email" required maxLength={120} autoComplete="email" placeholder="vtuxxxxx@veltech.edu.in" />
-        {fieldErrors.email ? (
-          <span className="hint" role="alert">{fieldErrors.email}</span>
-        ) : (
-          <span className="hint">We&rsquo;ll reply here.</span>
-        )}
+      {/* name + email pair up once the form is wide enough for two real inputs */}
+      <div className="cf-row">
+        <div className={rowClass("name")}>
+          <label htmlFor="cf-name">Your name</label>
+          <input id="cf-name" name="name" required maxLength={80} autoComplete="name" placeholder="Your full name" />
+          {fieldErrors.name ? <span className="hint" role="alert">{fieldErrors.name}</span> : null}
+        </div>
+        <div className={rowClass("email")}>
+          <label htmlFor="cf-email">Email</label>
+          <input id="cf-email" name="email" type="email" required maxLength={120} autoComplete="email" placeholder="vtuxxxxx@veltech.edu.in" />
+          {fieldErrors.email ? (
+            <span className="hint" role="alert">{fieldErrors.email}</span>
+          ) : (
+            <span className="hint">We&rsquo;ll reply here.</span>
+          )}
+        </div>
       </div>
       <div className={rowClass("subject")}>
         <label htmlFor="cf-subject">Subject</label>
@@ -111,6 +114,7 @@ export function ContactForm() {
       <Button
         type="submit"
         variant="accent"
+        className="cf-submit"
         style={{ marginTop: 4, borderRadius: "var(--r-sm)" }}
         disabled={submitting}
       >
