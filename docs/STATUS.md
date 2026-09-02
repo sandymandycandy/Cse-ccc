@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-08-30.**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-02.**
 
 ## What this is
 
@@ -18,7 +18,13 @@ end-to-end**, not a checklist of components.
 
 ---
 
-## 🚦 START HERE — current git/deploy state (2026-09-01)
+## 🚦 START HERE — current git/deploy state (2026-09-02)
+
+> **`main @ c60730f` = `origin/main` (clean, deployed).** On 2026-09-01 two things merged
+> **straight to `main` and auto-deployed** (blocks right below the branch note): the public **home
+> redesign + Gallery/Announcements nav**, and **participation certificates**. The
+> `feat/registration-queue` branch below is the only in-flight, unmerged item — you are otherwise on
+> a clean, up-to-date `main`.
 
 > ### 🟡 ON BRANCH `feat/registration-queue` — Scheduled registration + waiting room + waitlist (2026-09-01)
 > **NOT merged, NOT deployed.** Branched from `main`. Gives events a **scheduled
@@ -65,6 +71,73 @@ end-to-end**, not a checklist of components.
 > - **Next (owner's call):** the human walkthrough, then merge `feat/registration-queue`
 >   → `main` → push (auto-deploys). The legacy `public.waitlist` table is now unused but
 >   deliberately **not** dropped (a later held drop).
+
+> ### ✅ MERGED & PUSHED TO PROD — Participation certificates: issue + email PDFs (2026-09-01)
+> **Merged to `main` and pushed — Vercel auto-deployed** (`c60730f`). Turns the reserved certificates
+> slot (BUILD_PLAN §12.6) into a working **per-event** flow: upload a finished certificate image,
+> click-place the recipient's name, and bulk-email each attendee a personalised **PDF**. **Gate green:
+> typecheck ✓ / lint ✓ / 221 tests ✓ / build ✓** (was 213 — +8 for the pure config/placement + the
+> pdf-lib render suites).
+> - **What's in it:** per-event page **`/admin/events/[id]/certificates`** (gated on
+>   `issue:participation_certificate`, own-club scoped) with a live positioner
+>   (`src/components/admin/CertificateManager.tsx` — click the template to set the name anchor + size /
+>   align / colour sliders; the preview matches the PDF) and a resumable **Issue & email** button.
+>   Rendering via **`pdf-lib`** (pure JS, Vercel-safe): template as a full-page background + the name
+>   drawn by unit-tested placement math (`src/lib/certificates/{config,render,serial}.ts`). Email
+>   transport gained an optional **PDF attachment** (`SendArgs` + `gmail.ts`/`resend.ts`). The hub
+>   **`/admin/certificates`** now lists events-with-attendees + issued counts (was a placeholder).
+> - **Recipients = attendees only** (`attended = true`) who have an email. **Idempotent + resumable:**
+>   reserve a ledger row (serial + hmac) → render → send; a failed send **rolls the row back**
+>   (at-most-once), processed in **batches of 40** (Gmail cap/latency friendly). One audit row per run.
+> - **Migration — APPLIED + VERIFIED LIVE (additive):** `20260901020000_certificates` adds only
+>   **`events.certificate_config`** (jsonb placement) + the **`certificate-templates`** storage bucket.
+>   It **reuses** the pre-scaffolded `certificates` table (`type`/`serial`/`hmac`/`download_path`, from
+>   `20260820120002_events.sql`) and the existing **`events.certificate_template`** column for the
+>   uploaded object path. `database.types.ts` hand-patched (`events.certificate_config`). (A redundant
+>   `certificate_template_path` column first added by mistake was dropped again; the committed
+>   migration file is the clean final version.) New dep: **`pdf-lib`**.
+> - **Route smoke (prod):** `/admin/certificates` + `/admin/events/<id>/certificates` (no cookie) →
+>   307→login; home 200. Real PDF generation is covered by `render.test.ts`.
+> - **⚠️ OWED — human browser walkthrough** (uploads + real sends can't be curled): on a test event,
+>   upload a template → click-place the name → mark yourself present → **Issue & email** → confirm the
+>   PDF lands with the name on the blank line (nudge sliders + re-save if it's off). **Deliverability:**
+>   the Gmail sender has no verified domain → large batches may spam-fold / brush the ~500/day cap (the
+>   batching handles the cap; a verified sending domain is the durable fix).
+> - **Deferred (YAGNI v1):** winner certificates (`issue:winner_certificate` + `placement` already
+>   exist), a public verification page (serial + hmac are stored, ready), storing each PDF at
+>   `download_path` for re-download, team-member-level certs, and a revoke UI (`revoked_at` exists).
+
+> ### ✅ MERGED & PUSHED TO PROD — Public home redesign + Gallery/Announcements nav (2026-09-01)
+> **Merged to `main` and pushed — Vercel auto-deployed** (`a605ff1` → `008cf2c`, all in `main @
+> c60730f`). A visual refresh of the public landing page plus two nav additions. **Gate green on each
+> push: typecheck ✓ / lint ✓ / 213 tests ✓ / build ✓.** No DB/query changes.
+> - **Home hero de-clubbed** (`a605ff1`): headline `Eleven clubs. / One calendar.` → **`One community.
+>   / One calendar.`**, lead reworded to the whole community, **`categories` stat removed** (kept
+>   `clubs` + `this week`). Owner wanted the *headline* off clubs — the clubs grid stays.
+> - **Auto-rotating events carousel** (`src/components/UpcomingCarousel.tsx`, client): the hero's
+>   right panel cycles the next upcoming events (~5s, pause on hover/focus, reduced-motion aware, dots
+>   + arrows); empty → the existing "nothing scheduled" card. Ports the old NextEventPanel look.
+> - **Auto-scrolling gallery band** (`src/components/GalleryStrip.tsx`): full-width CSS-marquee photo
+>   strip (shares the ticker's `tick` keyframe), **replaces the text ticker**, hides itself when the
+>   gallery is empty, photos link to `/gallery`. After two owner reposition asks it settled **between
+>   the Upcoming events and The clubs sections** (`9dc6201`, `c30d849`).
+> - **Nav + home Announcements** (`008cf2c`): added **Gallery** + **Announcements** to the primary
+>   header nav (`SiteHeader.tsx`, incl. the mobile drawer); new **Announcements section at the bottom
+>   of the home page** (3 most-recent published notices as cards, conditional like Recent wins). The
+>   footer already listed both.
+> - **State-dependent, currently hidden in prod:** the events carousel shows the empty card (**0
+>   upcoming events** in the DB) and the home Announcements section is hidden (**0 published
+>   announcements**) — both appear automatically once that data exists. The gallery band shows (1 photo
+>   live). Nothing broken; just nothing to display yet.
+> - Files: `src/app/page.tsx`, `src/components/{UpcomingCarousel,GalleryStrip,SiteHeader}.tsx`,
+>   `src/app/globals.css`.
+
+> ### 🗑️ DIRECT DB EDIT (no code) — removed 2 Coding Club attendance sessions (2026-09-01)
+> Per owner, deleted the Coding Club sessions **"Day 1"** (0 marks) and **"Identifyers"** (185 marks)
+> straight from the live DB via Supabase MCP — there is **no in-app delete-session UI** (deliberately
+> not built; owner explicitly did **not** want a delete button). 2 sessions + **185 `club_attendance`
+> rows** removed (child rows first, then the sessions); verified 0 left for both ids. **Not**
+> audit-logged (a direct DB edit bypasses the app audit trail) and **not reversible**.
 
 > ### ✅ MERGED & PUSHED TO PROD — Attendance search/export + form fixes (batch) (2026-09-01)
 > **Merged to `main` and pushed to `origin/main` — Vercel auto-deploy triggered** (merged alongside
