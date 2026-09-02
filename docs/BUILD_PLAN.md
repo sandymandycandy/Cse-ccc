@@ -92,24 +92,26 @@ Layer 3     11 Club Cards — Club Head → Vice Head → Members
 
 | Capability | Faculty | Pres | VP | Tech | Events | Docs | Social | Head | Vice |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| Manage any club / event | read | ✅ | ✅ | ✅ | ✅ | — | — | own | own |
-| Approve / reject events | read | ✅ | ✅ | ✅ | ✅ | — | — | — | — |
-| Cancel / reschedule an event | read | ✅ | ✅ | ✅ | ✅ | — | — | own | — |
-| Blackout dates | read | ✅ | ✅ | ✅ | ✅ | — | — | — | — |
-| Manage schedules | read | ✅ | ✅ | ✅ | ✅ | — | — | own | own |
-| Registrations / attendance | read | ✅ | ✅ | ✅ | ✅ | — | — | own | own |
-| Issue participation certificates | read | ✅ | ✅ | ✅ | ✅ | — | — | own | — |
-| **Issue winner certificates** | read | ✅ | ✅ | ✅ | ✅ | — | — | own | — |
-| Revoke a certificate | read | ✅ | — | ✅ | — | — | — | — | — |
-| Announcements / Gallery / Achievements | read | ✅ | ✅ | ✅ | — | — | **✅ all** | own | own |
-| Resources & Drive links | read | ✅ | ✅ | ✅ | — | **✅ all** | — | own | — |
-| Recruitment drives | read | ✅ | ✅ | ✅ | — | — | ✅ | own | own |
-| Venues & bookings | read | ✅ | ✅ | ✅ | ✅ | — | — | request | request |
-| Manage admin users | — | — | — | **✅ only** | — | — | — | — | — |
-| Audit log | read | read | — | ✅ | — | — | — | — | — |
+| Manage any club / event | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | own |
+| Approve / reject events | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | — |
+| Cancel / reschedule an event | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | — |
+| Blackout dates | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | — |
+| Manage schedules | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | own |
+| Registrations / attendance | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | own |
+| Issue participation certificates | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | — |
+| **Issue winner certificates** | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | — |
+| Revoke a certificate | ✅ | — | ✅ | ✅ | — | — | — | — | — |
+| Announcements / Gallery / Achievements | ✅ | ✅ | ✅ | ✅ | — | — | **✅ all** | own | own |
+| Resources & Drive links | ✅ | ✅ | ✅ | ✅ | — | **✅ all** | — | own | — |
+| Recruitment drives | ✅ | ✅ | ✅ | ✅ | — | — | ✅ | own | own |
+| Venues & bookings | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | request | request |
+| Manage admin users | ✅ | — | ✅ | ✅ | — | — | — | — | — |
+| Audit log | ✅ | read | ✅ | ✅ | — | — | — | — | — |
 | Analytics | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | own | own |
 
-**Faculty Advisor gets a real read-only login** — oversight without the ability to break anything, plus their name and signature on every certificate.
+**Three roles now hold full access: Faculty Advisor, Vice President, Tech Head** — every capability at `all`, `manage:admins` and `revoke:certificate` included. The Faculty Advisor additionally supplies the name and signature on every certificate.
+
+*(Changed 2026-09-02 by owner decision, in two steps. The Faculty Advisor was originally read-only — "oversight without the ability to break anything" — and the Vice President was short of `revoke:certificate`, `manage:admins` and `view:audit`. Both were widened to `all` across the board, and both joined `TOTP_REQUIRED_ROLES` because the mandatory-2FA rule keys off blast radius. **The President was deliberately left alone**: still `read` on the audit log, still no `manage:admins`, still no certificate revoke — that was not part of the ask, so President is now narrower than the VP. Source of truth: `src/lib/auth/capabilities.ts`.)*
 
 Docs Head and Social Media Head broke the five-role model: they are **cross-club but narrow**, touching one content type across all 11 clubs and nothing else. Permissions are therefore expressed as **capabilities** (`manage:announcements`, `manage:resources`, `approve:events`, `issue:winner_certificate`, …) derived from role + club, and the server check is `requireCapability`. Role-name checks alone cannot express this.
 
@@ -544,7 +546,7 @@ All six HMAC secrets are distinct 32-byte random values. Reusing one across purp
 
 **Unit (vitest)** — validation schemas, rate limiter, CSV sanitiser, HMAC mint/verify, **calendar interval packing** (overlap clusters, lane assignment, multi-day spans, midnight boundaries), clash detection, capability resolution, certificate serial generation, **rotating attendance-code mint/verify** (rotation expiry, one-scan-per-device-per-session), device binding (one phone per roll, re-enrol revokes prior), results publish gating.
 
-**Integration** — every `/api/admin/*` route returns 401 unauthenticated; club-head cross-club access returns 403; Social Media Head on event routes returns 403; Faculty Advisor writes return 403; anon Supabase key cannot select `registrations`; consumed invite cannot be reused; replayed QR fails; an attendance scan outside the window or from an unenrolled device fails; unpublished results are not publicly readable.
+**Integration** — every `/api/admin/*` route returns 401 unauthenticated; club-head cross-club access returns 403; Social Media Head on event routes returns 403; (a Faculty Advisor write no longer 403s — see §3.2); anon Supabase key cannot select `registrations`; consumed invite cannot be reused; replayed QR fails; an attendance scan outside the window or from an unenrolled device fails; unpublished results are not publicly readable.
 
 **End-to-end (Playwright)** — the Phase 1 journey: create event → clash blocked → approve → register → confirm → scan → certificate → verify. Plus: cancel an event with registrants and assert emails queue; calendar renders a day with 5 events and a multi-day span correctly at 1440px and 390px.
 

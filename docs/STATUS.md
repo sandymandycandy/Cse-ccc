@@ -21,13 +21,56 @@ end-to-end**, not a checklist of components.
 ## 🚦 START HERE — current git/deploy state (2026-09-02)
 
 > **`main` = `origin/main` (clean, deployed) — nothing in flight.** Every block below is
-> merged and live: the **participants roster + responsive admin tables**, the
+> merged and live: **Faculty + VP full access (a security-boundary change — read that block)**, the
+> **participants roster + responsive admin tables**, the
 > **event card + event detail redesign and the team-leader form change**, the
 > **registration queue / waiting room / waitlist**, the public **home redesign +
 > Gallery/Announcements nav**, and **participation certificates**. The local branches
 > `feat/registration-queue` and `feat/manual-attendance` are fully contained in `main` (verified with
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
+
+> ### 🔐 MERGED & PUSHED TO PROD — Faculty Advisor + Vice President get FULL access (2026-09-02)
+> **Merged to `main` and pushed — Vercel auto-deployed.** Owner ask, in two steps: "give faculty full
+> access", then "and vice president also have the full access". **This is a security-boundary change
+> — read it before touching `src/lib/auth/capabilities.ts`.** **Gate green: typecheck ✓ / lint ✓ /
+> 254 tests ✓ / build ✓** (was 242 — +12 across the rewritten faculty/VP grant suites). **No DB
+> migration, no schema change** — the whole change is the capability MATRIX plus docs.
+> - **What changed:** `faculty_advisor` was **read-only on all 20 capabilities** (SECURITY_SPEC: "the
+>   write path is unreachable for that role by construction") and is now **`all` on all 20**.
+>   `vice_president` was already `all` on 17 and is now `all` on all 20 — it gained
+>   **`revoke:certificate`, `manage:admins`, `view:audit`**. Both can now **create and remove
+>   admins, Tech Head included**.
+> - **Least privilege now has THREE unrestricted roles** — Faculty, VP, Tech Head — where it had one.
+>   A compromise of any of the three is total. Recorded as the accepted cost in SECURITY_SPEC §4.
+> - **TOTP is now mandatory for Faculty and VP** (they joined `TOTP_REQUIRED_ROLES` with Tech Head +
+>   President), because the mandatory-2FA rule keys off blast radius. Owner approved this explicitly
+>   for Faculty; applied to VP for consistency.
+> - **⚠️ Nobody was affected on the day.** Live `admin_users` at the time: president 1, tech_head 3,
+>   docs_head 2, social_media_head 1, club_head 17, vice_head 12 — **zero `faculty_advisor` and zero
+>   `vice_president` accounts** (`vice_head` is a different role). So this granted nothing to anyone
+>   and locked nobody out; it takes effect when such an account is created, and that person is forced
+>   into TOTP enrolment on first login before reaching any admin page.
+> - **⚠️ OPEN QUESTION — the President is now NARROWER than the VP:** still `view:audit` at `read`,
+>   still no `manage:admins`, still no `revoke:certificate`. The owner asked only for Faculty + VP, so
+>   President was deliberately left alone. Flagged to the owner; **undecided**.
+> - **Doc correction:** BUILD_PLAN §3.2's "Revoke a certificate" row claimed **President ✅**, which
+>   the code never implemented — there is a long-standing comment that the row is malformed in the
+>   spec (8 cells for 9 roles) and was resolved as Tech Head only, with a TODO to confirm. The table
+>   was changed to **match the shipping code**, not the other way round. That TODO is still open and
+>   is the same question as the bullet above.
+> - **No code special-cased `faculty_advisor` by name** — every guard reads through
+>   `grantFor`/`canManage`/`canViewClub` — so flipping the matrix was the entire behavioural change.
+> - **Files:** `src/lib/auth/capabilities.{ts,test.ts}`, `docs/BUILD_PLAN.md` §3.2 (3 rows + the
+>   role note), `docs/SECURITY_SPEC.md` (§4 role note, the 2FA row, and the integration test that
+>   asserted "a Faculty Advisor session returns 403 on every write route" — struck through).
+> - **New test guards:** the set of roles holding all 20 capabilities is pinned to exactly
+>   `{faculty_advisor, tech_head, vice_president}`, and **no role may reach 20 capabilities without
+>   mandatory TOTP** — so a future widening cannot pass unnoticed. Plus an explicit test that the
+>   President was *not* widened.
+> - **⚠️ Not externally verifiable.** This change has **no public surface**: same CSS, same public
+>   routes, no observable marker from outside. The push and a public-route health check are all that
+>   was confirmed from this session. Real verification = create a faculty or VP account and log in.
 
 > ### ✅ MERGED & PUSHED TO PROD — Participants roster + mobile-readable admin tables (2026-09-02)
 > **Merged to `main` and pushed — Vercel auto-deployed.** Two owner asks: the registrations page

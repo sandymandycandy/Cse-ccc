@@ -8,6 +8,15 @@
 //
 // Grants are transcribed cell-for-cell from the §3.2 matrix. Keep them in sync
 // with the doc — this table is the audit surface.
+//
+// 2026-09-02, owner decision: the Faculty Advisor is NO LONGER read-only, and the
+// Vice President is no longer short of `revoke:certificate` / `manage:admins` /
+// `view:audit`. Both now hold "all" on every capability, which leaves THREE
+// unrestricted roles — Faculty, VP, Tech Head — and is why Faculty and VP joined
+// TOTP_REQUIRED_ROLES below. The President was deliberately not widened: they
+// keep `view:audit` at "read" and still hold no `manage:admins`, because that was
+// not part of the ask. BUILD_PLAN §3.2 and SECURITY_SPEC were updated to match;
+// do not "restore" the narrower grants from an older copy of the spec.
 
 export const ADMIN_ROLES = [
   "faculty_advisor",
@@ -66,87 +75,91 @@ export interface AdminIdentity {
 // H=Club Head VH=Vice Head.
 const MATRIX: Record<Capability, Partial<Record<AdminRole, Grant>>> = {
   "manage:events": {
-    faculty_advisor: "read", president: "all", vice_president: "all",
+    faculty_advisor: "all", president: "all", vice_president: "all",
     tech_head: "all", events_head: "all", club_head: "own", vice_head: "own",
   },
   "approve:events": {
-    faculty_advisor: "read", president: "all", vice_president: "all",
+    faculty_advisor: "all", president: "all", vice_president: "all",
     tech_head: "all", events_head: "all",
   },
   "cancel:events": {
-    faculty_advisor: "read", president: "all", vice_president: "all",
+    faculty_advisor: "all", president: "all", vice_president: "all",
     tech_head: "all", events_head: "all", club_head: "own",
   },
   "manage:blackouts": {
-    faculty_advisor: "read", president: "all", vice_president: "all",
+    faculty_advisor: "all", president: "all", vice_president: "all",
     tech_head: "all", events_head: "all",
   },
   "manage:schedules": {
-    faculty_advisor: "read", president: "all", vice_president: "all",
+    faculty_advisor: "all", president: "all", vice_president: "all",
     tech_head: "all", events_head: "all", club_head: "own", vice_head: "own",
   },
   "manage:registrations": {
-    faculty_advisor: "read", president: "all", vice_president: "all",
+    faculty_advisor: "all", president: "all", vice_president: "all",
     tech_head: "all", events_head: "all", club_head: "own", vice_head: "own",
   },
   "manage:results": {
-    faculty_advisor: "read", president: "all", vice_president: "all",
+    faculty_advisor: "all", president: "all", vice_president: "all",
     tech_head: "all", events_head: "all", club_head: "own", vice_head: "own",
   },
   "issue:participation_certificate": {
-    faculty_advisor: "read", president: "all", vice_president: "all",
+    faculty_advisor: "all", president: "all", vice_president: "all",
     tech_head: "all", events_head: "all", club_head: "own",
   },
   "issue:winner_certificate": {
-    faculty_advisor: "read", president: "all", vice_president: "all",
+    faculty_advisor: "all", president: "all", vice_president: "all",
     tech_head: "all", events_head: "all", club_head: "own",
   },
   // §3.2's revoke row is malformed in the doc (8 cells for 9 roles). Applying
   // §10 ("Technical Head is unrestricted") plus least-privilege for a dangerous,
-  // irreversible action: Tech Head only, Faculty read. TODO: confirm with a human
-  // whether President/VP should also revoke.
+  // irreversible action: Tech Head only — plus Faculty and the VP, who now hold
+  // everything.
+  // TODO: confirm with a human whether President/VP should also revoke.
   "revoke:certificate": {
-    faculty_advisor: "read", tech_head: "all",
+    faculty_advisor: "all", vice_president: "all", tech_head: "all",
   },
   "manage:content": {
-    faculty_advisor: "read", president: "all", vice_president: "all",
+    faculty_advisor: "all", president: "all", vice_president: "all",
     tech_head: "all", social_media_head: "all", club_head: "own", vice_head: "own",
   },
   // A club's public profile (name/tagline/description) is self-editable: heads
   // edit their own club; council-wide roles edit any; faculty read.
   "manage:clubs": {
-    faculty_advisor: "read", president: "all", vice_president: "all",
+    faculty_advisor: "all", president: "all", vice_president: "all",
     tech_head: "all", club_head: "own", vice_head: "own",
   },
   // The public contact-form inbox is council-wide (no club scope) — the roles
   // that field outside enquiries plus Social Media (outreach); faculty read.
   "manage:contact": {
-    faculty_advisor: "read", president: "all", vice_president: "all",
+    faculty_advisor: "all", president: "all", vice_president: "all",
     tech_head: "all", social_media_head: "all",
   },
   "manage:members": {
-    faculty_advisor: "read", president: "all", vice_president: "all",
+    faculty_advisor: "all", president: "all", vice_president: "all",
     tech_head: "all", club_head: "own", vice_head: "own",
   },
   // The council / leadership attendance body is org-wide (no club scope), so only
   // all/read/none. Taken by president + VP + tech head; faculty view-only. Club
   // heads/vice-heads sit on the roster but hold no grant here.
   "manage:council": {
-    faculty_advisor: "read", president: "all", vice_president: "all", tech_head: "all",
+    faculty_advisor: "all", president: "all", vice_president: "all", tech_head: "all",
   },
   "manage:resources": {
-    faculty_advisor: "read", president: "all", vice_president: "all",
+    faculty_advisor: "all", president: "all", vice_president: "all",
     tech_head: "all", docs_head: "all", club_head: "own",
   },
   "manage:venues": {
-    faculty_advisor: "read", president: "all", vice_president: "all",
+    faculty_advisor: "all", president: "all", vice_president: "all",
     tech_head: "all", events_head: "all", club_head: "request", vice_head: "request",
   },
+  // Owner decision (2026-09-02): the Faculty Advisor and the Vice President hold
+  // full access, this row included — they can create and remove admins, Tech Head
+  // among them. Note the President still cannot.
   "manage:admins": {
-    tech_head: "all",
+    faculty_advisor: "all", vice_president: "all", tech_head: "all",
   },
   "view:audit": {
-    faculty_advisor: "read", president: "read", tech_head: "all",
+    faculty_advisor: "all", vice_president: "all", president: "read", tech_head: "all",
   },
   "view:analytics": {
     faculty_advisor: "all", president: "all", vice_president: "all",
@@ -221,7 +234,12 @@ export function viewableCapabilities(role: AdminRole): Capability[] {
  * the widest blast radius, so password-only is not acceptable: at login they are
  * routed to forced TOTP enrollment before they can reach any admin surface.
  */
-export const TOTP_REQUIRED_ROLES: readonly AdminRole[] = ["tech_head", "president"];
+export const TOTP_REQUIRED_ROLES: readonly AdminRole[] = [
+  "faculty_advisor",
+  "vice_president",
+  "tech_head",
+  "president",
+];
 
 export function roleRequiresTotp(role: AdminRole): boolean {
   return TOTP_REQUIRED_ROLES.includes(role);
