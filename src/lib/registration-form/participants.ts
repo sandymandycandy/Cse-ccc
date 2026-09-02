@@ -1,4 +1,4 @@
-import { type FormField, type MemberSubfield } from "./schema";
+import { LAYOUT_KINDS, type FieldKind, type FormField, type MemberSubfield } from "./schema";
 
 /** One human on an event's roster — the registrant, or one of their team. */
 export interface Participant {
@@ -108,4 +108,57 @@ export function listParticipants(entries: RosterEntry[], schema: FormField[]): P
   });
 
   return out;
+}
+
+/** A non-identity scalar answer that belongs to the whole team — e.g. the PPT link. */
+export interface TeamAnswer {
+  key: string;
+  label: string;
+  kind: FieldKind;
+  value: string;
+}
+
+/** One registration, presented as the team it actually is. */
+export interface TeamGroup {
+  /** 1-based, in the same order as the registrations. */
+  index: number;
+  /** Leader first, then the members. One person for a solo entry. */
+  people: Participant[];
+  /** The team's own answers — the link and anything else the club asked for. */
+  answers: TeamAnswer[];
+}
+
+/** Fields that describe the entry rather than a person: not identity, not the roster. */
+function scalarFields(schema: FormField[]): FormField[] {
+  return schema.filter(
+    (f) => !f.identity && f.kind !== "team" && !LAYOUT_KINDS.has(f.kind),
+  );
+}
+
+/**
+ * Group the roster into teams so each entry reads as one unit — its people and
+ * the answers it submitted together. `listParticipants` stays the flat view,
+ * used for events whose form has no team block.
+ */
+export function listTeams(entries: RosterEntry[], schema: FormField[]): TeamGroup[] {
+  const extras = scalarFields(schema);
+  const byTeam = new Map<number, Participant[]>();
+  for (const person of listParticipants(entries, schema)) {
+    const list = byTeam.get(person.team);
+    if (list) list.push(person);
+    else byTeam.set(person.team, [person]);
+  }
+  return entries.map((entry, i) => ({
+    index: i + 1,
+    people: byTeam.get(i + 1) ?? [],
+    answers: extras.map((f) => {
+      const v = entry.customAnswers?.[f.id];
+      return {
+        key: f.id,
+        label: f.label,
+        kind: f.kind,
+        value: Array.isArray(v) ? v.join(", ") : v != null ? String(v) : "",
+      };
+    }),
+  }));
 }

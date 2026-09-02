@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { listParticipants, type RosterEntry } from "./participants";
+import { listParticipants, listTeams, type RosterEntry } from "./participants";
 import { defaultFormFor, type FormField } from "./schema";
 
 const teamField: FormField = {
@@ -118,5 +118,95 @@ describe("listParticipants", () => {
   it("normalises a missing year to null rather than an empty string", () => {
     const [solo] = listParticipants([{ ...leader, year: null }], defaultFormFor());
     expect(solo.year).toBeNull();
+  });
+});
+
+describe("listTeams", () => {
+  const linkField: FormField = {
+    id: "ppt",
+    kind: "link",
+    identity: null,
+    label: "Submit your PPT link",
+    required: true,
+  };
+  const sectionField: FormField = {
+    id: "sec",
+    kind: "section",
+    identity: null,
+    label: "About your idea",
+    required: false,
+  };
+
+  it("groups each registration into one team, leader first", () => {
+    const teams = listTeams(
+      [
+        {
+          ...leader,
+          customAnswers: {
+            ppt: "https://docs.google.com/x",
+            team: [{ m_name: "Ravi", m_roll: "vtu002" }],
+          },
+        },
+      ],
+      [...defaultFormFor(), teamField, linkField],
+    );
+    expect(teams).toHaveLength(1);
+    expect(teams[0].index).toBe(1);
+    expect(teams[0].people.map((p) => [p.name, p.role])).toEqual([
+      ["Anitha", "leader"],
+      ["Ravi", "member"],
+    ]);
+  });
+
+  it("carries the team's own answers, like the link", () => {
+    const [t] = listTeams(
+      [{ ...leader, customAnswers: { ppt: "https://docs.google.com/x", team: [] } }],
+      [teamField, linkField],
+    );
+    expect(t.answers).toEqual([
+      { key: "ppt", label: "Submit your PPT link", kind: "link", value: "https://docs.google.com/x" },
+    ]);
+  });
+
+  it("keeps identity, roster and layout blocks out of the team answers", () => {
+    const [t] = listTeams(
+      [{ ...leader, customAnswers: { ppt: "https://x.test", team: [] } }],
+      [...defaultFormFor(), sectionField, teamField, linkField],
+    );
+    expect(t.answers.map((a) => a.key)).toEqual(["ppt"]);
+  });
+
+  it("numbers people across teams while grouping them per team", () => {
+    const teams = listTeams(
+      [
+        { ...leader, customAnswers: { team: [{ m_name: "Ravi", m_roll: "vtu002" }] } },
+        { ...leader, name: "Bala", roll: "vtu010", customAnswers: { team: [] } },
+      ],
+      [teamField],
+    );
+    expect(teams.map((t) => t.people.map((p) => p.index))).toEqual([[1, 2], [3]]);
+  });
+
+  it("renders a checkbox answer as a readable list", () => {
+    const [t] = listTeams(
+      [{ ...leader, customAnswers: { tracks: ["AI", "Web"], team: [] } }],
+      [
+        teamField,
+        { id: "tracks", kind: "checkboxes", identity: null, label: "Tracks", required: false, options: ["AI", "Web"] },
+      ],
+    );
+    expect(t.answers[0].value).toBe("AI, Web");
+  });
+
+  it("gives an unanswered field an empty value rather than dropping it", () => {
+    const [t] = listTeams([{ ...leader, customAnswers: { team: [] } }], [teamField, linkField]);
+    expect(t.answers[0].value).toBe("");
+  });
+
+  it("treats a solo event as one-person teams", () => {
+    const teams = listTeams([leader], defaultFormFor());
+    expect(teams).toHaveLength(1);
+    expect(teams[0].people).toHaveLength(1);
+    expect(teams[0].people[0].role).toBe("solo");
   });
 });

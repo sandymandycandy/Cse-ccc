@@ -4,8 +4,9 @@ import { requireViewPage } from "@/lib/auth/guards";
 import { grantFor } from "@/lib/auth/capabilities";
 import { getEventForAttendance } from "@/lib/admin/attendance";
 import { listRegistrations, getEventFormSchema } from "@/lib/admin/registrations";
-import { listParticipants, type Participant } from "@/lib/registration-form/participants";
+import { listTeams, type Participant, type TeamGroup } from "@/lib/registration-form/participants";
 import { splitRegistrations } from "@/lib/registration/waitlist";
+import { isSafeHttpUrl } from "@/lib/url";
 
 /**
  * Who is on the roster — every person, not every form answer.
@@ -13,8 +14,9 @@ import { splitRegistrations } from "@/lib/registration/waitlist";
  * The registrations page is the attendance surface: it carries the marking
  * controls and one column per form answer, which a team block expands to
  * (max members × subfields), so it is wide and team members hide inside it.
- * This view answers the other question — "who is coming?" — as one numbered
- * list with the team members pulled out onto their own rows.
+ * This view answers the other question — "who is coming?" — with each entry
+ * shown as the team it actually is: its people, and the answers they submitted
+ * together. Events whose form has no team block fall back to a flat list.
  */
 export default async function ParticipantsPage({
   params,
@@ -40,10 +42,11 @@ export default async function ParticipantsPage({
   const { confirmed, waitlist } = splitRegistrations(regs);
   const rows = isShortlist ? regs : confirmed;
 
-  const people = listParticipants(rows, schema);
-  const waiting = listParticipants(waitlist, schema);
-  const hasTeams = people.some((p) => p.role !== "solo");
-  const teamCount = rows.length;
+  const hasTeams = schema.some((f) => f.kind === "team");
+  const teams = listTeams(rows, schema);
+  const waitingTeams = listTeams(waitlist, schema);
+  const headcount = teams.reduce((n, t) => n + t.people.length, 0);
+  const waitingCount = waitingTeams.reduce((n, t) => n + t.people.length, 0);
 
   return (
     <div className="admin-page">
@@ -55,11 +58,12 @@ export default async function ParticipantsPage({
           <div className="eyebrow">Registered participants</div>
           <h1 style={{ margin: "6px 0 0" }}>{ev.title}</h1>
           <p className="body-text" style={{ marginTop: 6 }}>
-            {people.length} {people.length === 1 ? "person" : "people"}
             {hasTeams
-              ? ` · ${teamCount} ${teamCount === 1 ? "team" : "teams"}`
-              : ` · ${teamCount} ${teamCount === 1 ? "registration" : "registrations"}`}
-            {waiting.length ? ` · ${waiting.length} waitlisted` : ""}
+              ? `${teams.length} ${teams.length === 1 ? "team" : "teams"} · ${headcount} ${
+                  headcount === 1 ? "person" : "people"
+                }`
+              : `${headcount} registered`}
+            {waitingCount ? ` · ${waitingCount} waitlisted` : ""}
           </p>
         </div>
         <div className="stack" style={{ gap: 10 }}>
@@ -75,35 +79,95 @@ export default async function ParticipantsPage({
         </div>
       </div>
 
-      {people.length === 0 ? (
+      {teams.length === 0 ? (
         <div className="cal-empty">No registrations yet.</div>
+      ) : hasTeams ? (
+        <TeamGrid teams={teams} />
       ) : (
-        <PeopleTable people={people} hasTeams={hasTeams} className="mt-4" />
+        <SoloTable people={teams.flatMap((t) => t.people)} />
       )}
 
-      {waiting.length > 0 ? (
-        <div style={{ marginTop: 28 }}>
-          <div className="label" style={{ marginBottom: 8 }}>
-            Waitlist ({waiting.length})
+      {waitingTeams.length > 0 ? (
+        <div style={{ marginTop: 30 }}>
+          <div className="label" style={{ marginBottom: 4 }}>
+            Waitlist ({waitingCount})
           </div>
-          <PeopleTable people={waiting} hasTeams={hasTeams} />
+          {hasTeams ? (
+            <TeamGrid teams={waitingTeams} />
+          ) : (
+            <SoloTable people={waitingTeams.flatMap((t) => t.people)} />
+          )}
         </div>
       ) : null}
     </div>
   );
 }
 
-function PeopleTable({
-  people,
-  hasTeams,
-  className,
-}: {
-  people: Participant[];
-  hasTeams: boolean;
-  className?: string;
-}) {
+function TeamGrid({ teams }: { teams: TeamGroup[] }) {
   return (
-    <div className={`tablewrap cards${className ? ` ${className}` : ""}`}>
+    <div className="team-grid">
+      {teams.map((team) => (
+        <article className="team-card" key={team.index}>
+          <div className="team-card-head">
+            <span className="n">Team {team.index}</span>
+            <span className="c">
+              {team.people.length} {team.people.length === 1 ? "person" : "people"}
+            </span>
+          </div>
+
+          {team.people.map((p) => (
+            <div
+              key={`${team.index}-${p.index}`}
+              className={`team-person${p.role === "leader" ? " is-leader" : ""}`}
+            >
+              <div className="team-person-top">
+                <span className="team-person-name">{p.name || "—"}</span>
+                <span className={`badge ${p.role === "leader" ? "badge-open" : "badge-fast"}`}>
+                  {p.role === "leader" ? "Leader" : p.role === "member" ? "Member" : "Registered"}
+                </span>
+              </div>
+              <div className="team-person-meta">
+                {[p.roll, p.department, p.year].filter(Boolean).join(" · ") || "—"}
+              </div>
+              <div className="team-person-meta">
+                {[p.email, p.phone].filter(Boolean).join(" · ") || "—"}
+              </div>
+            </div>
+          ))}
+
+          {team.answers.length > 0 ? (
+            <div className="team-answers">
+              {team.answers.map((a) => (
+                <div className="team-answer" key={a.key}>
+                  <span className="k">{a.label}</span>
+                  <span className="v">
+                    {a.value && isSafeHttpUrl(a.value) ? (
+                      <a
+                        href={a.value}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "var(--forest)" }}
+                      >
+                        {a.value} ↗
+                      </a>
+                    ) : (
+                      a.value || "—"
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </article>
+      ))}
+    </div>
+  );
+}
+
+/** Events with no team block: a plain numbered list of the people who signed up. */
+function SoloTable({ people }: { people: Participant[] }) {
+  return (
+    <div className="tablewrap cards" style={{ marginTop: 18 }}>
       <table className="admin">
         <thead>
           <tr>
@@ -113,12 +177,11 @@ function PeopleTable({
             <th>Dept · Yr</th>
             <th>Email</th>
             <th>Phone</th>
-            {hasTeams ? <th>Team</th> : null}
           </tr>
         </thead>
         <tbody>
           {people.map((p) => (
-            <tr key={`${p.team}-${p.index}`}>
+            <tr key={p.index}>
               <td data-label="#" style={{ color: "var(--ink-3)" }}>
                 {p.index}
               </td>
@@ -132,18 +195,6 @@ function PeopleTable({
               </td>
               <td data-label="Email">{p.email || "—"}</td>
               <td data-label="Phone">{p.phone || "—"}</td>
-              {hasTeams ? (
-                <td data-label="Team">
-                  <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
-                    <span className="label" style={{ color: "var(--ink-3)" }}>
-                      T{p.team}
-                    </span>
-                    <span className={`badge ${p.role === "leader" ? "badge-open" : "badge-fast"}`}>
-                      {p.role === "leader" ? "Leader" : "Member"}
-                    </span>
-                  </span>
-                </td>
-              ) : null}
             </tr>
           ))}
         </tbody>

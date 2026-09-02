@@ -32,20 +32,33 @@ end-to-end**, not a checklist of components.
 > ### ✅ MERGED & PUSHED TO PROD — Participants roster + mobile-readable admin tables (2026-09-02)
 > **Merged to `main` and pushed — Vercel auto-deployed.** Two owner asks: the registrations page
 > "is mentioned for attendance — I want a **separate button to see who all registered, all people**,
-> neatly aligned", and make it **readable on a phone**. **Gate green: typecheck ✓ / lint ✓ / 235
-> tests ✓ / build ✓** (was 228 — +7 for the pure `participants` suite). **No DB migration, no schema
+> neatly aligned" → then "**a set of teams with all their details including the team's link**", and
+> make it **readable on a phone**. **Gate green: typecheck ✓ / lint ✓ / 242
+> tests ✓ / build ✓** (was 228 — +14 for the pure `participants` suite, `listParticipants` +
+> `listTeams`; 242 total). **No DB migration, no schema
 > change, no new query** — it reuses `listRegistrations` + `getEventFormSchema`.
 > - **Why it was needed:** `/admin/events/[id]/registrations` is the **attendance** surface. Its
 >   answer columns come from `answerColumns()`, which expands a team block to **`maxMembers ×
 >   subfields`** columns (PITCH DESK: 3 × 6 = 18), so the table is enormous *and* the members are
 >   effectively invisible — the row shows only the registrant plus a `👥 N` badge.
-> - **New page `/admin/events/[id]/participants`** ("Registered participants"): one numbered list of
->   **people**, leader first then their members on their own rows — `# · Name · Roll · Dept·Yr ·
->   Email · Phone · Team` (T-number + a Leader/Member badge). Waitlisted people get the same table in
->   their own section. Same guard as the registrations page (`manage:registrations`, `all`/`read`
->   see any club, `own` sees theirs) — verified 307→login with no cookie, and the route is in the
->   build manifest.
-> - **Flattening is a pure tested module** (`src/lib/registration-form/participants.ts`): it reads a
+> - **New page `/admin/events/[id]/participants`** ("Registered participants"): **a set of team
+>   cards**, one per registration. Each card = the team number + headcount, then **every person**
+>   (leader first, green left accent + a `Leader`/`Member` badge; roll · dept · year, then email ·
+>   phone), then **the team's own answers at the bottom — including the submitted link**, rendered as
+>   a real anchor via `isSafeHttpUrl`. The answers section picks up **any** non-identity, non-roster
+>   field the club added (abstract, repo, track…) under the club's own label; checkbox answers join as
+>   a comma list. Cards flow in a `repeat(auto-fill, minmax(330px, 1fr))` grid — 2 across on desktop,
+>   1 below 600px. **Events with no team block** fall back to a flat numbered table (`# · Name · Roll
+>   · Dept·Yr · Email · Phone`) — cards for one-person "teams" would be silly. Waitlisted entries get
+>   the same treatment in their own section. Same guard as the registrations page
+>   (`manage:registrations`, `all`/`read` see any club, `own` sees theirs) — verified 307→login with
+>   no cookie, and the route is in the build manifest.
+>   ⚠️ **Shipped in two passes:** `f275aea` first built this as one **flat table of people**; the
+>   owner asked for teams-as-units with the link included, and `TeamGrid` replaced it. The flat table
+>   survives only as the no-team-block fallback.
+> - **Grouping + flattening are a pure tested module** (`src/lib/registration-form/participants.ts`):
+>   `listTeams()` groups each registration into its people + its scalar answers, over
+>   `listParticipants()` which does the flattening — it reads a
 >   member's fields off the **club's own labels and field kinds** (`kind: roll/email/phone` first,
 >   then label regex for name/department/year), skips member rows left blank, and survives a
 >   malformed `custom_answers`. **Checked against the live PITCH DESK registration** (leader + 1

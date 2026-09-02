@@ -845,6 +845,72 @@
     .evd-rule { display: none; }
   }
 
+  /* ── admin: registered participants, grouped as teams ─────────────────────
+     Each registration is one card: its people (leader first) and the answers it
+     submitted together, so a team reads as a unit instead of as rows that
+     happen to sit next to each other. */
+  .team-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    gap: 16px;
+    margin-top: 18px;
+  }
+  .team-card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--line-2b);
+    border-radius: var(--r-lg);
+    background: var(--card);
+    overflow: hidden;
+  }
+  .team-card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--sand);
+    border-bottom: 1px solid var(--line-2);
+  }
+  .team-card-head .n { font: 500 11px var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+  .team-card-head .c { font: 400 11.5px var(--sans); color: var(--ink-3); }
+
+  .team-person { padding: 13px 16px; border-bottom: 1px solid var(--line); }
+  .team-person.is-leader { box-shadow: inset 3px 0 0 var(--forest); }
+  .team-person-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .team-person-name { font: 400 17px / 1.25 var(--serif); }
+  .team-person-meta {
+    margin-top: 3px;
+    font: 400 12.5px / 1.5 var(--sans);
+    color: var(--ink-2);
+    overflow-wrap: anywhere;
+  }
+
+  /* the team's own answers — the link and anything else the club asked for */
+  .team-answers { padding: 4px 16px 12px; margin-top: auto; }
+  .team-answer { padding-top: 10px; }
+  .team-answer .k {
+    display: block;
+    font: 500 10px var(--mono);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .team-answer .v {
+    display: block;
+    margin-top: 3px;
+    font: 400 12.5px / 1.5 var(--sans);
+    overflow-wrap: anywhere;
+  }
+  @media (max-width: 599px) {
+    .team-grid { grid-template-columns: 1fr; }
+  }
+
   /* registration form — team roster rows */
   .team-row { padding: 12px 14px; }
   .team-row-head {
