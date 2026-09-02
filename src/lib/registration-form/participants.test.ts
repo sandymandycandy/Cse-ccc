@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { listParticipants, listTeams, type RosterEntry } from "./participants";
+import { listParticipants, listTeams, teamSearchValues, teamLabel, type RosterEntry } from "./participants";
 import { defaultFormFor, type FormField } from "./schema";
 
 const teamField: FormField = {
@@ -208,5 +208,90 @@ describe("listTeams", () => {
     expect(teams).toHaveLength(1);
     expect(teams[0].people).toHaveLength(1);
     expect(teams[0].people[0].role).toBe("solo");
+  });
+});
+
+describe("teamSearchValues", () => {
+  const team = {
+    index: 2,
+    name: "Byte Squad",
+    people: [
+      {
+        index: 1, name: "Alice Kumar", roll: "VTU101", department: "CSE",
+        year: "3", email: "alice@veltech.edu.in", phone: "9876543210",
+        role: "leader" as const, team: 2, teamOf: "Alice Kumar",
+      },
+      {
+        index: 2, name: "Bob Singh", roll: "VTU202", department: null,
+        year: null, email: null, phone: null,
+        role: "member" as const, team: 2, teamOf: "Alice Kumar",
+      },
+    ],
+    answers: [{ key: "ppt", label: "PPT link", kind: "link" as const, value: "https://x.test/deck" }],
+  };
+
+  it("exposes every person's identity details", () => {
+    const values = teamSearchValues(team);
+    for (const v of ["Alice Kumar", "VTU101", "CSE", "3", "alice@veltech.edu.in", "9876543210"]) {
+      expect(values).toContain(v);
+    }
+    expect(values).toContain("Bob Singh");
+    expect(values).toContain("VTU202");
+  });
+
+  it("exposes answer VALUES but never answer labels", () => {
+    const values = teamSearchValues(team);
+    expect(values).toContain("https://x.test/deck");
+    // A label is identical on every team, so matching it would match everything
+    // and make the search useless.
+    expect(values).not.toContain("PPT link");
+  });
+
+  it("does not leak the role or the internal indices", () => {
+    const values = teamSearchValues(team);
+    expect(values).not.toContain("leader");
+    expect(values).not.toContain("member");
+    expect(values).not.toContain(2);
+  });
+});
+
+describe("team name on the roster", () => {
+  const schema: FormField[] = [
+    { id: "team", kind: "team", label: "Team", required: true, minMembers: 1, maxMembers: 3,
+      members: [{ key: "name", label: "Name", kind: "short_text", required: true }] } as FormField,
+  ];
+  const entry = (over: Partial<RosterEntry>): RosterEntry => ({
+    name: "Asha Rao", roll: "VTU101", department: null, year: null,
+    email: null, phone: null, customAnswers: null, ...over,
+  });
+
+  it("carries the team's own name onto the group", () => {
+    const [t] = listTeams([entry({ teamName: "Byte Squad" })], schema);
+    expect(t.name).toBe("Byte Squad");
+  });
+
+  it("is null when the registration has none", () => {
+    const [t] = listTeams([entry({})], schema);
+    expect(t.name).toBeNull();
+  });
+
+  it("teamLabel prefers the name", () => {
+    const [t] = listTeams([entry({ teamName: "Byte Squad" })], schema);
+    expect(teamLabel(t)).toBe("Byte Squad");
+  });
+
+  it("teamLabel falls back to the index for rows predating the field", () => {
+    const [t] = listTeams([entry({})], schema);
+    expect(teamLabel(t)).toBe("Team 1");
+  });
+
+  it("teamLabel falls back when the name is only whitespace", () => {
+    const [t] = listTeams([entry({ teamName: "   " })], schema);
+    expect(teamLabel(t)).toBe("Team 1");
+  });
+
+  it("the team name is searchable", () => {
+    const [t] = listTeams([entry({ teamName: "Byte Squad" })], schema);
+    expect(teamSearchValues(t)).toContain("Byte Squad");
   });
 });

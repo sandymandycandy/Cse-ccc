@@ -8,6 +8,7 @@ import { answerColumns } from "@/lib/registration-form/columns";
 import { isSafeHttpUrl } from "@/lib/url";
 import { isAttendanceEligible } from "@/lib/admin/attendance-eligibility";
 import { splitRegistrations } from "@/lib/registration/waitlist";
+import { SearchableTable } from "@/components/admin/SearchableTable";
 import {
   toggleAttendanceAction,
   shortlistAction,
@@ -100,12 +101,16 @@ export default async function RegistrationsPage({
               </span>
             </form>
           ) : null}
-          <div className="tablewrap cards" style={{ marginTop: isShortlist && canEdit ? 12 : 18 }}>
-            <table className="admin">
-              <thead>
+          <SearchableTable
+            wrapStyle={{ marginTop: 12 }}
+            noun="registration"
+            placeholder="Search name, roll, email, phone, department, any answer…"
+            ariaLabel="Search registrations by any detail"
+            head={
                 <tr>
                   {isShortlist && canEdit ? <th aria-label="Select" /> : null}
                   <th>Name</th>
+                  {hasTeam ? <th>Team</th> : null}
                   <th>Roll</th>
                   <th>Dept · Yr</th>
                   {columns.map((c) => (
@@ -116,9 +121,14 @@ export default async function RegistrationsPage({
                   <th>Attended</th>
                   {canEdit ? <th>Mark</th> : null}
                 </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
+            }
+            rows={rows.map((r) => ({
+              key: r.id,
+              // Findable by anything on the row — including details the table
+              // never shows (email, phone) and every team member nested inside
+              // the custom answers, which matchesAny walks into.
+              values: [r.name, r.teamName, r.roll, r.department, r.year, r.email, r.phone, r.customAnswers],
+              row: (
                   <tr key={r.id}>
                     {isShortlist && canEdit ? (
                       <td data-label="Select">
@@ -139,6 +149,9 @@ export default async function RegistrationsPage({
                         </span>
                       ) : null}
                     </td>
+                    {hasTeam ? (
+                      <td data-label="Team">{r.teamName || "—"}</td>
+                    ) : null}
                     <td data-label="Roll">{r.roll}</td>
                     <td data-label="Dept · Yr">
                       {r.department ?? "—"}
@@ -216,10 +229,9 @@ export default async function RegistrationsPage({
                       )
                     ) : null}
                 </tr>
-              ))}
-              </tbody>
-            </table>
-          </div>
+              ),
+            }))}
+          />
 
           {!isShortlist && waitlistRows.length > 0 ? (
             <div style={{ marginTop: 28 }}>

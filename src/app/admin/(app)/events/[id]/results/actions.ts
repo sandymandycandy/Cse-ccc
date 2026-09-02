@@ -109,6 +109,7 @@ const rowSchema = z.object({
   roll_no: z.string().min(1),
   display_name: z.string().nullable(),
   registration_id: z.string().uuid().nullable(),
+  team_name: z.string().nullable(),
   score: z.number().nullable(),
   rank: z.number().int().nullable(),
   advanced: z.boolean(),

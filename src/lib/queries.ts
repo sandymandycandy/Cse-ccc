@@ -72,7 +72,28 @@ function primaryClubName(row: EventJoinRow): string {
   return primary?.clubs?.name ?? "CSE Council";
 }
 
-function toSummary(row: EventJoinRow, registered: number): EventSummary {
+/**
+ * Which of these events have at least one PUBLISHED standing — one query for a
+ * whole page of rows, never one per event. RLS (`results_public_read`) already
+ * limits this to published rows on approved events; the explicit filter keeps
+ * the intent visible at the call site.
+ */
+async function eventsWithResults(ids: string[]): Promise<Set<string>> {
+  if (ids.length === 0) return new Set();
+  const supabase = createPublicClient();
+  const { data } = await supabase
+    .from("results")
+    .select("event_id")
+    .in("event_id", ids)
+    .not("published_at", "is", null);
+  return new Set((data ?? []).map((r) => r.event_id));
+}
+
+function toSummary(
+  row: EventJoinRow,
+  registered: number,
+  hasResults = false,
+): EventSummary {
   return {
     id: row.id,
     title: row.title,
@@ -85,12 +106,18 @@ function toSummary(row: EventJoinRow, registered: number): EventSummary {
     registered,
     capacity: row.capacity ?? 0,
     status: seatStatus(registered, row.capacity),
+    hasResults,
+    isPast: new Date(row.ends_at).getTime() < Date.now(),
   };
 }
 
 async function toSummaries(rows: EventJoinRow[]): Promise<EventSummary[]> {
-  const counts = await registeredCounts(rows.map((r) => r.id));
-  return rows.map((r) => toSummary(r, counts.get(r.id) ?? 0));
+  const ids = rows.map((r) => r.id);
+  const [counts, withResults] = await Promise.all([
+    registeredCounts(ids),
+    eventsWithResults(ids),
+  ]);
+  return rows.map((r) => toSummary(r, counts.get(r.id) ?? 0, withResults.has(r.id)));
 }
 
 // ── events ───────────────────────────────────────────────────────────────
@@ -157,8 +184,11 @@ export async function getEventDetail(id: string): Promise<EventDetail | null> {
     registration_opens_at: string | null;
     registration_closes_at: string | null;
   };
-  const counts = await registeredCounts([row.id]);
-  const summary = toSummary(row, counts.get(row.id) ?? 0);
+  const [counts, withResults] = await Promise.all([
+    registeredCounts([row.id]),
+    eventsWithResults([row.id]),
+  ]);
+  const summary = toSummary(row, counts.get(row.id) ?? 0, withResults.has(row.id));
   return {
     ...summary,
     description: row.description ?? "",
@@ -433,6 +463,8 @@ export async function getWeekStrip(): Promise<WeekDay[]> {
 export interface PublishedResult {
   roll_no: string;
   display_name: string | null;
+  /** The team's own name, when the entrant registered as a team. */
+  team_name: string | null;
   rank: number | null;
   score: number | null;
   advanced: boolean;
@@ -454,16 +486,25 @@ export interface PublishedRound {
  * set on approved events — draft rows never reach here. Rounds with no published
  * results are omitted. Columns the organiser hid (show_* = false) are nulled
  * server-side, so hidden values never reach the client. Rank + name always show.
+ *
+ * `team_name` is read from the DENORMALISED snapshot on `results`, never joined
+ * from `registrations`: the anon role has no privilege on that table (it is PII)
+ * and must not be given one.
  */
 export async function getPublishedResults(eventId: string): Promise<PublishedRound[]> {
   const supabase = createPublicClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("event_rounds")
     .select(
-      "id, name, sort, show_score, show_advanced, show_remarks, results ( roll_no, display_name, rank, score, advanced, remarks, published_at )",
+      "id, name, sort, show_score, show_advanced, show_remarks, results ( roll_no, display_name, team_name, rank, score, advanced, remarks, published_at )",
     )
     .eq("event_id", eventId)
     .order("sort", { ascending: true });
+
+  // A failed query here would otherwise render as "not published yet" — the
+  // wrong answer with no signal. Readers still get the calm empty state, but the
+  // cause is logged instead of vanishing.
+  if (error) console.error("getPublishedResults failed", error);
 
   const rounds = (data ?? []) as unknown as Array<{
     id: string;
@@ -488,6 +529,7 @@ export async function getPublishedResults(eventId: string): Promise<PublishedRou
         results: orderStandings(published).map((x) => ({
           roll_no: x.roll_no,
           display_name: x.display_name,
+          team_name: x.team_name,
           rank: x.rank,
           score: r.show_score ? x.score : null,
           advanced: r.show_advanced ? x.advanced : false,

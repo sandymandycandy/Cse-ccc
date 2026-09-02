@@ -12,15 +12,15 @@ export default async function EditGalleryPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await requireViewPage("manage:content");
+  const session = await requireViewPage("manage:gallery");
   const { id } = await params;
 
   const photo = await getGalleryForEdit(id);
   if (!photo) notFound();
   // Fail closed: a club-scoped admin may only edit their own club's photos.
-  if (!canManage(session, "manage:content", photo.clubId)) redirect("/admin/gallery");
+  if (!canManage(session, "manage:gallery", photo.clubId)) redirect("/admin/gallery");
 
-  const clubs = grantFor(session.role, "manage:content") === "all" ? await listClubsBrief() : undefined;
+  const clubs = grantFor(session.role, "manage:gallery") === "all" ? await listClubsBrief() : undefined;
 
   return (
     <div className="admin-page" style={{ maxWidth: 640 }}>

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Panel } from "@/components/ui/Surface";
 import { getEventDetail, getPublishedResults } from "@/lib/queries";
+import { podiumOf } from "@/lib/podium";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -12,15 +13,6 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   return { title: event ? `Results — ${event.title}` : "Results" };
 }
 
-const thStyle: React.CSSProperties = {
-  padding: "6px 14px 6px 0",
-  font: "500 10.5px var(--mono)",
-  letterSpacing: ".08em",
-  textTransform: "uppercase",
-  color: "var(--ink-3)",
-};
-const tdStyle: React.CSSProperties = { padding: "8px 14px 8px 0" };
-
 export default async function EventResultsPage({ params }: Params) {
   const { id } = await params;
   const [event, rounds] = await Promise.all([
@@ -28,6 +20,10 @@ export default async function EventResultsPage({ params }: Params) {
     getPublishedResults(id),
   ]);
   if (!event) notFound();
+
+  // Solo events, and rounds from before team names existed, keep a table
+  // without the column rather than one full of dashes.
+  const hasTeams = rounds.some((r) => r.results.some((x) => x.team_name));
 
   return (
     <section className="section" style={{ paddingTop: 56 }}>
@@ -42,51 +38,85 @@ export default async function EventResultsPage({ params }: Params) {
         </p>
       ) : (
         <div className="stack" style={{ gap: 20, marginTop: 24 }}>
-          {rounds.map((round) => (
-            <Panel key={round.id}>
-              <div className="label">{round.name}</div>
-              <div style={{ overflowX: "auto" }}>
-                <table
-                  style={{
-                    width: "100%",
-                    marginTop: 12,
-                    borderCollapse: "collapse",
-                    font: "400 14px var(--sans)",
-                    color: "var(--ink)",
-                  }}
-                >
-                  <thead>
-                    <tr style={{ textAlign: "left" }}>
-                      <th style={thStyle}>Rank</th>
-                      <th style={thStyle}>Name</th>
-                      <th style={thStyle}>Roll</th>
-                      {round.showScore ? <th style={thStyle}>Score</th> : null}
-                      {round.showAdvanced ? <th style={thStyle}>Advanced</th> : null}
-                      {round.showRemarks ? <th style={thStyle}>Remarks</th> : null}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {round.results.map((r) => (
-                      <tr key={r.roll_no} style={{ borderTop: "1px solid var(--line-2)" }}>
-                        <td style={tdStyle}>{r.rank ?? "—"}</td>
-                        <td style={tdStyle}>{r.display_name ?? "—"}</td>
-                        <td style={{ ...tdStyle, color: "var(--ink-2)" }}>{r.roll_no}</td>
-                        {round.showScore ? <td style={tdStyle}>{r.score ?? "—"}</td> : null}
-                        {round.showAdvanced ? (
-                          <td style={{ ...tdStyle, color: "var(--forest)" }}>
-                            {r.advanced ? "✓" : ""}
-                          </td>
-                        ) : null}
-                        {round.showRemarks ? (
-                          <td style={tdStyle}>{r.remarks ?? "—"}</td>
-                        ) : null}
-                      </tr>
+          {rounds.map((round) => {
+            const podium = podiumOf(round.results);
+            return (
+              <Panel key={round.id}>
+                <div className="label">{round.name}</div>
+
+                {podium.length > 0 ? (
+                  <ol className="podium">
+                    {podium.map((r) => (
+                      <li className="podium-card" data-place={r.rank} key={r.roll_no}>
+                        <span className="podium-rank">{r.rank}</span>
+                        <div className="podium-name">{r.display_name ?? r.roll_no}</div>
+                        {r.team_name ? <div className="podium-team">{r.team_name}</div> : null}
+                        <div className="podium-meta">
+                          <span>{r.roll_no}</span>
+                          {round.showScore && r.score != null ? (
+                            <span className="score">{r.score}</span>
+                          ) : null}
+                        </div>
+                      </li>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            </Panel>
-          ))}
+                  </ol>
+                ) : null}
+
+                {podium.length > 0 ? (
+                  <div className="label" style={{ margin: "22px 0 -4px", color: "var(--ink-3)" }}>
+                    Full standings
+                  </div>
+                ) : null}
+
+                {/* `.tablewrap.cards` turns each row into a readable card below
+                    720px, so a phone never has to pan sideways. */}
+                <div className="tablewrap cards" style={{ marginTop: 12 }}>
+                  <table className="admin">
+                    <thead>
+                      <tr>
+                        <th style={{ width: 56 }}>Rank</th>
+                        <th>Name</th>
+                        {hasTeams ? <th>Team</th> : null}
+                        <th>Roll</th>
+                        {round.showScore ? <th>Score</th> : null}
+                        {round.showAdvanced ? <th>Advanced</th> : null}
+                        {round.showRemarks ? <th>Remarks</th> : null}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {round.results.map((r) => (
+                        <tr key={r.roll_no}>
+                          <td data-label="Rank" style={{ color: "var(--ink-3)" }}>
+                            {r.rank ?? "—"}
+                          </td>
+                          <td data-primary="" style={{ fontWeight: 500 }}>
+                            {r.display_name ?? "—"}
+                          </td>
+                          {hasTeams ? (
+                            <td data-label="Team">{r.team_name ?? "—"}</td>
+                          ) : null}
+                          <td data-label="Roll" style={{ color: "var(--ink-2)" }}>
+                            {r.roll_no}
+                          </td>
+                          {round.showScore ? (
+                            <td data-label="Score">{r.score ?? "—"}</td>
+                          ) : null}
+                          {round.showAdvanced ? (
+                            <td data-label="Advanced" style={{ color: "var(--forest)" }}>
+                              {r.advanced ? "Yes" : "—"}
+                            </td>
+                          ) : null}
+                          {round.showRemarks ? (
+                            <td data-label="Remarks">{r.remarks ?? "—"}</td>
+                          ) : null}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Panel>
+            );
+          })}
         </div>
       )}
     </section>

@@ -4,9 +4,9 @@ import { requireViewPage } from "@/lib/auth/guards";
 import { grantFor } from "@/lib/auth/capabilities";
 import { getEventForAttendance } from "@/lib/admin/attendance";
 import { listRegistrations, getEventFormSchema } from "@/lib/admin/registrations";
-import { listTeams, type Participant, type TeamGroup } from "@/lib/registration-form/participants";
+import { listTeams } from "@/lib/registration-form/participants";
 import { splitRegistrations } from "@/lib/registration/waitlist";
-import { isSafeHttpUrl } from "@/lib/url";
+import { ParticipantsRoster } from "@/components/admin/ParticipantsRoster";
 
 /**
  * Who is on the roster — every person, not every form answer.
@@ -79,126 +79,7 @@ export default async function ParticipantsPage({
         </div>
       </div>
 
-      {teams.length === 0 ? (
-        <div className="cal-empty">No registrations yet.</div>
-      ) : hasTeams ? (
-        <TeamGrid teams={teams} />
-      ) : (
-        <SoloTable people={teams.flatMap((t) => t.people)} />
-      )}
-
-      {waitingTeams.length > 0 ? (
-        <div style={{ marginTop: 30 }}>
-          <div className="label" style={{ marginBottom: 4 }}>
-            Waitlist ({waitingCount})
-          </div>
-          {hasTeams ? (
-            <TeamGrid teams={waitingTeams} />
-          ) : (
-            <SoloTable people={waitingTeams.flatMap((t) => t.people)} />
-          )}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function TeamGrid({ teams }: { teams: TeamGroup[] }) {
-  return (
-    <div className="team-grid">
-      {teams.map((team) => (
-        <article className="team-card" key={team.index}>
-          <div className="team-card-head">
-            <span className="n">Team {team.index}</span>
-            <span className="c">
-              {team.people.length} {team.people.length === 1 ? "person" : "people"}
-            </span>
-          </div>
-
-          {team.people.map((p) => (
-            <div
-              key={`${team.index}-${p.index}`}
-              className={`team-person${p.role === "leader" ? " is-leader" : ""}`}
-            >
-              <div className="team-person-top">
-                <span className="team-person-name">{p.name || "—"}</span>
-                <span className={`badge ${p.role === "leader" ? "badge-open" : "badge-fast"}`}>
-                  {p.role === "leader" ? "Leader" : p.role === "member" ? "Member" : "Registered"}
-                </span>
-              </div>
-              <div className="team-person-meta">
-                {[p.roll, p.department, p.year].filter(Boolean).join(" · ") || "—"}
-              </div>
-              <div className="team-person-meta">
-                {[p.email, p.phone].filter(Boolean).join(" · ") || "—"}
-              </div>
-            </div>
-          ))}
-
-          {team.answers.length > 0 ? (
-            <div className="team-answers">
-              {team.answers.map((a) => (
-                <div className="team-answer" key={a.key}>
-                  <span className="k">{a.label}</span>
-                  <span className="v">
-                    {a.value && isSafeHttpUrl(a.value) ? (
-                      <a
-                        href={a.value}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: "var(--forest)" }}
-                      >
-                        {a.value} ↗
-                      </a>
-                    ) : (
-                      a.value || "—"
-                    )}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </article>
-      ))}
-    </div>
-  );
-}
-
-/** Events with no team block: a plain numbered list of the people who signed up. */
-function SoloTable({ people }: { people: Participant[] }) {
-  return (
-    <div className="tablewrap cards" style={{ marginTop: 18 }}>
-      <table className="admin">
-        <thead>
-          <tr>
-            <th style={{ width: 52 }}>#</th>
-            <th>Name</th>
-            <th>Roll</th>
-            <th>Dept · Yr</th>
-            <th>Email</th>
-            <th>Phone</th>
-          </tr>
-        </thead>
-        <tbody>
-          {people.map((p) => (
-            <tr key={p.index}>
-              <td data-label="#" style={{ color: "var(--ink-3)" }}>
-                {p.index}
-              </td>
-              <td data-primary="" style={{ fontWeight: 500 }}>
-                {p.name || "—"}
-              </td>
-              <td data-label="Roll">{p.roll || "—"}</td>
-              <td data-label="Dept · Yr">
-                {p.department || "—"}
-                {p.year ? ` · ${p.year}` : ""}
-              </td>
-              <td data-label="Email">{p.email || "—"}</td>
-              <td data-label="Phone">{p.phone || "—"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <ParticipantsRoster teams={teams} waitingTeams={waitingTeams} hasTeams={hasTeams} />
     </div>
   );
 }

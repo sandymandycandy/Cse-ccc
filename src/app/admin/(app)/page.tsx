@@ -1,10 +1,18 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireAdminPage } from "@/lib/auth/guards";
-import { canView } from "@/lib/auth/capabilities";
+import { canView, adminHomePath } from "@/lib/auth/capabilities";
 import { getAdminStats } from "@/lib/admin/queries";
 
 export default async function AdminDashboard() {
   const session = await requireAdminPage();
+
+  // Login always lands on /admin. This page is entirely events — stats, pending
+  // approvals, "Create event" — so a role with no events reach is sent to the one
+  // surface it does hold instead of an empty page.
+  const home = adminHomePath(session.role);
+  if (home !== "/admin") redirect(home);
+
   const stats = await getAdminStats(session);
   const canApprove = canView(session, "approve:events");
 

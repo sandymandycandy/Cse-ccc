@@ -21,6 +21,13 @@ export interface RosterEntry {
   roll_no: string;
   display_name: string | null;
   registration_id: string | null;
+  /**
+   * Snapshot of the team's name, copied from the registration when the roster
+   * is seeded — never edited here. The public standings read the anon client,
+   * which has no privilege on `registrations` (PII), so this must live on the
+   * result row, exactly as `display_name` does.
+   */
+  team_name: string | null;
   score: number | null;
   rank: number | null;
   advanced: boolean;
@@ -75,7 +82,7 @@ export async function getRoundRoster(
   // 1) Already-saved rows win.
   const { data: saved } = await admin
     .from("results")
-    .select("roll_no, display_name, registration_id, score, rank, advanced, remarks")
+    .select("roll_no, display_name, registration_id, team_name, score, rank, advanced, remarks")
     .eq("round_id", roundId);
   if (saved && saved.length > 0) {
     return { rows: saved as RosterEntry[], seededFrom: "saved" };
@@ -85,10 +92,12 @@ export async function getRoundRoster(
     roll_no: string,
     display_name: string | null,
     registration_id: string | null,
+    team_name: string | null = null,
   ): RosterEntry => ({
     roll_no,
     display_name,
     registration_id,
+    team_name,
     score: null,
     rank: null,
     advanced: false,
@@ -102,12 +111,12 @@ export async function getRoundRoster(
   if (idx <= 0) {
     const { data: regs } = await admin
       .from("registrations")
-      .select("id, roll_no, student_name")
+      .select("id, roll_no, student_name, team_name")
       .eq("event_id", round.event_id)
       .eq("attended", true)
       .order("roll_no", { ascending: true });
     const rows = (regs ?? []).flatMap((r) =>
-      r.roll_no != null ? [emptyEntry(r.roll_no, r.student_name, r.id)] : [],
+      r.roll_no != null ? [emptyEntry(r.roll_no, r.student_name, r.id, r.team_name)] : [],
     );
     return { rows, seededFrom: `attended (${rows.length})` };
   }
@@ -117,7 +126,7 @@ export async function getRoundRoster(
   const prev = rounds[idx - 1];
   const { data: adv } = await admin
     .from("results")
-    .select("roll_no, display_name, registration_id, score, advanced")
+    .select("roll_no, display_name, registration_id, team_name, score, advanced")
     .eq("round_id", prev.id)
     .order("roll_no", { ascending: true });
   const rows = eligibleAdvancers(
@@ -125,10 +134,11 @@ export async function getRoundRoster(
       roll_no: string;
       display_name: string | null;
       registration_id: string | null;
+      team_name: string | null;
       score: number | null;
       advanced: boolean;
     }[],
-  ).map((r) => emptyEntry(r.roll_no, r.display_name, r.registration_id));
+  ).map((r) => emptyEntry(r.roll_no, r.display_name, r.registration_id, r.team_name));
   return { rows, seededFrom: `advancing in ${prev.name} (${rows.length})` };
 }
 
@@ -189,6 +199,7 @@ export async function replaceRoundResults(
       roll_no: r.roll_no.trim(),
       display_name: r.display_name,
       registration_id: r.registration_id,
+      team_name: r.team_name,
       score: r.score,
       rank: r.rank,
       advanced: r.advanced,

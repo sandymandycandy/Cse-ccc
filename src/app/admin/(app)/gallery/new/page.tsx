@@ -7,12 +7,12 @@ import { GalleryForm } from "@/components/admin/GalleryForm";
 import { createGalleryAction } from "../actions";
 
 export default async function NewGalleryPage() {
-  const session = await requireViewPage("manage:content");
-  if (!canCreateForCapability(session, "manage:content")) redirect("/admin/gallery");
+  const session = await requireViewPage("manage:gallery");
+  if (!canCreateForCapability(session, "manage:gallery")) redirect("/admin/gallery");
 
   // Org-wide managers pick the owning club (or council-wide); a club-scoped
   // admin's photos are pinned to their club, so they get no picker.
-  const clubs = grantFor(session.role, "manage:content") === "all" ? await listClubsBrief() : undefined;
+  const clubs = grantFor(session.role, "manage:gallery") === "all" ? await listClubsBrief() : undefined;
 
   return (
     <div className="admin-page" style={{ maxWidth: 640 }}>

@@ -88,26 +88,31 @@ Layer 2       Vice President
 Layer 3     11 Club Cards — Club Head → Vice Head → Members
 ```
 
-### 3.2 Role matrix — nine roles
+### 3.2 Role matrix — ten roles
 
-| Capability | Faculty | Pres | VP | Tech | Events | Docs | Social | Head | Vice |
-|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| Manage any club / event | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | own |
-| Approve / reject events | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | — |
-| Cancel / reschedule an event | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | — |
-| Blackout dates | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | — |
-| Manage schedules | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | own |
-| Registrations / attendance | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | own |
-| Issue participation certificates | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | — |
-| **Issue winner certificates** | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | — |
-| Revoke a certificate | ✅ | — | ✅ | ✅ | — | — | — | — | — |
-| Announcements / Gallery / Achievements | ✅ | ✅ | ✅ | ✅ | — | — | **✅ all** | own | own |
-| Resources & Drive links | ✅ | ✅ | ✅ | ✅ | — | **✅ all** | — | own | — |
-| Recruitment drives | ✅ | ✅ | ✅ | ✅ | — | — | ✅ | own | own |
-| Venues & bookings | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | request | request |
-| Manage admin users | ✅ | — | ✅ | ✅ | — | — | — | — | — |
-| Audit log | ✅ | read | ✅ | ✅ | — | — | — | — | — |
-| Analytics | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | own | own |
+| Capability | Faculty | Pres | VP | Tech | Events | Docs | Social | Head | Vice | Gal |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| Manage any club / event | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | own | — |
+| Approve / reject events | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | — | — |
+| Cancel / reschedule an event | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | — | — |
+| Blackout dates | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | — | — |
+| Manage schedules | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | own | — |
+| Registrations / attendance | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | own | — |
+| Issue participation certificates | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | — | — |
+| **Issue winner certificates** | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | — | — |
+| Revoke a certificate | ✅ | — | ✅ | ✅ | — | — | — | — | — | — |
+| Announcements / Achievements | ✅ | ✅ | ✅ | ✅ | — | — | **✅ all** | own | own | — |
+| **Gallery (photos)** | ✅ | ✅ | ✅ | ✅ | — | — | **✅ all** | own | own | **✅ all** |
+| Resources & Drive links | ✅ | ✅ | ✅ | ✅ | — | **✅ all** | — | own | — | — |
+| Recruitment drives | ✅ | ✅ | ✅ | ✅ | — | — | ✅ | own | own | — |
+| Venues & bookings | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | request | request | — |
+| Manage admin users | ✅ | — | ✅ | ✅ | — | — | — | — | — | — |
+| Audit log | ✅ | read | ✅ | ✅ | — | — | — | — | — | — |
+| Analytics | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | own | own | — |
+
+**Gal = Gallery Manager, the tenth role and the narrowest one** — `manage:gallery` and nothing else. It exists so one person can be handed the public photo gallery without also getting announcements and achievements, which the old single `manage:content` capability bundled together. It is the only role that never sees the dashboard: `/admin` is an events surface, so a Gallery Manager is redirected to `/admin/gallery` on login and their nav has exactly one item. **No mandatory TOTP** — the mandatory-2FA rule keys off blast radius, and this role can only touch a table of photos.
+
+*(Added 2026-09-02 by owner decision. `manage:gallery` was split out of `manage:content`; the split is **access-neutral for the nine existing roles** — the two rows carry identical grants and a test pins them together. Source of truth: `src/lib/auth/capabilities.ts`.)*
 
 **Three roles now hold full access: Faculty Advisor, Vice President, Tech Head** — every capability at `all`, `manage:admins` and `revoke:certificate` included. The Faculty Advisor additionally supplies the name and signature on every certificate.
 

@@ -35,6 +35,10 @@ export interface EventSummary {
   registered: number;
   capacity: number;
   status: SeatStatus;
+  /** At least one standing has been published for this event. */
+  hasResults: boolean;
+  /** The event has finished, so registration is a dead end. */
+  isPast: boolean;
 }
 
 /**

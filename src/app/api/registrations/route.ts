@@ -69,7 +69,7 @@ export async function POST(request: Request) {
   if (!result.ok) {
     return Response.json({ error: "Please check the form.", fields: result.fieldErrors }, { status: 400 });
   }
-  const { identity, customAnswers } = result.data;
+  const { identity, customAnswers, teamName } = result.data;
 
   // 6) rate limit — by ip + roll/email when collected (dedup keys)
   const limit = checkRegistrationLimits({
@@ -95,6 +95,7 @@ export async function POST(request: Request) {
     p_department: identity.department,
     p_year: identity.year,
     p_custom_answers: customAnswers,
+    p_team_name: teamName,
   });
   if (error) {
     console.error("register_for_event failed", error);

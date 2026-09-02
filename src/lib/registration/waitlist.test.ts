@@ -10,6 +10,7 @@ const row = (over: Partial<RegistrationRow>): RegistrationRow => ({
   year: null,
   email: "e",
   phone: null,
+  teamName: null,
   confirmed: true,
   attended: false,
   method: null,

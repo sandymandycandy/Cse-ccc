@@ -36,9 +36,9 @@ export async function createGalleryAction(
   const parsed = parse(formData);
   if (!parsed.success) return { error: "Check the form — caption or sort looks off." };
 
-  const resolved = resolveOwningClub(session, "manage:content", parsed.data.clubId);
+  const resolved = resolveOwningClub(session, "manage:gallery", parsed.data.clubId);
   if ("error" in resolved) return { error: resolved.error };
-  if (!canManage(session, "manage:content", resolved.clubId)) {
+  if (!canManage(session, "manage:gallery", resolved.clubId)) {
     return { error: "You can't add photos there." };
   }
 
@@ -84,16 +84,16 @@ export async function updateGalleryAction(
 
   const existing = await getGalleryForEdit(id);
   if (!existing) return { error: "That photo no longer exists." };
-  if (!canManage(session, "manage:content", existing.clubId)) {
+  if (!canManage(session, "manage:gallery", existing.clubId)) {
     return { error: "You can't manage that photo." };
   }
 
   const parsed = parse(formData);
   if (!parsed.success) return { error: "Check the form — caption or sort looks off." };
 
-  const resolved = resolveOwningClub(session, "manage:content", parsed.data.clubId);
+  const resolved = resolveOwningClub(session, "manage:gallery", parsed.data.clubId);
   if ("error" in resolved) return { error: resolved.error };
-  if (!canManage(session, "manage:content", resolved.clubId)) {
+  if (!canManage(session, "manage:gallery", resolved.clubId)) {
     return { error: "You can't move photos there." };
   }
 
@@ -141,7 +141,7 @@ export async function deleteGalleryAction(formData: FormData): Promise<void> {
 
   const existing = await getGalleryForEdit(id);
   if (!existing) redirect("/admin/gallery");
-  if (!canManage(session, "manage:content", existing.clubId)) redirect("/admin/gallery");
+  if (!canManage(session, "manage:gallery", existing.clubId)) redirect("/admin/gallery");
 
   const admin = createAdminClient();
   const { error } = await admin.from("gallery").delete().eq("id", id);

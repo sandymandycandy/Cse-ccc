@@ -24,6 +24,8 @@ const emptyRow = (): RosterEntry => ({
   roll_no: "",
   display_name: "",
   registration_id: null,
+  // A hand-added row has no registration behind it, so no team.
+  team_name: null,
   score: null,
   rank: null,
   advanced: false,
@@ -49,6 +51,9 @@ export function ResultsEditor(props: {
   isLast: boolean;
   defaultNextName: string;
 }) {
+  // Read-only: the team name is a snapshot carried on the row from the
+  // registration, so the editor shows it but never edits or re-derives it.
+  const hasTeams = props.initialRows.some((r) => r.team_name);
   const [rows, setRows] = useState<RosterEntry[]>(props.initialRows);
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -94,6 +99,7 @@ export function ResultsEditor(props: {
             <tr>
               <th>Roll</th>
               <th>Name</th>
+              {hasTeams ? <th>Team</th> : null}
               <th>Score</th>
               <th>Rank</th>
               <th>Advanced</th>
@@ -128,6 +134,9 @@ export function ResultsEditor(props: {
                       onChange={(e) => update(i, { display_name: e.target.value })}
                     />
                   </td>
+                  {hasTeams ? (
+                    <td style={{ fontWeight: 500 }}>{r.team_name || "—"}</td>
+                  ) : null}
                   <td>
                     <input
                       type="number"

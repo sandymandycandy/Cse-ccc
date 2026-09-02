@@ -21,6 +21,8 @@ export interface Participant {
 /** The subset of a registration this module needs — keeps it free of the DB row. */
 export interface RosterEntry {
   name: string;
+  /** The team's own name. Absent on solo events and on pre-2026-09 rows. */
+  teamName?: string | null;
   roll: string;
   department: string | null;
   year: number | string | null;
@@ -122,6 +124,8 @@ export interface TeamAnswer {
 export interface TeamGroup {
   /** 1-based, in the same order as the registrations. */
   index: number;
+  /** The team's own name, or null when it has none — see {@link teamLabel}. */
+  name: string | null;
   /** Leader first, then the members. One person for a solo entry. */
   people: Participant[];
   /** The team's own answers — the link and anything else the club asked for. */
@@ -150,6 +154,7 @@ export function listTeams(entries: RosterEntry[], schema: FormField[]): TeamGrou
   }
   return entries.map((entry, i) => ({
     index: i + 1,
+    name: entry.teamName?.trim() ? entry.teamName.trim() : null,
     people: byTeam.get(i + 1) ?? [],
     answers: extras.map((f) => {
       const v = entry.customAnswers?.[f.id];
@@ -161,4 +166,31 @@ export function listTeams(entries: RosterEntry[], schema: FormField[]): TeamGrou
       };
     }),
   }));
+}
+
+/**
+ * Everything on a team card that free-text search should look at.
+ *
+ * Deliberately values only — never a field's label or a person's role. Those
+ * are identical on every team, so matching them would match every card and make
+ * the search useless. The internal indices are left out for the same reason: a
+ * query of "2" should find roll VTU202, not team #2.
+ */
+export function teamSearchValues(team: TeamGroup): unknown[] {
+  const out: unknown[] = [];
+  for (const p of team.people) {
+    out.push(p.name, p.roll, p.department, p.year, p.email, p.phone);
+  }
+  for (const a of team.answers) out.push(a.value);
+  out.push(team.name);
+  return out;
+}
+
+/**
+ * What to head a team card with. Teams registered before the team-name field
+ * existed have none, so they keep the old positional label rather than showing
+ * a blank heading.
+ */
+export function teamLabel(team: TeamGroup): string {
+  return team.name ?? `Team ${team.index}`;
 }

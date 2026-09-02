@@ -5,13 +5,13 @@ import { canCreateForCapability } from "@/lib/admin/club-scope";
 import { listGalleryForAdmin } from "@/lib/admin/gallery";
 
 export default async function AdminGalleryPage() {
-  const session = await requireViewPage("manage:content");
+  const session = await requireViewPage("manage:gallery");
   const items = await listGalleryForAdmin();
 
-  const canCreate = canCreateForCapability(session, "manage:content");
+  const canCreate = canCreateForCapability(session, "manage:gallery");
   // A club-scoped admin only ever manages their own club's photos.
   const visible =
-    grantFor(session.role, "manage:content") === "own"
+    grantFor(session.role, "manage:gallery") === "own"
       ? items.filter((g) => g.clubId === session.clubId)
       : items;
 
@@ -57,7 +57,7 @@ export default async function AdminGalleryPage() {
                     {g.clubName ?? "Council-wide"} · #{g.sort}
                   </div>
                 </div>
-                {canManage(session, "manage:content", g.clubId) ? (
+                {canManage(session, "manage:gallery", g.clubId) ? (
                   <Link
                     href={`/admin/gallery/${g.id}/edit`}
                     className="label"

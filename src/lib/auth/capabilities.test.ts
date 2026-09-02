@@ -7,6 +7,7 @@ import {
   canViewClub,
   roleRequiresTotp,
   viewableCapabilities,
+  adminHomePath,
   type Capability,
 } from "./capabilities";
 
@@ -123,7 +124,7 @@ describe("canViewClub — read-or-manage view scope for a specific club", () => 
 });
 
 describe("roleRequiresTotp — mandatory 2FA for the widest-reach roles", () => {
-  it("requires TOTP for every role that holds all 20 capabilities", () => {
+  it("requires TOTP for every role that holds all 21 capabilities", () => {
     expect(roleRequiresTotp("tech_head")).toBe(true);
     expect(roleRequiresTotp("president")).toBe(true);
     // faculty and the VP now carry the same blast radius as tech head
@@ -133,7 +134,7 @@ describe("roleRequiresTotp — mandatory 2FA for the widest-reach roles", () => 
 
   it("no unrestricted role is left without mandatory 2FA", () => {
     for (const role of ADMIN_ROLES) {
-      if (viewableCapabilities(role).length === 20) {
+      if (viewableCapabilities(role).length === 21) {
         expect(roleRequiresTotp(role)).toBe(true);
       }
     }
@@ -152,7 +153,7 @@ describe("full-access roles (owner decision, 2026-09-02)", () => {
   it.each(FULL)("%s holds every capability the system defines", (role) => {
     // Pinned: if a new capability is added and this role is left out of its row,
     // viewableCapabilities drops it ("none") and the count falls short.
-    expect(viewableCapabilities(role)).toHaveLength(20);
+    expect(viewableCapabilities(role)).toHaveLength(21);
   });
 
   it.each(FULL)("%s holds them at \"all\", never \"read\" or \"own\"", (role) => {
@@ -174,7 +175,7 @@ describe("full-access roles (owner decision, 2026-09-02)", () => {
   });
 
   it("the three unrestricted roles are faculty, VP and tech head", () => {
-    const full = ADMIN_ROLES.filter((r) => viewableCapabilities(r).length === 20);
+    const full = ADMIN_ROLES.filter((r) => viewableCapabilities(r).length === 21);
     expect(full.slice().sort()).toEqual(["faculty_advisor", "tech_head", "vice_president"]);
   });
 
@@ -190,5 +191,76 @@ describe("full-access roles (owner decision, 2026-09-02)", () => {
     expect(canManage(head, "manage:results", "c2")).toBe(false);
     expect(canManage(head, "manage:admins" as Capability)).toBe(false);
     expect(grantFor("events_head", "manage:admins")).toBe("none");
+  });
+});
+
+describe("gallery_manager — a gallery-only admin (owner ask, 2026-09-02)", () => {
+  const gm = { role: "gallery_manager", clubId: null } as const;
+
+  it("is a real admin role", () => {
+    expect(ADMIN_ROLES).toContain("gallery_manager");
+  });
+
+  it("holds exactly one capability: manage:gallery", () => {
+    expect(viewableCapabilities("gallery_manager")).toEqual(["manage:gallery"]);
+    expect(grantFor("gallery_manager", "manage:gallery")).toBe("all");
+  });
+
+  it("manages council-wide photos with no club of its own", () => {
+    expect(canManage(gm, "manage:gallery")).toBe(true);
+    expect(canManage(gm, "manage:gallery", "c1")).toBe(true);
+  });
+
+  it("cannot reach announcements or achievements, which share manage:content", () => {
+    expect(grantFor("gallery_manager", "manage:content")).toBe("none");
+    expect(canView(gm, "manage:content")).toBe(false);
+    expect(canManage(gm, "manage:content")).toBe(false);
+  });
+
+  it("cannot reach any other admin surface", () => {
+    for (const cap of [
+      "manage:events", "approve:events", "cancel:events", "manage:registrations",
+      "manage:results", "manage:members", "manage:council", "manage:clubs",
+      "manage:contact", "manage:resources", "manage:venues", "manage:admins",
+      "view:audit", "view:analytics", "revoke:certificate",
+      "issue:participation_certificate", "issue:winner_certificate",
+      "manage:blackouts", "manage:schedules",
+    ] as const) {
+      expect(grantFor("gallery_manager", cap)).toBe("none");
+      expect(canView(gm, cap)).toBe(false);
+      expect(canManage(gm, cap, "c1")).toBe(false);
+    }
+  });
+
+  it("is not forced into TOTP — its blast radius is one table of photos", () => {
+    expect(roleRequiresTotp("gallery_manager")).toBe(false);
+  });
+
+  it("does not widen anyone: no existing role gained or lost gallery access", () => {
+    // manage:gallery was split OUT of manage:content, so the two rows must stay
+    // identical for every pre-existing role. Drift here silently changes access.
+    for (const role of ADMIN_ROLES) {
+      if (role === "gallery_manager") continue;
+      expect(grantFor(role, "manage:gallery")).toBe(grantFor(role, "manage:content"));
+    }
+  });
+
+  it("a club-scoped head still only manages their own club's photos", () => {
+    const head = { role: "club_head", clubId: "c1" } as const;
+    expect(canManage(head, "manage:gallery", "c1")).toBe(true);
+    expect(canManage(head, "manage:gallery", "c2")).toBe(false);
+  });
+});
+
+describe("adminHomePath — where the nav's home link points", () => {
+  it("sends a gallery-only admin to the gallery, not the events dashboard", () => {
+    expect(adminHomePath("gallery_manager")).toBe("/admin/gallery");
+  });
+
+  it("sends every other role to the dashboard", () => {
+    for (const role of ADMIN_ROLES) {
+      if (role === "gallery_manager") continue;
+      expect(adminHomePath(role)).toBe("/admin");
+    }
   });
 });

@@ -1,0 +1,14 @@
+-- Gallery-only admin role (owner ask, 2026-09-02).
+--
+-- The capability model splits `manage:gallery` out of `manage:content` (which
+-- still covers announcements + achievements) so that ONE account can be given
+-- the public photo gallery and nothing else. See src/lib/auth/capabilities.ts —
+-- that matrix is the authority; this migration only teaches the enum the name.
+--
+-- Access-neutral for every existing account: no row is updated, and the new
+-- value is unreachable until someone is invited with it.
+--
+-- NOTE: Postgres cannot DROP a value from an enum. Adding one is a one-way step.
+-- Safe inside a transaction on PG12+ so long as nothing USES the value in the
+-- same transaction — nothing here does.
+alter type admin_role add value if not exists 'gallery_manager';

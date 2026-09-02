@@ -9,6 +9,12 @@
 // Grants are transcribed cell-for-cell from the §3.2 matrix. Keep them in sync
 // with the doc — this table is the audit surface.
 //
+// 2026-09-02, owner decision: `manage:gallery` was split out of `manage:content`
+// (which still covers announcements + achievements) so that a `gallery_manager`
+// account can be given the photo gallery and nothing else. The split is
+// access-neutral for every pre-existing role: the two rows carry identical
+// grants, and a test enforces that. There are 21 capabilities, not 20.
+//
 // 2026-09-02, owner decision: the Faculty Advisor is NO LONGER read-only, and the
 // Vice President is no longer short of `revoke:certificate` / `manage:admins` /
 // `view:audit`. Both now hold "all" on every capability, which leaves THREE
@@ -28,6 +34,10 @@ export const ADMIN_ROLES = [
   "social_media_head",
   "club_head",
   "vice_head",
+  // The narrowest role in the system: the public photo gallery and nothing else.
+  // Added 2026-09-02 so one person can be given the gallery without also being
+  // handed announcements and achievements (see the manage:gallery row below).
+  "gallery_manager",
 ] as const;
 
 export type AdminRole = (typeof ADMIN_ROLES)[number];
@@ -53,7 +63,8 @@ export type Capability =
   | "issue:participation_certificate"
   | "issue:winner_certificate"
   | "revoke:certificate"
-  | "manage:content" // announcements / gallery / achievements
+  | "manage:content" // announcements / achievements (and gallery, for legacy roles)
+  | "manage:gallery" // the public photo gallery, split out of manage:content
   | "manage:clubs" // a club's own name / tagline / description
   | "manage:contact" // the public contact-form inbox (council-wide)
   | "manage:members"
@@ -121,6 +132,15 @@ const MATRIX: Record<Capability, Partial<Record<AdminRole, Grant>>> = {
   "manage:content": {
     faculty_advisor: "all", president: "all", vice_president: "all",
     tech_head: "all", social_media_head: "all", club_head: "own", vice_head: "own",
+  },
+  // Split out of manage:content (2026-09-02) so a gallery-only admin is possible.
+  // Every pre-existing role MUST hold the same grant here as it holds on
+  // manage:content — the split was meant to add a role, not to change anyone's
+  // access. A test pins the two rows together; if you edit one, edit both.
+  "manage:gallery": {
+    faculty_advisor: "all", president: "all", vice_president: "all",
+    tech_head: "all", social_media_head: "all", club_head: "own", vice_head: "own",
+    gallery_manager: "all",
   },
   // A club's public profile (name/tagline/description) is self-editable: heads
   // edit their own club; council-wide roles edit any; faculty read.
@@ -227,6 +247,19 @@ export function viewableCapabilities(role: AdminRole): Capability[] {
   return (Object.keys(MATRIX) as Capability[]).filter(
     (cap) => grantFor(role, cap) !== "none",
   );
+}
+
+/**
+ * Where an admin's "home" points — the nav's first link and the landing spot
+ * after login. The dashboard at /admin is an events surface (pending approvals,
+ * upcoming events, "Create event"), so a role that can't see any of that would
+ * land on an empty, confusing page. Such a role goes straight to its one
+ * surface instead.
+ */
+export function adminHomePath(role: AdminRole): string {
+  const caps = viewableCapabilities(role);
+  if (caps.length === 1 && caps[0] === "manage:gallery") return "/admin/gallery";
+  return "/admin";
 }
 
 /**

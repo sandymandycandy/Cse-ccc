@@ -899,6 +899,71 @@
     gap: 16px;
     margin-top: 18px;
   }
+  /* ── Podium (public event results) ──────────────────────────────────────
+     The top three of a round, as three cards. Rank is encoded structurally
+     rather than with gold/silver/bronze: EMPHASIS DESCENDS WITH PLACE — first
+     is filled and carries the brand accent, second keeps the clay accent on a
+     plain card, third goes quiet. The oversized serif numeral is the anchor,
+     so nothing else on the card needs decoration.
+     auto-fit means three across on a laptop, two on a small tablet and one on
+     a phone, with no breakpoint of its own. */
+  .podium {
+    list-style: none;
+    margin: 16px 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 12px;
+  }
+  .podium-card {
+    background: var(--card);
+    border: 1px solid var(--line-2);
+    border-top: 3px solid var(--line-3);
+    border-radius: var(--r-sm);
+    padding: 16px 18px 18px;
+    min-width: 0;
+  }
+  .podium-rank {
+    display: block;
+    font: 400 42px / 1 var(--serif);
+    color: var(--ink-3);
+  }
+  .podium-card[data-place="1"] {
+    background: var(--forest-tint);
+    border-top-color: var(--forest);
+  }
+  .podium-card[data-place="1"] .podium-rank { color: var(--forest-deep); }
+  .podium-card[data-place="2"] { border-top-color: var(--clay); }
+  .podium-card[data-place="2"] .podium-rank { color: var(--clay); }
+
+  .podium-name {
+    margin-top: 8px;
+    font: 400 21px / 1.2 var(--serif);
+    color: var(--ink);
+    overflow-wrap: anywhere;
+  }
+  .podium-team {
+    margin-top: 6px;
+    font: 500 10.5px var(--mono);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--forest);
+    overflow-wrap: anywhere;
+  }
+  .podium-meta {
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    font: 400 12.5px var(--sans);
+    color: var(--ink-2);
+  }
+  .podium-meta .score {
+    font: 500 15px var(--mono);
+    color: var(--ink);
+  }
+
   .team-card {
     display: flex;
     flex-direction: column;

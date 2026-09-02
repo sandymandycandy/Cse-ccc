@@ -1487,6 +1487,7 @@ export type Database = {
           shortlisted_at: string | null
           student_name: string | null
           team_members: Json | null
+          team_name: string | null
           waitlist_position: number | null
           year: number | null
         }
@@ -1509,6 +1510,7 @@ export type Database = {
           shortlisted_at?: string | null
           student_name?: string | null
           team_members?: Json | null
+          team_name?: string | null
           waitlist_position?: number | null
           year?: number | null
         }
@@ -1531,6 +1533,7 @@ export type Database = {
           shortlisted_at?: string | null
           student_name?: string | null
           team_members?: Json | null
+          team_name?: string | null
           waitlist_position?: number | null
           year?: number | null
         }
@@ -1608,6 +1611,7 @@ export type Database = {
           registration_id: string | null
           remarks: string | null
           roll_no: string
+          team_name: string | null
           round_id: string | null
           score: number | null
         }
@@ -1622,6 +1626,7 @@ export type Database = {
           registration_id?: string | null
           remarks?: string | null
           roll_no: string
+          team_name: string | null
           round_id?: string | null
           score?: number | null
         }
@@ -1636,6 +1641,7 @@ export type Database = {
           registration_id?: string | null
           remarks?: string | null
           roll_no?: string
+          team_name?: string | null
           round_id?: string | null
           score?: number | null
         }
@@ -1863,6 +1869,7 @@ export type Database = {
               p_phone?: string
               p_roll_no?: string
               p_student_name?: string
+              p_team_name?: string
               p_year?: number
             }
             Returns: {
@@ -1898,6 +1905,7 @@ export type Database = {
         | "social_media_head"
         | "club_head"
         | "vice_head"
+        | "gallery_manager"
       approval_status: "pending" | "approved" | "rejected"
       attendance_status: "open" | "closed"
       certificate_type: "participation" | "winner"
@@ -2049,6 +2057,7 @@ export const Constants = {
         "social_media_head",
         "club_head",
         "vice_head",
+        "gallery_manager",
       ],
       approval_status: ["pending", "approved", "rejected"],
       attendance_status: ["open", "closed"],

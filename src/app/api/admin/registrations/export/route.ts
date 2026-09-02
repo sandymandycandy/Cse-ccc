@@ -24,6 +24,7 @@ export async function GET(request: Request) {
   const columns = answerColumns(schema);
   const headers = [
     "Name",
+    "Team",
     "Roll No",
     "Department",
     "Year",
@@ -37,6 +38,7 @@ export async function GET(request: Request) {
   ];
   const rows = regs.map((r) => [
     r.name,
+    r.teamName ?? "",
     r.roll,
     r.department,
     r.year,

@@ -1,5 +1,5 @@
 import { requireAdminPage } from "@/lib/auth/guards";
-import { canView, canManage } from "@/lib/auth/capabilities";
+import { canView, canManage, adminHomePath } from "@/lib/auth/capabilities";
 import { AdminNav } from "@/components/admin/AdminNav";
 
 export default async function AdminAppLayout({
@@ -9,9 +9,17 @@ export default async function AdminAppLayout({
 }) {
   const session = await requireAdminPage();
 
+  // A role whose home isn't the dashboard has no business on it — it's an
+  // events surface — so it gets no Dashboard link at all.
+  const home = adminHomePath(session.role);
+
   const links = [
-    { href: "/admin", label: "Dashboard" },
-    { href: "/admin/events", label: "Events" },
+    ...(home === "/admin" ? [{ href: "/admin", label: "Dashboard" }] : []),
+    // Was unconditional, which showed an Events link to roles the page itself
+    // redirects away (docs/social heads, and now the gallery manager).
+    ...(canView(session, "manage:events")
+      ? [{ href: "/admin/events", label: "Events" }]
+      : []),
     ...(canView(session, "approve:events")
       ? [{ href: "/admin/events/approvals", label: "Approvals" }]
       : []),
@@ -21,7 +29,7 @@ export default async function AdminAppLayout({
     ...(canManage(session, "manage:content")
       ? [{ href: "/admin/announcements", label: "Announcements" }]
       : []),
-    ...(canView(session, "manage:content")
+    ...(canView(session, "manage:gallery")
       ? [{ href: "/admin/gallery", label: "Gallery" }]
       : []),
     ...(canView(session, "manage:content")

@@ -1,0 +1,19 @@
+-- Denormalised team-name snapshot on a standing row (owner ask, 2026-09-03).
+--
+-- ⚠️ WHY THIS EXISTS — do not "simplify" it back into a join.
+--
+-- The public standings page reads with the ANON client. `anon` has NO select
+-- privilege on public.registrations, by design: that table is PII (student
+-- names, emails, phone numbers, roll numbers). An earlier cut of this feature
+-- read the team name with an embedded `registrations ( team_name )`, which fails
+-- with 42501 "permission denied for table registrations" — and the only way to
+-- make that join work would have been to grant the public read access to the
+-- whole PII table. That is not acceptable.
+--
+-- So the team name is copied ONTO the result row when a round's roster is
+-- seeded, exactly as `display_name` already is, and the public page reads it
+-- from here without ever touching registrations.
+--
+-- Being a snapshot, it is what the team was called when the round was seeded.
+-- Rows saved before this column existed stay null and simply show no team.
+alter table public.results add column if not exists team_name text;

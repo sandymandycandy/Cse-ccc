@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateAnswers } from "./answers";
+import { validateAnswers, TEAM_NAME_KEY } from "./answers";
 import type { FormField } from "./schema";
 
 const f = (o: Partial<FormField> & Pick<FormField, "id" | "kind">): FormField => ({
@@ -109,29 +109,32 @@ describe("team & other answers", () => {
       { key: "email", label: "Email", kind: "email", required: true },
     ],
   });
+  // Any form with a team block now requires a team name, so each case supplies
+  // one — otherwise it would fail for THAT reason instead of the one it tests.
+  const withName = (v: Record<string, unknown>) => ({ ...v, [TEAM_NAME_KEY]: "Byte Squad" });
 
   it("accepts a valid team and stores an array of member objects", () => {
-    const r = validateAnswers([team], { team: [{ name: "Asha", email: "A@x.io" }] });
+    const r = validateAnswers([team], withName({ team: [{ name: "Asha", email: "A@x.io" }] }));
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.data.customAnswers.team).toEqual([{ name: "Asha", email: "a@x.io" }]);
   });
   it("drops a fully-empty member row", () => {
-    const r = validateAnswers([team], { team: [{ name: "Asha", email: "a@x.io" }, { name: "", email: "" }] });
+    const r = validateAnswers([team], withName({ team: [{ name: "Asha", email: "a@x.io" }, { name: "", email: "" }] }));
     expect(r.ok).toBe(true);
     if (r.ok) expect((r.data.customAnswers.team as unknown[]).length).toBe(1);
   });
   it("rejects when a required team has no members", () => {
-    expect(validateAnswers([team], { team: [] }).ok).toBe(false);
+    expect(validateAnswers([team], withName({ team: [] })).ok).toBe(false);
   });
   it("rejects more members than max", () => {
     const four = Array.from({ length: 4 }, (_, i) => ({ name: `N${i}`, email: `n${i}@x.io` }));
-    expect(validateAnswers([team], { team: four }).ok).toBe(false);
+    expect(validateAnswers([team], withName({ team: four })).ok).toBe(false);
   });
   it("rejects a member with a bad email", () => {
-    expect(validateAnswers([team], { team: [{ name: "Asha", email: "nope" }] }).ok).toBe(false);
+    expect(validateAnswers([team], withName({ team: [{ name: "Asha", email: "nope" }] })).ok).toBe(false);
   });
   it("rejects a member missing a required subfield", () => {
-    expect(validateAnswers([team], { team: [{ name: "Asha" }] }).ok).toBe(false);
+    expect(validateAnswers([team], withName({ team: [{ name: "Asha" }] })).ok).toBe(false);
   });
 
   it("accepts an 'Other' write-in on a radio with allowOther", () => {
@@ -155,5 +158,57 @@ describe("team & other answers", () => {
     const r = validateAnswers(schema, {});
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.data.customAnswers).not.toHaveProperty("s");
+  });
+});
+
+describe("team name (required on any form with a team block)", () => {
+  const team = f({
+    id: "team", kind: "team", required: true, label: "Team",
+    minMembers: 1, maxMembers: 3,
+    members: [{ key: "name", label: "Name", kind: "short_text", required: true }],
+  });
+  const members = [{ name: "Asha" }];
+
+  it("accepts a team name and returns it alongside the answers", () => {
+    const r = validateAnswers([team], { team: members, [TEAM_NAME_KEY]: "Byte Squad" });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.teamName).toBe("Byte Squad");
+  });
+
+  it("trims surrounding whitespace", () => {
+    const r = validateAnswers([team], { team: members, [TEAM_NAME_KEY]: "  Byte Squad  " });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.teamName).toBe("Byte Squad");
+  });
+
+  it("rejects a missing team name", () => {
+    const r = validateAnswers([team], { team: members });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.fieldErrors[TEAM_NAME_KEY]).toBeTruthy();
+  });
+
+  it("rejects a blank or whitespace-only team name", () => {
+    expect(validateAnswers([team], { team: members, [TEAM_NAME_KEY]: "" }).ok).toBe(false);
+    expect(validateAnswers([team], { team: members, [TEAM_NAME_KEY]: "   " }).ok).toBe(false);
+  });
+
+  it("rejects a one-character name and one longer than 80", () => {
+    expect(validateAnswers([team], { team: members, [TEAM_NAME_KEY]: "A" }).ok).toBe(false);
+    expect(validateAnswers([team], { team: members, [TEAM_NAME_KEY]: "x".repeat(81) }).ok).toBe(false);
+    expect(validateAnswers([team], { team: members, [TEAM_NAME_KEY]: "x".repeat(80) }).ok).toBe(true);
+  });
+
+  it("is not required — and not returned — on a form with no team block", () => {
+    const solo = f({ id: "name", kind: "short_text", identity: "name", required: true });
+    const r = validateAnswers([solo], { name: "Asha Rao" });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.teamName).toBeUndefined();
+  });
+
+  it("ignores a team name submitted to a form with no team block", () => {
+    const solo = f({ id: "name", kind: "short_text", identity: "name", required: true });
+    const r = validateAnswers([solo], { name: "Asha Rao", [TEAM_NAME_KEY]: "Sneaky" });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.teamName).toBeUndefined();
   });
 });
