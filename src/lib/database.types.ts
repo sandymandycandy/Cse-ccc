@@ -1612,6 +1612,7 @@ export type Database = {
           remarks: string | null
           roll_no: string
           team_name: string | null
+          team_members: Json | null
           round_id: string | null
           score: number | null
         }
@@ -1627,6 +1628,7 @@ export type Database = {
           remarks?: string | null
           roll_no: string
           team_name: string | null
+          team_members: Json | null
           round_id?: string | null
           score?: number | null
         }
@@ -1642,6 +1644,7 @@ export type Database = {
           remarks?: string | null
           roll_no?: string
           team_name?: string | null
+          team_members?: Json | null
           round_id?: string | null
           score?: number | null
         }

@@ -1,0 +1,14 @@
+-- Team members on a standing row (owner ask, 2026-09-03): "their name and VTU
+-- is enough".
+--
+-- Same reason as results.team_name: the public standings are read with the ANON
+-- client, which has no select privilege on public.registrations (PII). So the
+-- members are copied onto the result row when a round is seeded.
+--
+-- Shape: [{ "name": "...", "roll": "..." }]
+--
+-- ⚠️ NAME AND ROLL ONLY. The member records in registrations.custom_answers
+-- also hold email addresses and phone numbers. This column is readable by
+-- anyone on the internet, so `teamMembersForPublic()` projects the member list
+-- down to name + roll before it is ever written here. Do not widen it.
+alter table public.results add column if not exists team_members jsonb;

@@ -899,58 +899,82 @@
     gap: 16px;
     margin-top: 18px;
   }
-  /* ── Podium (public event results) ──────────────────────────────────────
-     The top three of a round, as three cards. Rank is encoded structurally
-     rather than with gold/silver/bronze: EMPHASIS DESCENDS WITH PLACE — first
-     is filled and carries the brand accent, second keeps the clay accent on a
-     plain card, third goes quiet. The oversized serif numeral is the anchor,
-     so nothing else on the card needs decoration.
-     auto-fit means three across on a laptop, two on a small tablet and one on
-     a phone, with no breakpoint of its own. */
-  .podium {
+  /* ── Results: champion + runners-up ────────────────────────────────────
+     The winner IS the page, so they get a full-width card and the only large
+     type on it; second and third sit below as a quiet pair. Rank is carried by
+     scale and fill rather than gold/silver/bronze, so it stays inside the
+     site's palette and survives dark mode.
+     A tie simply adds another runner card — the grid absorbs it. */
+  .champion {
+    margin-top: 18px;
+    padding: 22px 24px 24px;
+    background: var(--forest-tint);
+    border: 1px solid var(--line-2);
+    border-top: 4px solid var(--forest);
+    border-radius: var(--r-md);
+  }
+  .champion-eyebrow {
+    font: 500 10.5px var(--mono);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--forest-deep);
+  }
+  .champion-name {
+    margin-top: 10px;
+    /* the one piece of large type on the page */
+    font: 400 clamp(30px, 6vw, 46px) / 1.05 var(--serif);
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+  }
+  .champion-foot {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line-2);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px 20px;
+    font: 400 13px var(--sans);
+    color: var(--ink-2);
+  }
+  .champion-foot .score {
+    font: 500 22px var(--mono);
+    color: var(--forest-deep);
+  }
+
+  .runners {
     list-style: none;
-    margin: 16px 0 0;
+    margin: 12px 0 0;
     padding: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
     gap: 12px;
   }
-  .podium-card {
+  .runner {
     background: var(--card);
     border: 1px solid var(--line-2);
     border-top: 3px solid var(--line-3);
     border-radius: var(--r-sm);
-    padding: 16px 18px 18px;
+    padding: 14px 16px 16px;
     min-width: 0;
   }
-  .podium-rank {
-    display: block;
-    font: 400 42px / 1 var(--serif);
+  .runner[data-place="2"] { border-top-color: var(--clay); }
+  .runner-place {
+    font: 500 10.5px var(--mono);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
     color: var(--ink-3);
   }
-  .podium-card[data-place="1"] {
-    background: var(--forest-tint);
-    border-top-color: var(--forest);
-  }
-  .podium-card[data-place="1"] .podium-rank { color: var(--forest-deep); }
-  .podium-card[data-place="2"] { border-top-color: var(--clay); }
-  .podium-card[data-place="2"] .podium-rank { color: var(--clay); }
-
-  .podium-name {
-    margin-top: 8px;
+  .runner[data-place="2"] .runner-place { color: var(--clay); }
+  .runner-name {
+    margin-top: 6px;
     font: 400 21px / 1.2 var(--serif);
     color: var(--ink);
     overflow-wrap: anywhere;
   }
-  .podium-team {
-    margin-top: 6px;
-    font: 500 10.5px var(--mono);
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--forest);
-    overflow-wrap: anywhere;
-  }
-  .podium-meta {
+  .runner-foot {
     margin-top: 10px;
     display: flex;
     justify-content: space-between;
@@ -959,9 +983,40 @@
     font: 400 12.5px var(--sans);
     color: var(--ink-2);
   }
-  .podium-meta .score {
-    font: 500 15px var(--mono);
-    color: var(--ink);
+  .runner-foot .score { font: 500 15px var(--mono); color: var(--ink); }
+
+  /* Team identity, shared by both card sizes. */
+  .result-team {
+    margin-top: 8px;
+    font: 500 10.5px var(--mono);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--forest);
+    overflow-wrap: anywhere;
+  }
+  .result-members {
+    margin-top: 6px;
+    font: 400 13px / 1.5 var(--sans);
+    color: var(--ink-2);
+    overflow-wrap: anywhere;
+  }
+  .result-members .roll {
+    font: 400 11.5px var(--mono);
+    color: var(--ink-3);
+  }
+
+  /* The event's identity, so a shared link stands on its own. */
+  .results-context {
+    margin-top: 10px;
+    font: 400 13.5px var(--sans);
+    color: var(--ink-2);
+  }
+  .results-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
   }
 
   .team-card {

@@ -194,3 +194,27 @@ export function teamSearchValues(team: TeamGroup): unknown[] {
 export function teamLabel(team: TeamGroup): string {
   return team.name ?? `Team ${team.index}`;
 }
+
+/** A team member as published on the public results page. */
+export interface PublicTeamMember {
+  name: string;
+  roll: string;
+}
+
+/**
+ * The team members, projected down to what may appear publicly.
+ *
+ * The owner's line was "their name and VTU is enough", and that is the whole
+ * contract: name and roll, nothing else. The member records also carry email
+ * addresses and phone numbers, and this output is denormalised onto `results` —
+ * a table the anon role can read. Nothing but name and roll may cross that line.
+ * The leader is excluded: they are the ranked entrant, already shown by name.
+ */
+export function teamMembersForPublic(
+  entry: RosterEntry,
+  schema: FormField[],
+): PublicTeamMember[] {
+  return listParticipants([entry], schema)
+    .filter((p) => p.role === "member" && p.name.trim() !== "")
+    .map((p) => ({ name: p.name, roll: p.roll }));
+}

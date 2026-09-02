@@ -465,6 +465,8 @@ export interface PublishedResult {
   display_name: string | null;
   /** The team's own name, when the entrant registered as a team. */
   team_name: string | null;
+  /** Team members as published: name + roll only, never contact details. */
+  team_members: { name: string; roll: string }[] | null;
   rank: number | null;
   score: number | null;
   advanced: boolean;
@@ -496,7 +498,7 @@ export async function getPublishedResults(eventId: string): Promise<PublishedRou
   const { data, error } = await supabase
     .from("event_rounds")
     .select(
-      "id, name, sort, show_score, show_advanced, show_remarks, results ( roll_no, display_name, team_name, rank, score, advanced, remarks, published_at )",
+      "id, name, sort, show_score, show_advanced, show_remarks, results ( roll_no, display_name, team_name, team_members, rank, score, advanced, remarks, published_at )",
     )
     .eq("event_id", eventId)
     .order("sort", { ascending: true });
@@ -530,6 +532,7 @@ export async function getPublishedResults(eventId: string): Promise<PublishedRou
           roll_no: x.roll_no,
           display_name: x.display_name,
           team_name: x.team_name,
+          team_members: x.team_members,
           rank: x.rank,
           score: r.show_score ? x.score : null,
           advanced: r.show_advanced ? x.advanced : false,

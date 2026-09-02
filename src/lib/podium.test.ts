@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { podiumOf } from "./podium";
 
 const r = (rank: number | null, roll: string) => ({
-  roll_no: roll, display_name: roll, team_name: null,
+  roll_no: roll, display_name: roll, team_name: null, team_members: null,
   rank, score: null, advanced: false, remarks: null,
 });
 

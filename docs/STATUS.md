@@ -20,9 +20,10 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-02)
 
-> **⚠️ WORK IN FLIGHT: three blocks, UNCOMMITTED and UNDEPLOYED. All their migrations ARE applied
-> and verified live (2026-09-03).** Read the results block first — it records a **PII boundary** that
-> a join must never cross. Everything after the three in-flight blocks is merged and live. Every block below is
+> **`174df5f` shipped three blocks to prod (2026-09-03): the Gallery Manager role, team names +
+> roster search, and the results button + podium. ⚠️ ONE BLOCK IS IN FLIGHT** — the results-page
+> redesign below, uncommitted, though **its migrations ARE applied**. Read its PII note before
+> touching anything that reads registration data on a public page. Every block below is
 > merged and live: the **contact page redesign + leadership query notifications**,
 > **Faculty + VP full access (a security-boundary change — read that block)**, the
 > **participants roster + responsive admin tables**, the
@@ -33,8 +34,8 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
-> ### 🏆 IN FLIGHT — Results button on event rows + podium results page (2026-09-03)
-> **Uncommitted, NOT deployed. ✅ Migrations applied + VERIFIED IN A BROWSER (2026-09-03).** Owner asks: "a button near
+> ### ✅ MERGED & PUSHED TO PROD — Results button on event rows + podium results page (2026-09-03)
+> **Shipped in `174df5f` (2026-09-03). Migrations applied + verified live.** Owner asks: "a button near
 > that event to see the results, when published the button should appear in the public page", then
 > "make the results page responsive and have separate cards for the first, second and third places".
 > **Gate green: typecheck ✓ / lint ✓ / 313 tests ✓ / build ✓** (+6 for the new `eventCta` suite).
@@ -93,8 +94,8 @@ end-to-end**, not a checklist of components.
 >   `src/app/admin/(app)/events/[id]/results/{page.tsx,actions.ts,ResultsEditor.tsx}`,
 >   `src/app/events/[id]/results/page.tsx`, `src/app/globals.css`, `src/lib/database.types.ts`.
 
-> ### 🧩 IN FLIGHT — Team names + search on the registration roster (2026-09-02)
-> **Uncommitted, NOT deployed. ✅ MIGRATION APPLIED + VERIFIED LIVE (2026-09-03).** Owner asks, in three steps: "add a search bar in the
+> ### ✅ MERGED & PUSHED TO PROD — Team names + search on the registration roster (2026-09-02)
+> **Shipped in `174df5f` (2026-09-03). Migrations applied + verified live.** Owner asks, in three steps: "add a search bar in the
 > registered people to search any info", "add team name", then "also add team name for the results".
 > **Gate green: typecheck ✓ / lint ✓ / 307 tests ✓ / build ✓** (was 283 — +24 across `matchesAny`,
 > `teamSearchValues`, `teamLabel` and the team-name validation suite).
@@ -154,7 +155,43 @@ end-to-end**, not a checklist of components.
 >   `src/app/api/admin/registrations/export/route.ts`, the participants / registrations / results
 >   admin pages, `src/app/events/[id]/results/page.tsx`, `src/lib/database.types.ts`.
 
-> ### 🔐 IN FLIGHT — Gallery Manager: a gallery-only admin role (2026-09-02)
+> ### 🎨 IN FLIGHT — Results page redesign: champion-led, team members, share (2026-09-03)
+> **Uncommitted, NOT deployed. ✅ Migrations applied + verified live.** Owner picked a champion-led
+> editorial direction over a stepped podium or an honour-roll, and added: event context, a share
+> link, and **"team name and their members also displayed"** — later narrowed to
+> **"their name and VTU is enough"**. **Gate: typecheck ✓ / lint ✓ / 324 tests ✓.**
+> - **The winner is now the page.** A full-width `.champion` card carries the only large type
+>   (`clamp(30px, 6vw, 46px)` serif); 2nd/3rd sit below as a quiet `.runners` grid. Rank is scale and
+>   fill, **not gold/silver/bronze**, so it stays in the site palette and survives dark mode. A tie at
+>   first renders as two cards reading **"Joint champion"**; a tie at third just adds a runner card.
+> - **⚠️ SECOND PII PROJECTION — read this.** Team members live in
+>   `registrations.custom_answers`, which the anon client **cannot read** (same boundary that broke
+>   the first cut of team names). So members are snapshotted onto **`results.team_members`**, a
+>   **publicly readable jsonb column**. `teamMembersForPublic()` projects each member down to
+>   **`{name, roll}` ONLY** — the source records also hold **email addresses and phone numbers**,
+>   which must never be written there. **A test asserts those four values never appear in the
+>   output.** Do not widen this column to store the whole member object.
+> - **Column type changed after the fact:** it was created `text[]` for names only, then converted to
+>   `jsonb` when the owner asked for VTU numbers too. Safe because it was verified to hold **zero
+>   non-null values** first — it would NOT be safe once rows exist.
+> - **Snapshot timing:** members and team name are captured when a round's roster is **seeded**. The
+>   21 live PITCH DESK rows were seeded before any of this, so they show no team data. That is
+>   correct, not a bug — re-seeding a round would pick it up.
+> - **Event context + share:** the page prints club · date · venue so a shared link stands on its own,
+>   and `ShareButton` uses the native share sheet where a browser offers one (phones — where results
+>   actually get passed around) and falls back to copying the link.
+> - **⚠️ STILL NOT SEEN AT PHONE WIDTH.** The Chrome extension was not connected this session, so no
+>   screenshot was possible. What *was* verified: the page returns 200 and renders the champion, three
+>   runner cards (Second / Third / Third), the context line and the 21-row table; every new class is
+>   present in the served stylesheet; and there are no fixed `min-width` rules that could overflow a
+>   narrow screen. **The layout has never been looked at.** Worth one human check.
+> - **Files:** new `src/components/ShareButton.tsx`, new
+>   `supabase/migrations/20260903000000_results_team_members.sql`, `src/app/events/[id]/results/page.tsx`,
+>   `src/app/globals.css`, `src/lib/queries.ts`, `src/lib/admin/results.ts`,
+>   `src/lib/registration-form/participants.{ts,test.ts}`, `src/lib/podium.test.ts`,
+>   `src/app/admin/(app)/events/[id]/results/{actions.ts,ResultsEditor.tsx}`, `src/lib/database.types.ts`.
+
+> ### ✅ MERGED & PUSHED TO PROD — Gallery Manager: a gallery-only admin role (2026-09-02)
 > **Uncommitted in the working tree on `main`. NOT committed, NOT deployed. The DB migration is
 > NOT applied.** Owner ask: "a special
 > admin login page to one user … he can access only the gallery page". **Gate green: typecheck ✓ /

@@ -26,6 +26,7 @@ const emptyRow = (): RosterEntry => ({
   registration_id: null,
   // A hand-added row has no registration behind it, so no team.
   team_name: null,
+  team_members: null,
   score: null,
   rank: null,
   advanced: false,

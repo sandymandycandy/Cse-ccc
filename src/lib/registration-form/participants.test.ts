@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { listParticipants, listTeams, teamSearchValues, teamLabel, type RosterEntry } from "./participants";
+import { listParticipants, listTeams, teamSearchValues, teamLabel, teamMembersForPublic, type RosterEntry } from "./participants";
 import { defaultFormFor, type FormField } from "./schema";
 
 const teamField: FormField = {
@@ -293,5 +293,57 @@ describe("team name on the roster", () => {
   it("the team name is searchable", () => {
     const [t] = listTeams([entry({ teamName: "Byte Squad" })], schema);
     expect(teamSearchValues(t)).toContain("Byte Squad");
+  });
+});
+
+describe("teamMembersForPublic — what may be published on a public results page", () => {
+  const schema: FormField[] = [
+    { id: "team", kind: "team", label: "Team", required: true, minMembers: 1, maxMembers: 3,
+      members: [
+        { key: "m_name", label: "Member Name", kind: "short_text", required: true },
+        { key: "m_roll", label: "VTU number", kind: "roll", required: true },
+        { key: "m_email", label: "Email", kind: "email", required: false },
+        { key: "m_phone", label: "Phone", kind: "phone", required: false },
+      ] } as FormField,
+  ];
+  const entry: RosterEntry = {
+    name: "Asha Rao", roll: "VTU101", department: null, year: null,
+    email: null, phone: null,
+    customAnswers: {
+      team: [
+        { m_name: "Bob Singh", m_roll: "VTU202", m_email: "bob@x.io", m_phone: "9876543210" },
+        { m_name: "Cara M", m_roll: "VTU303", m_email: "cara@x.io", m_phone: "9000000000" },
+      ],
+    },
+  };
+
+  it("returns each member's name and roll, not the leader's", () => {
+    expect(teamMembersForPublic(entry, schema)).toEqual([
+      { name: "Bob Singh", roll: "VTU202" },
+      { name: "Cara M", roll: "VTU303" },
+    ]);
+  });
+
+  it("NEVER leaks a member's email or phone number", () => {
+    // This lands in a column anyone on the internet can read. Name and roll are
+    // what the owner asked for; contact details would be a leak.
+    const out = JSON.stringify(teamMembersForPublic(entry, schema));
+    for (const secret of ["bob@x.io", "cara@x.io", "9876543210", "9000000000"]) {
+      expect(out).not.toContain(secret);
+    }
+  });
+
+  it("is empty for a solo event with no team block", () => {
+    const solo = [{ id: "n", kind: "short_text", label: "Name", identity: "name", required: true } as FormField];
+    expect(teamMembersForPublic({ ...entry, customAnswers: null }, solo)).toEqual([]);
+  });
+
+  it("is empty when the team block was left blank", () => {
+    expect(teamMembersForPublic({ ...entry, customAnswers: { team: [] } }, schema)).toEqual([]);
+  });
+
+  it("skips a member row with no name", () => {
+    const e = { ...entry, customAnswers: { team: [{ m_name: "", m_roll: "VTU999" }, { m_name: "Dee", m_roll: "VTU888" }] } };
+    expect(teamMembersForPublic(e, schema)).toEqual([{ name: "Dee", roll: "VTU888" }]);
   });
 });
