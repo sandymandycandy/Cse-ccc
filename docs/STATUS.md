@@ -20,14 +20,56 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-02)
 
-> **`main @ c60730f` = `origin/main` (clean, deployed).** On 2026-09-01 two things merged
-> **straight to `main` and auto-deployed** (blocks right below the branch note): the public **home
-> redesign + Gallery/Announcements nav**, and **participation certificates**. The
-> `feat/registration-queue` branch below is the only in-flight, unmerged item — you are otherwise on
-> a clean, up-to-date `main`.
+> **`main` = `origin/main` (clean, deployed) — nothing in flight.** Every block below is
+> merged and live: the **event card + event detail redesign and the team-leader form change**, the
+> **registration queue / waiting room / waitlist**, the public **home redesign +
+> Gallery/Announcements nav**, and **participation certificates**. The local branches
+> `feat/registration-queue` and `feat/manual-attendance` are fully contained in `main` (verified with
+> `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
+> human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
-> ### 🟡 ON BRANCH `feat/registration-queue` — Scheduled registration + waiting room + waitlist (2026-09-01)
-> **NOT merged, NOT deployed.** Branched from `main`. Gives events a **scheduled
+> ### ✅ MERGED & PUSHED TO PROD — Event card + event detail page redesign; team leader (2026-09-02)
+> **Merged to `main` and pushed — Vercel auto-deployed.** Owner ask, from screenshots: the home
+> hero's "Next up" card and the public event detail page "have so much space" / "not used correctly",
+> plus a team event must **clearly name the team leader**. **Gate green: typecheck ✓ / lint ✓ / 228
+> tests ✓ / build ✓** (was 221 — +7 for the new pure `team-labels` suite). **No DB migration, no
+> query change** — presentation + one client-side form change only.
+> - **Home "Next up" card** (`src/components/UpcomingCarousel.tsx`): the four label→value rows
+>   (When/Club/**Where**/Seats) are gone. **`Where` dropped per the owner** (it was rendering a bare
+>   room number). A **tear-off date chit** (`SEP / 02`, mono month + serif day) now leads, and the
+>   facts pair into **two full-bleed rows** — date+club, then capacity+CTA — so a card that runs
+>   ~1100px wide on a large monitor stops leaving its right half empty. Seats carry status by colour
+>   and wording (forest/clay/rust), which made the **`OPEN` SeatBadge redundant → removed**. Blurb
+>   clamped to 2 lines so the button doesn't move as events rotate; title scales on `cqi`; eyebrow
+>   says "Next up" only on slide 0, "Coming up" after.
+> - **Event detail page** (`src/app/events/[id]/page.tsx`): **When/Where/Seats moved out of the
+>   sidebar** into a full-width strip under the title (same date chit), leaving the sidebar to do one
+>   job — registration. Page now **caps at 1180px and centres** (it is prose; unlike the hero card it
+>   should not stretch), sidebar capped at 400px. Also **de-duplicates the blurb**: organisers paste
+>   the same text into `blurb` and `description`, and it was printing twice — `description` is now
+>   skipped when identical. Display-only; the DB rows are untouched.
+> - **Team leader** (`src/components/RegisterForm.tsx` + new `src/lib/registration-form/team-labels.ts`):
+>   team row 0 is headed **"Team leader"** (forest, green left accent) instead of "Member 1", every
+>   field on that row is **prefixed** ("Team leader name", "Team leader VTU number"), and later rows
+>   **renumber from Member 2**. Prefixing reads off the club's own labels — it strips a redundant
+>   leading "member"/"team member" so you never get "Team leader team member name", and preserves
+>   acronyms so "VTU" doesn't become "Vtu". **The leader row can no longer be removed** (it was
+>   removable, which would have silently promoted whoever was second). Label logic is a **pure tested
+>   module**, matching how `retry`/`phase`/`waitlist` are organised.
+> - **CSS** (`globals.css`): new `.evc-*` (card) and `.evd-*` (detail) blocks + `.team-row`. The card
+>   is sized by a **`@container (max-width: 540px)` query, not a viewport one** — it is a hero column
+>   that is wide on a big monitor and narrow once the hero stacks at 899px, so it must lay itself out
+>   from its own width. First use of container queries in this codebase.
+> - **⚠️ OWED — human browser walkthrough.** Everything here was verified against **served HTML** on a
+>   dev server (the Chrome extension was not connected, so nothing was checked by eye). Worth a look:
+>   the two cards at your real window width, the meta strip's dividers, and **+ Add member** →
+>   confirm the second row reads "Member 2" and offers Remove while the leader row does not.
+> - **Not touched:** the `EventCard` used in the Upcoming events grid further down the home page still
+>   carries its own `OPEN` badge and old layout — a matching pass is unclaimed.
+
+> ### ✅ MERGED & PUSHED TO PROD — Scheduled registration + waiting room + waitlist (2026-09-01)
+> **Merged to `main` and deployed** (`470f410` → `8c70ae0`, contained in `main @ c1b3868`; the
+> `feat/registration-queue` branch is now redundant). Gives events a **scheduled
 > registration open time** (public countdown before it opens), a **"holding your place"
 > waiting-room submit** during the open-time rush (no raw errors; FCFS — the existing
 > per-event anti-oversell lock is untouched), and a **manual-promote waitlist** for the
@@ -68,8 +110,8 @@ end-to-end**, not a checklist of components.
 >   the student moves to confirmed and a `registration_promoted` row queues in
 >   `email_log`. Then set **Registration closes** in the past → page shows "closed".
 > - **Plan + spec:** `docs/superpowers/{plans,specs}/2026-09-01-registration-queue*`.
-> - **Next (owner's call):** the human walkthrough, then merge `feat/registration-queue`
->   → `main` → push (auto-deploys). The legacy `public.waitlist` table is now unused but
+> - **Still owed:** the human walkthrough above (the code is already live in prod, so run it
+>   against https://cse-ccc.vercel.app). The legacy `public.waitlist` table is now unused but
 >   deliberately **not** dropped (a later held drop).
 
 > ### ✅ MERGED & PUSHED TO PROD — Participation certificates: issue + email PDFs (2026-09-01)

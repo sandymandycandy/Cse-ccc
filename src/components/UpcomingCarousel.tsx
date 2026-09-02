@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
 import { ButtonLink } from "./ui/Button";
 import { Panel } from "./ui/Surface";
-import { SeatBadge } from "./ui/Badge";
 import { ProgressBar } from "./ui/ProgressBar";
 import type { EventSummary } from "@/lib/types";
 
@@ -14,7 +12,6 @@ const ROTATE_MS = 5000;
  * The hero's right-hand panel: auto-rotates through the next few upcoming
  * events (~5s each), pausing on hover/focus and honouring reduced-motion.
  * Arrows + dots switch manually. Empty list → the "nothing scheduled" card.
- * Ports the old static NextEventPanel markup so the visual is unchanged.
  */
 export function UpcomingCarousel({ events }: { events: EventSummary[] }) {
   const count = events.length;
@@ -38,23 +35,16 @@ export function UpcomingCarousel({ events }: { events: EventSummary[] }) {
 
   return (
     <div
+      className="evc"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
     >
       <Panel aria-roledescription="carousel" aria-label="Upcoming events">
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 12,
-            minHeight: 28,
-          }}
-        >
+        <div className="evc-head">
           <span className="eyebrow" style={{ fontSize: 10.5, letterSpacing: ".2em" }}>
-            Next up
+            {active === 0 ? "Next up" : "Coming up"}
           </span>
           {count > 1 ? (
             <div className="hcar-nav">
@@ -102,68 +92,71 @@ function EventBody({ event }: { event: EventSummary }) {
   const seatsLeft = Math.max(0, event.capacity - event.registered);
   const pct = event.capacity > 0 ? (event.registered / event.capacity) * 100 : 0;
   const isFull = event.status === "full";
-  const dateShort = `${event.dateLabel.split(" · ")[0]} ${event.day}`;
+  const capped = event.capacity > 0;
+  // dateLabel is "Aug · Fri" — month leads the chit, weekday sits beside it.
+  const [month, weekday] = event.dateLabel.split(" · ");
+
+  // Seats carry the status: colour + wording replace a separate badge.
+  const seatTone = isFull ? "var(--rust)" : event.status === "fast" ? "var(--clay)" : "var(--forest)";
+  const seatText = !capped
+    ? "Open entry"
+    : isFull
+      ? "Full — waitlist open"
+      : `${seatsLeft} ${seatsLeft === 1 ? "seat" : "seats"} left`;
 
   return (
     <>
-      <h3 style={{ marginTop: 12, fontSize: 31 }}>{event.title}</h3>
-      {event.blurb ? (
-        <p className="body-text" style={{ marginTop: 8 }}>
-          {event.blurb}
-        </p>
-      ) : null}
-      <div
-        style={{
-          marginTop: 18,
-          display: "flex",
-          flexDirection: "column",
-          gap: 9,
-          font: "400 13.5px var(--sans)",
-        }}
-      >
-        <Row k="When" v={`${dateShort} · ${event.timeLabel}`} />
-        <Row k="Club" v={event.club} />
-        <Row k="Where" v={event.venue} />
-        <Row
-          k="Seats"
-          v={
-            event.capacity > 0 ? (
-              <span style={{ color: "var(--clay)" }}>{seatsLeft} seats left</span>
-            ) : (
-              "Open entry"
-            )
-          }
-        />
+      <div className="evc-meta">
+        <div className="evc-when">
+          <div className="evc-date" aria-hidden="true">
+            <span className="m">{month}</span>
+            <span className="d">{event.day}</span>
+          </div>
+          <div className="evc-clock">
+            <span className="k">{weekday}</span>
+            <span className="v">{event.timeLabel}</span>
+          </div>
+          {/* the chit repeats the date visually — screen readers hear it once, in order */}
+          <span className="sr-only">{`${weekday} ${event.day} ${month}, ${event.timeLabel}`}</span>
+        </div>
+        <div className="evc-club">{event.club}</div>
       </div>
-      {event.capacity > 0 ? (
-        <ProgressBar
-          value={pct}
-          tone={isFull ? "rust" : "forest"}
-          className="mt-4"
-          label={`${event.registered} of ${event.capacity} seats filled`}
-        />
-      ) : null}
-      <div style={{ marginTop: 16, display: "flex", gap: 10, alignItems: "center" }}>
+
+      {/* cqi so the title tracks the card, which is a wide hero column on a big
+          monitor and a narrow one once the hero stacks */}
+      <h3 style={{ marginTop: 20, fontSize: "clamp(27px, 3.4cqi, 40px)", lineHeight: 1.08 }}>
+        {event.title}
+      </h3>
+      {event.blurb ? <p className="body-text evc-blurb">{event.blurb}</p> : null}
+
+      <div className="evc-act">
+        <div className="evc-cap">
+          <div className="evc-seats">
+            <span style={{ color: seatTone }}>{seatText}</span>
+            {/* the total only earns its place once seats are actually taken —
+                before that it just repeats "seats left" */}
+            {capped && event.registered > 0 ? (
+              <span className="t">of {event.capacity}</span>
+            ) : null}
+          </div>
+          {capped ? (
+            <ProgressBar
+              value={pct}
+              tone={isFull ? "rust" : "forest"}
+              label={`${event.registered} of ${event.capacity} seats filled`}
+            />
+          ) : null}
+        </div>
         <ButtonLink
           href={`/events/${event.id}`}
           variant="accent"
-          className="flex-1"
+          className="evc-cta"
           style={{ borderRadius: "var(--r-sm)" }}
         >
-          {isFull ? "Join waitlist" : "Register"}
+          {isFull ? "Join the waitlist" : "Register"}
         </ButtonLink>
-        <SeatBadge status={event.status} />
       </div>
     </>
-  );
-}
-
-function Row({ k, v }: { k: string; v: ReactNode }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between" }}>
-      <span style={{ color: "var(--ink-3)" }}>{k}</span>
-      <span>{v}</span>
-    </div>
   );
 }
 

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "./ui/Button";
 import { defaultFormFor, LAYOUT_KINDS, type FormField } from "@/lib/registration-form/schema";
 import { shouldRetry, nextDelay, MAX_ATTEMPTS, type RetryOutcome } from "@/lib/registration/retry";
+import { leaderLabel, memberHeading } from "@/lib/registration-form/team-labels";
 
 type Result = {
   status?: string;
@@ -386,31 +387,41 @@ function TeamField({
         {field.required ? "" : " (optional)"}
       </label>
       <div className="stack" style={{ gap: 10 }}>
-        {rows.map((row, idx) => (
-          <div key={idx} className="card" style={{ padding: 10 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span className="label">Member {idx + 1}</span>
-              {rows.length > min ? (
-                <button type="button" className="btn btn-sm btn-ghost" onClick={() => removeRow(idx)}>
-                  Remove
-                </button>
-              ) : null}
-            </div>
-            {subs.map((sf) => (
-              <div className="field" key={sf.key} style={{ marginTop: 6 }}>
-                <label>
-                  {sf.label}
-                  {sf.required ? "" : " (optional)"}
-                </label>
-                <input
-                  type={sf.kind === "email" ? "email" : sf.kind === "phone" ? "tel" : "text"}
-                  value={row[sf.key] ?? ""}
-                  onChange={(e) => setCell(idx, sf.key, e.target.value)}
-                />
+        {rows.map((row, idx) => {
+          const isLeader = idx === 0;
+          return (
+            <div key={idx} className={`card team-row${isLeader ? " is-leader" : ""}`}>
+              <div className="team-row-head">
+                <span className="label">{memberHeading(idx)}</span>
+                {/* the leader is row 0 by convention — removing it would silently
+                    promote someone else, so only the later rows can be removed */}
+                {!isLeader && rows.length > min ? (
+                  <button type="button" className="btn btn-sm btn-ghost" onClick={() => removeRow(idx)}>
+                    Remove
+                  </button>
+                ) : null}
               </div>
-            ))}
-          </div>
-        ))}
+              {isLeader ? (
+                <span className="hint" style={{ display: "block", marginTop: 2 }}>
+                  Enter the leader&rsquo;s own details here.
+                </span>
+              ) : null}
+              {subs.map((sf) => (
+                <div className="field" key={sf.key} style={{ marginTop: 6 }}>
+                  <label>
+                    {isLeader ? leaderLabel(sf.label) : sf.label}
+                    {sf.required ? "" : " (optional)"}
+                  </label>
+                  <input
+                    type={sf.kind === "email" ? "email" : sf.kind === "phone" ? "tel" : "text"}
+                    value={row[sf.key] ?? ""}
+                    onChange={(e) => setCell(idx, sf.key, e.target.value)}
+                  />
+                </div>
+              ))}
+            </div>
+          );
+        })}
       </div>
       {rows.length < max ? (
         <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 6 }} onClick={addRow}>
