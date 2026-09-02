@@ -18,13 +18,24 @@ end-to-end**, not a checklist of components.
 
 ---
 
-## 🚦 START HERE — current git/deploy state (2026-09-02)
+## 🚦 START HERE — current git/deploy state (2026-09-03)
 
-> **`174df5f` + `52590f7` shipped four blocks to prod (2026-09-03): the Gallery Manager role, team names +
-> roster search, and the results button + podium. ⚠️ ONE BLOCK IS IN FLIGHT** — the results-page
-> redesign below, uncommitted, though **its migrations ARE applied**. Read its PII note before
-> touching anything that reads registration data on a public page. Every block below is
-> merged and live: the **contact page redesign + leadership query notifications**,
+> **`main` = `origin/main` (clean, deployed) — nothing in flight.** Seven commits shipped on
+> 2026-09-03, all live and all their migrations applied and verified:
+> `174df5f` gallery-only role + team names + roster search + results button ·
+> `52590f7` champion-led results page · `2fe3f8a` results layout fix + member backfill ·
+> `ca9530c` team name as an identity block · `107b3b6` attendance split ·
+> `1ec5402` council split + council analytics · `517cbb6` equal member weight + simpler standings.
+>
+> **Two things to read before touching related code:** the **PII boundary** recorded in the
+> results blocks (the anon role has no select on `registrations`, and a join across it fails
+> live while every CI check stays green), and the **`.stack` trap** in the layout-fix block
+> (it is a horizontal flex row, not a column).
+>
+> **What is owed:** a **phone-width look at the public results page** — it has only ever been
+> verified by fetching HTML — and a **signed-in walkthrough of the attendance and council
+> dashboards**, which need a login this session never had. Older blocks below are also merged
+> and live: the **contact page redesign + leadership query notifications**,
 > **Faculty + VP full access (a security-boundary change — read that block)**, the
 > **participants roster + responsive admin tables**, the
 > **event card + event detail redesign and the team-leader form change**, the
@@ -155,8 +166,8 @@ end-to-end**, not a checklist of components.
 >   `src/app/api/admin/registrations/export/route.ts`, the participants / registrations / results
 >   admin pages, `src/app/events/[id]/results/page.tsx`, `src/lib/database.types.ts`.
 
-> ### 🎨 IN FLIGHT — Results page redesign: champion-led, team members, share (2026-09-03)
-> **Uncommitted, NOT deployed. ✅ Migrations applied + verified live.** Owner picked a champion-led
+> ### ✅ MERGED & PUSHED TO PROD — Results page redesign: champion-led, team members, share (2026-09-03)
+> **Shipped in `52590f7`. Migrations applied + verified live.** Owner picked a champion-led
 > editorial direction over a stepped podium or an honour-roll, and added: event context, a share
 > link, and **"team name and their members also displayed"** — later narrowed to
 > **"their name and VTU is enough"**. **Gate: typecheck ✓ / lint ✓ / 324 tests ✓.**
@@ -180,19 +191,16 @@ end-to-end**, not a checklist of components.
 > - **Event context + share:** the page prints club · date · venue so a shared link stands on its own,
 >   and `ShareButton` uses the native share sheet where a browser offers one (phones — where results
 >   actually get passed around) and falls back to copying the link.
-> - **⚠️ STILL NOT SEEN AT PHONE WIDTH.** The Chrome extension was not connected this session, so no
->   screenshot was possible. What *was* verified: the page returns 200 and renders the champion, three
->   runner cards (Second / Third / Third), the context line and the 21-row table; every new class is
->   present in the served stylesheet; and there are no fixed `min-width` rules that could overflow a
->   narrow screen. **The layout has never been looked at.** Worth one human check.
+> - **⚠️ Desktop layout was WRONG on ship and fixed in `2fe3f8a`** — see that block. A screenshot from
+>   the owner caught it; no automated check did. **Phone width is still unverified.**
 > - **Files:** new `src/components/ShareButton.tsx`, new
 >   `supabase/migrations/20260903000000_results_team_members.sql`, `src/app/events/[id]/results/page.tsx`,
 >   `src/app/globals.css`, `src/lib/queries.ts`, `src/lib/admin/results.ts`,
 >   `src/lib/registration-form/participants.{ts,test.ts}`, `src/lib/podium.test.ts`,
 >   `src/app/admin/(app)/events/[id]/results/{actions.ts,ResultsEditor.tsx}`, `src/lib/database.types.ts`.
 
-> ### ⚖️ IN FLIGHT — Results: equal weight for every member, simpler standings (2026-09-03)
-> **Uncommitted. No migration.** Owner, from a screenshot: "equal weightage for all the members" and
+> ### ✅ MERGED & PUSHED TO PROD — Results: equal weight for every member, simpler standings (2026-09-03)
+> **Shipped in `517cbb6`. No migration.** Owner, from a screenshot: "equal weightage for all the members" and
 > "full standings feels clumsy". **Gate: typecheck ✓ / lint ✓ / 327 tests ✓ / build ✓** (+4 for
 > `entrantsOf`).
 > - **What was wrong:** the registrant was set in huge display type and their teammates were shrunk
@@ -214,8 +222,8 @@ end-to-end**, not a checklist of components.
 > - **Files:** `src/lib/podium.{ts,test.ts}`, `src/app/events/[id]/results/page.tsx`,
 >   `src/app/globals.css`.
 
-> ### 📋 IN FLIGHT — Attendance + Council split: create-first, analytics on its own page (2026-09-03)
-> **Uncommitted. No migration, no schema change.** Owner: session history below the create form, and
+> ### ✅ MERGED & PUSHED TO PROD — Attendance + Council split: create-first, analytics on its own page (2026-09-03)
+> **Shipped in `107b3b6` (attendance) + `1ec5402` (council). No migration, no schema change.** Owner: session history below the create form, and
 > "all others" behind an Analytics button. **Gate: typecheck ✓ / lint ✓ / 323 tests ✓ / build ✓.**
 > - **The dashboard is now the "run a session" surface:** club picker → **create session** → session
 >   history. Analytics and the per-member roster moved to **`/admin/attendance/analytics`**, reached
@@ -251,8 +259,8 @@ end-to-end**, not a checklist of components.
 >   `src/app/admin/(app)/council/analytics/page.tsx`, `src/app/admin/(app)/attendance/page.tsx`,
 >   `src/app/admin/(app)/council/page.tsx`, `src/lib/admin/attendance-council.ts`.
 
-> ### 🧾 IN FLIGHT — Team name is now a real identity block (2026-09-03)
-> **Uncommitted. ✅ Form backfill applied live.** Owner: "there's no team name in the identity block
+> ### ✅ MERGED & PUSHED TO PROD — Team name is now a real identity block (2026-09-03)
+> **Shipped in `ca9530c`. Form backfill applied live.** Owner: "there's no team name in the identity block
 > in the events." **Gate: typecheck ✓ / lint ✓ / 323 tests ✓ / build ✓.**
 > - **What was wrong:** team name was NOT a schema field. It rode on a reserved payload key
 >   (`__team_name`) and was injected into the public form automatically whenever the form had a team
@@ -279,8 +287,8 @@ end-to-end**, not a checklist of components.
 >   `src/app/api/registrations/route.ts`, new
 >   `supabase/migrations/20260903010000_team_name_identity_block.sql`.
 
-> ### 🩹 IN FLIGHT — Results layout fix + member backfill (2026-09-03)
-> **Uncommitted.** Owner sent a screenshot: content squeezed into the left half of a wide monitor,
+> ### ✅ MERGED & PUSHED TO PROD — Results layout fix + member backfill (2026-09-03)
+> **Shipped in `2fe3f8a`.** Owner sent a screenshot: content squeezed into the left half of a wide monitor,
 > the runner cards in an awkward 2+1, and "where are their members". **Gate: typecheck ✓ / lint ✓ /
 > 324 tests ✓ / build ✓.** Three symptoms, ONE root cause plus one data gap.
 > - **⚠️ ROOT CAUSE — `.stack` IS A HORIZONTAL FLEX ROW** (`display:flex; flex-wrap:wrap;
@@ -311,8 +319,7 @@ end-to-end**, not a checklist of components.
 > - **Files:** `src/app/events/[id]/results/page.tsx`, `src/app/globals.css`, `docs/STATUS.md`.
 
 > ### ✅ MERGED & PUSHED TO PROD — Gallery Manager: a gallery-only admin role (2026-09-02)
-> **Uncommitted in the working tree on `main`. NOT committed, NOT deployed. The DB migration is
-> NOT applied.** Owner ask: "a special
+> **Shipped in `174df5f`. Migration applied + verified live.** Owner ask: "a special
 > admin login page to one user … he can access only the gallery page". **Gate green: typecheck ✓ /
 > lint ✓ / 283 tests ✓ / build ✓** (was 273 — +10 across the new `gallery_manager` and
 > `adminHomePath` suites). **This is a security-boundary change.**
@@ -1104,6 +1111,28 @@ create/update, resources CRUD, gallery CRUD, and **achievements CRUD** (incl.
 image upload). Read paths for all are ✅.
 
 ### ✅ Manual-verification checklist (do these in a browser before trusting in prod)
+
+**⚠️ OWED FROM 2026-09-03 — highest value first.** Everything below shipped with
+typecheck + lint + tests + build green, and the desktop results layout was still
+visibly broken; only an owner screenshot caught it. Automated checks do not cover
+layout, and admin pages were never opened at all this session.
+
+0a. **Public results at PHONE width** — `/events/<id>/results` (PITCH DESK:
+    `4f6a6f19-7435-4c14-947f-fdce1cfec8d1`). Confirm the champion card, the runner
+    grid and the standings table collapse cleanly. **Never been looked at on a
+    phone.** The desktop version needed two rounds of fixes.
+0b. **Attendance + Council dashboards, signed in** — `/admin/attendance` and
+    `/admin/council`. Confirm the **create form leads** and history sits below it,
+    then click **Analytics** and confirm the club carries across (`?club=`) and the
+    watchlist threshold still applies. These pages need a login the session never
+    had, so they were verified only by route + build.
+0c. **Register a team on a live team event** — the new **Team name** identity block
+    and member capture have never run end-to-end; they are unit-tested and the RPC
+    was probed, but no real team has registered since.
+0d. **Invite a Gallery Manager** — `/admin/users` → role Gallery Manager → confirm
+    they land on `/admin/gallery`, see one nav item, and that `/admin/events`,
+    `/admin/announcements` and `/admin/users` all bounce them back.
+
 Server-action POSTs can't be curled (see Gotchas), so these were verified by
 build + render + schema-check but **not by executing the mutation**:
 1. **Event edit** (§4a): log in → Events → Edit → change time → Save → row updates, approval status unchanged.
@@ -1396,6 +1425,23 @@ flow as always.
 
 ## TODO — remaining work (ordered; pick the top unblocked item)
 
+0. **🔐 SECURITY — two open items, neither introduced by feature work.**
+   - **Two admin passwords are in git history as FILENAMES.** `password=…!Staple7`
+     and `password=…!River4` sit at the repo root, tracked since `a90fac4`, on a
+     public GitHub repo. Their *contents* are harmless (empty curl cookie jars from
+     a mangled `curl -c`), but the names carry the credentials. **If those are real
+     admin passwords, rotate them.** Deleting the files does NOT remove them from
+     history; purging history is a rewrite and the owner's call. Left in place
+     deliberately — flagged, not touched.
+   - **A stale `register_for_event` overload is still in the database:**
+     `(uuid,text,text,text,text,text,integer,text)` ending in `p_confirm_token_hash`,
+     a leftover from the confirm-token era. Still `security definer`, still granted
+     to `service_role`, called by nothing. **Not ambiguous** with the live 9-arg
+     function (no `p_custom_answers`, so a named call cannot match it), so it is
+     harmless today — but it is dead, privileged surface. Dropping it is
+     destructive, so it needs a human decision.
+
+
 1. **Browser-verify the shipped content verticals.** Resources + gallery +
    achievements are pushed & live. Run their items on the manual-verification
    checklist in a browser (CRUD POSTs can't be curled), and close out the older
@@ -1487,6 +1533,21 @@ git push origin main   # deploy to production
 
 ## Gotchas (learned the hard way)
 
+- **Green checks do not mean the page is right.** On 2026-09-03 the public results
+  page shipped with typecheck + lint + 313 tests + build all passing while it was
+  visibly broken on a wide monitor, and separately rendered "not published yet" for
+  an event that *had* results. Nothing in CI covers layout, and a Supabase query
+  error was being swallowed. **Look at the page**, and probe the live anon client.
+- **`.stack` is a HORIZONTAL flex row** (`display:flex; flex-wrap:wrap;
+  align-items:center`), for button groups. Used as a vertical container it makes
+  every child shrink-wrap to its content — which is what squeezed the results page
+  into the left half of the screen. For a column use a grid, not `.stack`.
+- **The anon role has NO select on `public.registrations`** — it is PII (names,
+  emails, phones, roll numbers). A public page that joins to it fails live with
+  `42501` while every CI check stays green. Denormalise what the public needs onto
+  the row being read (`results.display_name`, `results.team_name`,
+  `results.team_members`) and **project it down to the fields that may be public**
+  — never widen the grant.
 - **Server-action POSTs can't be driven over curl** ("Failed to find Server
   Action"). Verify admin mutations in a real browser, or apply the DB effect
   directly (Supabase MCP) and assert the read path. Route-handler APIs curl fine.
