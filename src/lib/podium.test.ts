@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { podiumOf } from "./podium";
+import { podiumOf, entrantsOf } from "./podium";
 
 const r = (rank: number | null, roll: string) => ({
   roll_no: roll, display_name: roll, team_name: null, team_members: null,
@@ -34,5 +34,35 @@ describe("podiumOf — the top three of a round", () => {
 
   it("orders by rank even if the input is not sorted", () => {
     expect(podiumOf([r(3, "c"), r(1, "a"), r(2, "b")]).map((x) => x.roll_no)).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("entrantsOf — everyone on an entry, weighted equally", () => {
+  const row = (over: Partial<Parameters<typeof entrantsOf>[0]> = {}) => ({
+    roll_no: "VTU100", display_name: "Asha Rao", team_name: null,
+    team_members: null, rank: 1, score: null, advanced: false, remarks: null,
+    ...over,
+  });
+
+  it("puts the registrant first, then the rest of the team", () => {
+    expect(entrantsOf(row({
+      team_members: [{ name: "Bob Singh", roll: "VTU202" }, { name: "Cara M", roll: "VTU303" }],
+    }))).toEqual([
+      { name: "Asha Rao", roll: "VTU100" },
+      { name: "Bob Singh", roll: "VTU202" },
+      { name: "Cara M", roll: "VTU303" },
+    ]);
+  });
+
+  it("is a single entry for a solo competitor", () => {
+    expect(entrantsOf(row())).toEqual([{ name: "Asha Rao", roll: "VTU100" }]);
+  });
+
+  it("falls back to the roll when a name was never recorded", () => {
+    expect(entrantsOf(row({ display_name: null }))).toEqual([{ name: "VTU100", roll: "VTU100" }]);
+  });
+
+  it("treats an empty team array as solo", () => {
+    expect(entrantsOf(row({ team_members: [] }))).toEqual([{ name: "Asha Rao", roll: "VTU100" }]);
   });
 });

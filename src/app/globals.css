@@ -931,14 +931,30 @@
     text-transform: uppercase;
     color: var(--forest-deep);
   }
-  .champion-name {
-    margin-top: 10px;
-    /* the one piece of large type on the page */
-    font: 400 clamp(30px, 6vw, 46px) / 1.05 var(--serif);
-    letter-spacing: -0.015em;
+  /* Everyone on an entry is set at the SAME size: a team's rank belongs to the
+     team, so featuring the registrant and shrinking their teammates into a
+     caption misrepresents the result. Hierarchy lives BETWEEN the cards
+     (champion type is larger than a runner's), never inside one. */
+  .entrants { margin-top: 10px; display: grid; gap: 2px; }
+  .entrant {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
     color: var(--ink);
     overflow-wrap: anywhere;
   }
+  .entrant .roll {
+    font: 400 11.5px var(--mono);
+    color: var(--ink-3);
+  }
+  .champion .entrant {
+    font: 400 clamp(24px, 3.6vw, 34px) / 1.15 var(--serif);
+    letter-spacing: -0.01em;
+  }
+  .champion .entrant .roll { font-size: 12.5px; }
+  .runner .entrant { font: 400 18px / 1.25 var(--serif); }
+
   .champion-foot {
     margin-top: 16px;
     padding-top: 14px;
@@ -980,14 +996,10 @@
     color: var(--ink-3);
   }
   .runner[data-place="2"] .runner-place { color: var(--clay); }
-  .runner-name {
-    margin-top: 6px;
-    font: 400 21px / 1.2 var(--serif);
-    color: var(--ink);
-    overflow-wrap: anywhere;
-  }
   .runner-foot {
-    margin-top: 10px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line-2);
     display: flex;
     justify-content: space-between;
     align-items: baseline;
@@ -996,6 +1008,17 @@
     color: var(--ink-2);
   }
   .runner-foot .score { font: 500 15px var(--mono); color: var(--ink); }
+
+  /* Full standings: one cell per entry listing its people, so a team reads as a
+     team instead of a name column plus a comma-jammed "members" column. */
+  .standing-people { display: grid; gap: 2px; }
+  .standing-person {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 3px 8px;
+  }
+  .standing-person .roll { font: 400 11px var(--mono); color: var(--ink-3); }
 
   /* Team identity, shared by both card sizes. */
   .result-team {
@@ -1006,17 +1029,6 @@
     color: var(--forest);
     overflow-wrap: anywhere;
   }
-  .result-members {
-    margin-top: 6px;
-    font: 400 13px / 1.5 var(--sans);
-    color: var(--ink-2);
-    overflow-wrap: anywhere;
-  }
-  .result-members .roll {
-    font: 400 11.5px var(--mono);
-    color: var(--ink-3);
-  }
-
   /* The event's identity, so a shared link stands on its own. */
   .results-context {
     margin-top: 10px;

@@ -191,6 +191,29 @@ end-to-end**, not a checklist of components.
 >   `src/lib/registration-form/participants.{ts,test.ts}`, `src/lib/podium.test.ts`,
 >   `src/app/admin/(app)/events/[id]/results/{actions.ts,ResultsEditor.tsx}`, `src/lib/database.types.ts`.
 
+> ### ⚖️ IN FLIGHT — Results: equal weight for every member, simpler standings (2026-09-03)
+> **Uncommitted. No migration.** Owner, from a screenshot: "equal weightage for all the members" and
+> "full standings feels clumsy". **Gate: typecheck ✓ / lint ✓ / 327 tests ✓ / build ✓** (+4 for
+> `entrantsOf`).
+> - **What was wrong:** the registrant was set in huge display type and their teammates were shrunk
+>   into a caption underneath. **A team's rank belongs to the team**, so that misrepresented the
+>   result — it read as one winner with an assistant.
+> - **Now:** `entrantsOf()` (`src/lib/podium.ts`) returns the registrant plus the team as ONE flat
+>   list, and both the cards and the table render every person at the same size. Hierarchy lives
+>   **between** cards (champion type is larger than a runner's), never inside one. The registrant
+>   leads the list only because the result row is keyed by them; nothing styles them differently.
+> - **The standings table was clumsy for a concrete reason:** it had Name, Roll, Team AND Members
+>   columns all describing the same entry — with **Team entirely "—"** (these entries have members but
+>   no team name) and Members a comma-jammed string. Now: **Rank | Participants** (one cell listing
+>   the entry's people) plus Score/Advanced/Remarks when the organiser published them.
+> - **⚠️ The dead-column bug, so it isn't reintroduced:** the Team column was gated on "has any team
+>   data", which is true when members exist. It is now gated on **team NAMES existing** specifically.
+> - **✅ Verified in the rendered page:** champion card shows Mohanrao Adduri and Dadipineni Bhargavi
+>   as sibling `.entrant` rows; headers are Rank + Participants only (Score is hidden because this
+>   round has `show_score = false`); 61 people listed across 21 entries; no `data-label="Team"`.
+> - **Files:** `src/lib/podium.{ts,test.ts}`, `src/app/events/[id]/results/page.tsx`,
+>   `src/app/globals.css`.
+
 > ### 📋 IN FLIGHT — Attendance + Council split: create-first, analytics on its own page (2026-09-03)
 > **Uncommitted. No migration, no schema change.** Owner: session history below the create form, and
 > "all others" behind an Analytics button. **Gate: typecheck ✓ / lint ✓ / 323 tests ✓ / build ✓.**

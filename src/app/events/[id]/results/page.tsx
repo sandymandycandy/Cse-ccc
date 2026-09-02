@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Panel } from "@/components/ui/Surface";
 import { ShareButton } from "@/components/ShareButton";
 import { getEventDetail, getPublishedResults, type PublishedResult } from "@/lib/queries";
-import { podiumOf } from "@/lib/podium";
+import { podiumOf, entrantsOf } from "@/lib/podium";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -14,16 +14,18 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   return { title: event ? `Results — ${event.title}` : "Results" };
 }
 
-/** "Bob Singh VTU202 · Cara M VTU303" — name + roll, which is all we publish. */
-function Members({ of }: { of: PublishedResult }) {
-  if (!of.team_members || of.team_members.length === 0) return null;
+/**
+ * Everyone on a standing, at one size. The rank belongs to the whole entry, so
+ * nobody on it is rendered as a footnote to anybody else.
+ */
+function Entrants({ of }: { of: PublishedResult }) {
   return (
-    <div className="result-members">
-      {of.team_members.map((m, i) => (
-        <span key={`${m.roll}-${i}`}>
-          {i > 0 ? " · " : ""}
-          {m.name} <span className="roll">{m.roll}</span>
-        </span>
+    <div className="entrants">
+      {entrantsOf(of).map((p, i) => (
+        <div className="entrant" key={`${p.roll}-${i}`}>
+          <span>{p.name}</span>
+          <span className="roll">{p.roll}</span>
+        </div>
       ))}
     </div>
   );
@@ -37,11 +39,10 @@ export default async function EventResultsPage({ params }: Params) {
   ]);
   if (!event) notFound();
 
-  // Solo events, and rounds from before team names existed, keep a table
-  // without the team columns rather than one full of dashes.
-  const hasTeams = rounds.some((r) =>
-    r.results.some((x) => x.team_name || (x.team_members?.length ?? 0) > 0),
-  );
+  // Only carry a Team column when team names actually exist. Checking "has any
+  // team data" instead put a column of dashes next to every row on events whose
+  // entries have members but no name.
+  const hasTeamNames = rounds.some((r) => r.results.some((x) => x.team_name));
 
   return (
     <section className="section results" style={{ paddingTop: 56 }}>
@@ -82,15 +83,14 @@ export default async function EventResultsPage({ params }: Params) {
                     <div className="champion-eyebrow">
                       {champions.length > 1 ? "Joint champion" : "Champion"}
                     </div>
-                    <div className="champion-name">{c.display_name ?? c.roll_no}</div>
                     {c.team_name ? <div className="result-team">{c.team_name}</div> : null}
-                    <Members of={c} />
-                    <div className="champion-foot">
-                      <span>{c.roll_no}</span>
-                      {showScore && c.score != null ? (
+                    <Entrants of={c} />
+                    {showScore && c.score != null ? (
+                      <div className="champion-foot">
+                        <span>Score</span>
                         <span className="score">{c.score}</span>
-                      ) : null}
-                    </div>
+                      </div>
+                    ) : null}
                   </div>
                 ))}
 
@@ -101,15 +101,14 @@ export default async function EventResultsPage({ params }: Params) {
                         <div className="runner-place">
                           {r.rank === 2 ? "Second" : "Third"}
                         </div>
-                        <div className="runner-name">{r.display_name ?? r.roll_no}</div>
                         {r.team_name ? <div className="result-team">{r.team_name}</div> : null}
-                        <Members of={r} />
-                        <div className="runner-foot">
-                          <span>{r.roll_no}</span>
-                          {showScore && r.score != null ? (
+                        <Entrants of={r} />
+                        {showScore && r.score != null ? (
+                          <div className="runner-foot">
+                            <span>Score</span>
                             <span className="score">{r.score}</span>
-                          ) : null}
-                        </div>
+                          </div>
+                        ) : null}
                       </li>
                     ))}
                   </ol>
@@ -121,19 +120,19 @@ export default async function EventResultsPage({ params }: Params) {
                   </div>
                 ) : null}
 
-                {/* `.tablewrap.cards` turns each row into a readable card below
-                    720px, so a phone never has to pan sideways. */}
+                {/* One row per entry, one cell listing its people — rather than a
+                    Name column, a Roll column and a comma-jammed Members column
+                    all describing the same entry. `.tablewrap.cards` collapses
+                    each row to a card below 720px. */}
                 <div className="tablewrap cards" style={{ marginTop: 12 }}>
                   <table className="admin">
                     <thead>
                       <tr>
-                        <th style={{ width: 56 }}>Rank</th>
-                        <th>Name</th>
-                        <th>Roll</th>
-                        {hasTeams ? <th>Team</th> : null}
-                        {hasTeams ? <th>Members</th> : null}
-                        {showScore ? <th>Score</th> : null}
-                        {round.showAdvanced ? <th>Advanced</th> : null}
+                        <th style={{ width: 64 }}>Rank</th>
+                        {hasTeamNames ? <th>Team</th> : null}
+                        <th>Participants</th>
+                        {showScore ? <th style={{ width: 90 }}>Score</th> : null}
+                        {round.showAdvanced ? <th style={{ width: 100 }}>Advanced</th> : null}
                         {round.showRemarks ? <th>Remarks</th> : null}
                       </tr>
                     </thead>
@@ -143,22 +142,19 @@ export default async function EventResultsPage({ params }: Params) {
                           <td data-label="Rank" style={{ color: "var(--ink-3)" }}>
                             {r.rank ?? "—"}
                           </td>
-                          <td data-primary="" style={{ fontWeight: 500 }}>
-                            {r.display_name ?? "—"}
-                          </td>
-                          <td data-label="Roll" style={{ color: "var(--ink-2)" }}>
-                            {r.roll_no}
-                          </td>
-                          {hasTeams ? (
+                          {hasTeamNames ? (
                             <td data-label="Team">{r.team_name ?? "—"}</td>
                           ) : null}
-                          {hasTeams ? (
-                            <td data-label="Members">
-                              {r.team_members && r.team_members.length > 0
-                                ? r.team_members.map((m) => `${m.name} ${m.roll}`).join(", ")
-                                : "—"}
-                            </td>
-                          ) : null}
+                          <td data-primary="">
+                            <div className="standing-people">
+                              {entrantsOf(r).map((p, i) => (
+                                <div className="standing-person" key={`${p.roll}-${i}`}>
+                                  <span>{p.name}</span>
+                                  <span className="roll">{p.roll}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
                           {showScore ? <td data-label="Score">{r.score ?? "—"}</td> : null}
                           {round.showAdvanced ? (
                             <td data-label="Advanced" style={{ color: "var(--forest)" }}>
