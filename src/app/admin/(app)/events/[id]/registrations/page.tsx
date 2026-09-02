@@ -77,6 +77,14 @@ export default async function RegistrationsPage({
           >
             Certificates
           </Link>
+          {canEdit ? (
+            <Link
+              href={`/admin/events/${id}/email`}
+              className="btn btn-ghost btn-sm"
+            >
+              Email participants
+            </Link>
+          ) : null}
           <a
             href={`/api/admin/registrations/export?event=${id}`}
             className="btn btn-primary btn-sm"

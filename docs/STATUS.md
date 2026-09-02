@@ -199,6 +199,42 @@ end-to-end**, not a checklist of components.
 >   `src/lib/registration-form/participants.{ts,test.ts}`, `src/lib/podium.test.ts`,
 >   `src/app/admin/(app)/events/[id]/results/{actions.ts,ResultsEditor.tsx}`, `src/lib/database.types.ts`.
 
+> ### 📮 IN FLIGHT — Registrants get mail, and it reaches the WHOLE team (2026-09-03)
+> **Uncommitted. No migration** (`email_log.template` is plain `text`, no constraint — verified).
+> Owner: "send mail to those people who done the registration, to all the members", and chose **both**
+> an automatic confirmation and an admin broadcast, plus fixing the leader-only mails.
+> **Gate: typecheck ✓ / lint ✓ / 335 tests ✓ / build ✓** (+8 for `registrationMail`).
+> - **⚠️ THE GAP THIS CLOSES, IN NUMBERS.** PITCH DESK has **24 registrations but 69 distinct valid
+>   addresses** (24 registrant + 48 member rows, deduped). Leader-only mail was reaching roughly a
+>   third of the people. Measured read-only against live data; nothing was sent.
+> - **⚠️ THERE WAS NO REGISTRATION EMAIL AT ALL.** A student registered and heard nothing back — no
+>   confirmation existed in any template. New `registration_confirmed` now goes to every member.
+> - **Three outcomes are kept distinct** in `src/lib/registration/confirm-email.ts` (pure, tested):
+>   `registered` = seat confirmed · `submitted` = shortlist mode, nothing promised · `waitlisted` =
+>   no seat, with position. Telling a waitlisted student "you're registered" is a lie they act on.
+> - **Best-effort by design:** the row is committed before the mail, and the whole notify call is
+>   wrapped — a send failure must never turn a successful sign-up into an error the student retries.
+> - **`shortlistRecipients` → `teamRecipients`.** It now serves confirmation, shortlist, promotion,
+>   cancellation and broadcast. **Only the registrant's address is guaranteed** — member addresses
+>   exist only where the club asked for them.
+> - **✅ Fixed two leader-only mails** (owner approved): **`event_cancelled`** and
+>   **`registration_promoted`** reached only whoever filled the form, so teammates turned up to
+>   cancelled events and never learned they'd got a seat. Both now use `teamRecipients`. **This means
+>   materially more real email is sent than before.**
+> - **New admin broadcast:** `/admin/events/<id>/email`, linked from Registrations (only when the
+>   viewer can manage them — faculty's read grant is not enough to open a send button). Subject +
+>   message, audience = confirmed / including-waitlist, **address counts computed with the same dedup
+>   the send uses** so the button says who it will actually reach. Audited (`participants_email`).
+> - **⚠️ NOT TESTED END-TO-END, DELIBERATELY.** `enqueueEmail` attempts *immediate* delivery and the
+>   dev server points at the **live** database, so a trial run would have mailed real students
+>   unprompted. Wording and recipient-building are unit-tested; delivery uses the same path as every
+>   existing mail. **A human should send one broadcast to a real event and confirm it arrives.**
+> - **Files:** new `src/lib/registration/confirm-email.{ts,test.ts}`, new
+>   `src/app/admin/(app)/events/[id]/email/{page.tsx,actions.ts}`, new
+>   `src/components/admin/BroadcastForm.tsx`, `src/app/api/registrations/route.ts`,
+>   `src/lib/registration-form/recipients.{ts,test.ts}`, `src/app/admin/(app)/events/actions.ts`,
+>   `src/app/admin/(app)/events/[id]/registrations/{page.tsx,actions.ts}`, `src/lib/admin/form-state.ts`.
+
 > ### ✅ MERGED & PUSHED TO PROD — Results: equal weight for every member, simpler standings (2026-09-03)
 > **Shipped in `517cbb6`. No migration.** Owner, from a screenshot: "equal weightage for all the members" and
 > "full standings feels clumsy". **Gate: typecheck ✓ / lint ✓ / 327 tests ✓ / build ✓** (+4 for

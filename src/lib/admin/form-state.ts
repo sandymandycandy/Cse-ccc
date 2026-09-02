@@ -72,3 +72,9 @@ export interface MemberSetupState {
 export interface MemberLoginState {
   error?: string;
 }
+
+export interface BroadcastState {
+  error?: string;
+  /** How many addresses the send actually reached, shown once on success. */
+  sent?: number;
+}

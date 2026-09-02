@@ -3,6 +3,10 @@ import { checkRegistrationLimits } from "@/lib/rate-limit";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { validateFormSchema, defaultFormFor, type FormField } from "@/lib/registration-form/schema";
 import { validateAnswers } from "@/lib/registration-form/answers";
+import { teamRecipients } from "@/lib/registration-form/recipients";
+import { registrationMail, type RegistrationStatus } from "@/lib/registration/confirm-email";
+import { enqueueEmail } from "@/lib/email";
+import { istDayNum, istDateLabel, istTime } from "@/lib/datetime";
 
 function clientIp(request: Request): string {
   const fwd = request.headers.get("x-forwarded-for");
@@ -53,7 +57,7 @@ export async function POST(request: Request) {
   // 4) load the event's stored schema (service role) — the validation authority
   const { data: ev } = await admin
     .from("events")
-    .select("id, registration_form")
+    .select("id, title, starts_at, is_all_day, venue_text, registration_form")
     .eq("id", eventId)
     .maybeSingle();
   if (!ev) return Response.json({ error: "Event not found." }, { status: 404 });
@@ -112,14 +116,89 @@ export async function POST(request: Request) {
     return Response.json({ status, error: "Registration for this event is closed." }, { status: 409 });
   }
   // Waitlisted → look up the assigned position so the form can show "#N".
+  let position: number | null = null;
   if (status === "waitlisted" && row?.registration_id) {
     const { data: pos } = await admin
       .from("registrations")
       .select("waitlist_position")
       .eq("id", row.registration_id)
       .maybeSingle();
-    return Response.json({ status, position: pos?.waitlist_position ?? null });
+    position = pos?.waitlist_position ?? null;
   }
+
+  // Tell the whole team it worked. Best-effort by design: the registration is
+  // already committed, so a mail failure must never turn a successful sign-up
+  // into an error the student sees and retries.
+  if (status === "registered" || status === "submitted" || status === "waitlisted") {
+    try {
+      await notifyTeam({
+        status,
+        event: ev,
+        schema,
+        customAnswers,
+        leaderEmail: identity.email ?? null,
+        leaderName: identity.student_name ?? null,
+        teamName: identity.team_name ?? null,
+        position,
+      });
+    } catch (err) {
+      console.error("registration confirmation email failed", err);
+    }
+  }
+
+  if (status === "waitlisted") return Response.json({ status, position });
   // registered | submitted | duplicate | full → the client renders the message
   return Response.json({ status });
+}
+
+/**
+ * Mail every member of the team that just registered — not only whoever filled
+ * the form in. A teammate who is never told is a teammate who does not turn up.
+ * Member addresses exist only when the club asked for them, so this is
+ * best-effort breadth, never a guarantee.
+ */
+async function notifyTeam(input: {
+  status: RegistrationStatus;
+  event: { id: string; title: string; starts_at: string; is_all_day: boolean; venue_text: string | null };
+  schema: FormField[];
+  customAnswers: Record<string, unknown>;
+  leaderEmail: string | null;
+  leaderName: string | null;
+  teamName: string | null;
+  position: number | null;
+}): Promise<void> {
+  const { status, event, schema, customAnswers, leaderEmail, leaderName, teamName, position } = input;
+
+  const recipients = teamRecipients(schema, customAnswers, leaderEmail);
+  if (recipients.length === 0) return;
+
+  const when = event.is_all_day
+    ? `${istDayNum(event.starts_at)} ${istDateLabel(event.starts_at)}`
+    : `${istDayNum(event.starts_at)} ${istDateLabel(event.starts_at)} · ${istTime(event.starts_at)}`;
+  const mail = registrationMail({
+    status,
+    eventTitle: event.title,
+    when,
+    venue: event.venue_text ?? "",
+    teamName,
+    position,
+  });
+
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  for (const to of recipients) {
+    await enqueueEmail({
+      template: "registration_confirmed",
+      toEmail: to,
+      // Only the registrant's name is known; a teammate is greeted generically
+      // rather than being addressed as the person who filled the form in.
+      toName: to === leaderEmail?.toLowerCase() ? (leaderName ?? undefined) : undefined,
+      subject: mail.subject,
+      payload: {
+        details: mail.details,
+        body: mail.body,
+        url: base ? `${base}/events/${event.id}` : undefined,
+      },
+      priority: 2,
+    });
+  }
 }

@@ -9,7 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getEventForAttendance } from "@/lib/admin/attendance";
 import { getEventFormSchema } from "@/lib/admin/registrations";
 import { isAttendanceEligible } from "@/lib/admin/attendance-eligibility";
-import { shortlistRecipients } from "@/lib/registration-form/recipients";
+import { teamRecipients } from "@/lib/registration-form/recipients";
 import { enqueueEmail } from "@/lib/email";
 import { writeAudit } from "@/lib/admin/audit";
 
@@ -110,7 +110,7 @@ export async function shortlistAction(formData: FormData): Promise<void> {
   const { schema } = await getEventFormSchema(eventId);
   for (const r of rows ?? []) {
     if (r.shortlisted_at) continue; // already shortlisted → don't re-email
-    const recipients = shortlistRecipients(
+    const recipients = teamRecipients(
       schema,
       r.custom_answers as Record<string, unknown> | null,
       r.email,
@@ -155,7 +155,7 @@ export async function promoteWaitlistAction(formData: FormData): Promise<void> {
   const admin = createAdminClient();
   const { data: reg } = await admin
     .from("registrations")
-    .select("id, email, student_name, confirmed_at")
+    .select("id, email, student_name, confirmed_at, custom_answers")
     .eq("id", registrationId)
     .eq("event_id", eventId)
     .maybeSingle();
@@ -167,12 +167,18 @@ export async function promoteWaitlistAction(formData: FormData): Promise<void> {
     .eq("id", registrationId)
     .eq("event_id", eventId);
 
-  if (reg.email) {
-    const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  // The whole team moves off the waitlist together, so the whole team is told.
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  const { schema: promoteSchema } = await getEventFormSchema(eventId);
+  for (const to of teamRecipients(
+    promoteSchema,
+    reg.custom_answers as Record<string, unknown> | null,
+    reg.email,
+  )) {
     await enqueueEmail({
       template: "registration_promoted",
-      toEmail: reg.email,
-      toName: reg.student_name ?? "",
+      toEmail: to,
+      toName: to === reg.email?.toLowerCase() ? (reg.student_name ?? "") : "",
       subject: `A seat opened up — ${ev.title}`,
       payload: { eventTitle: ev.title, url: base ? `${base}/events/${eventId}` : undefined },
       priority: 2,

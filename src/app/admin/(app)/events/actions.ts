@@ -7,6 +7,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminSession } from "@/lib/auth/guards";
 import { canManage } from "@/lib/auth/capabilities";
 import { enqueueEmail } from "@/lib/email";
+import { teamRecipients } from "@/lib/registration-form/recipients";
+import { getEventFormSchema } from "@/lib/admin/registrations";
 import { writeAudit } from "@/lib/admin/audit";
 import { handleImageUpload } from "@/lib/admin/image-upload";
 import { validateFormSchema, defaultFormFor } from "@/lib/registration-form/schema";
@@ -550,22 +552,31 @@ export async function cancelEventAction(
     .eq("id", eventId);
   if (updErr) return { error: "Could not cancel the event. Try again." };
 
-  // Cancellation is material — tell confirmed registrants (§4a pattern).
+  // Cancellation is material — tell confirmed registrants (§4a pattern), and
+  // tell their TEAMMATES too: a member who only hears from the person who filled
+  // the form in is a member who turns up to a cancelled event.
   const { data: regs } = await admin
     .from("registrations")
-    .select("email, student_name")
+    .select("email, student_name, custom_answers")
     .eq("event_id", eventId)
     .not("confirmed_at", "is", null);
+  const { schema: cancelSchema } = await getEventFormSchema(eventId);
   for (const r of regs ?? []) {
-    if (!r.email) continue;
-    await enqueueEmail({
-      template: "event_cancelled",
-      toEmail: r.email,
-      toName: r.student_name ?? undefined,
-      subject: `Cancelled: ${ev.title}`,
-      payload: { eventId, title: ev.title, reason: reason || null },
-      priority: 2,
-    });
+    const recipients = teamRecipients(
+      cancelSchema,
+      r.custom_answers as Record<string, unknown> | null,
+      r.email,
+    );
+    for (const to of recipients) {
+      await enqueueEmail({
+        template: "event_cancelled",
+        toEmail: to,
+        toName: to === r.email?.toLowerCase() ? (r.student_name ?? undefined) : undefined,
+        subject: `Cancelled: ${ev.title}`,
+        payload: { eventId, title: ev.title, reason: reason || null },
+        priority: 2,
+      });
+    }
   }
 
   await writeAudit({

@@ -3,10 +3,17 @@ import { type FormField } from "./schema";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
- * Recipients for the shortlist email: the leader's email plus every team-member
- * email captured in the stored answers. Deduped, lowercased, validated, capped.
+ * Everyone who should hear about a registration: the registrant's email plus
+ * every team-member email captured in the stored answers. Deduped, lowercased,
+ * validated, capped.
+ *
+ * Used by every registrant-facing mail — confirmation, shortlist, waitlist
+ * promotion, cancellation and admin broadcasts — because a teammate who never
+ * hears that the event moved or was cancelled is the whole problem this solves.
+ * Only the registrant's address is guaranteed; member emails exist only when the
+ * club asked for them.
  */
-export function shortlistRecipients(
+export function teamRecipients(
   schema: FormField[],
   custom: Record<string, unknown> | null,
   leaderEmail: string | null | undefined,
