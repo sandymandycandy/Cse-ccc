@@ -64,8 +64,9 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
-> ### 🚧 BUILT ON BRANCH `feat/admin-password-reset` — Admin self-service password reset (2026-09-03)
-> **Migration `20260903020000_admin_password_resets` APPLIED + VERIFIED LIVE.** Owner asked:
+> ### ✅ MERGED & PUSHED TO PROD — Admin self-service password reset (2026-09-03)
+> **Shipped 2026-09-03. Migration `20260903020000_admin_password_resets` APPLIED + VERIFIED LIVE
+> BEFORE the code deploy.** Owner asked:
 > "I want a forget password also to be included."
 > **Gate green: typecheck ✓ / lint ✓ / 428 tests ✓ / build ✓.**
 > Spec: `docs/superpowers/specs/2026-09-03-admin-password-reset-design.md` ·
@@ -110,15 +111,20 @@ end-to-end**, not a checklist of components.
 >   real and a fake address, but issuing a token and sending mail takes measurably longer than
 >   returning early, so a determined attacker can still distinguish them. Closing it needs a
 >   fixed-delay or deferred send (`waitUntil`); scoped out deliberately, not overlooked.
-> - **⚠️ OWED — NOT verified end-to-end, and the plan calls this mandatory.** Blocked twice: the
+> - **⚠️ OWED — SHIPPED WITHOUT THE END-TO-END VERIFICATION THE PLAN CALLS MANDATORY.** The owner
+>   chose to deploy anyway. Blocked twice: the
 >   Chrome extension is not connected, and `enqueueEmail` delivers immediately against the LIVE
 >   database, so a test send would mail a real admin. **A human must run Task 8 Steps 2–3 before
 >   this merges:** the neutral message must be byte-identical for a real vs fake address; the link
 >   must refuse a SECOND use (if it succeeds, `consumeReset` is not gating); an old recovery code
 >   must stop working; and a session open in another browser must be dead after the reset.
+>   **Run these against prod.**
 >   What WAS verified without a browser: `/admin/forgot` renders 200, a bogus token renders the
->   invalid-link panel and leaks **no** form or QR, `/admin/users` still redirects, and the table
->   is unreadable by `anon`/`authenticated`.
+>   invalid-link panel and leaks **no** form or QR, the table is unreadable by
+>   `anon`/`authenticated`, and — the riskiest part of this branch, since it touches every admin
+>   route — the proxy guard still 307s `/admin`, `/admin/users`, `/admin/events`, `/admin/clubs`,
+>   `/admin/gallery`, `/admin/attendance`, bare `/admin/reset` AND `/admin/resetfoo`. The prefix
+>   match is `/admin/reset/` **with the trailing slash** for exactly that reason.
 >
 > ### ✅ MERGED & PUSHED TO PROD — The login lockout now says it is a lockout (2026-09-03)
 > **Shipped in `9841d6c`..`188b99f` (2026-09-03). No migration.** Owner asked: "if they have
