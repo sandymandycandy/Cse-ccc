@@ -3,6 +3,9 @@
 
 export interface LoginState {
   error?: string;
+  /** Seconds until the lockout lifts. Present only when rate-limited, and used
+   *  by the login page to count down and re-enable the form. */
+  retryAfterSeconds?: number;
 }
 
 export interface EventFormState {
