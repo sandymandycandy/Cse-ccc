@@ -108,8 +108,13 @@ rather than an app convention:
 
 ```sql
 create unique index feedback_periods_one_open
-  on public.feedback_periods ((true)) where closed_at is null;
+  on public.feedback_periods ((closed_at is null))
+  where closed_at is null;
 ```
+
+The indexed expression must reference a column — Postgres rejects a constant
+like `((true))` — so it indexes `closed_at is null`, which is always true inside
+the partial index's `WHERE`, making two open rows collide.
 
 There is deliberately **no `auto_close_at`** (D4).
 
