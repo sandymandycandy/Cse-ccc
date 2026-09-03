@@ -55,6 +55,24 @@ export function BroadcastForm({
         <span className="hint">Plain text. Everyone gets the same message.</span>
       </div>
 
+      <div className="field">
+        <label htmlFor="link">Link (optional)</label>
+        <input id="link" name="link" type="url" maxLength={2000}
+          placeholder="https://chat.whatsapp.com/…" />
+        <span className="hint">
+          Becomes a button in the email — a WhatsApp group, a submission form, a
+          meeting link. Without one the button opens the event page. Pasting a
+          link into the message itself does not make it clickable.
+        </span>
+      </div>
+
+      <div className="field">
+        <label htmlFor="linkLabel">Button text (optional)</label>
+        <input id="linkLabel" name="linkLabel" maxLength={60}
+          placeholder="Join the WhatsApp group" />
+        <span className="hint">Defaults to &ldquo;Open link&rdquo;.</span>
+      </div>
+
       <fieldset style={{ border: 0, padding: 0, margin: "4px 0 18px" }}>
         <legend className="label" style={{ marginBottom: 8 }}>Who receives it</legend>
         <label style={{ display: "flex", gap: 8, alignItems: "baseline", marginBottom: 6 }}>

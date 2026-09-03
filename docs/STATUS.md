@@ -199,7 +199,7 @@ end-to-end**, not a checklist of components.
 >   `src/lib/registration-form/participants.{ts,test.ts}`, `src/lib/podium.test.ts`,
 >   `src/app/admin/(app)/events/[id]/results/{actions.ts,ResultsEditor.tsx}`, `src/lib/database.types.ts`.
 
-> ### 📮 IN FLIGHT — Registrants get mail, and it reaches the WHOLE team (2026-09-03)
+> ### 📮 IN FLIGHT — Registrants get mail, it reaches the WHOLE team, and it can carry a link (2026-09-03)
 > **Uncommitted. No migration** (`email_log.template` is plain `text`, no constraint — verified).
 > Owner: "send mail to those people who done the registration, to all the members", and chose **both**
 > an automatic confirmation and an admin broadcast, plus fixing the leader-only mails.
@@ -225,6 +225,22 @@ end-to-end**, not a checklist of components.
 >   viewer can manage them — faculty's read grant is not enough to open a send button). Subject +
 >   message, audience = confirmed / including-waitlist, **address counts computed with the same dedup
 >   the send uses** so the button says who it will actually reach. Audited (`participants_email`).
+> - **✅ Broadcasts can carry a LINK** (owner: "some messages need … joining the whatsapp group or
+>   ask them to submit something"). Two optional fields: **Link** and **Button text**. A supplied link
+>   **replaces** the default event-page button; the label defaults to "Open link".
+>   - **Why it was needed:** the message body is HTML-escaped, so **a URL pasted into the text is not
+>     a link** — some clients auto-detect it, most don't. Without this field an announcement could not
+>     reliably point anywhere.
+>   - `renderEmail` gained `payload.linkLabel` — **escaped and capped at 60 chars**, falling back to
+>     "Open" for every existing template, so nothing else changed. Tests cover XSS in the label, a
+>     non-string label, blank/whitespace, and the length cap.
+>   - The URL is **scheme-checked with `isSafeHttpUrl` before send** and the action returns an error
+>     rather than quietly dropping it — better the sender learns now than after 69 people get a dead
+>     button. `actionUrl` in the renderer independently requires http(s), so a `javascript:` URL
+>     cannot become an href even if the guard were bypassed.
+> - **⚠️ Still no reply path.** The footer says "automated message, please don't reply" and there is
+>   **no `Reply-To` header**, so a participant cannot answer a broadcast. Offered to the owner and not
+>   taken up yet; it is a transport change affecting every email, not just this one.
 > - **⚠️ NOT TESTED END-TO-END, DELIBERATELY.** `enqueueEmail` attempts *immediate* delivery and the
 >   dev server points at the **live** database, so a trial run would have mailed real students
 >   unprompted. Wording and recipient-building are unit-tested; delivery uses the same path as every

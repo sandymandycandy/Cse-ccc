@@ -112,3 +112,46 @@ describe("renderEmail — details + body (contact query notifications)", () => {
     expect(html).not.toContain("border-left:3px solid");
   });
 });
+
+describe("renderEmail — custom button label (participant broadcasts)", () => {
+  const url = "https://chat.whatsapp.com/AbCdEf";
+
+  it('labels the button with payload.linkLabel instead of "Open"', () => {
+    const { html, text } = renderEmail("event_broadcast", "Join the group", null, {
+      url, linkLabel: "Join the WhatsApp group",
+    });
+    expect(html).toContain("Join the WhatsApp group");
+    expect(text).toContain("Join the WhatsApp group:");
+    expect(html).not.toContain(">Open<");
+  });
+
+  it('falls back to "Open" when no label is given', () => {
+    const { html } = renderEmail("event_broadcast", "Update", null, { url });
+    expect(html).toContain(">Open<");
+  });
+
+  it("falls back when the label is blank or only whitespace", () => {
+    expect(renderEmail("event_broadcast", "U", null, { url, linkLabel: "   " }).html)
+      .toContain(">Open<");
+  });
+
+  it("escapes the label — an admin types it and it lands in HTML", () => {
+    const { html } = renderEmail("event_broadcast", "U", null, {
+      url, linkLabel: '<script>alert(1)</script>',
+    });
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("&lt;script&gt;");
+  });
+
+  it("caps an absurdly long label so it cannot blow up the button", () => {
+    const { html } = renderEmail("event_broadcast", "U", null, {
+      url, linkLabel: "x".repeat(200),
+    });
+    expect(html).not.toContain("x".repeat(61));
+  });
+
+  it("ignores a non-string label rather than throwing", () => {
+    expect(() => renderEmail("event_broadcast", "U", null, { url, linkLabel: 42 })).not.toThrow();
+    expect(renderEmail("event_broadcast", "U", null, { url, linkLabel: 42 }).html).toContain(">Open<");
+  });
+});

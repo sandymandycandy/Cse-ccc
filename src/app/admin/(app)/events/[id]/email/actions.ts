@@ -9,6 +9,7 @@ import { teamRecipients } from "@/lib/registration-form/recipients";
 import { splitRegistrations } from "@/lib/registration/waitlist";
 import { enqueueEmail } from "@/lib/email";
 import { writeAudit } from "@/lib/admin/audit";
+import { isSafeHttpUrl } from "@/lib/url";
 import type { BroadcastState } from "@/lib/admin/form-state";
 
 const Schema = z.object({
@@ -16,6 +17,9 @@ const Schema = z.object({
   subject: z.string().trim().min(3).max(120),
   message: z.string().trim().min(10).max(4000),
   audience: z.enum(["confirmed", "all"]),
+  // Optional: a WhatsApp group, a submission form, a meeting link.
+  link: z.string().trim().max(2000).optional().or(z.literal("")),
+  linkLabel: z.string().trim().max(60).optional().or(z.literal("")),
 });
 
 /**
@@ -36,11 +40,20 @@ export async function broadcastAction(
     subject: formData.get("subject"),
     message: formData.get("message"),
     audience: formData.get("audience") ?? "confirmed",
+    link: formData.get("link") ?? "",
+    linkLabel: formData.get("linkLabel") ?? "",
   });
   if (!parsed.success) {
     return { error: "Add a subject (3+ characters) and a message (10+ characters)." };
   }
   const { eventId, subject, message, audience } = parsed.data;
+  const link = parsed.data.link?.trim() ?? "";
+  // Scheme-checked before it becomes an href in someone's inbox. A relative or
+  // javascript: URL is rejected outright rather than quietly dropped, so the
+  // sender finds out now instead of after 69 people get a dead button.
+  if (link && !isSafeHttpUrl(link)) {
+    return { error: "The link must be a full http(s) URL, e.g. https://chat.whatsapp.com/…" };
+  }
 
   const session = await getAdminSession();
   if (!session) return { error: "Your session expired. Sign in again." };
@@ -77,7 +90,10 @@ export async function broadcastAction(
       payload: {
         details: [{ label: "Event", value: ev.title }],
         body: message,
-        url: base ? `${base}/events/${eventId}` : undefined,
+        // A supplied link replaces the default event link — the button is the
+        // point of the message when there is one.
+        url: link || (base ? `${base}/events/${eventId}` : undefined),
+        linkLabel: link ? (parsed.data.linkLabel?.trim() || "Open link") : undefined,
       },
       priority: 3,
     });
@@ -88,7 +104,7 @@ export async function broadcastAction(
     action: "participants_email",
     entity: "event",
     entityId: eventId,
-    after: { recipients: seen.size, audience, subject },
+    after: { recipients: seen.size, audience, subject, link: link || null },
   });
 
   return { sent: seen.size };

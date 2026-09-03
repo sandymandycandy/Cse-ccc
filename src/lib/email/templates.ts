@@ -16,6 +16,21 @@ function esc(s: unknown): string {
     .replace(/'/g, "&#39;");
 }
 
+/** Longest a custom button label may be before it stops looking like a button. */
+const LABEL_MAX = 60;
+
+/**
+ * `payload.linkLabel` — what the action button says. An admin writing to
+ * participants needs "Join the WhatsApp group" or "Submit your slides", not a
+ * generic "Open". Escaped at render time and capped here: this is text a human
+ * typed that ends up inside the HTML we send.
+ */
+function linkLabel(payload: Record<string, unknown> | null): string {
+  const v = payload?.linkLabel;
+  const t = typeof v === "string" ? v.trim() : "";
+  return t ? t.slice(0, LABEL_MAX) : "Open";
+}
+
 /** First http(s) URL found under a known payload key, else null. */
 function actionUrl(payload: Record<string, unknown> | null): string | null {
   if (!payload) return null;
@@ -86,8 +101,9 @@ export function renderEmail(
       )}</div>`
     : "";
 
+  const label = linkLabel(payload);
   const button = url
-    ? `<p style="margin:24px 0"><a href="${esc(url)}" style="display:inline-block;background:#1f4d3a;color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font:600 15px sans-serif">Open</a></p>
+    ? `<p style="margin:24px 0"><a href="${esc(url)}" style="display:inline-block;background:#1f4d3a;color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font:600 15px sans-serif">${esc(label)}</a></p>
        <p style="color:#666;font-size:13px;word-break:break-all">Or open this link:<br><a href="${esc(url)}" style="color:#1f4d3a">${esc(url)}</a></p>`
     : "";
 
@@ -108,7 +124,7 @@ export function renderEmail(
     toName ? `Hi ${toName},` : "Hi,",
     ...(rows.length ? ["", ...rows.map((r) => `${r.label}: ${r.value}`)] : []),
     ...(body ? ["", body] : []),
-    url ? `\nOpen: ${url}` : "",
+    url ? `\n${label}: ${url}` : "",
     "",
     "— CSE Club Council",
   ].join("\n");
