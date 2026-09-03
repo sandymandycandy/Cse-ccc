@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { checkLoginLimits, checkContactLimits } from "./rate-limit";
+import { checkLoginLimits, checkContactLimits, peekLoginLimits } from "./rate-limit";
 
 // The limiter keeps state in a module-level Map, so each test uses a unique
 // email/ip to avoid cross-test contamination within the run.
@@ -42,5 +42,52 @@ describe("checkContactLimits — caps submissions per IP", () => {
       last = checkContactLimits({ ip: `10.0.0.${i}`, email });
     }
     expect(last.ok).toBe(false);
+  });
+});
+
+describe("peekLoginLimits — reports the lock without spending an attempt", () => {
+  it("does not consume: peeking many times still leaves all 3 chances", () => {
+    const id = { ip: "203.0.113.40", email: "peek-a@example.test" };
+    for (let i = 0; i < 10; i++) expect(peekLoginLimits(id).ok).toBe(true);
+
+    // All three real attempts must still be available after that peeking.
+    expect(checkLoginLimits(id).ok).toBe(true); // 1
+    expect(checkLoginLimits(id).ok).toBe(true); // 2
+    expect(checkLoginLimits(id).ok).toBe(true); // 3
+    expect(checkLoginLimits(id).ok).toBe(false); // 4 → locked
+  });
+
+  it("is ok before any attempt has been made", () => {
+    expect(peekLoginLimits({ ip: "203.0.113.41", email: "peek-b@example.test" }).ok).toBe(true);
+  });
+
+  it("reports locked with a retry-after once the 3 attempts are spent", () => {
+    const id = { ip: "203.0.113.42", email: "peek-c@example.test" };
+    checkLoginLimits(id);
+    checkLoginLimits(id);
+    checkLoginLimits(id);
+
+    const peeked = peekLoginLimits(id);
+    expect(peeked.ok).toBe(false);
+    expect(peeked.retryAfterSeconds).toBeGreaterThan(0);
+    expect(peeked.retryAfterSeconds).toBeLessThanOrEqual(60);
+  });
+
+  it("agrees with checkLoginLimits at every point in the window", () => {
+    const id = { ip: "203.0.113.43", email: "peek-d@example.test" };
+    for (let i = 0; i < 3; i++) {
+      expect(peekLoginLimits(id).ok).toBe(true);
+      expect(checkLoginLimits(id).ok).toBe(true);
+    }
+    expect(peekLoginLimits(id).ok).toBe(false);
+    expect(checkLoginLimits(id).ok).toBe(false);
+  });
+
+  it("locks on the account key even from a fresh IP", () => {
+    const email = "peek-e@example.test";
+    checkLoginLimits({ ip: "198.51.100.20", email });
+    checkLoginLimits({ ip: "198.51.100.21", email });
+    checkLoginLimits({ ip: "198.51.100.22", email });
+    expect(peekLoginLimits({ ip: "198.51.100.99", email }).ok).toBe(false);
   });
 });

@@ -44,6 +44,29 @@ export function rateLimit(key: string, max: number, windowMs: number): RateResul
   return { ok: true, remaining: max - hits.length, retryAfterSeconds: 0 };
 }
 
+/**
+ * Read-only twin of `rateLimit`: reports whether a key is currently locked and
+ * for how long, WITHOUT recording a hit.
+ *
+ * This exists so the login form can tell the user they are locked out. Calling
+ * `rateLimit` for that would count the check itself as an attempt, turning
+ * three chances into two — so this function must never write to `store`.
+ */
+function peek(key: string, max: number, windowMs: number): RateResult {
+  const now = Date.now();
+  const cutoff = now - windowMs;
+  const hits = (store.get(key) ?? []).filter((t) => t > cutoff);
+
+  if (hits.length >= max) {
+    return {
+      ok: false,
+      remaining: 0,
+      retryAfterSeconds: Math.max(1, Math.ceil((hits[0] + windowMs - now) / 1000)),
+    };
+  }
+  return { ok: true, remaining: max - hits.length, retryAfterSeconds: 0 };
+}
+
 const MIN = 60_000;
 const HOUR = 60 * MIN;
 
@@ -87,6 +110,11 @@ export function checkRollLookupLimits(ip: string): RateResult {
   return rateLimit(`lookup:ip:${ip}`, 20, 10 * MIN);
 }
 
+/** The admin login contract: 3 attempts, then a 1-minute lockout. Shared by the
+ *  consuming check and the read-only peek so the two can never disagree. */
+const LOGIN_MAX = 3;
+const LOGIN_WINDOW = MIN;
+
 /**
  * Admin login limits: 3 attempts, then a 1-minute lockout — enforced per IP
  * **and** per account, so the lock survives an attacker rotating IPs. The 4th
@@ -94,8 +122,21 @@ export function checkRollLookupLimits(ip: string): RateResult {
  */
 export function checkLoginLimits(input: { ip: string; email: string }): RateResult {
   const checks: RateResult[] = [
-    rateLimit(`login:ip:${input.ip}`, 3, MIN),
-    rateLimit(`login:acct:${input.email}`, 3, MIN),
+    rateLimit(`login:ip:${input.ip}`, LOGIN_MAX, LOGIN_WINDOW),
+    rateLimit(`login:acct:${input.email}`, LOGIN_MAX, LOGIN_WINDOW),
+  ];
+  return checks.find((c) => !c.ok) ?? { ok: true, remaining: 0, retryAfterSeconds: 0 };
+}
+
+/**
+ * The same question as `checkLoginLimits`, asked without spending an attempt.
+ * The login form uses this to show a countdown; `authorize` remains the only
+ * place that actually consumes attempts.
+ */
+export function peekLoginLimits(input: { ip: string; email: string }): RateResult {
+  const checks: RateResult[] = [
+    peek(`login:ip:${input.ip}`, LOGIN_MAX, LOGIN_WINDOW),
+    peek(`login:acct:${input.email}`, LOGIN_MAX, LOGIN_WINDOW),
   ];
   return checks.find((c) => !c.ok) ?? { ok: true, remaining: 0, retryAfterSeconds: 0 };
 }
