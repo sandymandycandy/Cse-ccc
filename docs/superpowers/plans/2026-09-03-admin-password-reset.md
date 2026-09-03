@@ -556,8 +556,8 @@ Replace the whole `if (state.recoveryCodes) { ... }` block with:
     return (
       <RecoveryCodesPanel
         codes={state.recoveryCodes}
-        heading="You&rsquo;re all set"
-        intro="Each code works once if you lose your authenticator. Store them somewhere safe — you won&rsquo;t see them again."
+        heading="You’re all set"
+        intro="Each code works once if you lose your authenticator. Store them somewhere safe — you won’t see them again."
       />
     );
   }
