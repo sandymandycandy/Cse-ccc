@@ -8,6 +8,18 @@ export interface LoginState {
   retryAfterSeconds?: number;
 }
 
+export interface ForgotState {
+  error?: string;
+  /** The neutral acknowledgement. Identical whether or not the address exists. */
+  message?: string;
+}
+
+export interface ResetPasswordState {
+  error?: string;
+  /** Shown once on success — the replacement recovery codes. */
+  recoveryCodes?: string[];
+}
+
 export interface EventFormState {
   error?: string;
 }
