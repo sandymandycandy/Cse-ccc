@@ -4,6 +4,7 @@ import {
   checkContactLimits,
   peekLoginLimits,
   checkPasswordResetLimits,
+  checkFeedbackLimits,
 } from "./rate-limit";
 
 // The limiter keeps state in a module-level Map, so each test uses a unique
@@ -152,5 +153,17 @@ describe("checkPasswordResetLimits — bounds how many live reset links exist", 
       last = checkPasswordResetLimits({ ip, email: `spray-${i}@example.test` });
     }
     expect(last.ok).toBe(false);
+  });
+});
+
+describe("checkFeedbackLimits", () => {
+  it("allows 10 submissions from one IP then trips", () => {
+    const ip = `fb-${Math.random()}`;
+    for (let i = 0; i < 10; i++) {
+      expect(checkFeedbackLimits({ ip }).ok).toBe(true);
+    }
+    const blocked = checkFeedbackLimits({ ip });
+    expect(blocked.ok).toBe(false);
+    expect(blocked.retryAfterSeconds).toBeGreaterThan(0);
   });
 });

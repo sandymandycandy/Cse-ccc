@@ -159,3 +159,13 @@ export function checkPasswordResetLimits(input: {
   ];
   return checks.find((c) => !c.ok) ?? { ok: true, remaining: 0, retryAfterSeconds: 0 };
 }
+
+/**
+ * Public feedback form: 10 per IP / hour. Per IP ONLY — never per VTU. A
+ * per-VTU limit would quietly reintroduce the submission cap the owner declined
+ * (design D3). The bound is deliberately loose because a whole class can share
+ * one campus NAT address: this exists to stop a script, not a person.
+ */
+export function checkFeedbackLimits(input: { ip: string }): RateResult {
+  return rateLimit(`feedback:ip:${input.ip}`, 10, HOUR);
+}
