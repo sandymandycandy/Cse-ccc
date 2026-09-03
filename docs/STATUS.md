@@ -20,8 +20,9 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-03)
 
-> **IN FLIGHT: `feat/login-lockout-feedback`** — 4 commits, gate green, **not merged and not
-> browser-verified** (see its block below). `main` is otherwise clean and deployed. Twelve commits shipped on
+> **`main` = `origin/main` (clean, deployed) — nothing in flight.** The login-lockout work is
+> merged and deployed, but ⚠️ **was pushed WITHOUT the browser check the plan required** — the
+> owner chose to ship it; the check is still owed and is listed in its block below. Twelve commits shipped on
 > 2026-09-03, all live and all their migrations applied and verified:
 > **`47ab5f4` image editor on all four upload forms + gallery masonry (⚠️ NEVER OPENED IN A
 > BROWSER — read its block first)** ·
@@ -63,8 +64,25 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
-> ### 🚧 ON BRANCH, PRE-MERGE — The login lockout now says it is a lockout (2026-09-03)
-> **Branch `feat/login-lockout-feedback` (4 commits). No migration.** Owner asked: "if they have
+> ### 📐 SPEC ONLY, NOT BUILT — Admin self-service password reset (2026-09-03)
+> **`docs/superpowers/specs/2026-09-03-admin-password-reset-design.md`. No code, no migration yet.**
+> Owner asked: "I want a forget password also to be included." Design approved; the implementation
+> plan is NOT written yet, so **nothing of this feature exists in the app.**
+> - **⚠️ TWO OWNER DECISIONS WITH ACCEPTED SECURITY CONSEQUENCES — read D1/D2 in the spec before
+>   touching this.** The reset **also re-enrols TOTP**, and **every role may self-reset**. Together
+>   these make an admin's **inbox a single factor for full account takeover**, Faculty Advisor and
+>   VP included. Both alternatives were offered and declined on 2026-09-03. This is deliberate, not
+>   an oversight — do not "fix" it without asking the owner.
+> - Because prevention was traded away, the design leans on **containment + detection**: 1-hour TTL,
+>   single-use consumed atomically, `session_epoch` bumped, old recovery codes burned, rate limits,
+>   and an **unconditional completion email** — that notice is the only way an unauthorised reset is
+>   ever noticed, so it must not be made optional.
+> - Separate `admin_password_resets` table rather than a `kind` column on `admin_invites`, so "a
+>   reset cannot change a role" is true by construction. Consume-first ordering (unlike
+>   `accept-invite`, which consumes last) so a double-submitted link cannot apply twice.
+>
+> ### ✅ MERGED & PUSHED TO PROD — The login lockout now says it is a lockout (2026-09-03)
+> **Shipped in `9841d6c`..`188b99f` (2026-09-03). No migration.** Owner asked: "if they have
 > entered wrong password or email or totp it should be locked for 1 minute… only 3 chances."
 > **Gate green: typecheck ✓ / lint ✓ / 420 tests ✓ / build ✓** (+11 for peek + the action sequence,
 > +4 for `lockoutMessage`).
@@ -97,8 +115,11 @@ end-to-end**, not a checklist of components.
 > - **Corrected `docs/SECURITY_SPEC.md` lines 69/145/269**, which said 5 attempts / 15 min and had
 >   contradicted the shipped code since the lockout landed. The specified "email alert at 10
 >   lockouts" is recorded as NOT implemented.
-> - **⚠️ OWED — never opened in a browser.** The Chrome extension is not connected (same blocker as
->   the image editor). Do this before merging: on `/admin/login` with a wrong password, submit
+> - **⚠️ OWED — SHIPPED WITHOUT EVER BEING OPENED IN A BROWSER.** The Chrome extension is not
+>   connected (same blocker as the image editor); the owner chose to deploy anyway. What WAS
+>   verified without one: the page server-renders 200 with the button present and not disabled,
+>   so the component does not throw, and `next build` passes. What was NOT: any interaction.
+>   **Do this against prod:** on `/admin/login` with a wrong password, submit
 >   **three** times — the 3rd must switch to "Too many attempts. Try again in N seconds." with the
 >   button reading **"Locked — Ns"** and disabled; watch it reach zero and re-enable; then sign in
 >   for real. **If the lock appears on the 2nd submit, the peek is consuming an attempt.** Repeat
