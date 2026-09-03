@@ -20,21 +20,25 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-03)
 
-> **`main` = `origin/main` (clean, deployed) — nothing in flight.** Seven commits shipped on
+> **`main` = `origin/main` (clean, deployed) — nothing in flight.** Nine commits shipped on
 > 2026-09-03, all live and all their migrations applied and verified:
 > `174df5f` gallery-only role + team names + roster search + results button ·
 > `52590f7` champion-led results page · `2fe3f8a` results layout fix + member backfill ·
 > `ca9530c` team name as an identity block · `107b3b6` attendance split ·
-> `1ec5402` council split + council analytics · `517cbb6` equal member weight + simpler standings.
+> `1ec5402` council split + council analytics · `517cbb6` equal member weight + simpler standings ·
+> `5a1662d` registration email + participant broadcast · `0f2a43b` a real link in a broadcast.
 >
 > **Two things to read before touching related code:** the **PII boundary** recorded in the
 > results blocks (the anon role has no select on `registrations`, and a join across it fails
 > live while every CI check stays green), and the **`.stack` trap** in the layout-fix block
 > (it is a horizontal flex row, not a column).
 >
-> **What is owed:** a **phone-width look at the public results page** — it has only ever been
-> verified by fetching HTML — and a **signed-in walkthrough of the attendance and council
-> dashboards**, which need a login this session never had. Older blocks below are also merged
+> **What is owed, and why it matters:** ⚠️ **no email has ever been sent through the new code** —
+> `enqueueEmail` delivers immediately against the LIVE database, so testing it would have mailed real
+> students unprompted. **Send one short broadcast to a small event, with a link, before relying on
+> it.** Also owed: a **phone-width look at the public results page** (only ever verified by fetching
+> HTML) and a **signed-in walkthrough of the attendance and council dashboards**, which need a login
+> this session never had. Older blocks below are also merged
 > and live: the **contact page redesign + leadership query notifications**,
 > **Faculty + VP full access (a security-boundary change — read that block)**, the
 > **participants roster + responsive admin tables**, the
@@ -199,8 +203,9 @@ end-to-end**, not a checklist of components.
 >   `src/lib/registration-form/participants.{ts,test.ts}`, `src/lib/podium.test.ts`,
 >   `src/app/admin/(app)/events/[id]/results/{actions.ts,ResultsEditor.tsx}`, `src/lib/database.types.ts`.
 
-> ### 📮 IN FLIGHT — Registrants get mail, it reaches the WHOLE team, and it can carry a link (2026-09-03)
-> **Uncommitted. No migration** (`email_log.template` is plain `text`, no constraint — verified).
+> ### ✅ MERGED & PUSHED TO PROD — Registrants get mail, it reaches the WHOLE team, and it can carry a link (2026-09-03)
+> **Shipped in `5a1662d` (mail + broadcast) and `0f2a43b` (the link field). No migration**
+> (`email_log.template` is plain `text`, no constraint — verified).
 > Owner: "send mail to those people who done the registration, to all the members", and chose **both**
 > an automatic confirmation and an admin broadcast, plus fixing the leader-only mails.
 > **Gate: typecheck ✓ / lint ✓ / 335 tests ✓ / build ✓** (+8 for `registrationMail`).
@@ -1168,6 +1173,15 @@ image upload). Read paths for all are ✅.
 typecheck + lint + tests + build green, and the desktop results layout was still
 visibly broken; only an owner screenshot caught it. Automated checks do not cover
 layout, and admin pages were never opened at all this session.
+
+0. **📮 SEND ONE TEST BROADCAST — nothing has ever been emailed by this code.**
+    `/admin/events/<id>/email` on a **small** event: subject + message + a **Link**
+    and **Button text**, audience "Confirmed participants". Confirm it arrives, the
+    button carries your label and opens your URL, and the count on the page matched
+    what was delivered. **Do it on a small event first** — the send is immediate and
+    reaches every team member, which on PITCH DESK would be **69 addresses**.
+    Then, separately, confirm the automatic confirmation by watching for the next
+    real registration (or registering yourself on a test event).
 
 0a. **Public results at PHONE width** — `/events/<id>/results` (PITCH DESK:
     `4f6a6f19-7435-4c14-947f-fdce1cfec8d1`). Confirm the champion card, the runner
