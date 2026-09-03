@@ -746,6 +746,8 @@ export type Database = {
           color: string
           created_at: string
           description: string | null
+          feedback_head_id: string | null
+          feedback_vice_head_id: string | null
           id: string
           is_active: boolean
           is_public: boolean
@@ -762,6 +764,8 @@ export type Database = {
           color: string
           created_at?: string
           description?: string | null
+          feedback_head_id?: string | null
+          feedback_vice_head_id?: string | null
           id?: string
           is_active?: boolean
           is_public?: boolean
@@ -778,6 +782,8 @@ export type Database = {
           color?: string
           created_at?: string
           description?: string | null
+          feedback_head_id?: string | null
+          feedback_vice_head_id?: string | null
           id?: string
           is_active?: boolean
           is_public?: boolean
@@ -789,7 +795,22 @@ export type Database = {
           tagline?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clubs_feedback_head_id_fkey"
+            columns: ["feedback_head_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clubs_feedback_vice_head_id_fkey"
+            columns: ["feedback_vice_head_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contact_messages: {
         Row: {
@@ -1283,6 +1304,134 @@ export type Database = {
           },
         ]
       }
+      feedback_periods: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          id: string
+          opened_at: string
+          opened_by: string | null
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          id?: string
+          opened_at?: string
+          opened_by?: string | null
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          id?: string
+          opened_at?: string
+          opened_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_periods_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_periods_opened_by_fkey"
+            columns: ["opened_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback_responses: {
+        Row: {
+          activities_feedback: string
+          club_id: string
+          club_rating: number
+          created_at: string
+          head_admin_id: string | null
+          head_comment: string | null
+          head_name: string | null
+          head_rating: number | null
+          id: string
+          period_id: string
+          student_name: string
+          suggestions: string | null
+          vice_admin_id: string | null
+          vice_comment: string | null
+          vice_name: string | null
+          vice_rating: number | null
+          vtu: string
+        }
+        Insert: {
+          activities_feedback: string
+          club_id: string
+          club_rating: number
+          created_at?: string
+          head_admin_id?: string | null
+          head_comment?: string | null
+          head_name?: string | null
+          head_rating?: number | null
+          id?: string
+          period_id: string
+          student_name: string
+          suggestions?: string | null
+          vice_admin_id?: string | null
+          vice_comment?: string | null
+          vice_name?: string | null
+          vice_rating?: number | null
+          vtu: string
+        }
+        Update: {
+          activities_feedback?: string
+          club_id?: string
+          club_rating?: number
+          created_at?: string
+          head_admin_id?: string | null
+          head_comment?: string | null
+          head_name?: string | null
+          head_rating?: number | null
+          id?: string
+          period_id?: string
+          student_name?: string
+          suggestions?: string | null
+          vice_admin_id?: string | null
+          vice_comment?: string | null
+          vice_name?: string | null
+          vice_rating?: number | null
+          vtu?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_responses_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_responses_head_admin_id_fkey"
+            columns: ["head_admin_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_responses_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_responses_vice_admin_id_fkey"
+            columns: ["vice_admin_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gallery: {
         Row: {
           caption: string | null
@@ -1644,10 +1793,10 @@ export type Database = {
           registration_id: string | null
           remarks: string | null
           roll_no: string
-          team_name: string | null
-          team_members: Json | null
           round_id: string | null
           score: number | null
+          team_members: Json | null
+          team_name: string | null
         }
         Insert: {
           advanced?: boolean
@@ -1660,10 +1809,10 @@ export type Database = {
           registration_id?: string | null
           remarks?: string | null
           roll_no: string
-          team_name: string | null
-          team_members: Json | null
           round_id?: string | null
           score?: number | null
+          team_members?: Json | null
+          team_name?: string | null
         }
         Update: {
           advanced?: boolean
@@ -1676,10 +1825,10 @@ export type Database = {
           registration_id?: string | null
           remarks?: string | null
           roll_no?: string
-          team_name?: string | null
-          team_members?: Json | null
           round_id?: string | null
           score?: number | null
+          team_members?: Json | null
+          team_name?: string | null
         }
         Relationships: [
           {
@@ -1971,12 +2120,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2000,11 +2149,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2025,11 +2174,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2050,11 +2199,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2067,11 +2216,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
