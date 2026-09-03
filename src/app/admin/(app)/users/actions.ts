@@ -1,11 +1,11 @@
 "use server";
 
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getAdminSession } from "@/lib/auth/guards";
 import { canManage, ADMIN_ROLES } from "@/lib/auth/capabilities";
 import { createInvite } from "@/lib/admin/invites";
+import { siteOrigin } from "@/lib/site-origin";
 import { enqueueEmail } from "@/lib/email";
 import type { InviteCreateState } from "@/lib/admin/form-state";
 
@@ -33,16 +33,21 @@ export async function generateInviteAction(
   if (!parsed.success) return { error: "Enter a valid email and pick a role." };
   const { email, role, clubId } = parsed.data;
 
+  // ⚠️ Resolve the origin BEFORE minting the invite — from configuration only,
+  // never the request's Host header. An invite token sets a password and enrols
+  // TOTP, so a spoofed Host would mail a new admin's credentials-setup link to
+  // an attacker. Checked first so a missing env can't leave an orphan invite row.
+  const origin = siteOrigin();
+  if (!origin) {
+    return { error: "Site URL is not configured — can't issue an invite link." };
+  }
+
   const { token } = await createInvite({
     email,
     role,
     clubId: clubId || null,
     createdBy: session.id,
   });
-
-  const origin =
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    `http://${(await headers()).get("host") ?? "localhost:3000"}`;
 
   revalidatePath("/admin/users");
   const inviteUrl = `${origin}/admin/accept-invite?token=${token}`;

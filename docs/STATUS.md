@@ -64,6 +64,28 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
+> ### ✅ MERGED & PUSHED TO PROD — Host-header poisoning + the reset timing channel (2026-09-03)
+> **No migration.** Closes the two follow-ups left open by the password-reset ship.
+> **Gate green: typecheck ✓ / lint ✓ / 432 tests ✓ / build ✓** (+4 for the new `siteOrigin` suite).
+> - **`src/lib/site-origin.ts` is now the ONLY way a credential link learns its origin.** One rule,
+>   one place: read `NEXT_PUBLIC_SITE_URL`, validate it parses, else return null — **and every
+>   caller fails closed.** The `Host` header is never consulted. `grep 'get("host")' src/` now
+>   returns nothing.
+> - **Fixed the pre-existing invite bug at `users/actions.ts`.** It had the same
+>   `?? http://${hostHeader}` fallback; an invite token sets a password AND enrols TOTP, so a
+>   spoofed Host would have mailed a new admin's credential-setup link to an attacker. **The origin
+>   is now resolved BEFORE `createInvite`**, so a missing env returns an error instead of leaving an
+>   orphan invite row that can never be used.
+> - **Closed the `/admin/forgot` timing side-channel with `after()` from `next/server`** (stable in
+>   16.3.1). Identical wording was never enough on its own: the account lookup, token mint and mail
+>   send took far longer than an early return, so response time leaked which addresses were real.
+>   All of it now runs **after the response is sent**, so every request costs the same.
+>   **⚠️ `headers()` is read BEFORE the `after()` callback** — request-scoped APIs are gone by the
+>   time it runs.
+> - **⚠️ Consequence to know:** a mail or DB failure on this path is now invisible to the user by
+>   design — it is logged and nothing else. That is the point (an error would re-open the oracle),
+>   but it means `/admin/forgot` problems surface only in logs.
+>
 > ### ✅ MERGED & PUSHED TO PROD — Admin self-service password reset (2026-09-03)
 > **Shipped 2026-09-03. Migration `20260903020000_admin_password_resets` APPLIED + VERIFIED LIVE
 > BEFORE the code deploy.** Owner asked:
@@ -103,14 +125,7 @@ end-to-end**, not a checklist of components.
 >   invite send). With that env var blank — which HAS happened on this project — a spoofed `Host`
 >   would have mailed a **full-account-takeover token to an attacker's domain**. Now the origin comes
 >   only from the validated env var and **fails closed**: no env var, no email.
-> - **⚠️ THE SAME PATTERN IS STILL LIVE AT `src/app/admin/(app)/users/actions.ts:45`** (the invite
->   link). Pre-existing, NOT introduced here, and lower risk because it needs an authenticated Tech
->   Head — but it is the same class of bug and deserves the same fix. **Left untouched deliberately:
->   different surface, owner's call.**
-> - **Known and accepted: a timing side-channel on `/admin/forgot`.** The wording is identical for a
->   real and a fake address, but issuing a token and sending mail takes measurably longer than
->   returning early, so a determined attacker can still distinguish them. Closing it needs a
->   fixed-delay or deferred send (`waitUntil`); scoped out deliberately, not overlooked.
+> - **✅ BOTH FOLLOW-UPS NOW FIXED — see the `fix/host-header-and-timing` block below.**
 > - **⚠️ OWED — SHIPPED WITHOUT THE END-TO-END VERIFICATION THE PLAN CALLS MANDATORY.** The owner
 >   chose to deploy anyway. Blocked twice: the
 >   Chrome extension is not connected, and `enqueueEmail` delivers immediately against the LIVE
