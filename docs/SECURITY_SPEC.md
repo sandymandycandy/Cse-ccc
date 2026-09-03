@@ -62,6 +62,7 @@ Cross-Origin-Resource-Policy: same-origin
 | Password policy | ≥12 chars, checked against the k-anonymity HaveIBeenPwned range API |
 | **Onboarding** | **Invite link, never an emailed password.** PRD v1.1 Template 7 specified mailing credentials to new admins — passwords in inboxes and mail-server logs persist forever and are a standing compromise. Replaced with a single-use 32-byte token (stored hashed, 48-hour expiry, consumed atomically) that walks the new admin through setting a password and enrolling TOTP in one flow |
 | First login | No default password ever ships; the account has no usable hash until the invite is consumed |
+| **Password reset** | Self-service from `/admin/forgot`, open to **every role**. A single-use 32-byte token (stored hashed, **1-hour** expiry, consumed before any write) mails a link that sets a new password **and re-enrols TOTP**, replacing all 10 recovery codes and bumping `session_epoch`. ⚠️ **Accepted consequence (owner decision, 2026-09-03): an admin's inbox is therefore a single factor for full account takeover.** Compensating controls: 1-hour window, single use, 3 requests/hour per address, and an unconditional completion email. |
 | Second factor | TOTP (RFC 6238), mandatory for **Faculty Advisor / Vice President / Tech Head / President** — the three roles holding every capability, plus the President — the Gallery Manager is exempt, holding one capability — optional for others; 10 single-use recovery codes stored hashed |
 | Session | Auth.js v5 JWT in an httpOnly + Secure + SameSite=Lax cookie, `__Host-` prefix |
 | Lifetime | 8 h absolute, 30 min idle, token rotated on each refresh |
@@ -143,6 +144,7 @@ Upstash Redis sliding window, with an in-memory fallback for local dev. Keyed by
 | `POST /api/contact` | 3 / hour per IP |
 | `POST /api/join` | 3 / day per roll no |
 | `POST /api/admin/login` | 3 / 1 min per IP and per account |
+| `POST /admin/forgot` | 3 / hour per email, 5 / hour per IP |
 | `POST /api/student/registrations` (lookup) | 10 / 10 min per IP |
 | `GET /api/events` | 120 / min per IP |
 | Any admin mutation | 60 / min per session |

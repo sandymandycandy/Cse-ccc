@@ -20,15 +20,37 @@ const NEUTRAL =
   "If that address belongs to an admin account, a reset link is on its way. It expires in an hour.";
 
 /**
+ * The site origin a reset link may point at, or null if it is not configured.
+ *
+ * ⚠️ NEVER derive this from the request's Host header. A reset token is, per
+ * design D1, sufficient on its own to take over an admin account — pointing the
+ * emailed link at an attacker-supplied host would hand it to them (classic
+ * password-reset host-header poisoning). `NEXT_PUBLIC_SITE_URL` is a required,
+ * URL-validated env var (`src/lib/env.ts:31`); if it is somehow absent we send
+ * NOTHING rather than mail a link built from untrusted input.
+ */
+function resetOrigin(): string | null {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL;
+  if (!configured) return null;
+  try {
+    return new URL(configured).origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Issue a reset link if — and only if — the address is a live admin account.
  * Returns nothing in every case, so no caller can learn which branch ran.
  */
-async function issueResetIfEligible(
-  email: string,
-  ip: string,
-  origin: string,
-): Promise<void> {
+async function issueResetIfEligible(email: string, ip: string): Promise<void> {
   if (!checkPasswordResetLimits({ ip, email }).ok) return;
+
+  const origin = resetOrigin();
+  if (!origin) {
+    console.error("NEXT_PUBLIC_SITE_URL missing — refusing to mail a reset link");
+    return;
+  }
 
   const admin = createAdminClient();
   const { data: user } = await admin
@@ -64,17 +86,13 @@ export async function requestResetAction(
   const parsed = Schema.safeParse({ email: formData.get("email") });
   if (!parsed.success) return { error: "Enter your admin email address." };
 
-  const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  // Same origin pattern the invite send uses (users/actions.ts:42-44) — there is
-  // no siteUrl() helper in this repo.
-  const origin =
-    process.env.NEXT_PUBLIC_SITE_URL ?? `http://${h.get("host") ?? "localhost:3000"}`;
+  const ip =
+    (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 
   // Never let a failure here change what we say — a thrown DB or mail error
   // would otherwise distinguish "real account" from "no account".
   try {
-    await issueResetIfEligible(parsed.data.email, ip, origin);
+    await issueResetIfEligible(parsed.data.email, ip);
   } catch (err) {
     console.error("password reset request failed:", err);
   }

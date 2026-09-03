@@ -115,6 +115,10 @@ export default function AdminLoginPage() {
         >
           {useRecovery ? "Use authenticator code" : "Use a recovery code"}
         </button>
+
+        <a href="/admin/forgot" className="admin-auth-alt">
+          Forgot your password?
+        </a>
       </form>
     </main>
   );

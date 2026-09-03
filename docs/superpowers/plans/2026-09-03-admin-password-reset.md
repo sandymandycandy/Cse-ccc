@@ -644,12 +644,25 @@ const NEUTRAL =
  * Issue a reset link if — and only if — the address is a live admin account.
  * Returns nothing in every case, so no caller can learn which branch ran.
  */
-async function issueResetIfEligible(
-  email: string,
-  ip: string,
-  origin: string,
-): Promise<void> {
+function resetOrigin(): string | null {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL;
+  if (!configured) return null;
+  try {
+    return new URL(configured).origin;
+  } catch {
+    return null;
+  }
+}
+
+async function issueResetIfEligible(email: string, ip: string): Promise<void> {
   if (!checkPasswordResetLimits({ ip, email }).ok) return;
+
+  // ⚠️ NEVER build this from the Host header — see the note below.
+  const origin = resetOrigin();
+  if (!origin) {
+    console.error("NEXT_PUBLIC_SITE_URL missing — refusing to mail a reset link");
+    return;
+  }
 
   const admin = createAdminClient();
   const { data: user } = await admin
@@ -685,17 +698,13 @@ export async function requestResetAction(
   const parsed = Schema.safeParse({ email: formData.get("email") });
   if (!parsed.success) return { error: "Enter your admin email address." };
 
-  const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  // Same origin pattern the invite send uses (users/actions.ts:42-44) — there is
-  // no siteUrl() helper in this repo.
-  const origin =
-    process.env.NEXT_PUBLIC_SITE_URL ?? `http://${h.get("host") ?? "localhost:3000"}`;
+  const ip =
+    (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 
   // Never let a failure here change what we say — a thrown DB or mail error
   // would otherwise distinguish "real account" from "no account".
   try {
-    await issueResetIfEligible(parsed.data.email, ip, origin);
+    await issueResetIfEligible(parsed.data.email, ip);
   } catch (err) {
     console.error("password reset request failed:", err);
   }
@@ -705,7 +714,7 @@ export async function requestResetAction(
 }
 ```
 
-**Note the origin pattern.** This repo has no `siteUrl()` helper — every absolute link is built as `process.env.NEXT_PUBLIC_SITE_URL ?? \`http://${host}\``, exactly as the invite send does at `src/app/admin/(app)/users/actions.ts:42-44`. `NEXT_PUBLIC_SITE_URL` is a required env var (`src/lib/env.ts:31`), so the fallback only ever fires locally.
+**⚠️ The origin MUST NOT come from the Host header.** This repo has no `siteUrl()` helper, and the invite send at `src/app/admin/(app)/users/actions.ts:45` falls back to `http://${host}`. **Do not copy that here.** A reset token is on its own sufficient to take over an admin account (design D1), so a spoofed `Host` would mail the link to an attacker's domain — textbook password-reset host-header poisoning. `NEXT_PUBLIC_SITE_URL` is required and URL-validated (`src/lib/env.ts:31`); if it is missing, **send nothing**. Failing closed costs an admin one confusing non-delivery; failing open costs the whole account.
 
 - [ ] **Step 3: Write the page**
 

@@ -64,22 +64,61 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
-> ### 📐 SPEC ONLY, NOT BUILT — Admin self-service password reset (2026-09-03)
-> **`docs/superpowers/specs/2026-09-03-admin-password-reset-design.md`. No code, no migration yet.**
-> Owner asked: "I want a forget password also to be included." Design approved; the implementation
-> plan is NOT written yet, so **nothing of this feature exists in the app.**
+> ### 🚧 BUILT ON BRANCH `feat/admin-password-reset` — Admin self-service password reset (2026-09-03)
+> **Migration `20260903020000_admin_password_resets` APPLIED + VERIFIED LIVE.** Owner asked:
+> "I want a forget password also to be included."
+> **Gate green: typecheck ✓ / lint ✓ / 428 tests ✓ / build ✓.**
+> Spec: `docs/superpowers/specs/2026-09-03-admin-password-reset-design.md` ·
+> Plan: `docs/superpowers/plans/2026-09-03-admin-password-reset.md`
 > - **⚠️ TWO OWNER DECISIONS WITH ACCEPTED SECURITY CONSEQUENCES — read D1/D2 in the spec before
 >   touching this.** The reset **also re-enrols TOTP**, and **every role may self-reset**. Together
 >   these make an admin's **inbox a single factor for full account takeover**, Faculty Advisor and
->   VP included. Both alternatives were offered and declined on 2026-09-03. This is deliberate, not
->   an oversight — do not "fix" it without asking the owner.
-> - Because prevention was traded away, the design leans on **containment + detection**: 1-hour TTL,
->   single-use consumed atomically, `session_epoch` bumped, old recovery codes burned, rate limits,
->   and an **unconditional completion email** — that notice is the only way an unauthorised reset is
->   ever noticed, so it must not be made optional.
-> - Separate `admin_password_resets` table rather than a `kind` column on `admin_invites`, so "a
->   reset cannot change a role" is true by construction. Consume-first ordering (unlike
->   `accept-invite`, which consumes last) so a double-submitted link cannot apply twice.
+>   VP included. Both alternatives were offered and declined on 2026-09-03. Deliberate, not an
+>   oversight — do not "fix" it without asking the owner.
+> - **⚠️ THE TABLE WAS READABLE-BY-GRANT WHEN CREATED.** `create table` + `enable row level
+>   security` was NOT enough: `anon` and `authenticated` still held a `SELECT` grant, while
+>   `admin_invites` has them revoked. RLS-with-no-policies did block reads, but the grant is the
+>   second lock the repo relies on (`20260820120005_rls.sql:43-53`). **A follow-up
+>   `revoke all ... from anon, authenticated` was applied and both tables now verify identical.**
+>   Any future sensitive table needs the revoke too — checking `relrowsecurity` alone misses this.
+> - **⚠️ `/admin/forgot` 307'd to login until `src/proxy.ts` was fixed.** The proxy allowlist held
+>   only `/admin/login` and `/admin/accept-invite`, so the page was unreachable for exactly the
+>   people who need it. Now allowlists `/admin/forgot` and prefix-matches `/admin/reset/`.
+>   Re-verified that `/admin/users` still 307s.
+> - **Consume-first ordering**, unlike `accept-invite` which consumes last: `consumeReset` runs
+>   BEFORE any write, so a double-submitted link cannot apply twice, and a crash mid-flow leaves a
+>   burned token with an **unchanged** password rather than a live token beside a changed one.
+> - **The reset writes `password_hash` + `session_epoch` ONLY** — never `role`, `club_id` or
+>   `is_active`. That is why it is a separate table from `admin_invites` rather than a `kind`
+>   column: an invite may create an account and carries a role, a reset may do neither.
+> - **`/admin/forgot` has exactly ONE success `return`.** Unknown address, deactivated account,
+>   rate-limited and success are byte-identical; the eligibility work happens in a `void` helper
+>   wrapped in try/catch so even a thrown DB/mail error cannot distinguish the branches.
+> - Shared `TotpEnrollFields` + `RecoveryCodesPanel` extracted from `AcceptInviteForm`. **Trap
+>   found in that extraction:** `&rsquo;` in a JSX *string attribute* is NOT decoded (it was JSX
+>   text before), so the entity has to become a real `’` or the success screen prints it literally.
+> - **⚠️ HOST-HEADER POISONING, found by the commit security review and FIXED before merge.** The
+>   reset link was first built as `NEXT_PUBLIC_SITE_URL ?? \`http://${hostHeader}\`` (copied from the
+>   invite send). With that env var blank — which HAS happened on this project — a spoofed `Host`
+>   would have mailed a **full-account-takeover token to an attacker's domain**. Now the origin comes
+>   only from the validated env var and **fails closed**: no env var, no email.
+> - **⚠️ THE SAME PATTERN IS STILL LIVE AT `src/app/admin/(app)/users/actions.ts:45`** (the invite
+>   link). Pre-existing, NOT introduced here, and lower risk because it needs an authenticated Tech
+>   Head — but it is the same class of bug and deserves the same fix. **Left untouched deliberately:
+>   different surface, owner's call.**
+> - **Known and accepted: a timing side-channel on `/admin/forgot`.** The wording is identical for a
+>   real and a fake address, but issuing a token and sending mail takes measurably longer than
+>   returning early, so a determined attacker can still distinguish them. Closing it needs a
+>   fixed-delay or deferred send (`waitUntil`); scoped out deliberately, not overlooked.
+> - **⚠️ OWED — NOT verified end-to-end, and the plan calls this mandatory.** Blocked twice: the
+>   Chrome extension is not connected, and `enqueueEmail` delivers immediately against the LIVE
+>   database, so a test send would mail a real admin. **A human must run Task 8 Steps 2–3 before
+>   this merges:** the neutral message must be byte-identical for a real vs fake address; the link
+>   must refuse a SECOND use (if it succeeds, `consumeReset` is not gating); an old recovery code
+>   must stop working; and a session open in another browser must be dead after the reset.
+>   What WAS verified without a browser: `/admin/forgot` renders 200, a bogus token renders the
+>   invalid-link panel and leaks **no** form or QR, `/admin/users` still redirects, and the table
+>   is unreadable by `anon`/`authenticated`.
 >
 > ### ✅ MERGED & PUSHED TO PROD — The login lockout now says it is a lockout (2026-09-03)
 > **Shipped in `9841d6c`..`188b99f` (2026-09-03). No migration.** Owner asked: "if they have
