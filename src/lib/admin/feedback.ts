@@ -93,3 +93,51 @@ export async function clubNames(): Promise<Map<string, string>> {
   if (error) throw error;
   return new Map((data ?? []).map((c) => [c.id, c.name]));
 }
+
+export interface ClubLeaderChoice {
+  clubId: string;
+  clubName: string;
+  curatedHeadId: string | null;
+  curatedViceHeadId: string | null;
+  heads: { id: string; name: string }[];
+  viceHeads: { id: string; name: string }[];
+}
+
+/**
+ * Every active club with its curated pick and the candidate accounts. Used by
+ * the picker — clubs with 0 or 1 candidate for a role need no decision, but
+ * they're listed anyway so the President can see who the form is naming.
+ */
+export async function listLeaderChoices(): Promise<ClubLeaderChoice[]> {
+  const admin = createAdminClient();
+  const [{ data: clubs, error: cErr }, { data: admins, error: aErr }] = await Promise.all([
+    admin
+      .from("clubs")
+      .select("id, name, feedback_head_id, feedback_vice_head_id")
+      .eq("is_active", true)
+      .order("name"),
+    admin
+      .from("admin_users")
+      .select("id, full_name, role, club_id, is_active")
+      .in("role", ["club_head", "vice_head"])
+      .eq("is_active", true),
+  ]);
+  if (cErr) throw cErr;
+  if (aErr) throw aErr;
+
+  return (clubs ?? []).map((c) => {
+    const mine = (admins ?? []).filter((a) => a.club_id === c.id);
+    return {
+      clubId: c.id,
+      clubName: c.name,
+      curatedHeadId: c.feedback_head_id,
+      curatedViceHeadId: c.feedback_vice_head_id,
+      heads: mine
+        .filter((a) => a.role === "club_head")
+        .map((a) => ({ id: a.id, name: a.full_name })),
+      viceHeads: mine
+        .filter((a) => a.role === "vice_head")
+        .map((a) => ({ id: a.id, name: a.full_name })),
+    };
+  });
+}

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminSession } from "@/lib/auth/guards";
@@ -71,5 +72,46 @@ export async function closeFeedbackAction(): Promise<void> {
   }
 
   revalidatePath("/", "layout");
+  redirect("/admin/feedback");
+}
+
+/**
+ * Set which head / vice head the public form names for a club.
+ *
+ * Lives HERE and not on the club editor on purpose: club heads hold
+ * manage:clubs with grant "own", so a picker on /admin/clubs/[id]/edit would
+ * let a head point the form away from their own vice head, or at nobody.
+ */
+export async function setClubLeadersAction(formData: FormData): Promise<void> {
+  const session = await requireFeedbackAdmin();
+
+  const clubId = String(formData.get("clubId") ?? "");
+  if (!z.string().uuid().safeParse(clubId).success) redirect("/admin/feedback");
+
+  const asId = (v: FormDataEntryValue | null) => {
+    const s = String(v ?? "");
+    return z.string().uuid().safeParse(s).success ? s : null;
+  };
+  const headId = asId(formData.get("headId"));
+  const viceHeadId = asId(formData.get("viceHeadId"));
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("clubs")
+    .update({ feedback_head_id: headId, feedback_vice_head_id: viceHeadId })
+    .eq("id", clubId);
+
+  if (!error) {
+    await writeAudit({
+      actorId: session.id,
+      action: "set_feedback_leaders",
+      entity: "club",
+      entityId: clubId,
+      after: { headId, viceHeadId },
+    });
+  } else {
+    console.error("feedback leader pick failed", error.message);
+  }
+
   redirect("/admin/feedback");
 }

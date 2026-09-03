@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { requireViewPage } from "@/lib/auth/guards";
-import { listPeriods } from "@/lib/admin/feedback";
+import { listPeriods, listLeaderChoices } from "@/lib/admin/feedback";
+import { FeedbackLeaderPicker } from "@/components/admin/FeedbackLeaderPicker";
 import { istNumericDate } from "@/lib/datetime";
 import { openFeedbackAction, closeFeedbackAction } from "./actions";
 
 export default async function AdminFeedbackPage() {
   await requireViewPage("view:feedback");
-  const periods = await listPeriods();
+  const [periods, choices] = await Promise.all([listPeriods(), listLeaderChoices()]);
   const open = periods.find((p) => p.closedAt == null) ?? null;
 
   return (
@@ -67,6 +68,13 @@ export default async function AdminFeedbackPage() {
           </table>
         </div>
       )}
+
+      <h2 style={{ marginTop: 36 }}>Who the form names</h2>
+      <p className="label" style={{ marginTop: 6, color: "var(--ink-2)" }}>
+        A club with more than one head account on file names nobody until you
+        choose here.
+      </p>
+      <FeedbackLeaderPicker clubs={choices} />
     </div>
   );
 }
