@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { loginAction } from "./actions";
+import { lockoutMessage } from "@/lib/auth/lockout";
 import type { LoginState } from "@/lib/admin/form-state";
 
 const initial: LoginState = {};
@@ -9,6 +10,38 @@ const initial: LoginState = {};
 export default function AdminLoginPage() {
   const [state, action, pending] = useActionState(loginAction, initial);
   const [useRecovery, setUseRecovery] = useState(false);
+  // The lockout is held as a wall-clock DEADLINE, not a decrementing counter,
+  // so a backgrounded tab (where timers are throttled) still re-enables at the
+  // right moment instead of drifting late.
+  //
+  // `locked` and `lockedFor` are DERIVED, never stored: the form must disable on
+  // the very render that carries the lockout, and both of the obvious ways to
+  // seed state are banned here — `Date.now()` during render is impure
+  // (`react-hooks/purity`) and setState in an effect body trips
+  // `react-hooks/set-state-in-effect`. So the effect below only subscribes to
+  // the clock; every value the UI reads is computed from `state` + that tick.
+  const [tick, setTick] = useState<{ from: LoginState; left: number } | null>(null);
+  const ticked = tick?.from === state ? tick : null;
+  const locked = Boolean(state.retryAfterSeconds) && ticked?.left !== 0;
+  const lockedFor = ticked ? ticked.left : (state.retryAfterSeconds ?? 0);
+
+  // `state` is a fresh object on every submit, so keying the tick on its
+  // identity re-syncs even when two consecutive lockouts report the same
+  // number of seconds.
+  useEffect(() => {
+    if (!state.retryAfterSeconds) return;
+    const endsAt = Date.now() + state.retryAfterSeconds * 1000;
+    const timer = setInterval(() => {
+      const left = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+      // Returning the previous object lets React bail out of the re-render, so
+      // this ticks the display once a second, not five times.
+      setTick((prev) =>
+        prev?.from === state && prev.left === left ? prev : { from: state, left },
+      );
+      if (left === 0) clearInterval(timer);
+    }, 200);
+    return () => clearInterval(timer);
+  }, [state]);
 
   return (
     <main className="admin-auth">
@@ -21,13 +54,14 @@ export default function AdminLoginPage() {
           Staff accounts only. Students don&rsquo;t sign in.
         </p>
 
-        {state.error ? (
+        {locked || state.error ? (
           <div
             role="alert"
+            aria-live="polite"
             className="note"
             style={{ borderLeftColor: "var(--rust)", marginBottom: 16 }}
           >
-            {state.error}
+            {locked ? lockoutMessage(lockedFor) : state.error}
           </div>
         ) : null}
 
@@ -66,8 +100,12 @@ export default function AdminLoginPage() {
           </div>
         )}
 
-        <button type="submit" className="btn btn-primary w-full" disabled={pending}>
-          {pending ? "Signing in…" : "Sign in"}
+        <button
+          type="submit"
+          className="btn btn-primary w-full"
+          disabled={pending || locked}
+        >
+          {locked ? `Locked — ${lockedFor}s` : pending ? "Signing in…" : "Sign in"}
         </button>
 
         <button
