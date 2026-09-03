@@ -38,11 +38,23 @@ export async function proxy(req: NextRequest) {
   headers.set("x-pathname", pathname);
   const proceed = NextResponse.next({ request: { headers } });
 
-  // Layer 1 (SECURITY_SPEC §4): a UX redirect only. Login and invite-acceptance
-  // are open (the new admin has no session yet); every other /admin route needs a
-  // session cookie. The authoritative check is the per-page server guard, which
-  // re-validates the session against the DB.
-  if (pathname === "/admin/login" || pathname === "/admin/accept-invite") return proceed;
+  // Layer 1 (SECURITY_SPEC §4): a UX redirect only. Login, invite-acceptance and
+  // password reset are open — by definition none of them has a session yet;
+  // every other /admin route needs a session cookie. The authoritative check is
+  // the per-page server guard, which re-validates the session against the DB.
+  //
+  // `/admin/reset/<token>` is prefix-matched because the token is in the path.
+  // It is not "unprotected": the page itself refuses any token that is unknown,
+  // expired or already consumed, and `/admin/forgot` is rate-limited and answers
+  // identically whether or not the address exists.
+  if (
+    pathname === "/admin/login" ||
+    pathname === "/admin/accept-invite" ||
+    pathname === "/admin/forgot" ||
+    pathname.startsWith("/admin/reset/")
+  ) {
+    return proceed;
+  }
   if (!req.cookies.has(SESSION_COOKIE)) return toLogin(req, pathname);
 
   const secret = process.env.NEXTAUTH_SECRET;
