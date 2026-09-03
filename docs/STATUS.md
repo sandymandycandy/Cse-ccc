@@ -20,7 +20,8 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-03)
 
-> **`main` = `origin/main` (clean, deployed) — nothing in flight.** Twelve commits shipped on
+> **IN FLIGHT: `feat/login-lockout-feedback`** — 4 commits, gate green, **not merged and not
+> browser-verified** (see its block below). `main` is otherwise clean and deployed. Twelve commits shipped on
 > 2026-09-03, all live and all their migrations applied and verified:
 > **`47ab5f4` image editor on all four upload forms + gallery masonry (⚠️ NEVER OPENED IN A
 > BROWSER — read its block first)** ·
@@ -62,6 +63,47 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
+> ### 🚧 ON BRANCH, PRE-MERGE — The login lockout now says it is a lockout (2026-09-03)
+> **Branch `feat/login-lockout-feedback` (4 commits). No migration.** Owner asked: "if they have
+> entered wrong password or email or totp it should be locked for 1 minute… only 3 chances."
+> **Gate green: typecheck ✓ / lint ✓ / 420 tests ✓ / build ✓** (+11 for peek + the action sequence,
+> +4 for `lockoutMessage`).
+> - **The lockout already existed and worked** — 3 attempts / 60s, per IP and per account, enforced
+>   in `authorize`. **It was simply invisible:** a locked-out admin got the same
+>   "Wrong email, password, or code." as a typo, forever, with no hint to wait. Enforcement was
+>   NOT changed; `src/lib/auth/index.ts` is untouched.
+> - **⚠️ `peekLoginLimits` must never write to the limiter store.** The action peeks before and
+>   after `signIn`; if that peek consumed a slot, three chances would become two. Two tests pin this
+>   ("does not consume", and a test that models the action's whole peek → consume → peek submit
+>   sequence) and **both are mutation-checked**: swapping `peek` back to `rateLimit` fails 3 tests.
+> - **Keys use the Zod-normalised email** — `LoginSchema` lowercases, and `authorize` keys on that,
+>   so peeking with the raw form field would read a different bucket.
+> - **Why showing the lock leaks nothing:** the limiter runs BEFORE the `admin_users` lookup
+>   (`auth/index.ts:66` vs `:69`) and counts a made-up address exactly like a real one, so the
+>   message says nothing about who exists. Wrong-email / wrong-password / wrong-TOTP stay identical.
+> - `src/lib/auth/lockout.ts` is deliberately free of `server-only` — the client page renders the
+>   same string as it ticks down.
+> - **⚠️ DEVIATION FROM THE PLAN — the countdown could not be written the way the plan specified.**
+>   The plan's `useEffect` that seeds `setLockedFor(state.retryAfterSeconds)` fails this repo's lint
+>   two different ways: `react-hooks/set-state-in-effect` (setState in an effect body) and then
+>   `react-hooks/purity` (`Date.now()` during render). **`locked` and `lockedFor` are therefore
+>   DERIVED from `state` + a ticking `tick` object, never stored**, and the effect only subscribes to
+>   the clock. Side benefit: it holds a wall-clock **deadline** rather than decrementing a counter,
+>   so a throttled background tab re-enables on time instead of drifting late.
+> - **⚠️ The limiter store is a per-instance `Map`** (documented at the top of `rate-limit.ts`). On
+>   Vercel the action and `authorize` can land on different instances, so **in prod the countdown may
+>   sometimes not appear** — it degrades to today's generic message, never to a weaker lock. The
+>   real fix is the already-planned Upstash swap.
+> - **Corrected `docs/SECURITY_SPEC.md` lines 69/145/269**, which said 5 attempts / 15 min and had
+>   contradicted the shipped code since the lockout landed. The specified "email alert at 10
+>   lockouts" is recorded as NOT implemented.
+> - **⚠️ OWED — never opened in a browser.** The Chrome extension is not connected (same blocker as
+>   the image editor). Do this before merging: on `/admin/login` with a wrong password, submit
+>   **three** times — the 3rd must switch to "Too many attempts. Try again in N seconds." with the
+>   button reading **"Locked — Ns"** and disabled; watch it reach zero and re-enable; then sign in
+>   for real. **If the lock appears on the 2nd submit, the peek is consuming an attempt.** Repeat
+>   with an address that has no account — it must behave identically.
+>
 > ### ✅ MERGED & PUSHED TO PROD — Seat counts stop lying on event rows (2026-09-03)
 > **Shipped in `fd9df3b` + `88422ee` (2026-09-03). No migration.** Owner asked: "after the events
 > seats is not required right?" — correct, and the site was still showing them.

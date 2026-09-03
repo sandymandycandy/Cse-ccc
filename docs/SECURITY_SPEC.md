@@ -66,7 +66,7 @@ Cross-Origin-Resource-Policy: same-origin
 | Session | Auth.js v5 JWT in an httpOnly + Secure + SameSite=Lax cookie, `__Host-` prefix |
 | Lifetime | 8 h absolute, 30 min idle, token rotated on each refresh |
 | Revocation | `admin_users.session_epoch` — bumping it invalidates every existing session for that user instantly (used on deactivate, role change, password reset) |
-| Login rate limit | 5 attempts / 15 min per IP **and** per account; lockout at 10 with an email alert to the account |
+| Login rate limit | 3 attempts / 1 min per IP **and** per account (`checkLoginLimits`); the 4th is refused and the form shows the seconds remaining. An email alert on repeated lockout is specified but NOT implemented. |
 | Error messages | Identical text for wrong user, wrong password, and locked account |
 | Secrets | Missing `NEXTAUTH_SECRET`, Supabase keys, or `CRON_SECRET` throws at module load. No `|| 'dev-secret'` fallbacks anywhere |
 
@@ -142,7 +142,7 @@ Upstash Redis sliding window, with an in-memory fallback for local dev. Keyed by
 | `POST /api/registrations` | 5 / 10 min per IP · 3 / hour per roll no · 10 / hour per email |
 | `POST /api/contact` | 3 / hour per IP |
 | `POST /api/join` | 3 / day per roll no |
-| `POST /api/admin/login` | 5 / 15 min per IP and per account |
+| `POST /api/admin/login` | 3 / 1 min per IP and per account |
 | `POST /api/student/registrations` (lookup) | 10 / 10 min per IP |
 | `GET /api/events` | 120 / min per IP |
 | Any admin mutation | 60 / min per session |
@@ -266,7 +266,7 @@ Every push runs: `tsc --noEmit` · ESLint (with the custom auth-check and no-`da
 - A consumed or expired admin invite token cannot be reused.
 - Markdown containing `<script>`, `onerror=`, and a `javascript:` link renders inert.
 - The anon Supabase key cannot select from `registrations`.
-- Rate limiter blocks the 6th login attempt.
+- Rate limiter blocks the 4th login attempt inside a minute, and the form says how long is left.
 - CSV formula injection is neutralised.
 - A replayed QR token fails the second time.
 - A rotating attendance code from an earlier slot fails, and a scan from a device not enrolled to that roll is rejected.

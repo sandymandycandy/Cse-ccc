@@ -91,3 +91,31 @@ describe("peekLoginLimits — reports the lock without spending an attempt", () 
     expect(peekLoginLimits({ ip: "198.51.100.99", email }).ok).toBe(false);
   });
 });
+
+// Models the exact call sequence `loginAction` performs per submit: peek before
+// `signIn`, `authorize` consumes one attempt, peek again to report a fresh lock.
+// Browser verification of the form is still owed; this pins the counting so the
+// "lock appears on the 2nd submit" regression cannot land unnoticed.
+describe("the login action's peek → consume → peek sequence", () => {
+  const submit = (id: { ip: string; email: string }) => {
+    const before = peekLoginLimits(id);
+    if (!before.ok) return { locked: true, spent: false };
+    checkLoginLimits(id); // what `authorize` does
+    return { locked: !peekLoginLimits(id).ok, spent: true };
+  };
+
+  it("gives exactly 3 chances, and reports the lock on the 3rd", () => {
+    const id = { ip: "203.0.113.60", email: "seq-a@example.test" };
+    expect(submit(id)).toEqual({ locked: false, spent: true }); // 1
+    expect(submit(id)).toEqual({ locked: false, spent: true }); // 2
+    expect(submit(id)).toEqual({ locked: true, spent: true }); // 3 → says so now
+  });
+
+  it("a 4th submit is refused without spending anything further", () => {
+    const id = { ip: "203.0.113.61", email: "seq-b@example.test" };
+    submit(id);
+    submit(id);
+    submit(id);
+    expect(submit(id)).toEqual({ locked: true, spent: false });
+  });
+});
