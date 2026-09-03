@@ -73,3 +73,44 @@ describe("EventRow — seat furniture follows the event's life", () => {
     expect(out).toContain("View results");
   });
 });
+
+describe("EventRow — an uncapped event has no seats to count", () => {
+  // Capacity is optional on the admin form: blank means unlimited, stored as 0.
+  const uncapped = (over: Partial<EventSummary> = {}) =>
+    row({ capacity: 0, registered: 18, ...over });
+
+  it("says Open entry instead of counting down from zero", () => {
+    // capacity 0 made seatsLeft 0, so an unlimited event read "0 seats left".
+    const out = html(uncapped());
+    expect(out).toContain("Open entry");
+    expect(out).not.toContain("0 seats left");
+  });
+
+  it("never prints a ratio against a zero capacity", () => {
+    // "18/0" told the reader nothing and looked like a full event.
+    expect(html(uncapped())).not.toContain("18/0");
+  });
+
+  it("drops the fill bar, which has no denominator", () => {
+    const out = html(uncapped());
+    expect(out).not.toContain("progressbar");
+    expect(out).not.toContain("seats filled");
+  });
+
+  it("still offers registration", () => {
+    expect(html(uncapped())).toContain("Register");
+  });
+
+  it("says nothing about seats once an uncapped event has finished", () => {
+    const out = html(uncapped({ isPast: true }));
+    expect(out).not.toContain("Open entry");
+    expect(out).toContain("Event ended");
+  });
+
+  it("leaves a capped event counting seats as before", () => {
+    const out = html(row());
+    expect(out).toContain("12 seats left");
+    expect(out).toContain("18/30");
+    expect(out).not.toContain("Open entry");
+  });
+});

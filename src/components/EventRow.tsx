@@ -11,11 +11,16 @@ import { eventCta } from "@/lib/event-cta";
  */
 export function EventRow({ event }: { event: EventSummary }) {
   const { title, blurb, club, day, dateLabel, timeLabel, venue } = event;
+  // Capacity is optional on the admin form — blank means unlimited and lands
+  // here as 0. Counting against it produced "0 seats left" and "18/0", which
+  // reads as a full event. Same treatment as the home carousel: say the entry
+  // is open and drop the numbers, since a fill bar has no denominator.
+  const capped = event.capacity > 0;
   const seatsLeft = Math.max(0, event.capacity - event.registered);
-  const pct =
-    event.capacity > 0 ? (event.registered / event.capacity) * 100 : 0;
+  const pct = capped ? (event.registered / event.capacity) * 100 : 0;
   const isFull = event.status === "full";
   const cta = eventCta(event);
+  const seatText = !capped ? "Open entry" : isFull ? "Waitlist" : `${seatsLeft} seats left`;
 
   return (
     <article className="evrow">
@@ -63,17 +68,21 @@ export function EventRow({ event }: { event: EventSummary }) {
                 color: "var(--ink-3)",
               }}
             >
-              <span>{isFull ? "Waitlist" : `${seatsLeft} seats left`}</span>
-              <span>
-                {event.registered}/{event.capacity}
-              </span>
+              <span>{seatText}</span>
+              {capped ? (
+                <span>
+                  {event.registered}/{event.capacity}
+                </span>
+              ) : null}
             </div>
-            <ProgressBar
-              value={pct}
-              tone={isFull ? "rust" : "forest"}
-              className="mt-1.5"
-              label={`${event.registered} of ${event.capacity} seats filled`}
-            />
+            {capped ? (
+              <ProgressBar
+                value={pct}
+                tone={isFull ? "rust" : "forest"}
+                className="mt-1.5"
+                label={`${event.registered} of ${event.capacity} seats filled`}
+              />
+            ) : null}
           </>
         ) : null}
         {cta.primary === "results" ? (
