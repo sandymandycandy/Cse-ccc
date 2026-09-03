@@ -140,3 +140,22 @@ export function peekLoginLimits(input: { ip: string; email: string }): RateResul
   ];
   return checks.find((c) => !c.ok) ?? { ok: true, remaining: 0, retryAfterSeconds: 0 };
 }
+
+/**
+ * Password-reset requests: 3 per email / hour, 5 per IP / hour.
+ *
+ * The per-EMAIL cap is the one that matters — per the design's D1 each mailed
+ * link is on its own sufficient to take over that account, so this bounds how
+ * many live tokens an attacker can cause to be sent to a mailbox they are
+ * waiting on. The per-IP cap only slows spraying across many addresses.
+ */
+export function checkPasswordResetLimits(input: {
+  ip: string;
+  email: string;
+}): RateResult {
+  const checks: RateResult[] = [
+    rateLimit(`reset:email:${input.email}`, 3, HOUR),
+    rateLimit(`reset:ip:${input.ip}`, 5, HOUR),
+  ];
+  return checks.find((c) => !c.ok) ?? { ok: true, remaining: 0, retryAfterSeconds: 0 };
+}

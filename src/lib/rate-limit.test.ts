@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { checkLoginLimits, checkContactLimits, peekLoginLimits } from "./rate-limit";
+import {
+  checkLoginLimits,
+  checkContactLimits,
+  peekLoginLimits,
+  checkPasswordResetLimits,
+} from "./rate-limit";
 
 // The limiter keeps state in a module-level Map, so each test uses a unique
 // email/ip to avoid cross-test contamination within the run.
@@ -117,5 +122,35 @@ describe("the login action's peek → consume → peek sequence", () => {
     submit(id);
     submit(id);
     expect(submit(id)).toEqual({ locked: true, spent: false });
+  });
+});
+
+describe("checkPasswordResetLimits — bounds how many live reset links exist", () => {
+  it("allows 3 per email, then trips with a retry-after", () => {
+    const id = { ip: "203.0.113.70", email: "reset-a@example.test" };
+    expect(checkPasswordResetLimits(id).ok).toBe(true); // 1
+    expect(checkPasswordResetLimits(id).ok).toBe(true); // 2
+    expect(checkPasswordResetLimits(id).ok).toBe(true); // 3
+
+    const fourth = checkPasswordResetLimits(id);
+    expect(fourth.ok).toBe(false);
+    expect(fourth.retryAfterSeconds).toBeGreaterThan(0);
+  });
+
+  it("caps one email even from rotating IPs — the cap that actually matters", () => {
+    const email = "reset-b@example.test";
+    checkPasswordResetLimits({ ip: "198.51.100.30", email });
+    checkPasswordResetLimits({ ip: "198.51.100.31", email });
+    checkPasswordResetLimits({ ip: "198.51.100.32", email });
+    expect(checkPasswordResetLimits({ ip: "198.51.100.33", email }).ok).toBe(false);
+  });
+
+  it("caps one IP spraying many different addresses", () => {
+    const ip = "203.0.113.71";
+    let last = checkPasswordResetLimits({ ip, email: "spray-0@example.test" });
+    for (let i = 1; i < 10 && last.ok; i++) {
+      last = checkPasswordResetLimits({ ip, email: `spray-${i}@example.test` });
+    }
+    expect(last.ok).toBe(false);
   });
 });
