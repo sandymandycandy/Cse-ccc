@@ -20,10 +20,12 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-03)
 
-> **`main` = `origin/main` (clean, deployed) — nothing in flight.** Ten commits shipped on
+> **`main` = `origin/main` (clean, deployed) — nothing in flight.** Twelve commits shipped on
 > 2026-09-03, all live and all their migrations applied and verified:
 > **`47ab5f4` image editor on all four upload forms + gallery masonry (⚠️ NEVER OPENED IN A
 > BROWSER — read its block first)** ·
+> `88422ee` an unlimited event no longer reads as full ·
+> `fd9df3b` no seat counts on finished events ·
 > `174df5f` gallery-only role + team names + roster search + results button ·
 > `52590f7` champion-led results page · `2fe3f8a` results layout fix + member backfill ·
 > `ca9530c` team name as an identity block · `107b3b6` attendance split ·
@@ -41,7 +43,10 @@ end-to-end**, not a checklist of components.
 > geometry is proven by 53 unit tests (including a matrix projection of the export transform, and
 > the suite is mutation-checked), but nothing has ever dragged a crop handle. **Open
 > `/admin/gallery/new`, crop a tall photo, save, and look at `/gallery` before relying on any of the
-> four.** Also ⚠️ **no email has ever been sent through the new code** —
+> four.** Also ⚠️ **the site has ZERO upcoming events** (one published event, and it is past), so the
+> seat-display fixes could only ever be verified for the *past* case against real data — "Open entry"
+> and "N seats left" have rendered in tests and nowhere else. Look at an event row and the calendar
+> day sheet once a real upcoming event exists. Also ⚠️ **no email has ever been sent through the new code** —
 > `enqueueEmail` delivers immediately against the LIVE database, so testing it would have mailed real
 > students unprompted. **Send one short broadcast to a small event, with a link, before relying on
 > it.** Also owed: a **phone-width look at the public results page** (only ever verified by fetching
@@ -57,6 +62,38 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
+> ### ✅ MERGED & PUSHED TO PROD — Seat counts stop lying on event rows (2026-09-03)
+> **Shipped in `fd9df3b` + `88422ee` (2026-09-03). No migration.** Owner asked: "after the events
+> seats is not required right?" — correct, and the site was still showing them.
+> **Gate green: typecheck ✓ / lint ✓ / 409 tests ✓ / build ✓** (+3 `eventCta`, +12 new `EventRow` suite).
+> - **`fd9df3b` — a finished event was still advertising seats.** `/events/past` read
+>   **"12 seats left" under a green Open badge, directly above an "Event ended" button.** The
+>   2026-09-03 `174df5f` pass fixed only the BUTTON; the seat badge, the "N seats left" line and the
+>   fill bar above it were never made conditional.
+> - **The fix is a `showSeats` flag on `eventCta()`**, not three separate `isPast` checks — the seat
+>   display and the dead-end button are the same decision, so keeping them in one tested function
+>   means they can never drift apart again. A test pins that invariant directly (`showSeats` is true
+>   iff the CTA still offers register/waitlist).
+> - Applied at the three places that each spelled the rule out separately, or not at all:
+>   `EventRow.tsx`, `app/events/[id]/page.tsx` (badge + the whole Seats cell), and
+>   `calendar/DaySheet.tsx`. **`CalendarEvent` carries no `isPast`**, so DaySheet derives it from
+>   `endsAt` exactly as `getEventSummaries` does — safe against hydration mismatch only because that
+>   sheet mounts after a click.
+> - **`88422ee` — an UNLIMITED event rendered as a full one.** Capacity is optional on the admin form
+>   (blank = unlimited, stored as **0**), but `EventRow` counted against it regardless: **"0 seats
+>   left", the ratio "18/0", and an empty fill bar** — visually identical to a sold-out event. Now
+>   says **"Open entry"** with no ratio and no bar, matching the treatment `UpcomingCarousel` already
+>   used. A bar with no denominator is exactly what "full" looks like, so it is dropped, not zeroed.
+> - **Only the row was wrong.** `app/events/[id]` and `UpcomingCarousel` already guarded on
+>   `capacity > 0`, and **`seatStatus()` (queries.ts:27) has always returned "open" for a null/zero
+>   capacity** — so the badge and the button were never wrong, just the numbers printed beside them.
+>   Checked before changing anything; this was one component, not a systemic issue.
+> - **New `src/components/EventRow.test.tsx`** renders the row with `renderToStaticMarkup` (same
+>   technique as `markdown.test.tsx`). It exists because **there is no upcoming event on the site to
+>   look at**, so the "seats still show" path had no live coverage at all. Mutation-checked: undoing
+>   the `showSeats` guard fails 3 of them, and the uncapped tests failed first with
+>   `expected … not to contain '18/0'`.
+>
 > ### ✅ MERGED & PUSHED TO PROD — Image editor (crop/rotate/resize) + gallery masonry (2026-09-03)
 > **Shipped 2026-09-03. Migration applied + verified live BEFORE the code deploy (required — see below).**
 > Owner asks: "full custom for the gallery upload… preview… rotate or crop or adjust or make it to
