@@ -22,7 +22,7 @@ end-to-end**, not a checklist of components.
 
 > **`main` = `origin/main` (clean, deployed) — nothing in flight.** Ten commits shipped on
 > 2026-09-03, all live and all their migrations applied and verified:
-> **`<img-editor>` image editor on all four upload forms + gallery masonry (⚠️ NEVER OPENED IN A
+> **`47ab5f4` image editor on all four upload forms + gallery masonry (⚠️ NEVER OPENED IN A
 > BROWSER — read its block first)** ·
 > `174df5f` gallery-only role + team names + roster search + results button ·
 > `52590f7` champion-led results page · `2fe3f8a` results layout fix + member backfill ·
