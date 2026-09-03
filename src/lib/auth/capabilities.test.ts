@@ -9,6 +9,7 @@ import {
   viewableCapabilities,
   adminHomePath,
   type Capability,
+  type AdminRole,
 } from "./capabilities";
 
 describe("manage:results grants", () => {
@@ -150,10 +151,21 @@ describe("roleRequiresTotp — mandatory 2FA for the widest-reach roles", () => 
 describe("full-access roles (owner decision, 2026-09-02)", () => {
   const FULL = ["faculty_advisor", "vice_president"] as const;
 
-  it.each(FULL)("%s holds every capability the system defines", (role) => {
+  // 22 capabilities exist as of 2026-09-04, when view:feedback was added. The
+  // count is asserted PER ROLE rather than shared, because the Faculty Advisor
+  // now holds 21 of the 22: view:feedback is withheld on purpose (design D2).
+  const TOTAL_CAPABILITIES = 22;
+
+  it("vice_president holds every capability the system defines", () => {
     // Pinned: if a new capability is added and this role is left out of its row,
     // viewableCapabilities drops it ("none") and the count falls short.
-    expect(viewableCapabilities(role)).toHaveLength(21);
+    expect(viewableCapabilities("vice_president")).toHaveLength(TOTAL_CAPABILITIES);
+  });
+
+  it("faculty_advisor holds every capability EXCEPT view:feedback", () => {
+    const caps = viewableCapabilities("faculty_advisor");
+    expect(caps).toHaveLength(TOTAL_CAPABILITIES - 1);
+    expect(caps).not.toContain("view:feedback");
   });
 
   it.each(FULL)("%s holds them at \"all\", never \"read\" or \"own\"", (role) => {
@@ -174,9 +186,16 @@ describe("full-access roles (owner decision, 2026-09-02)", () => {
     expect(canManage({ role, clubId: null }, "manage:admins")).toBe(true);
   });
 
-  it("the three unrestricted roles are faculty, VP and tech head", () => {
-    const full = ADMIN_ROLES.filter((r) => viewableCapabilities(r).length === 21);
-    expect(full.slice().sort()).toEqual(["faculty_advisor", "tech_head", "vice_president"]);
+  // Was "the three unrestricted roles are faculty, VP and tech head" until
+  // 2026-09-04. view:feedback (design D2) dropped the Faculty Advisor out of
+  // that set on purpose, leaving two. Do not "restore" the faculty grant to
+  // make this read three again — that would break the promise on the feedback
+  // form, not fix an inconsistency.
+  it("the unrestricted roles are now VP and tech head only", () => {
+    const full = ADMIN_ROLES.filter(
+      (r) => viewableCapabilities(r).length === TOTAL_CAPABILITIES,
+    );
+    expect(full.slice().sort()).toEqual(["tech_head", "vice_president"]);
   });
 
   it("the president was NOT widened — still no admin roster, audit stays read", () => {
@@ -261,6 +280,36 @@ describe("adminHomePath — where the nav's home link points", () => {
     for (const role of ADMIN_ROLES) {
       if (role === "gallery_manager") continue;
       expect(adminHomePath(role)).toBe("/admin");
+    }
+  });
+});
+
+describe("view:feedback", () => {
+  const id = (role: AdminRole) => ({ role, clubId: null });
+
+  it("is held by president, vice president and tech head", () => {
+    expect(canView(id("president"), "view:feedback")).toBe(true);
+    expect(canView(id("vice_president"), "view:feedback")).toBe(true);
+    expect(canView(id("tech_head"), "view:feedback")).toBe(true);
+  });
+
+  // Deliberate exception to the "Faculty / VP / Tech are unrestricted" rule
+  // (design D2). If this test fails because someone added the faculty grant
+  // "for consistency", the grant is the bug, not the test.
+  it("is NOT held by the faculty advisor", () => {
+    expect(canView(id("faculty_advisor"), "view:feedback")).toBe(false);
+  });
+
+  it("is held by no club-scoped or narrow role", () => {
+    for (const role of [
+      "club_head",
+      "vice_head",
+      "events_head",
+      "docs_head",
+      "social_media_head",
+      "gallery_manager",
+    ] as const) {
+      expect(canView(id(role), "view:feedback")).toBe(false);
     }
   });
 });

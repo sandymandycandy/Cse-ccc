@@ -13,7 +13,11 @@
 // (which still covers announcements + achievements) so that a `gallery_manager`
 // account can be given the photo gallery and nothing else. The split is
 // access-neutral for every pre-existing role: the two rows carry identical
-// grants, and a test enforces that. There are 21 capabilities, not 20.
+// grants, and a test enforces that.
+//
+// 2026-09-04, owner decision: `view:feedback` was added for the student feedback
+// inbox, bringing the total to 22 capabilities. It is the ONE capability the
+// Faculty Advisor does not hold — see the note on that row before "fixing" it.
 //
 // 2026-09-02, owner decision: the Faculty Advisor is NO LONGER read-only, and the
 // Vice President is no longer short of `revoke:certificate` / `manage:admins` /
@@ -73,7 +77,8 @@ export type Capability =
   | "manage:venues"
   | "manage:admins"
   | "view:audit"
-  | "view:analytics";
+  | "view:analytics"
+  | "view:feedback"; // the student feedback inbox (council-wide)
 
 /** The identity the capability checks reason about (a slice of the session). */
 export interface AdminIdentity {
@@ -185,6 +190,18 @@ const MATRIX: Record<Capability, Partial<Record<AdminRole, Grant>>> = {
     faculty_advisor: "all", president: "all", vice_president: "all",
     tech_head: "all", events_head: "all", social_media_head: "all",
     club_head: "own", vice_head: "own",
+  },
+  // Owner decision (2026-09-04): the student feedback inbox is President + Vice
+  // President + Technical Head — the Tech Head so the surface can be debugged in
+  // production without an admin editing their own role.
+  //
+  // ⚠️ THE FACULTY ADVISOR IS DELIBERATELY ABSENT. This is the ONLY capability
+  // they do not hold, and it is a knowing exception to the 2026-09-02 note above
+  // that Faculty / VP / Tech are unrestricted. Students are promised on the form
+  // that their responses stay with the council leadership. Do NOT add
+  // faculty_advisor here "for consistency" — a test pins this.
+  "view:feedback": {
+    president: "all", vice_president: "all", tech_head: "all",
   },
 };
 
