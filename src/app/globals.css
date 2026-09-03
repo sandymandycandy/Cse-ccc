@@ -2236,3 +2236,17 @@ img {
   .fb-grid { grid-template-columns: 1fr; }
   .fb-promise { order: -1; position: static; }
 }
+
+.fb-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--rust);
+  border-radius: var(--r-sm);
+  padding: 14px 18px;
+  margin-bottom: 28px;
+}
+.fb-banner p { margin: 0; max-width: 60ch; }

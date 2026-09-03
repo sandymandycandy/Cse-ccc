@@ -22,11 +22,17 @@ function isActive(pathname: string, href: string) {
 
 export function SiteHeader({
   initialTheme = "day",
+  feedbackOpen = false,
 }: {
   initialTheme?: "day" | "night";
+  /** True only while a feedback window is open — the link is temporary by design. */
+  feedbackOpen?: boolean;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const links = feedbackOpen
+    ? [...LINKS, { href: "/feedback", label: "Feedback" } as const]
+    : LINKS;
 
   return (
     <header className="site-header">
@@ -36,7 +42,7 @@ export function SiteHeader({
       </Link>
 
       <nav className="site-nav" aria-label="Primary">
-        {LINKS.map((l) => (
+        {links.map((l) => (
           <Link
             key={l.href}
             href={l.href}
@@ -77,7 +83,7 @@ export function SiteHeader({
             gap: 4,
           }}
         >
-          {LINKS.map((l) => (
+          {links.map((l) => (
             <Link
               key={l.href}
               href={l.href}

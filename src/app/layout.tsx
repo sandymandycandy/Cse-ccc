@@ -3,6 +3,7 @@ import { DM_Serif_Display, Space_Grotesk, IBM_Plex_Mono } from "next/font/google
 import { cookies, headers } from "next/headers";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { getOpenPeriod } from "@/lib/feedback/data";
 import "./globals.css";
 
 // DM Serif Display — headings only (400, plus italic as accent voice)
@@ -50,6 +51,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const path = (await headers()).get("x-pathname") ?? "";
   const bespokeChrome = path.startsWith("/admin");
 
+  // The feedback link appears in the nav only while a window is open. Cached
+  // per-request (see getOpenPeriod) and fails closed, so a DB blip costs the
+  // link rather than the whole header. Skipped on admin routes, which render
+  // their own chrome — the query would be pure waste on every admin request.
+  const feedbackOpen = bespokeChrome ? false : (await getOpenPeriod()) != null;
+
   return (
     <html
       lang="en"
@@ -61,7 +68,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           children
         ) : (
           <>
-            <SiteHeader initialTheme={theme} />
+            <SiteHeader initialTheme={theme} feedbackOpen={feedbackOpen} />
             <main>{children}</main>
             <SiteFooter />
           </>
