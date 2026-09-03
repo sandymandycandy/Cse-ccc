@@ -38,7 +38,7 @@ export function EventRow({ event }: { event: EventSummary }) {
           >
             {club}
           </span>
-          <SeatBadge status={event.status} />
+          {cta.showSeats ? <SeatBadge status={event.status} /> : null}
         </div>
         <h3 style={{ marginTop: 7 }}>{title}</h3>
         <p className="body-text" style={{ marginTop: 5, fontSize: 13 }}>
@@ -53,25 +53,29 @@ export function EventRow({ event }: { event: EventSummary }) {
       </div>
 
       <div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            font: "500 10.5px var(--mono)",
-            color: "var(--ink-3)",
-          }}
-        >
-          <span>{isFull ? "Waitlist" : `${seatsLeft} seats left`}</span>
-          <span>
-            {event.registered}/{event.capacity}
-          </span>
-        </div>
-        <ProgressBar
-          value={pct}
-          tone={isFull ? "rust" : "forest"}
-          className="mt-1.5"
-          label={`${event.registered} of ${event.capacity} seats filled`}
-        />
+        {cta.showSeats ? (
+          <>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                font: "500 10.5px var(--mono)",
+                color: "var(--ink-3)",
+              }}
+            >
+              <span>{isFull ? "Waitlist" : `${seatsLeft} seats left`}</span>
+              <span>
+                {event.registered}/{event.capacity}
+              </span>
+            </div>
+            <ProgressBar
+              value={pct}
+              tone={isFull ? "rust" : "forest"}
+              className="mt-1.5"
+              label={`${event.registered} of ${event.capacity} seats filled`}
+            />
+          </>
+        ) : null}
         {cta.primary === "results" ? (
           <ButtonLink
             href={`/events/${event.id}/results`}

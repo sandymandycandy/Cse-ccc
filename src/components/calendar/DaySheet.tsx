@@ -17,6 +17,19 @@ function timeLabel(ev: CalendarEvent): string {
   return ev.isAllDay ? "All day" : istTimeRange(ev.startsAt, ev.endsAt);
 }
 
+/**
+ * Seat status on a finished event describes an offer that has closed, so the
+ * sheet falls silent rather than claiming "Seats open" on a past day.
+ * `CalendarEvent` carries no `isPast`, so it is derived from `endsAt` the same
+ * way `getEventSummaries` does (queries.ts). Safe against a hydration mismatch
+ * because this sheet only mounts after the user opens a day.
+ */
+function seatLabel(ev: CalendarEvent): string | null {
+  if (ev.cancelled) return "Cancelled";
+  if (new Date(ev.endsAt).getTime() < Date.now()) return null;
+  return SEAT_TEXT[ev.status];
+}
+
 export function DaySheet({
   dayKey,
   events,
@@ -87,7 +100,7 @@ export function DaySheet({
                 </div>
                 <div className="row">
                   <span>{timeLabel(ev)}</span>
-                  <span>{ev.cancelled ? "Cancelled" : SEAT_TEXT[ev.status]}</span>
+                  <span>{seatLabel(ev)}</span>
                 </div>
               </Link>
             ))

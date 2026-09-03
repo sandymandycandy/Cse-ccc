@@ -13,6 +13,7 @@ describe("eventCta — which button a public event row offers", () => {
     expect(eventCta(ev({ isPast: true, hasResults: true }))).toEqual({
       primary: "results",
       secondaryResults: false,
+      showSeats: false,
     });
   });
 
@@ -21,14 +22,20 @@ describe("eventCta — which button a public event row offers", () => {
     expect(eventCta(ev({ isPast: true }))).toEqual({
       primary: "ended",
       secondaryResults: false,
+      showSeats: false,
     });
   });
 
   it("an open upcoming event still leads with Register", () => {
-    expect(eventCta(ev())).toEqual({ primary: "register", secondaryResults: false });
+    expect(eventCta(ev())).toEqual({
+      primary: "register",
+      secondaryResults: false,
+      showSeats: true,
+    });
     expect(eventCta(ev({ status: "fast" }))).toEqual({
       primary: "register",
       secondaryResults: false,
+      showSeats: true,
     });
   });
 
@@ -36,6 +43,7 @@ describe("eventCta — which button a public event row offers", () => {
     expect(eventCta(ev({ status: "full" }))).toEqual({
       primary: "waitlist",
       secondaryResults: false,
+      showSeats: true,
     });
   });
 
@@ -44,10 +52,12 @@ describe("eventCta — which button a public event row offers", () => {
     expect(eventCta(ev({ hasResults: true }))).toEqual({
       primary: "register",
       secondaryResults: true,
+      showSeats: true,
     });
     expect(eventCta(ev({ hasResults: true, status: "full" }))).toEqual({
       primary: "waitlist",
       secondaryResults: true,
+      showSeats: true,
     });
   });
 
@@ -57,6 +67,38 @@ describe("eventCta — which button a public event row offers", () => {
         const cta = eventCta(ev({ isPast, status }));
         expect(cta.primary).not.toBe("results");
         expect(cta.secondaryResults).toBe(false);
+      }
+    }
+  });
+});
+
+describe("eventCta — whether seat counts still mean anything", () => {
+  it("hides seats on a finished event, whatever its seat status says", () => {
+    // A finished event kept reporting "12 seats left" with an open badge, right
+    // above an "Event ended" button. Nobody can take those seats.
+    for (const status of ["open", "fast", "full"] as const) {
+      for (const hasResults of [true, false]) {
+        expect(eventCta(ev({ isPast: true, status, hasResults })).showSeats).toBe(false);
+      }
+    }
+  });
+
+  it("keeps seats on every upcoming event", () => {
+    for (const status of ["open", "fast", "full"] as const) {
+      for (const hasResults of [true, false]) {
+        expect(eventCta(ev({ status, hasResults })).showSeats).toBe(true);
+      }
+    }
+  });
+
+  it("shows seats exactly when the event is not finished", () => {
+    // The seat furniture and the dead-end button are the same decision, so they
+    // must never disagree: no seats iff the CTA has given up on registration.
+    for (const isPast of [true, false]) {
+      for (const status of ["open", "fast", "full"] as const) {
+        const cta = eventCta(ev({ isPast, status, hasResults: true }));
+        const registrationLive = cta.primary === "register" || cta.primary === "waitlist";
+        expect(cta.showSeats).toBe(registrationLive);
       }
     }
   });

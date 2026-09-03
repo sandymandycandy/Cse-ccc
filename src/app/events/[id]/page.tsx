@@ -7,6 +7,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { RegisterForm } from "@/components/RegisterForm";
 import { RegistrationCountdown } from "@/components/RegistrationCountdown";
 import { getEventDetail, getPublishedResults } from "@/lib/queries";
+import { eventCta } from "@/lib/event-cta";
 import {
   istDateLabel,
   istDayNum,
@@ -38,6 +39,8 @@ export default async function EventDetailPage({ params }: Params) {
   const seatsLeft = Math.max(0, event.capacity - event.registered);
   const pct = event.capacity > 0 ? (event.registered / event.capacity) * 100 : 0;
   const isFull = event.status === "full";
+  // Same rule as the event rows, so the detail page can't contradict the list.
+  const cta = eventCta(event);
   const phase = event.registrationPhase;
   const month = istDateLabel(event.startsAt).split(" · ")[0];
   // Organisers often paste the same text into both boxes — show it once.
@@ -64,7 +67,7 @@ export default async function EventDetailPage({ params }: Params) {
           >
             {event.club}
           </span>
-          <SeatBadge status={event.status} />
+          {cta.showSeats ? <SeatBadge status={event.status} /> : null}
         </div>
         <h1 style={{ margin: "12px 0 0" }}>{event.title}</h1>
 
@@ -87,7 +90,7 @@ export default async function EventDetailPage({ params }: Params) {
             <span className="k">Where</span>
             <span className="v">{event.venue}</span>
           </div>
-          {event.capacity > 0 ? (
+          {cta.showSeats && event.capacity > 0 ? (
             <>
               <div className="evd-rule" />
               <div className="evd-cell grow">
