@@ -655,6 +655,10 @@ export interface GalleryPhoto {
   imageUrl: string;
   caption: string | null;
   clubName: string | null;
+  /** Stored pixel size, when known. Lets the browser reserve the right space
+   *  before the image loads; the masonry works without it, just with a reflow. */
+  width: number | null;
+  height: number | null;
 }
 
 /** All gallery photos for the public page (no draft state; RLS allows anon
@@ -663,7 +667,7 @@ export async function getPublicGallery(): Promise<GalleryPhoto[]> {
   const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("gallery")
-    .select("id, image_path, caption, sort, created_at, clubs(name)")
+    .select("id, image_path, caption, sort, created_at, image_w, image_h, clubs(name)")
     .order("sort", { ascending: true })
     .order("created_at", { ascending: false })
     .limit(500);
@@ -673,6 +677,8 @@ export async function getPublicGallery(): Promise<GalleryPhoto[]> {
     imageUrl: supabase.storage.from("gallery").getPublicUrl(g.image_path).data.publicUrl,
     caption: g.caption,
     clubName: g.clubs?.name ?? null,
+    width: g.image_w,
+    height: g.image_h,
   }));
 }
 

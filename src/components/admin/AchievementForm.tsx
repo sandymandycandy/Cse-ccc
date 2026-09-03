@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import type { AchievementFormState } from "@/lib/admin/form-state";
+import { ImageEditor } from "./ImageEditor";
 
 type AchievementAction = (
   prev: AchievementFormState,
@@ -77,22 +78,13 @@ export function AchievementForm({
         />
       </div>
 
-      <div className="field">
-        <label htmlFor="image">Image (optional)</label>
-        {initial?.imageUrl ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={initial.imageUrl}
-              alt="Current image"
-              style={{ width: 200, height: 130, objectFit: "cover", borderRadius: 6, marginBottom: 8 }}
-            />
-            <span className="hint">Upload a new file to replace it.</span>
-          </>
-        ) : null}
-        <input id="image" name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
-        <span className="hint">PNG, JPEG, WebP or GIF, up to 5 MB.</span>
-      </div>
+      {/* 3:2 to match the achievements list thumbnail. */}
+      <ImageEditor
+        label="Image (optional)"
+        initialUrl={initial?.imageUrl ?? null}
+        defaultAspect={3 / 2}
+        hint="Crop and rotate before uploading. 3:2 matches how it is shown."
+      />
 
       {clubs ? (
         <div className="field">

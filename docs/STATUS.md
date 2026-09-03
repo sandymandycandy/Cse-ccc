@@ -20,8 +20,10 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-03)
 
-> **`main` = `origin/main` (clean, deployed) — nothing in flight.** Nine commits shipped on
+> **`main` = `origin/main` (clean, deployed) — nothing in flight.** Ten commits shipped on
 > 2026-09-03, all live and all their migrations applied and verified:
+> **`<img-editor>` image editor on all four upload forms + gallery masonry (⚠️ NEVER OPENED IN A
+> BROWSER — read its block first)** ·
 > `174df5f` gallery-only role + team names + roster search + results button ·
 > `52590f7` champion-led results page · `2fe3f8a` results layout fix + member backfill ·
 > `ca9530c` team name as an identity block · `107b3b6` attendance split ·
@@ -33,7 +35,13 @@ end-to-end**, not a checklist of components.
 > live while every CI check stays green), and the **`.stack` trap** in the layout-fix block
 > (it is a horizontal flex row, not a column).
 >
-> **What is owed, and why it matters:** ⚠️ **no email has ever been sent through the new code** —
+> **What is owed, and why it matters:** ⚠️ **the image editor has never been run in a browser** —
+> it replaced the file input on FOUR admin forms (gallery, event poster, announcement cover,
+> achievement image), so if it throws at runtime those four forms lose their image field. The
+> geometry is proven by 53 unit tests (including a matrix projection of the export transform, and
+> the suite is mutation-checked), but nothing has ever dragged a crop handle. **Open
+> `/admin/gallery/new`, crop a tall photo, save, and look at `/gallery` before relying on any of the
+> four.** Also ⚠️ **no email has ever been sent through the new code** —
 > `enqueueEmail` delivers immediately against the LIVE database, so testing it would have mailed real
 > students unprompted. **Send one short broadcast to a small event, with a link, before relying on
 > it.** Also owed: a **phone-width look at the public results page** (only ever verified by fetching
@@ -49,6 +57,51 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
+> ### ✅ MERGED & PUSHED TO PROD — Image editor (crop/rotate/resize) + gallery masonry (2026-09-03)
+> **Shipped 2026-09-03. Migration applied + verified live BEFORE the code deploy (required — see below).**
+> Owner asks: "full custom for the gallery upload… preview… rotate or crop or adjust or make it to
+> fit or change the dimensions… because some images are being cut."
+> **Gate green: typecheck ✓ / lint ✓ / 394 tests ✓ / build ✓** (+53 for the new `edit-math` suite).
+> **⚠️ NEVER OPENED IN A BROWSER — see the owed item in the header above.** Two independent blockers:
+> the Chrome extension was not connected, and the seeded `tech@cse.test` login is now rejected with
+> `CredentialsSignin` (stopped at 2 attempts to avoid the 3-try lockout).
+> - **The cutting was a DISPLAY bug, not an upload bug.** `/gallery` forced every photo into
+>   `aspect-ratio: 3/2` + `object-fit: cover`, so a portrait lost its top and bottom however
+>   carefully it was uploaded. An editor alone would have re-cropped the crop. **Both halves shipped.**
+> - **`src/lib/image/edit-math.ts` is pure geometry, no DOM** — the whole point is that crop/zoom/
+>   rotate decisions are unit-testable. State lives against a **canonical 1000-unit-wide frame**, so
+>   it is resolution-independent: the stage can resize and the export can be any size without a
+>   second coordinate system or any crop drift.
+> - **⚠️ The transform ORDER is the WYSIWYG contract:** `translate(centre) → scale(outScale) →
+>   translate(offset) → rotate → scale(zoom·flip) → drawImage(centred)`. CSS and canvas compose
+>   transforms identically, which is the only reason the live preview matches the exported bytes.
+>   **Change that order in one place and the preview silently stops matching what uploads.**
+> - **`fitWholeState` deliberately resets the straighten to 0.** A rotated rectangle always leaves
+>   empty wedges inside its own bounding box, so "show everything" and "no gaps" cannot both hold at
+>   a tilt. (An early test asserted the tilt survived — it was wrong and was fixed.)
+> - **The server was NOT changed.** On Apply the component swaps the baked file into the real
+>   `<input type="file">` via a `DataTransfer`, so the forms stay plain `<form action={serverAction}>`
+>   and **`handleImageUpload()` needed no edits at all**.
+> - **⚠️ Animated GIFs bypass the editor entirely** — baking one through a canvas keeps frame 1 and
+>   silently kills the animation. Detected by mime type and uploaded untouched, with a visible note.
+> - **⚠️ CSS trap:** the unlayered `img { max-width: 100% }` at the end of `globals.css` beats
+>   anything in `@layer components` (unlayered wins over layered, regardless of specificity). The
+>   editor's `<img>` is sized to natural pixels inside a 0x0 transform origin, so that cap would
+>   resolve to **0** and collapse it. The `.imged-imgwrap img { max-width: none }` override **must
+>   stay unlayered** next to it.
+> - The editor dialog is a **sibling of `.field`, never a child** — `.field input/select` forces a
+>   46px min-height and a border, which deforms the sliders and chips.
+> - **Gallery masonry = CSS multi-column** (`columns: 260px`), chosen so **existing rows need no
+>   backfill**: shape comes from the image at paint time. New nullable `gallery.image_w/image_h` are
+>   only a layout-shift optimisation. **Tradeoff the owner accepted: photos read DOWN each column**,
+>   so `sort` flows column-major. `getPublicGallery` now selects those columns, so **the migration
+>   had to land before the deploy or the page would 500**.
+> - Wired to all four upload forms. Non-gallery surfaces default to the aspect their layout actually
+>   renders (3:2 for announcement/achievement thumbs) so WYSIWYG holds; the event poster defaults to
+>   Original because that page renders it uncapped.
+> - Known cosmetic: a very tall portrait becomes a narrow sliver in the home `GalleryStrip` (fixed
+>   140px height, `width: auto`). Not cut, just thin.
+>
 > ### ✅ MERGED & PUSHED TO PROD — Results button on event rows + podium results page (2026-09-03)
 > **Shipped in `174df5f` (2026-09-03). Migrations applied + verified live.** Owner asks: "a button near
 > that event to see the results, when published the button should appear in the public page", then

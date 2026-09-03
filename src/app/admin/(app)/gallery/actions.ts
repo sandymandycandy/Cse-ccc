@@ -11,11 +11,20 @@ import { handleImageUpload } from "@/lib/admin/image-upload";
 import { getGalleryForEdit } from "@/lib/admin/gallery";
 import type { GalleryFormState } from "@/lib/admin/form-state";
 
+/** Upper bound on a reported dimension — the editor caps the long edge at 2400,
+ *  so anything near this is a malformed or hand-crafted submission. */
+const MAX_DIM = 20000;
+
 const Schema = z.object({
   caption: z.string().trim().max(500).optional().or(z.literal("")),
   sort: z.coerce.number().int().min(0).max(9999).optional().or(z.literal("")),
   // "" = council-wide (no club); a uuid = that club.
   clubId: z.union([z.literal(""), z.string().uuid()]),
+  // Reported by the client-side editor. Only ever a layout hint (the public
+  // masonry reads the real shape from the image), but still validated —
+  // it arrives from the browser like any other form field.
+  imageW: z.coerce.number().int().min(1).max(MAX_DIM).optional().or(z.literal("")),
+  imageH: z.coerce.number().int().min(1).max(MAX_DIM).optional().or(z.literal("")),
 });
 
 function parse(formData: FormData) {
@@ -23,7 +32,16 @@ function parse(formData: FormData) {
     caption: formData.get("caption") ?? "",
     sort: formData.get("sort") ?? "",
     clubId: formData.get("clubId") ?? "",
+    imageW: formData.get("imageW") ?? "",
+    imageH: formData.get("imageH") ?? "",
   });
+}
+
+/** Dimensions only count as a pair — a lone axis would skew the layout. */
+function dimensions(data: z.infer<typeof Schema>): { w: number | null; h: number | null } {
+  const w = typeof data.imageW === "number" ? data.imageW : null;
+  const h = typeof data.imageH === "number" ? data.imageH : null;
+  return w && h ? { w, h } : { w: null, h: null };
 }
 
 export async function createGalleryAction(
@@ -49,10 +67,18 @@ export async function createGalleryAction(
   const caption = parsed.data.caption ? parsed.data.caption : null;
   const sort = typeof parsed.data.sort === "number" ? parsed.data.sort : 0;
 
+  const dims = dimensions(parsed.data);
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("gallery")
-    .insert({ image_path: img.path, caption, sort, club_id: resolved.clubId })
+    .insert({
+      image_path: img.path,
+      caption,
+      sort,
+      club_id: resolved.clubId,
+      image_w: dims.w,
+      image_h: dims.h,
+    })
     .select("id")
     .single();
   if (error || !data) {
@@ -109,8 +135,18 @@ export async function updateGalleryAction(
     sort: number;
     club_id: string | null;
     image_path?: string;
+    image_w?: number | null;
+    image_h?: number | null;
   } = { caption, sort, club_id: resolved.clubId };
-  if (img.path !== undefined) update.image_path = img.path;
+  // Dimensions belong to the stored object, so they move only when it does —
+  // and are cleared when the replacement reports none (an animated GIF skips
+  // the editor), rather than leaving the previous photo's shape behind.
+  if (img.path !== undefined) {
+    const dims = dimensions(parsed.data);
+    update.image_path = img.path;
+    update.image_w = dims.w;
+    update.image_h = dims.h;
+  }
 
   const { error } = await admin.from("gallery").update(update).eq("id", id);
   if (error) return { error: "Could not save your changes. Try again." };

@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { defaultFormFor } from "@/lib/registration-form/schema";
 import { RegistrationFormBuilder } from "./RegistrationFormBuilder";
+import { ImageEditor } from "./ImageEditor";
 import type { EventFormState } from "@/lib/admin/form-state";
 
 interface Option {
@@ -193,22 +194,16 @@ export function EventForm({
         initialJson={initial?.registrationForm ?? JSON.stringify(defaultFormFor())}
       />
 
-      <div className="field">
-        <label htmlFor="image">Cover photo (optional)</label>
-        {initial?.posterUrl ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={initial.posterUrl}
-              alt="Current cover"
-              style={{ width: 220, height: 130, objectFit: "cover", borderRadius: 6, marginBottom: 8 }}
-            />
-            <span className="hint">Upload a new file to replace it.</span>
-          </>
-        ) : null}
-        <input id="image" name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
-        <span className="hint">PNG, JPEG, WebP or GIF, up to 5 MB. Shown on the event page.</span>
-      </div>
+      {/* No aspect default: the event page renders the poster at full width with
+          no height cap, so a portrait poster is already shown uncut. The editor
+          is here for straightening, rotating and shrinking oversized files. */}
+      <ImageEditor
+        label="Cover photo (optional)"
+        initialUrl={initial?.posterUrl ?? null}
+        defaultAspect={null}
+        longEdge={2400}
+        hint="Crop, rotate and resize before uploading. Shown on the event page."
+      />
 
       <button type="submit" className="btn btn-primary" disabled={pending}>
         {pending ? savingLabel : submitLabel}

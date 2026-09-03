@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import type { GalleryFormState } from "@/lib/admin/form-state";
+import { ImageEditor } from "./ImageEditor";
 
 type GalleryAction = (
   prev: GalleryFormState,
@@ -45,28 +46,16 @@ export function GalleryForm({
         </div>
       ) : null}
 
-      <div className="field">
-        <label htmlFor="image">Photo{editing ? "" : " (required)"}</label>
-        {initial?.imageUrl ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={initial.imageUrl}
-              alt="Current photo"
-              style={{ width: 200, height: 130, objectFit: "cover", borderRadius: 6, marginBottom: 8 }}
-            />
-            <span className="hint">Upload a new file to replace it.</span>
-          </>
-        ) : null}
-        <input
-          id="image"
-          name="image"
-          type="file"
-          accept="image/png,image/jpeg,image/webp,image/gif"
-          required={!editing}
-        />
-        <span className="hint">PNG, JPEG, WebP or GIF, up to 5 MB.</span>
-      </div>
+      {/* The gallery is the one surface that keeps each photo's own shape, so
+          it defaults to no aspect preset and stores the baked dimensions. */}
+      <ImageEditor
+        label={`Photo${editing ? "" : " (required)"}`}
+        required={!editing}
+        initialUrl={initial?.imageUrl ?? null}
+        defaultAspect={null}
+        withDimensions
+        hint="Crop, rotate and resize before uploading — the gallery shows the shape you choose."
+      />
 
       <div className="field">
         <label htmlFor="caption">Caption (optional)</label>

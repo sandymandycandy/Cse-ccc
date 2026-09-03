@@ -1949,6 +1949,179 @@
     .admin-main { padding: 28px var(--pad); }
     .admin-form-row { grid-template-columns: 1fr; }
   }
+
+  /* ── public gallery — multi-column masonry ──
+     Every photo keeps the shape its uploader chose in the admin editor, so a
+     fixed-aspect grid is exactly wrong here: it would re-crop a crop and cut
+     the tops off portrait shots again. Column COUNT falls out of column-width,
+     so this reflows at every viewport with no breakpoint of its own. Photos
+     read DOWN each column, which is how `sort` order flows on this page. */
+  .gallery-grid {
+    columns: 260px;
+    column-gap: 14px;
+    margin-top: 32px;
+  }
+  .gallery-grid figure {
+    margin: 0 0 14px;
+    -webkit-column-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .gallery-grid img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    /* Holds the reserved space visibly while a photo loads. */
+    background: var(--paper-2);
+  }
+  .gallery-grid figcaption { margin-top: 6px; }
+
+  /* ── admin image editor (crop / rotate / resize before upload) ──
+     The stage masks to the crop frame itself rather than dimming an "outside"
+     area, so what you see in the frame is exactly what gets exported. */
+  .imged-preview {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .imged-preview img {
+    width: 200px;
+    max-width: 45%;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--line-2b);
+    display: block;
+  }
+  .imged-preview-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+    font: 400 12.5px var(--sans);
+    color: var(--ink-3);
+  }
+  .imged-preview-meta strong { font: 500 12px var(--mono); color: var(--ink-2); }
+
+  .imged-backdrop {
+    position: fixed;
+    inset: 0;
+    background: color-mix(in srgb, var(--ink) 42%, transparent);
+    z-index: 60;
+    animation: cal-fade 0.15s ease;
+  }
+  .imged {
+    position: fixed;
+    z-index: 61;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(680px, 94vw);
+    max-height: 92vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    background: var(--paper-2);
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-lg);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+  }
+  .imged-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 20px 12px;
+  }
+  .imged-dims { font: 500 11px var(--mono); color: var(--ink-3); margin-top: 3px; }
+  .imged-close {
+    width: 34px;
+    height: 34px;
+    flex: none;
+    border: 1px solid var(--line-3);
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  /* Deliberately theme-independent: a photo stage that inverts with the theme
+     would change how the picture itself reads while cropping it. */
+  .imged-stage {
+    height: min(46vh, 380px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    background: #22241d;
+  }
+  .imged-frame {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--r-sm);
+    background: #14150f;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22);
+    cursor: grab;
+    /* Pointer handlers own pan and pinch, so the browser must not also scroll. */
+    touch-action: none;
+  }
+  .imged-frame:active { cursor: grabbing; }
+  .imged-imgwrap {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0;
+    height: 0;
+    will-change: transform;
+  }
+  .imged-imgwrap img { position: absolute; display: block; }
+  .imged-thirds {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.18) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.18) 1px, transparent 1px);
+    background-size: 33.333% 100%, 100% 33.333%;
+  }
+  .imged-controls {
+    padding: 14px 20px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .imged-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .imged-row .chip { padding: 7px 13px; font-size: 11.5px; }
+  .imged-slider {
+    display: grid;
+    grid-template-columns: 76px 1fr 54px;
+    align-items: center;
+    gap: 10px;
+  }
+  .imged-slider label { font: 500 12px var(--sans); color: var(--ink-2); }
+  .imged-slider input[type="range"] { width: 100%; accent-color: var(--forest); }
+  .imged-slider output { font: 500 11px var(--mono); color: var(--ink-3); text-align: right; }
+  .imged-output label { font: 500 12px var(--sans); color: var(--ink-2); }
+  .imged-output select {
+    padding: 8px 10px;
+    border: 1px solid var(--line-3);
+    border-radius: var(--r-sm);
+    background: var(--paper-2);
+    color: var(--ink);
+    font: 400 12.5px var(--sans);
+  }
+  .imged-actions { display: flex; align-items: center; gap: 8px; }
+  .imged-spacer { flex: 1; }
+  .imged .btn[aria-pressed="true"] {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  @media (max-width: 599px) {
+    .imged-stage { height: 40vh; }
+    .imged-slider { grid-template-columns: 66px 1fr 46px; }
+    /* These selects sit outside .field, so they miss the global 16px rule that
+       stops iOS Safari zooming the page in when a control takes focus. */
+    .imged-output select { font-size: 16px; }
+  }
 }
 
 @keyframes cal-fade { from { opacity: 0; } to { opacity: 1; } }
@@ -1971,6 +2144,14 @@
    width, so this only ever caps oversized images). */
 img {
   max-width: 100%;
+}
+
+/* …except the image being cropped. It is sized to its natural pixel width
+   inside a 0x0 transform origin, so a 100% cap would resolve to 0 and collapse
+   it. This rule must stay UNLAYERED: the cap above is unlayered too, and an
+   unlayered rule beats any rule in @layer components regardless of specificity. */
+.imged-imgwrap img {
+  max-width: none;
 }
 
 @media (max-width: 599px) {

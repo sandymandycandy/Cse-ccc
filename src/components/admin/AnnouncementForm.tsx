@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import type { AnnouncementFormState } from "@/lib/admin/form-state";
+import { ImageEditor } from "./ImageEditor";
 
 type AnnouncementAction = (
   prev: AnnouncementFormState,
@@ -54,22 +55,15 @@ export function AnnouncementForm({
         </span>
       </div>
 
-      <div className="field">
-        <label htmlFor="image">Cover image (optional)</label>
-        {init?.imageUrl ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={init.imageUrl}
-              alt="Current cover"
-              style={{ width: 160, height: 100, objectFit: "cover", borderRadius: 6, marginBottom: 8 }}
-            />
-            <span className="hint">Upload a new file to replace it.</span>
-          </>
-        ) : null}
-        <input id="image" name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
-        <span className="hint">PNG, JPEG, WebP or GIF, up to 5 MB.</span>
-      </div>
+      {/* Defaults to 3:2 because that is the shape the announcements list
+          thumbnail (120x80) and the detail hero both render — cropping to it
+          here means the admin picks what shows, instead of a blind centre-crop. */}
+      <ImageEditor
+        label="Cover image (optional)"
+        initialUrl={init?.imageUrl ?? null}
+        defaultAspect={3 / 2}
+        hint="Crop and rotate before uploading. 3:2 matches how covers are shown."
+      />
 
       <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <input type="checkbox" name="published" defaultChecked={init?.published} style={{ width: "auto" }} />

@@ -24,25 +24,19 @@ export default async function GalleryPage() {
           The gallery is being put together — check back soon.
         </p>
       ) : (
-        <div
-          style={{
-            marginTop: 32,
-            display: "grid",
-            gap: 12,
-            gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-          }}
-        >
+        <div className="gallery-grid">
           {photos.map((p) => (
-            <figure key={p.id} style={{ margin: 0 }}>
+            <figure key={p.id}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={p.imageUrl}
                 alt={p.caption ?? ""}
                 loading="lazy"
-                style={{ width: "100%", aspectRatio: "3 / 2", objectFit: "cover", borderRadius: 8, display: "block" }}
+                width={p.width ?? undefined}
+                height={p.height ?? undefined}
               />
               {p.caption || p.clubName ? (
-                <figcaption style={{ marginTop: 6 }}>
+                <figcaption>
                   {p.caption ? (
                     <span className="body-text" style={{ fontSize: 14, color: "var(--ink-2)" }}>
                       {p.caption}
