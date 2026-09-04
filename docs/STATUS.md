@@ -64,6 +64,26 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
+> ### ✅ MERGED & PUSHED TO PROD — Feedback dashboard button + form UX pass (2026-09-04)
+> **No migration, no endpoint or guard change** — presentation plus a client-side courtesy check.
+> **Gate green: typecheck ✓ / lint ✓ / 490 tests ✓ / build ✓.**
+> **⚠️ Shipped DURING a live collection window** (opened by `sandy` 07:35 UTC, 1 real response
+> already in). Safe because the POST payload shape is unchanged, but note the precedent.
+>
+> - `/admin` gains an **Open / Close feedback** quick action beside "Create event", gated on
+>   `view:feedback`, showing the live response count. It reuses `openFeedbackAction` /
+>   `closeFeedbackAction` — a second ENTRY POINT, not a second mutation path.
+> - The 1–5 scale now carries its meaning (Poor/Weak/Fine/Good/Excellent, `aria-live`). An
+>   unlabelled scale produces mushy data — a 3 meaning "fine" and a 3 meaning "poor" are not the
+>   same number, and every rating already collected shares that ambiguity.
+> - **`src/lib/feedback/form-validation.ts` is a COURTESY, not a control.** Its bounds deliberately
+>   mirror `schema.ts`; if you change one, change both. A client that accepts what the server
+>   rejects is worse than no check, because the error then arrives with no field attached.
+> - Success names the club and offers "Give feedback on another club" (a student in three clubs no
+>   longer reloads); the closed page offers a way onward instead of dead-ending.
+> - **Deliberately NOT numbered 01/02/03.** The form is a set of subjects rated in any order, not a
+>   sequence, so numbering would be decoration posing as structure. Don't "improve" it back in.
+
 > ### ✅ MERGED & PUSHED TO PROD — Feedback mobile pass + period analytics (2026-09-04)
 > **No migration.** Follows the club feedback portal below; read that block first.
 > **Gate green: typecheck ✓ / lint ✓ / 483 tests ✓ / build ✓** (+18 for the analytics suite).
