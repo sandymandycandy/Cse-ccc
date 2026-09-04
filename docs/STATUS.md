@@ -18,9 +18,11 @@ end-to-end**, not a checklist of components.
 
 ---
 
-## 🚦 START HERE — current git/deploy state (2026-09-03)
+## 🚦 START HERE — current git/deploy state (2026-09-04)
 
-> **`main` = `origin/main` (clean, deployed) — nothing in flight.** The login-lockout work is
+> **`main` = `origin/main` (clean, deployed) — nothing in flight.** Club health shipped
+> 2026-09-04 and is live at `/admin/oversight/clubs`, pushed with its browser check still owed
+> (the owner chose to ship; it is item 8 on the checklist below). The login-lockout work is
 > merged and deployed, but ⚠️ **was pushed WITHOUT the browser check the plan required** — the
 > owner chose to ship it; the check is still owed and is listed in its block below. Twelve commits shipped on
 > 2026-09-03, all live and all their migrations applied and verified:
@@ -64,7 +66,7 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
-> ### ⚠️ COMMITTED ON `feat/council-oversight-club-health` — NOT MERGED — Council oversight phase 1: Club health (2026-09-04)
+> ### ✅ MERGED + DEPLOYED — Council oversight phase 1: Club health (2026-09-04)
 > Rollout step 1 of `docs/superpowers/specs/2026-09-04-council-oversight-design.md`, planned in
 > `docs/superpowers/plans/2026-09-04-council-oversight-club-health.md`. **No migration.**
 > Gate: typecheck ✓ / lint ✓ / **578 tests** ✓ / build ✓ (+26). New page `/admin/oversight/clubs`
@@ -112,7 +114,7 @@ end-to-end**, not a checklist of components.
 > forged session, which covers the gate, the numbers and the nav — and covers **no layout at all**.
 > The `.tablewrap.cards` phone collapse and the flag badges have never been seen.
 
-> ### ⚠️ COMMITTED ON `feat/admin-deactivate-and-grouping` — NOT MERGED — Admin deactivate + club grouping (2026-09-04)
+> ### ✅ MERGED + DEPLOYED — Admin deactivate + club grouping (2026-09-04, `be159c6`)
 > Owner asked to "deactivate or remove the admin members" and to "arrange it according to their club".
 > **No migration.** Gate: typecheck ✓ / lint ✓ / **552 tests** ✓ / build ✓ (+19).
 >
