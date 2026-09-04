@@ -109,10 +109,31 @@ end-to-end**, not a checklist of components.
 >   inside the 30-day window**, so "sessions in window" equals "all time" everywhere right now.
 > - Phase B (`/admin/oversight/activity`, `audit-insights.ts`, the B4 PII field allowlist) is
 >   rollout steps 2–3 and is **not built** — it needs its own plan.
+> - **REBUILT AS TRIAGE 2026-09-04 (`14232d4`) — the 7-column table is gone.** The 14 clubs are
+>   not one list, and one table buried that: five clubs need a conversation, nine only need to
+>   stay checkable, and below 720px `.tablewrap.cards` turned the table into **fourteen
+>   seven-line cards**. Now two densities of one row, borrowing the dashboard docket's DNA:
+>   **Needs attention** rows carry the flags, a fixed-shape diagnosis line and the two actions;
+>   **Running normally** rows are one compact link each — the whole row is the tap target, which
+>   removed 18 buttons. The four stat tiles were dropped: the section headings already carry those
+>   counts, and on a phone they were four boxes before any content.
+> - **⚠️ THE TIGHT BREAKPOINT IS ABOVE 860px, NOT BELOW IT.** The sidebar holds its 236px column
+>   until 860 while `--pad` does not shrink until 899/599, so the narrowest content box is at
+>   ~861px, not on a phone. `white-space: nowrap` on the figures crushed long names like "Short
+>   Film & Movie Appreciation Club" there; each figure is now `nowrap` individually and the SET
+>   wraps. The row itself collapses to one column at 560px with the actions dropping below.
+> - **Copy rules live in `club-vitality-copy.ts` with 12 tests, because two of them are
+>   load-bearing.** A turnout figure never appears without the attendance behind it, and a `0%`
+>   that came from **zero eligible slots is suppressed rather than shown as turnout** — otherwise
+>   the page accuses a club that has done nothing wrong (same guard as the `low-turnout` flag).
+>   Also killed "43% of 292", which reads as 292 members when 292 is attendance slots.
 >
-> **⚠️ NEVER OPENED IN A BROWSER.** The page was verified by fetching and parsing its HTML with a
-> forged session, which covers the gate, the numbers and the nav — and covers **no layout at all**.
-> The `.tablewrap.cards` phone collapse and the flag badges have never been seen.
+> **⚠️ STILL NEVER OPENED IN A BROWSER — the Chrome extension would not connect again (7th session).**
+> Both the original table and the triage rebuild were verified by fetching and parsing the HTML with
+> a forged session, which covers the gate, the numbers, the nav and the DOM structure, and covers
+> **no layout at all**. The 560px reflow, the wrapping figures, the badge chips and the row hover
+> have never been SEEN — they are reasoned from the CSS and from the shell breakpoints (860 / 899 /
+> 599), not observed. Someone must open it on a phone.
 
 > ### ✅ MERGED + DEPLOYED — Admin deactivate + club grouping (2026-09-04, `be159c6`)
 > Owner asked to "deactivate or remove the admin members" and to "arrange it according to their club".
@@ -2042,10 +2063,12 @@ flow as always.
    - [ ] **Feedback portal** (form + admin inbox + analytics).
    - [ ] **Content verticals** — resources / gallery / achievements CRUD, plus the
          older unverified mutations (§4c event duplicate/cancel, announcements).
-   - [ ] **Club health** (`/admin/oversight/clubs`, 2026-09-04) — never opened.
-         Confirm the Oversight nav group renders, that Ai Forge / Nature /
-         Animatrix (E-Sports) lead the table with their flags, that the deep
-         links land on the right club, and the phone-width card collapse.
+   - [ ] **Club health** (`/admin/oversight/clubs`, 2026-09-04) — never opened,
+         and REDESIGNED since (`14232d4`), so nothing about its layout is known.
+         Confirm the Oversight nav group renders; that the five "Needs attention"
+         rows lead with Ai Forge / Nature / Animatrix (E-Sports); that a "Running
+         normally" row is tappable across its whole width; the 560px collapse and
+         the figures wrapping around 861px; and that the badges read in dark mode.
 
 2. **Phase 2 — remaining verticals** (Storage, safe-markdown, `isSafeHttpUrl`,
    `image-upload`, `club-scope`, `clubs` foundations all exist now, so these are
