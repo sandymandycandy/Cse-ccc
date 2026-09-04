@@ -64,6 +64,38 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
+> ### ✅ MERGED & PUSHED TO PROD — Feedback mobile pass + period analytics (2026-09-04)
+> **No migration.** Follows the club feedback portal below; read that block first.
+> **Gate green: typecheck ✓ / lint ✓ / 483 tests ✓ / build ✓** (+18 for the analytics suite).
+> **⚠️ STILL SHIPPED WITHOUT A VISUAL BROWSER PASS** — the Chrome extension never connected.
+>
+> - **⚠️ A container query was silently dead.** `.cf-row` pairs the VTU/name inputs only inside
+>   `@container (min-width: 440px)`, and the ONLY container context in the repo is
+>   `.contact-form-wrap`. `/feedback` never used it, so with no container to resolve against the
+>   query never matched and **those fields stacked at every width, desktop included**. Fixed by
+>   `container-type: inline-size` on `.fb-formcol`. **If you add a form outside `/contact` that
+>   reuses `.cf-row`, it needs its own container context or it will silently do nothing.**
+> - Star ratings now carry **44px tap targets** (the 3d4c5b0 baseline) with the glyph still 30px.
+> - Admin periods + per-club summary tables moved onto the existing **`.tablewrap.cards`** pattern.
+>   The summary's three averages share one compact row, scoped by `.fb-summary` so the shared cards
+>   pattern used by attendance/council/registrations is untouched.
+> - **The leader picker is cards, not a table** — a `<form>` cannot legally span table cells, so the
+>   table version needed a `colSpan` that left the header labels misaligned. Don't "restore" it.
+> - **New: `/admin/feedback/[periodId]/analytics`** (same `view:feedback` capability). Headline
+>   tiles with deltas vs the previous window, 1–5 distributions, responses-per-day timeline, silent
+>   clubs, watchlists, free-text engagement. Pure logic in `src/lib/admin/feedback-analytics.ts`.
+> - **⚠️ THREE GUARDS IN THAT MODULE ARE STRUCTURAL — DO NOT RELAX THEM.** D3 declined any
+>   submission cap, which makes a ranked list of NAMED people the riskiest surface in the feature:
+>   (1) no average is exposed without its response count; (2) anything under `THIN_SAMPLE` (5)
+>   responses is **never** ranked — verified live that a single 1-star response keeps both the club
+>   and the named head off the watchlist while n=7 avg 2.0 appears; (3) the duplicate-VTU count
+>   leads the page. The module's header comment explains why.
+> - **Charts are single-hue on purpose.** Bar length already encodes magnitude, so a categorical
+>   palette would be wrong and a ramp keyed to the rating would encode the same fact twice. Text
+>   stays in ink tokens, never the series colour. `--forest` has a deliberate dark-mode step.
+> - **Owner curation in progress:** AspireX vice head → `LOGITH A`, Coding Club head →
+>   `NavaneethKumar`. **AppNova is still uncurated and names nobody.**
+
 > ### ✅ MERGED & PUSHED TO PROD — Club feedback portal (2026-09-04)
 > **Migration `20260904000000_club_feedback` APPLIED + VERIFIED LIVE BEFORE the code deploy.**
 > Owner asked: "I want a feedback form."
