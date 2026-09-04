@@ -78,11 +78,34 @@ export interface AdminListRow {
 }
 
 /** All admin accounts, for the user-management page. */
+/**
+ * ⚠️ The `clubs` embed MUST name its foreign key. Do not "simplify" it back to
+ * `clubs ( short_name )`.
+ *
+ * There are THREE foreign-key paths between `admin_users` and `clubs`:
+ * `admin_users.club_id → clubs.id` (the one we want), plus
+ * `clubs.feedback_head_id` and `clubs.feedback_vice_head_id`, both added by
+ * migration `20260904000000_club_feedback`. That migration turned a
+ * previously-unambiguous embed on a completely unrelated page into
+ * PGRST201 ("Could not embed because more than one relationship was found"),
+ * which took `/admin/users` down with the admin error boundary.
+ *
+ * PostgREST resolves embeds at request time against the live schema, so
+ * typecheck, lint, the suite and the build all stayed green while the page was
+ * broken in production. `invites.test.ts` pins the shape of this string because
+ * that is the only layer that can catch it.
+ *
+ * `admin_totp` needs no hint: it has a single FK to `admin_users`.
+ */
+export const ADMIN_LIST_SELECT =
+  "id, email, full_name, role, is_active, " +
+  "clubs!admin_users_club_id_fkey ( short_name ), admin_totp ( confirmed_at )";
+
 export async function listAdmins(): Promise<AdminListRow[]> {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("admin_users")
-    .select("id, email, full_name, role, is_active, clubs ( short_name ), admin_totp ( confirmed_at )")
+    .select(ADMIN_LIST_SELECT)
     .order("created_at", { ascending: true });
   if (error) throw error;
   return (

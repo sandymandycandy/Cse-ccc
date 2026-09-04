@@ -64,6 +64,41 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
+> ### 🔥 FIX — `/admin/users` was DOWN in production (PGRST201) — 2026-09-04
+> **Reported by the owner** ("Something went wrong … when I try to open the admin invite page").
+> **No migration.** One-line query fix + a pinning test. Gate: typecheck ✓ / lint ✓ / 533 tests ✓ / build ✓.
+>
+> **Root cause.** Migration `20260904000000_club_feedback` added `clubs.feedback_head_id`
+> and `clubs.feedback_vice_head_id`, both FK → `admin_users`. That gave `admin_users` **THREE**
+> foreign-key paths to `clubs`, so the pre-existing bare embed in `listAdmins()`
+> (`clubs ( short_name )`) became ambiguous and PostgREST refused it outright:
+> `PGRST201 — Could not embed because more than one relationship was found`. The page threw,
+> and the admin `error.tsx` boundary caught it — which is why the owner saw a digest
+> reference rather than a stack trace.
+>
+> **⚠️ A MIGRATION FOR ONE FEATURE BROKE AN UNRELATED PAGE, AND EVERY CHECK STAYED GREEN.**
+> PostgREST resolves embeds at request time against the live schema, so typecheck, lint, the
+> suite and the build cannot see it. This is the SECOND instance of this exact class in this
+> repo — see the results/PII note ("a join across it fails live while every CI check stays
+> green"). **When a migration adds an FK, grep for existing embeds of BOTH tables.**
+>
+> - Fix: the embed now names its FK — `clubs!admin_users_club_id_fkey ( short_name )`.
+>   Cardinality is unchanged (still many-to-one → an object, not an array), so no mapping or
+>   type change was needed.
+> - The select is now the exported constant `ADMIN_LIST_SELECT`, pinned by
+>   `src/lib/admin/invites.test.ts`. **The test is a string assertion on purpose:** the failure
+>   it prevents is someone deleting the `!fk` hint as a tidy-up, and no other layer can catch it.
+> - **Blast radius checked and it is exactly one query.** Every other `clubs(…)` embed in the
+>   repo hangs off achievements / gallery / members / resources / event_clubs, each of which has
+>   a single FK to `clubs`; no query embeds `admin_users` from `clubs`. Verified by sweep.
+> - Verified against the LIVE database: the old select returns PGRST201, the new one returns all
+>   37 admins, and `/admin/users` renders 37 rows with the club and 2FA columns populated.
+>
+> **⚠️ SEPARATE DEFECT FOUND, NOT FIXED HERE:** `nodemailer` is declared in **both**
+> `dependencies` and `devDependencies` in `package.json` (lines 22 and 45). Harmless today
+> (the `dependencies` entry survives Vercel's prune) but it should be one entry. Left alone to
+> keep this fix single-purpose.
+
 > ### ⚠️ COMMITTED ON `feat/admin-dashboard-nav` — NOT MERGED, NOT PUSHED — Admin dashboard + nav shell (2026-09-04)
 > **No migration. No capability, guard, or mutation-path change** — presentation plus two new read-only counts.
 > **Gate green: typecheck ✓ / lint ✓ / 529 tests ✓ / build ✓** (+39 over the 490 baseline).
