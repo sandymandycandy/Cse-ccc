@@ -151,9 +151,7 @@ export function ClubHealth({
         </section>
       ) : null}
 
-      {/* Explicit type, not `className="hint"`: `.hint` is only defined as
-          `.field .hint`, so outside a form field it renders unstyled. */}
-      <p style={{ marginTop: 18, font: "400 12px / 1.6 var(--sans)", color: "var(--ink-3)" }}>
+      <p className="hint" style={{ marginTop: 18 }}>
         Turnout counts each member only from the date they joined. A club is
         flagged for low turnout below {LOW_TURNOUT}%, and only once it has held{" "}
         {MIN_SESSIONS} meetings in the window — one sparse meeting is not a

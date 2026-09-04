@@ -14,9 +14,6 @@ export const metadata = { title: "Check attendance", robots: { index: false } };
  *
  * The rows therefore carry no Present/Absent word of their own — the heading
  * above them says it once.
- *
- * ⚠️ Styles are explicit here rather than `className="hint"`: `.hint` is only
- * defined as `.field .hint`, so outside a form field it renders unstyled.
  */
 function SessionGroup({
   label,
@@ -57,9 +54,7 @@ function SessionGroup({
             <span className="body-text" style={{ minWidth: 0 }}>
               {s.title}
             </span>
-            <span
-              style={{ flex: "none", font: "400 12px var(--sans)", color: "var(--ink-3)" }}
-            >
+            <span className="hint" style={{ flex: "none" }}>
               {istNumericDate(s.date)}
             </span>
           </li>

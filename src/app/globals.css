@@ -170,6 +170,19 @@
     text-transform: uppercase;
     color: var(--ink-3);
   }
+  /* Secondary text: a stat's date, an error digest, a methodology footnote.
+     ⚠️ This was ONLY ever defined as `.field .hint` (see the form section
+     below), so for a long time the ~50 usages outside a form field rendered at
+     full body size and full contrast — the opposite of a hint. This base rule
+     is what every one of them was written expecting.
+     `.field .hint` still wins on specificity, so form hints are unchanged; it
+     re-declares the whole `font` shorthand, so it keeps its own line-height
+     too. The `[data-near-limit]` colour variants are unlayered, so they
+     continue to override this. */
+  .hint {
+    font: 400 11.5px / 1.6 var(--sans);
+    color: var(--ink-3);
+  }
   .h4 { font: 400 20px / 1.2 var(--serif); }
   .lead {
     font: 400 clamp(15px, 1.5vw, 17px) / 1.65 var(--sans);
