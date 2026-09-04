@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-02.**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-04.**
 
 ## What this is
 
@@ -63,6 +63,54 @@ end-to-end**, not a checklist of components.
 > `feat/registration-queue` and `feat/manual-attendance` are fully contained in `main` (verified with
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
+
+> ### ⚠️ COMMITTED ON `feat/council-oversight-club-health` — NOT MERGED — Council oversight phase 1: Club health (2026-09-04)
+> Rollout step 1 of `docs/superpowers/specs/2026-09-04-council-oversight-design.md`, planned in
+> `docs/superpowers/plans/2026-09-04-council-oversight-club-health.md`. **No migration.**
+> Gate: typecheck ✓ / lint ✓ / **578 tests** ✓ / build ✓ (+26). New page `/admin/oversight/clubs`
+> in a new **Oversight** nav group, plus `club-vitality.ts` (pure) and `club-vitality-data.ts` (read).
+>
+> - **🔥 `.limit(n)` DOES NOT RAISE POSTGREST'S 1,000-ROW CAP — it only lowers it.** The first
+>   version of the read asked for `.limit(20_000)` on `club_attendance`, silently got **1,000 of
+>   1,379** rows, and rendered a live page where **Coding read 21% instead of 47%**, Game
+>   development **0% instead of 40%**, CyberSentinel 38% instead of 44% and Innovation 3% instead
+>   of 22%. `eligible` was right throughout, so every number looked plausible. typecheck, lint,
+>   572 tests and the build were **all green**. Only diffing the rendered table against the
+>   database caught it. Every multi-row read here is now paged through `.range()` **with a total
+>   order** (an unordered page boundary can skip or repeat rows). **This is a repo-wide hazard, not
+>   a local one — see the new Gotcha; `rosterWithPercent` and `attendanceRegister` have the same
+>   unpaginated shape and are safe only while one club stays under 1,000 marks.**
+> - **The gate is `manage:council`, NEVER `view:analytics`** (spec D2). Club and vice heads hold
+>   `view:analytics` at `own`; `events_head` / `social_media_head` hold it at `all` — gating there
+>   would hand every club's numbers to **nine** roles instead of four. Two tests in
+>   `capabilities.test.ts` pin this. Verified live: president 200, club_head **307 → `/admin`**,
+>   anonymous 307 → login; and the president sees the Oversight nav heading while a club head sees
+>   neither it nor the link.
+> - **The rate delegates to `summarizeAttendance` and must keep doing so.** That function owns the
+>   join-date eligibility rule and is mutation-checked; a local `marks / (members × sessions)`
+>   would print a different, lower number than `/admin/attendance/analytics` shows for the same
+>   club. A test pins the two against each other on one fixture.
+> - **Two guards are structural, not cosmetic.** `MIN_SESSIONS` (2) stops one sparse meeting
+>   flagging a named head for turnout — the `THIN_SAMPLE` principle from `feedback-analytics.ts`.
+>   And `low-turnout` also requires `eligible > 0`: sessions whose members all joined afterwards
+>   give 0% by convention, not by turnout. **Future-dated sessions count nowhere** — scheduling a
+>   meeting must not make a dormant club look active.
+> - **`unmet-demand` currently fires for NOBODY, and that is not a bug to "fix" by lowering the
+>   threshold.** The spec expected it to catch Ai Forge, but the rule keys on *sessions* (≥50
+>   members and ≤1 session in the window) while the spec's evidence was the *mark* count. Ai Forge
+>   has **2** sessions, so `low-turnout` catches it instead — and describes it better: **174
+>   members, 268 eligible attendance slots in 30 days, 1 person showed up.**
+> - **What the page shows today: 14 clubs, 5 flagged.** Ai Forge 0% · Animatrix (E-Sports) and
+>   Nature with **no members and no sessions at all** · Innovation 22% · Animatrix (Animation) 25%.
+>   Every one of the 14 rows was diffed against the live database and matches exactly, tiles
+>   included (14 clubs / 5 flagged / 825 members / 54 sessions). **Every session in the DB falls
+>   inside the 30-day window**, so "sessions in window" equals "all time" everywhere right now.
+> - Phase B (`/admin/oversight/activity`, `audit-insights.ts`, the B4 PII field allowlist) is
+>   rollout steps 2–3 and is **not built** — it needs its own plan.
+>
+> **⚠️ NEVER OPENED IN A BROWSER.** The page was verified by fetching and parsing its HTML with a
+> forged session, which covers the gate, the numbers and the nav — and covers **no layout at all**.
+> The `.tablewrap.cards` phone collapse and the flag badges have never been seen.
 
 > ### ⚠️ COMMITTED ON `feat/admin-deactivate-and-grouping` — NOT MERGED — Admin deactivate + club grouping (2026-09-04)
 > Owner asked to "deactivate or remove the admin members" and to "arrange it according to their club".
@@ -1971,11 +2019,11 @@ flow as always.
      destructive, so it needs a human decision.
 
 
-1. **⚠️ THE BROWSER-VERIFICATION DEBT — now SEVEN items. Do them as ONE walkthrough.**
+1. **⚠️ THE BROWSER-VERIFICATION DEBT — now EIGHT items. Do them as ONE walkthrough.**
    Every one of these needs a real browser (server-action POSTs can't be curled,
    and pixels can't be asserted). They have accumulated across six sessions
    because the Chrome extension has repeatedly failed to connect. Doing them in a
-   single signed-in session is far cheaper than seven separate ones.
+   single signed-in session is far cheaper than eight separate ones.
    Use **`head@cse.test`** for club-scoped screens; **`tech@cse.test` needs a TOTP
    code** (confirmed 2026-08-25) so have the authenticator to hand for council-wide ones.
    - [ ] **Image editor on all FOUR upload forms** — the highest-risk item. It
@@ -1992,6 +2040,10 @@ flow as always.
    - [ ] **Feedback portal** (form + admin inbox + analytics).
    - [ ] **Content verticals** — resources / gallery / achievements CRUD, plus the
          older unverified mutations (§4c event duplicate/cancel, announcements).
+   - [ ] **Club health** (`/admin/oversight/clubs`, 2026-09-04) — never opened.
+         Confirm the Oversight nav group renders, that Ai Forge / Nature /
+         Animatrix (E-Sports) lead the table with their flags, that the deep
+         links land on the right club, and the phone-width card collapse.
 
 2. **Phase 2 — remaining verticals** (Storage, safe-markdown, `isSafeHttpUrl`,
    `image-upload`, `club-scope`, `clubs` foundations all exist now, so these are
@@ -2085,6 +2137,21 @@ git push origin main   # deploy to production
   visibly broken on a wide monitor, and separately rendered "not published yet" for
   an event that *had* results. Nothing in CI covers layout, and a Supabase query
   error was being swallowed. **Look at the page**, and probe the live anon client.
+- **PostgREST caps every response at 1,000 rows, and `.limit(n)` does NOT raise
+  that cap** — it only lowers it. A select matching more rows returns the first
+  1,000 **with no error**, so the read succeeds, the page renders, and the numbers
+  are quietly wrong. This bit the council Club-health read on 2026-09-04: 1,000 of
+  1,379 attendance marks came back and Coding Club rendered 21% instead of 47%
+  while typecheck, lint, 572 tests and the build were all green. **Any query that
+  can match >1,000 rows must page through `.range()` with a total order** (an
+  unordered page boundary can skip or repeat rows) — see
+  `club-vitality-data.ts#fetchAll`. Live counts as of 2026-09-04: `club_attendance`
+  **1,379**, `audit_log` **1,536**, `club_members` **825** — the first two are
+  already over the cap. ⚠️ `rosterWithPercent` and `attendanceRegister` in
+  `attendance-club.ts` still read marks unpaginated; they are per-club, so they are
+  safe only while a single club stays under 1,000 marks. **Coding is at 521 and is
+  the one to watch** — it is the largest, and it crosses the cap at roughly twice
+  its current session count.
 - **`.stack` is a HORIZONTAL flex row** (`display:flex; flex-wrap:wrap;
   align-items:center`), for button groups. Used as a vertical container it makes
   every child shrink-wrap to its content — which is what squeezed the results page
