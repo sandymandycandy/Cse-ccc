@@ -1713,8 +1713,20 @@
   .admin-nav nav {
     display: flex;
     flex-direction: column;
-    gap: 2px;
     flex: 1;
+  }
+  /* Sections come from `groupNavLinks`, which only labels them once a role
+     holds enough links to need headings — a one-link nav renders flat. */
+  .admin-nav-group { display: flex; flex-direction: column; gap: 2px; }
+  .admin-nav-group + .admin-nav-group { margin-top: 16px; }
+  /* Quieter than .label: this repeats up to six times down the rail, so it has
+     to organise the list without competing with it. */
+  .admin-nav-head {
+    font: 500 9.5px var(--mono);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-4);
+    padding: 0 12px 6px;
   }
   .admin-nav nav a {
     padding: 9px 12px;
@@ -1723,7 +1735,18 @@
     font: 500 13.5px var(--sans);
   }
   .admin-nav nav a:hover { background: var(--sand); color: var(--ink); }
-  .admin-nav nav a[aria-current="page"] { background: var(--ink); color: var(--paper); }
+  /* A forest rail rather than a filled ink pill: at fourteen links a full-bleed
+     black row shouts. Drawn with an inset shadow instead of a border so the
+     label doesn't shift sideways when it becomes current. */
+  .admin-nav nav a[aria-current="page"] {
+    background: var(--forest-tint);
+    color: var(--forest-deep);
+    font-weight: 600;
+    box-shadow: inset 3px 0 0 var(--forest);
+  }
+  /* Names the current page while the rail is collapsed. Desktop shows the
+     marked row instead, so it stays hidden there. */
+  .admin-here { display: none; }
   .admin-nav-foot {
     border-top: 1px solid var(--line);
     padding-top: 14px;
@@ -1762,7 +1785,60 @@
   }
   .admin-stat .n { font: 400 40px var(--serif); line-height: 1; }
   .admin-stat .label { margin-top: 8px; }
+  /* The dashboard renders its tiles as links; the analytics pages render the
+     same class as plain divs, so every link-only rule is scoped to the anchor
+     and must not leak into those. */
+  a.admin-stat {
+    display: block;
+    color: inherit;
+    transition: border-color 0.18s, transform 0.12s;
+  }
+  a.admin-stat:hover { border-color: var(--line-4); transform: translateY(-1px); }
+  a.admin-stat .n,
+  a.admin-stat .label { display: block; }
   .admin-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  /* ── admin dashboard ──
+     Two halves that must not blur together: the DOCKET is what is waiting, and
+     the GLANCE is ambient context. Every number belongs to exactly one. */
+  .admin-hello { margin-top: 8px; }
+  .admin-summary { margin-top: 10px; }
+  .admin-block { margin-top: 32px; }
+  .admin-block > .label { display: block; margin-bottom: 12px; }
+  .admin-block .admin-stats { margin-top: 0; }
+  /* Ambient counts sit below the docket, so they read a step quieter than the
+     40px the analytics pages use for their headline tiles. */
+  .admin-stats.admin-glance .n { font-size: 28px; }
+
+  .docket {
+    margin-top: 24px;
+    list-style: none;
+    background: var(--card);
+    border: 1px solid var(--line-2b);
+    border-radius: var(--r-lg);
+  }
+  .docket-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--line);
+  }
+  .docket-row:first-child { border-top: 0; }
+  .docket-n {
+    font: 400 34px / 1 var(--serif);
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    min-width: 1.4ch;
+    text-align: right;
+  }
+  .docket-text { font: 400 14px / 1.5 var(--sans); color: var(--ink-2); }
+  /* A `wait` row is waiting on somebody else. Same shape, held back a tone, and
+     it carries no call to action. */
+  .docket-row[data-tone="wait"] .docket-n { color: var(--ink-4); }
+  .docket-row[data-tone="wait"] .docket-text { color: var(--ink-3); }
+  .docket-cta { white-space: nowrap; }
 
   .abadge {
     display: inline-block;
@@ -1948,6 +2024,32 @@
     }
     .admin-main { padding: 28px var(--pad); }
     .admin-form-row { grid-template-columns: 1fr; }
+    /* Collapsed, the bar shows only the brand — so name the current page. */
+    .admin-here {
+      display: block;
+      margin-left: auto;
+      max-width: 44vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font: 500 10px var(--mono);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+    }
+    .admin-nav-group + .admin-nav-group { margin-top: 12px; }
+  }
+
+  /* A docket row's action has nowhere to go beside the text on a narrow phone,
+     so it drops under it and lines up with the text, not the count. */
+  @media (max-width: 560px) {
+    .docket-row {
+      grid-template-columns: auto minmax(0, 1fr);
+      row-gap: 12px;
+      padding: 14px 16px;
+    }
+    .docket-n { font-size: 28px; }
+    .docket-cta { grid-column: 2; justify-self: start; }
   }
 
   /* ── public gallery — multi-column masonry ──

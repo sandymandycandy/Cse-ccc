@@ -64,6 +64,55 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
+> ### ⚠️ COMMITTED ON `feat/admin-dashboard-nav` — NOT MERGED, NOT PUSHED — Admin dashboard + nav shell (2026-09-04)
+> **No migration. No capability, guard, or mutation-path change** — presentation plus two new read-only counts.
+> **Gate green: typecheck ✓ / lint ✓ / 529 tests ✓ / build ✓** (+39 over the 490 baseline).
+> Scope was deliberately the landing page + the shell, NOT the other 46 admin pages.
+>
+> - **The sidebar is grouped.** Up to 14 links now sit under Overview / Programme / Content /
+>   People / Inbox / System. `src/lib/admin/nav.ts` decides whether to label them at all: under
+>   `GROUPING_THRESHOLD` (6) links it returns ONE unlabelled section, because a `gallery_manager`
+>   holds a single link and a heading over one item is noise. **Don't "fix" the flat case.**
+> - **⚠️ A REAL BUG IS FIXED HERE: the active link used `startsWith`, so every ancestor lit up at
+>   once.** On `/admin/events/approvals` BOTH "Events" and "Approvals" were marked `aria-current`.
+>   `activeHref` now takes the LONGEST match and compares on segment boundaries (so `/admin/clubs`
+>   never matches `/admin/club`). Verified live: that path now marks Approvals alone.
+> - Active state moved from a solid `--ink` pill to a `--forest` inset rail + tint. Drawn with
+>   `box-shadow: inset`, **not `border-left`**, so the label doesn't shift 3px when it becomes current.
+> - **The dashboard is a docket, not a tile wall.** Every number belongs to exactly ONE of two
+>   halves: the **docket** (what is waiting, each row with somewhere to go) or the **glance**
+>   (ambient context). `pending` deliberately appears only in the docket — showing it as a tile too
+>   would make the page look busier than the work is. The old "Review approvals" button is gone for
+>   the same reason: the docket row carries that link.
+> - **A docket row has a `tone`.** `act` = waiting on the reader. `wait` = waiting on someone else:
+>   a club head's pending events get a muted row and **no** call to action, because reviewing them
+>   is not their job. Same number, different meaning. **The `wait` branch is unit-tested but has
+>   NEVER RENDERED** — no club in the DB has a pending event.
+> - **⚠️ `docs_head` and `social_media_head` hold NO `manage:events` grant** yet land on `/admin`,
+>   where they were being shown three event tiles and a "Create event" button for pages they cannot
+>   open. Tiles and quick actions are now grant-gated and every block hides rather than render
+>   empty. **`docs_head` holds exactly ONE capability (`manage:resources`) and still lands here** —
+>   `adminHomePath` only special-cases `gallery_manager`. Generalising it would fix the dead end
+>   properly; that is login routing and was left alone.
+> - `getDashboardSignals` uses `head`-only COUNT queries, NOT `listContactMessages` (fetches up to
+>   500 rows) or `listPeriods` (fetches every response row). Every admin hits this page on every
+>   login. Each count is skipped entirely for a role without the grant.
+> - **Feedback open/close is still the same two server actions** — a second entry point, not a
+>   second mutation path.
+> - `.admin-stat` is SHARED with `AttendanceAnalytics` + `FeedbackAnalytics`. Every new rule is
+>   scoped to `a.admin-stat` or `.admin-glance` so those two pages are untouched. **Keep it that way.**
+>
+> **Verified without a browser** (the Chrome extension would not connect — again). Minted a session
+> JWE for `tech@cse.test` and `head@cse.test` and curled the real rendered pages, both **200**:
+> tech_head got 16 links in 6 sections with exactly ONE `aria-current` and a docket reading
+> "**1** feedback response has come in" — matching the DB exactly (1 response in the open window,
+> 0 pending, 0 unhandled contact, 1 event). club_head got 8 links in 4 sections (no Inbox/System),
+> "Your club's events", and "Nothing needs your attention right now."
+>
+> **⚠️ STILL OWED — NOBODY HAS LOOKED AT THIS.** No pixels were ever rendered: dark mode, the
+> mobile drawer + `.admin-here` current-page label, and the 560px docket reflow are token-based and
+> structurally sound but UNSEEN. Add it to the browser-verification backlog in TODO #1.
+
 > ### ✅ MERGED & PUSHED TO PROD — Feedback dashboard button + form UX pass (2026-09-04)
 > **No migration, no endpoint or guard change** — presentation plus a client-side courtesy check.
 > **Gate green: typecheck ✓ / lint ✓ / 490 tests ✓ / build ✓.**
