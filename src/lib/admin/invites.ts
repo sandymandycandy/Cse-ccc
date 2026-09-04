@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { grantFor } from "@/lib/auth/capabilities";
 import { generateConfirmToken, hashToken } from "@/lib/tokens";
 import type { AdminRole } from "@/lib/auth/capabilities";
 
@@ -72,6 +73,8 @@ export interface AdminListRow {
   email: string;
   name: string;
   role: string;
+  /** Grouping keys on this, never on `club` — two clubs can share a short_name. */
+  clubId: string | null;
   club: string | null;
   isActive: boolean;
   hasTotp: boolean;
@@ -98,8 +101,8 @@ export interface AdminListRow {
  * `admin_totp` needs no hint: it has a single FK to `admin_users`.
  */
 export const ADMIN_LIST_SELECT =
-  "id, email, full_name, role, is_active, " +
-  "clubs!admin_users_club_id_fkey ( short_name ), admin_totp ( confirmed_at )";
+  "id, email, full_name, role, is_active, club_id, " +
+  "clubs!admin_users_club_id_fkey ( name, short_name ), admin_totp ( confirmed_at )";
 
 export async function listAdmins(): Promise<AdminListRow[]> {
   const admin = createAdminClient();
@@ -115,7 +118,8 @@ export async function listAdmins(): Promise<AdminListRow[]> {
       full_name: string;
       role: string;
       is_active: boolean;
-      clubs: { short_name: string } | null;
+      club_id: string | null;
+      clubs: { name: string; short_name: string } | null;
       admin_totp: { confirmed_at: string | null } | null;
     }[]
   ).map((a) => ({
@@ -123,7 +127,10 @@ export async function listAdmins(): Promise<AdminListRow[]> {
     email: a.email,
     name: a.full_name,
     role: a.role,
-    club: a.clubs?.short_name ?? null,
+    clubId: a.club_id,
+    // Full name, not short_name: two clubs really do share the short name
+    // "Animatrix", and two identical group headings defeat the grouping.
+    club: a.clubs?.name ?? a.clubs?.short_name ?? null,
     isActive: a.is_active,
     hasTotp: !!a.admin_totp?.confirmed_at,
   }));
@@ -150,4 +157,52 @@ export async function listPendingInvites(): Promise<InviteListRow[]> {
     role: i.role,
     expiresAt: i.expires_at,
   }));
+}
+
+/**
+ * Enable or disable an admin account.
+ *
+ * Disabling is how access is removed: `getAdminSession` already refuses any
+ * session whose account is inactive, so this takes effect on the target's very
+ * next request across every device. See `admin-status.ts` for why there is no
+ * hard delete and why no `session_epoch` bump is needed.
+ *
+ * Returns the previous value so the caller can write a truthful audit entry
+ * (and can tell a real change from a no-op double click).
+ */
+export async function setAdminActive(id: string, isActive: boolean): Promise<boolean | null> {
+  const admin = createAdminClient();
+  const { data: before, error: readErr } = await admin
+    .from("admin_users")
+    .select("is_active")
+    .eq("id", id)
+    .maybeSingle();
+  if (readErr) throw readErr;
+  if (!before) return null;
+
+  const { error } = await admin
+    .from("admin_users")
+    .update({ is_active: isActive })
+    .eq("id", id);
+  if (error) throw error;
+  return before.is_active;
+}
+
+/**
+ * IDs of every ACTIVE admin who can manage admins — the set `canDeactivate`
+ * checks against, so the council can never disable its own last keyholder.
+ *
+ * Derived from the capability matrix rather than a hardcoded role list: if a
+ * role gains or loses `manage:admins`, this follows automatically.
+ */
+export async function activeKeyholderIds(): Promise<string[]> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("admin_users")
+    .select("id, role")
+    .eq("is_active", true);
+  if (error) throw error;
+  return (data ?? [])
+    .filter((a) => grantFor(a.role, "manage:admins") !== "none")
+    .map((a) => a.id);
 }

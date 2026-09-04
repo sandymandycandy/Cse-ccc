@@ -24,9 +24,11 @@ describe("ADMIN_LIST_SELECT", () => {
     expect(ADMIN_LIST_SELECT).not.toMatch(/(^|[\s,(])clubs\s*\(/);
   });
 
-  it("still selects the column the page renders", () => {
-    // The embed exists to show a club-scoped admin's club; losing short_name
-    // would blank that column without failing anything else.
+  it("still selects the club label the page groups by", () => {
+    // The embed exists to head each group with its club. `name` is what is
+    // rendered (two clubs share the short name "Animatrix", so short_name alone
+    // produces two identical headings); short_name stays as the fallback.
+    expect(ADMIN_LIST_SELECT).toContain("name");
     expect(ADMIN_LIST_SELECT).toContain("short_name");
   });
 

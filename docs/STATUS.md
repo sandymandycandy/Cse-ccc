@@ -64,6 +64,50 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
+> ### ⚠️ COMMITTED ON `feat/admin-deactivate-and-grouping` — NOT MERGED — Admin deactivate + club grouping (2026-09-04)
+> Owner asked to "deactivate or remove the admin members" and to "arrange it according to their club".
+> **No migration.** Gate: typecheck ✓ / lint ✓ / **552 tests** ✓ / build ✓ (+19).
+>
+> - **There was NO way to deactivate an admin.** `is_active` existed, was displayed, and nothing
+>   in the app could ever set it. `generateInviteAction` was the only mutation on the page.
+> - **⚠️ HARD DELETE IS DELIBERATELY NOT OFFERED, AND MUST NOT BE ADDED.** `admin_users` has 24
+>   incoming FKs. **Five are `NO ACTION`** (`club_attendance.marked_by`,
+>   `club_attendance_sessions.opened_by`, both council equivalents, `member_invites.created_by`),
+>   so a delete FAILS outright for anyone who has ever taken attendance — **18 of 37 accounts**.
+>   And **`audit_log.actor_id` is `ON DELETE SET NULL`**, so where a delete succeeds it silently
+>   anonymises that person's whole audit trail. Deactivation is the mechanism instead.
+> - **No `session_epoch` bump is needed and none is done.** `getAdminSession` already does
+>   `if (!data || !data.is_active) return null`, so disabling takes effect on the target's next
+>   request on every device. Do not add an epoch bump thinking it was forgotten.
+> - **Two guards in `admin-status.ts`.** (1) **self** — nobody deactivates their own account;
+>   this is what actually preserves "a keyholder always survives", since holding `manage:admins`
+>   is what lets you press the button. (2) **last-keyholder** — unreachable through the UI today
+>   *because* of rule 1, kept because the function knows nothing about its caller and zero
+>   keyholders bricks admin management with no route back but direct DB access. Only **3 accounts**
+>   hold `manage:admins` live (2 tech_head + 1 vice_president).
+> - The actor's own row shows "You" and **no button** — offering an action then refusing it is a lie.
+> - **First admin-lifecycle audit event in the system.** Creating an admin, changing a role and
+>   issuing an admin invite still write NOTHING; the only prior `admin_user` audit row in 1,497 was
+>   one `totp_enrolled`. This narrows that gap, it does not close it.
+> - **Grouped by club, keyed on `club_id` NEVER on the display name.** Verified necessary:
+>   **two distinct clubs share the short_name "Animatrix"**, so string grouping would have merged
+>   them. Headings use the FULL club name for the same reason — short names collide.
+> - **One table per group, not group-header rows.** `.tablewrap.cards` turns every `<tr>` into a
+>   card below 720px, so a header row would become a stray card. Don't "simplify" it to one table.
+> - Fixed a stale comment claiming `manage:admins` is "Tech Head only" — the faculty advisor and
+>   vice president hold it too. A wrong comment about a security boundary is worse than none.
+>
+> **What grouping immediately exposed:** Coding has **5** admins (3 × `club_head`, plus a
+> `tech_head` carrying a `club_id`, which is odd for a council role); AppNova and Animatrix
+> (Animation) have 2 heads each; AspireX has 2 vice heads; Game development and Nature have a head
+> and no vice; Animatrix (E-Sports) has a head but **0 members and 0 sessions**.
+>
+> **⚠️ THE MUTATION ITSELF IS UNVERIFIED END-TO-END.** Server-action POSTs cannot be curled, so
+> nobody has clicked Deactivate. What IS verified: the guards (19 unit tests), the page renders
+> all 15 groups with 36 buttons + 1 "You" for 37 admins, both refusal messages render and an
+> unrecognised `?denied=` renders nothing, and the write layer was exercised against the live DB
+> on `head@cse.test` (disabled → confirmed → restored to active). **Click it once before trusting it.**
+
 > ### 🔥 FIX — `/admin/users` was DOWN in production (PGRST201) — 2026-09-04
 > **Reported by the owner** ("Something went wrong … when I try to open the admin invite page").
 > **No migration.** One-line query fix + a pinning test. Gate: typecheck ✓ / lint ✓ / 533 tests ✓ / build ✓.
