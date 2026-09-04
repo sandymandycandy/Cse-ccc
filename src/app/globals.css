@@ -2185,7 +2185,11 @@ img {
   margin-top: 28px;
   align-items: start;
 }
-.fb-formcol { min-width: 0; }
+/* Establishes the container context `.cf-row` queries. Without it the
+   VTU/name pair never goes two-up — `@container (min-width: 440px)` has no
+   container to resolve against, so it never matches, at ANY viewport width.
+   (The contact page gets this from `.contact-form-wrap`.) */
+.fb-formcol { min-width: 0; container-type: inline-size; }
 .fb-promise {
   border-left: 3px solid var(--rust);
   padding: 4px 0 4px 20px;
@@ -2220,8 +2224,18 @@ img {
   color: var(--ink-2);
   padding: 0 8px;
 }
-.fb-stars { display: flex; gap: 4px; margin-bottom: 12px; }
-.fb-star { cursor: pointer; line-height: 1; }
+.fb-stars { display: flex; gap: 2px; margin-bottom: 12px; }
+/* 44px minimum tap target (the mobile baseline shipped in 3d4c5b0) while the
+   glyph itself stays 30px — the padding does the work, not the font size. */
+.fb-star {
+  cursor: pointer;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+}
 .fb-star input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .fb-star span[aria-hidden] { font-size: 30px; color: var(--rule); transition: color .12s; }
 .fb-star[data-on="true"] span[aria-hidden] { color: var(--rust); }
@@ -2237,6 +2251,36 @@ img {
   .fb-promise { order: -1; position: static; }
 }
 
+/* Five 44px targets need 220px before gaps; below that let them shrink rather
+   than overflow the field. The glyph shrinks with them. */
+@media (max-width: 359px) {
+  .fb-star { min-width: 40px; }
+  .fb-star span[aria-hidden] { font-size: 26px; }
+}
+
+/* Per-club leader picker: a list of small edit cards, NOT a table. It is a set
+   of per-club forms rather than comparable rows, and a form cannot span table
+   cells, so cards avoid a colSpan hack and read better at every width. */
+.fb-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+.fb-picker-card {
+  border: 1px solid var(--line-2b);
+  border-radius: var(--r-md);
+  background: var(--card);
+  padding: 15px;
+}
+.fb-picker-card h3 {
+  font: 400 18px / 1.25 var(--serif);
+  margin: 0 0 2px;
+}
+.fb-picker-card .field { margin-top: 10px; }
+.fb-picker-card select { width: 100%; }
+.fb-picker-card .btn { width: 100%; margin-top: 12px; }
+
 .fb-banner {
   display: flex;
   flex-wrap: wrap;
@@ -2250,3 +2294,21 @@ img {
   margin-bottom: 28px;
 }
 .fb-banner p { margin: 0; max-width: 60ch; }
+
+/* Per-club summary on a phone: the three averages share one row as
+   label-over-value columns instead of three stacked label/value pairs.
+   Scoped to .fb-summary so the shared `.tablewrap.cards` pattern used by
+   attendance, council and registrations is untouched. */
+@media (max-width: 720px) {
+  .tablewrap.cards.fb-summary td[data-compact] {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: calc(33.333% - 6px);
+    padding: 10px 0 4px;
+    border-bottom: none;
+    font-size: 17px;
+  }
+  .tablewrap.cards.fb-summary td[data-compact]::before { flex: none; }
+}

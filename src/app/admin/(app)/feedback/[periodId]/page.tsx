@@ -63,7 +63,7 @@ export default async function FeedbackPeriodPage({
           No responses yet.
         </div>
       ) : (
-        <div className="tablewrap" style={{ marginTop: 18 }}>
+        <div className="tablewrap cards fb-summary" style={{ marginTop: 18 }}>
           <table className="admin">
             <thead>
               <tr>
@@ -78,13 +78,21 @@ export default async function FeedbackPeriodPage({
             <tbody>
               {summary.map((s) => (
                 <tr key={s.clubId}>
-                  <td style={{ fontWeight: 600 }}>{names.get(s.clubId) ?? "—"}</td>
-                  <td>{s.responses}</td>
-                  <td>{fmt(s.clubAvg)}</td>
-                  <td>{fmt(s.headAvg)}</td>
-                  <td>{fmt(s.viceAvg)}</td>
-                  <td>
-                    <Link href={`/admin/feedback/${period.id}/${s.clubId}`}>Open</Link>
+                  <td data-primary>{names.get(s.clubId) ?? "—"}</td>
+                  <td data-label="Responses">{s.responses}</td>
+                  {/* On a phone the three averages ride one compact row rather
+                      than three stacked label/value pairs — six labelled rows
+                      per club across 14 clubs is an unreadable page. */}
+                  <td data-label="Club" data-compact>{fmt(s.clubAvg)}</td>
+                  <td data-label="Head" data-compact>{fmt(s.headAvg)}</td>
+                  <td data-label="Vice" data-compact>{fmt(s.viceAvg)}</td>
+                  <td data-action>
+                    <Link
+                      href={`/admin/feedback/${period.id}/${s.clubId}`}
+                      className="btn btn-ghost btn-sm"
+                    >
+                      Open
+                    </Link>
                   </td>
                 </tr>
               ))}
