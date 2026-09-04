@@ -2414,3 +2414,59 @@ img {
   .fb-chart { padding: 15px; }
   .fb-timeline { height: 76px; }
 }
+
+/* ── Feedback form craft ──────────────────────────────────────
+   The rating scale carries its own meaning, optional fields say so, and the
+   success state confirms WHICH club was recorded. All within the locked
+   token set — no new colours. */
+
+/* The label sits beside the stars so the meaning of a 3 is never guessed. */
+.fb-rating {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.fb-rating-label {
+  font: 400 12px var(--mono);
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  min-width: 12ch;
+}
+
+/* The rated person's name is the quiet half of the legend — the role is what
+   the reader is scanning for. */
+.fb-block legend span {
+  color: var(--ink-3);
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+.fb-block.err { border-color: var(--rust); }
+
+/* "Optional" is a fact about the field, so it rides in the label, not a
+   tooltip or a placeholder that vanishes on focus. */
+.fb-opt {
+  font: 400 10px var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-left: 8px;
+}
+
+.hint[data-near-limit="near"] { color: var(--ink-3); }
+.hint[data-near-limit="over"] { color: var(--rust); }
+
+.fb-done { padding: 8px 0; }
+.fb-done-mark {
+  font: 400 38px var(--serif);
+  line-height: 1;
+  color: var(--forest);
+  margin-bottom: 10px;
+}
+.fb-done h2 { font: 400 26px / 1.2 var(--serif); margin: 0 0 10px; }
+
+@media (max-width: 479px) {
+  .fb-rating { gap: 8px; }
+  .fb-rating-label { min-width: 100%; }
+}

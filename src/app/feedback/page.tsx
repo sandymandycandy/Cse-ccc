@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getOpenPeriod, listClubsWithLeaders } from "@/lib/feedback/data";
 import { FeedbackForm } from "@/components/FeedbackForm";
 import { FeedbackPromise } from "@/components/FeedbackPromise";
+import { ButtonLink } from "@/components/ui/Button";
 
 export const metadata: Metadata = {
   title: "Feedback",
@@ -21,9 +22,16 @@ export default async function FeedbackPage() {
         <div className="eyebrow">Feedback</div>
         <h1 style={{ margin: "12px 0 0" }}>Feedback isn&rsquo;t open right now</h1>
         <p className="lead" style={{ marginTop: 16, maxWidth: 560 }}>
-          We collect feedback every few weeks. Check back soon — it will appear
-          here and in the site menu the moment it opens.
+          The council collects feedback every few weeks. When the next round
+          opens, a Feedback link appears in the menu and on the home page.
         </p>
+        {/* An empty state is an invitation, not a full stop. */}
+        <div className="stack" style={{ marginTop: 28, gap: 12 }}>
+          <ButtonLink href="/clubs">Browse the clubs</ButtonLink>
+          <ButtonLink href="/contact" variant="ghost">
+            Contact the council
+          </ButtonLink>
+        </div>
       </section>
     );
   }
@@ -34,6 +42,10 @@ export default async function FeedbackPage() {
     <section className="section" style={{ paddingTop: 56 }}>
       <div className="eyebrow">Feedback</div>
       <h1 style={{ margin: "12px 0 0" }}>Tell us how your club is doing</h1>
+      <p className="lead" style={{ marginTop: 14, maxWidth: 560 }}>
+        Takes about two minutes. Only the President and Vice President read it —
+        never your club&rsquo;s leads.
+      </p>
       <div className="fb-grid">
         <div className="fb-formcol">
           <FeedbackForm clubs={clubs} />

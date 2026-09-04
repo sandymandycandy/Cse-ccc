@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { requireAdminPage } from "@/lib/auth/guards";
 import { canView, adminHomePath } from "@/lib/auth/capabilities";
 import { getAdminStats } from "@/lib/admin/queries";
+import { listPeriods } from "@/lib/admin/feedback";
+import { openFeedbackAction, closeFeedbackAction } from "./feedback/actions";
 
 export default async function AdminDashboard() {
   const session = await requireAdminPage();
@@ -15,6 +17,14 @@ export default async function AdminDashboard() {
 
   const stats = await getAdminStats(session);
   const canApprove = canView(session, "approve:events");
+
+  // One click from the dashboard to start or stop a collection window, for the
+  // three roles that hold the capability. Reuses the same two server actions as
+  // /admin/feedback — a second entry point, not a second mutation path.
+  const canFeedback = canView(session, "view:feedback");
+  const openFeedback = canFeedback
+    ? ((await listPeriods()).find((p) => p.closedAt == null) ?? null)
+    : null;
 
   const tiles: { n: number; label: string }[] = [
     { n: stats.pending, label: "Pending approval" },
@@ -49,6 +59,15 @@ export default async function AdminDashboard() {
           <Link href="/admin/events/approvals" className="btn btn-ghost">
             Review approvals{stats.pending > 0 ? ` (${stats.pending})` : ""}
           </Link>
+        ) : null}
+        {canFeedback ? (
+          <form action={openFeedback ? closeFeedbackAction : openFeedbackAction}>
+            <button type="submit" className="btn btn-ghost">
+              {openFeedback
+                ? `Close feedback (${openFeedback.responses})`
+                : "Open feedback"}
+            </button>
+          </form>
         ) : null}
       </div>
     </div>

@@ -1,73 +1,125 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "./ui/Button";
 import type { ClubOption } from "@/lib/feedback/data";
+import {
+  validateFeedbackDraft,
+  type FeedbackFieldErrors,
+} from "@/lib/feedback/form-validation";
 
-type FieldErrors = Record<string, string>;
-type Result = { ok?: boolean; error?: string; fields?: FieldErrors };
+type Result = { ok?: boolean; error?: string; fields?: Record<string, string> };
 
-/** 1–5 radio group. Radios (not a select) so the whole scale is visible and
- *  tappable on a phone, and so "no answer" stays representable. */
+/** What each point on the scale means. An unlabelled scale produces mushy data:
+ *  a 3 from someone who meant "fine" and a 3 from someone who meant "poor" are
+ *  not the same number. */
+const SCALE = ["Poor", "Weak", "Fine", "Good", "Excellent"] as const;
+
 function Stars({
   name,
   value,
   onChange,
+  describedBy,
 }: {
   name: string;
   value: number | null;
   onChange: (v: number) => void;
+  describedBy?: string;
 }) {
   return (
-    <div className="fb-stars" role="radiogroup" aria-label="Rating out of 5">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <label
-          key={n}
-          className="fb-star"
-          data-on={value != null && n <= value ? "true" : "false"}
-        >
-          <input
-            type="radio"
-            name={name}
-            value={n}
-            checked={value === n}
-            onChange={() => onChange(n)}
-          />
-          <span aria-hidden="true">★</span>
-          <span className="sr-only">{n} out of 5</span>
-        </label>
-      ))}
+    <div className="fb-rating">
+      <div className="fb-stars" role="radiogroup" aria-label="Rating out of 5">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <label
+            key={n}
+            className="fb-star"
+            data-on={value != null && n <= value ? "true" : "false"}
+          >
+            <input
+              type="radio"
+              name={name}
+              value={n}
+              checked={value === n}
+              onChange={() => onChange(n)}
+              aria-describedby={describedBy}
+            />
+            <span aria-hidden="true">★</span>
+            <span className="sr-only">
+              {n} out of 5 — {SCALE[n - 1]}
+            </span>
+          </label>
+        ))}
+      </div>
+      {/* aria-live so the meaning is announced, not just seen. */}
+      <span className="fb-rating-label" aria-live="polite">
+        {value == null ? "Poor → Excellent" : `${value} — ${SCALE[value - 1]}`}
+      </span>
     </div>
   );
 }
 
+/** Counts up, not down: a limit only matters as you approach it. */
+function Counter({ value, max }: { value: string; max: number }) {
+  const n = value.trim().length;
+  if (n < max * 0.8) return null;
+  return (
+    <span className="hint" data-near-limit={n > max ? "over" : "near"}>
+      {n} / {max}
+    </span>
+  );
+}
+
 export function FeedbackForm({ clubs }: { clubs: ClubOption[] }) {
+  const formRef = useRef<HTMLFormElement>(null);
   const [clubId, setClubId] = useState("");
   const [headRating, setHeadRating] = useState<number | null>(null);
   const [viceRating, setViceRating] = useState<number | null>(null);
   const [clubRating, setClubRating] = useState<number | null>(null);
+  const [activities, setActivities] = useState("");
+  const [suggestions, setSuggestions] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [fieldErrors, setFieldErrors] = useState<FeedbackFieldErrors>({});
+  const [doneFor, setDoneFor] = useState<string | null>(null);
 
   const club = clubs.find((c) => c.id === clubId) ?? null;
+  const remaining = clubs.filter((c) => c.id !== clubId).length;
+
+  function reset() {
+    formRef.current?.reset();
+    setClubId("");
+    setHeadRating(null);
+    setViceRating(null);
+    setClubRating(null);
+    setActivities("");
+    setSuggestions("");
+    setResult(null);
+    setFieldErrors({});
+    setDoneFor(null);
+  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const payload = {
-      vtu: String(fd.get("vtu") ?? ""),
-      studentName: String(fd.get("studentName") ?? ""),
+    const vtu = String(fd.get("vtu") ?? "");
+    const studentName = String(fd.get("studentName") ?? "");
+
+    // Checked here first purely to save a round trip; the server decides.
+    const local = validateFeedbackDraft({
+      vtu,
+      studentName,
       clubId,
-      headRating,
-      headComment: String(fd.get("headComment") ?? ""),
-      viceRating,
-      viceComment: String(fd.get("viceComment") ?? ""),
       clubRating,
-      activities: String(fd.get("activities") ?? ""),
-      suggestions: String(fd.get("suggestions") ?? ""),
-      website: String(fd.get("website") ?? ""), // honeypot
-    };
+      activities,
+    });
+    if (Object.keys(local).length > 0) {
+      setFieldErrors(local);
+      setResult(null);
+      formRef.current
+        ?.querySelector<HTMLElement>(".field.err input, .field.err select, .field.err textarea, .fb-block.err")
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
 
     setSubmitting(true);
     setResult(null);
@@ -76,14 +128,31 @@ export function FeedbackForm({ clubs }: { clubs: ClubOption[] }) {
       const res = await fetch("/api/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          vtu,
+          studentName,
+          clubId,
+          headRating,
+          headComment: String(fd.get("headComment") ?? ""),
+          viceRating,
+          viceComment: String(fd.get("viceComment") ?? ""),
+          clubRating,
+          activities,
+          suggestions,
+          website: String(fd.get("website") ?? ""), // honeypot
+        }),
       });
       const data = (await res.json().catch(() => ({}))) as Result;
-      if (res.ok) setResult({ ok: true });
-      else if (data.fields && Object.keys(data.fields).length > 0) setFieldErrors(data.fields);
-      else setResult({ error: data.error ?? "Something went wrong." });
+      if (res.ok) {
+        setDoneFor(club?.name ?? null);
+        setResult({ ok: true });
+      } else if (data.fields && Object.keys(data.fields).length > 0) {
+        setFieldErrors(data.fields as FeedbackFieldErrors);
+      } else {
+        setResult({ error: data.error ?? "Something went wrong. Try again." });
+      }
     } catch {
-      setResult({ error: "Network error. Please try again." });
+      setResult({ error: "That didn't send. Check your connection and try again." });
     } finally {
       setSubmitting(false);
     }
@@ -91,20 +160,42 @@ export function FeedbackForm({ clubs }: { clubs: ClubOption[] }) {
 
   if (result?.ok) {
     return (
-      <div>
-        <h3 style={{ fontSize: 22 }}>Feedback received ✓</h3>
-        <p className="body-text" style={{ marginTop: 8 }}>
-          Thank you — this goes straight to the President and Vice President, and
-          nowhere else.
+      <div className="fb-done">
+        <p className="fb-done-mark" aria-hidden="true">
+          ✓
         </p>
+        <h2>Feedback received</h2>
+        <p className="body-text">
+          {doneFor ? (
+            <>
+              Your answers about <strong>{doneFor}</strong> have been recorded.
+            </>
+          ) : (
+            <>Your answers have been recorded.</>
+          )}{" "}
+          They go to the President and Vice President, and nowhere else.
+        </p>
+        {remaining > 0 ? (
+          <div className="stack" style={{ marginTop: 20, gap: 10 }}>
+            <Button type="button" variant="accent" onClick={reset}>
+              Give feedback on another club
+            </Button>
+          </div>
+        ) : null}
       </div>
     );
   }
 
-  const rowClass = (k: string) => "field" + (fieldErrors[k] ? " err" : "");
+  const rowClass = (k: string) => "field" + (fieldErrors[k as keyof FeedbackFieldErrors] ? " err" : "");
+  const err = (k: keyof FeedbackFieldErrors) =>
+    fieldErrors[k] ? (
+      <span className="hint" role="alert">
+        {fieldErrors[k]}
+      </span>
+    ) : null;
 
   return (
-    <form onSubmit={onSubmit} noValidate>
+    <form onSubmit={onSubmit} noValidate ref={formRef}>
       {result?.error ? (
         <div
           className="note"
@@ -119,11 +210,7 @@ export function FeedbackForm({ clubs }: { clubs: ClubOption[] }) {
         <div className={rowClass("vtu")}>
           <label htmlFor="fb-vtu">VTU number</label>
           <input id="fb-vtu" name="vtu" required maxLength={20} placeholder="vtuxxxxx" />
-          {fieldErrors.vtu ? (
-            <span className="hint" role="alert">
-              {fieldErrors.vtu}
-            </span>
-          ) : null}
+          {err("vtu")}
         </div>
         <div className={rowClass("studentName")}>
           <label htmlFor="fb-name">Your name</label>
@@ -135,11 +222,7 @@ export function FeedbackForm({ clubs }: { clubs: ClubOption[] }) {
             autoComplete="name"
             placeholder="Your full name"
           />
-          {fieldErrors.studentName ? (
-            <span className="hint" role="alert">
-              {fieldErrors.studentName}
-            </span>
-          ) : null}
+          {err("studentName")}
         </div>
       </div>
 
@@ -160,56 +243,71 @@ export function FeedbackForm({ clubs }: { clubs: ClubOption[] }) {
           ))}
         </select>
         {fieldErrors.clubId ? (
-          <span className="hint" role="alert">
-            {fieldErrors.clubId}
-          </span>
-        ) : null}
+          err("clubId")
+        ) : (
+          <span className="hint">The rest of the form depends on this.</span>
+        )}
       </div>
 
-      {club?.head ? (
-        <fieldset className="fb-block">
-          <legend>Club Head — {club.head.name}</legend>
-          <Stars name="headRating" value={headRating} onChange={setHeadRating} />
-          <div className="field">
-            <label htmlFor="fb-head-c">Anything you&rsquo;d like to say?</label>
-            <textarea
-              id="fb-head-c"
-              name="headComment"
-              rows={3}
-              maxLength={2000}
-              placeholder="Optional."
-            />
-          </div>
-        </fieldset>
-      ) : null}
-
-      {club?.viceHead ? (
-        <fieldset className="fb-block">
-          <legend>Vice Head — {club.viceHead.name}</legend>
-          <Stars name="viceRating" value={viceRating} onChange={setViceRating} />
-          <div className="field">
-            <label htmlFor="fb-vice-c">Anything you&rsquo;d like to say?</label>
-            <textarea
-              id="fb-vice-c"
-              name="viceComment"
-              rows={3}
-              maxLength={2000}
-              placeholder="Optional."
-            />
-          </div>
-        </fieldset>
-      ) : null}
-
       {club ? (
-        <fieldset className="fb-block">
-          <legend>The club itself</legend>
-          <Stars name="clubRating" value={clubRating} onChange={setClubRating} />
-          {fieldErrors.clubRating ? (
-            <span className="hint" role="alert">
-              {fieldErrors.clubRating}
-            </span>
+        <>
+          {club.head ? (
+            <fieldset className="fb-block">
+              <legend>
+                Club Head <span>· {club.head.name}</span>
+              </legend>
+              <Stars name="headRating" value={headRating} onChange={setHeadRating} />
+              <div className="field">
+                <label htmlFor="fb-head-c">
+                  Anything to add? <span className="fb-opt">Optional</span>
+                </label>
+                <textarea
+                  id="fb-head-c"
+                  name="headComment"
+                  rows={3}
+                  maxLength={2000}
+                  placeholder="What they do well, or what would help."
+                />
+              </div>
+            </fieldset>
           ) : null}
-        </fieldset>
+
+          {club.viceHead ? (
+            <fieldset className="fb-block">
+              <legend>
+                Vice Head <span>· {club.viceHead.name}</span>
+              </legend>
+              <Stars name="viceRating" value={viceRating} onChange={setViceRating} />
+              <div className="field">
+                <label htmlFor="fb-vice-c">
+                  Anything to add? <span className="fb-opt">Optional</span>
+                </label>
+                <textarea
+                  id="fb-vice-c"
+                  name="viceComment"
+                  rows={3}
+                  maxLength={2000}
+                  placeholder="What they do well, or what would help."
+                />
+              </div>
+            </fieldset>
+          ) : null}
+
+          <fieldset className={"fb-block" + (fieldErrors.clubRating ? " err" : "")}>
+            <legend>The club itself</legend>
+            <Stars
+              name="clubRating"
+              value={clubRating}
+              onChange={setClubRating}
+              describedBy="fb-club-rating-err"
+            />
+            {fieldErrors.clubRating ? (
+              <span className="hint" role="alert" id="fb-club-rating-err">
+                {fieldErrors.clubRating}
+              </span>
+            ) : null}
+          </fieldset>
+        </>
       ) : null}
 
       <div className={rowClass("activities")}>
@@ -220,31 +318,27 @@ export function FeedbackForm({ clubs }: { clubs: ClubOption[] }) {
           required
           rows={5}
           maxLength={4000}
-          placeholder="What has worked, what hasn't, what you'd like more of."
+          value={activities}
+          onChange={(e) => setActivities(e.target.value)}
+          placeholder="What has worked, what hasn't, and what you'd like more of."
         />
-        {fieldErrors.activities ? (
-          <span className="hint" role="alert">
-            {fieldErrors.activities}
-          </span>
-        ) : (
-          <span className="hint">At least 5 characters.</span>
-        )}
+        {fieldErrors.activities ? err("activities") : <Counter value={activities} max={4000} />}
       </div>
 
       <div className={rowClass("suggestions")}>
-        <label htmlFor="fb-sug">Any suggestions to improve?</label>
+        <label htmlFor="fb-sug">
+          Suggestions to improve <span className="fb-opt">Optional</span>
+        </label>
         <textarea
           id="fb-sug"
           name="suggestions"
           rows={4}
           maxLength={4000}
-          placeholder="Optional."
+          value={suggestions}
+          onChange={(e) => setSuggestions(e.target.value)}
+          placeholder="One thing the council could change."
         />
-        {fieldErrors.suggestions ? (
-          <span className="hint" role="alert">
-            {fieldErrors.suggestions}
-          </span>
-        ) : null}
+        <Counter value={suggestions} max={4000} />
       </div>
 
       {/* honeypot: real users never see or fill this */}
