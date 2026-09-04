@@ -66,6 +66,26 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
+> ### ✅ MERGED + DEPLOYED — Attendance: Present/Absent split + the `.hint` fix (2026-09-04)
+> Owner asked that the public roll lookup "show what session they are present and what session they
+> are absent". **It already listed every session with a Present/Absent tag** — the change was to
+> group them (`d2f2f95`). No query change, no migration.
+>
+> - Two labelled groups, newest first, and the rows DROPPED their own Present/Absent word: the
+>   heading says it once. An empty group is replaced by its sentence, never an "Absent · 0" heading.
+> - **Absent is deliberately neutral grey, not red.** Students read this page; grey states the fact
+>   without colouring it a failure. Do not "improve" this to a warning tone.
+> - Verified against live data for all four states — mixed (4 of 5), all present, none present, and
+>   a member whose club has held no sessions since they joined. All four exist in the real roster.
+> - **`.hint` had NO base rule** (`0db1cde`) — see the new Gotcha. ~50 usages outside a form field
+>   were rendering at full body size, including the Club Health footnote shipped hours earlier.
+>   ⚠️ The fix changes the look of about a dozen unopened pages; direction is unambiguous but unseen.
+> - **Three known gaps the owner passed on, still open:** an OPEN session shows "Absent" for every
+>   member (one live right now, 0 marks); the 15 `vtu`-prefixed rolls are rejected by
+>   `ROLL_RE = /^d{5}$/` (810 of 825 are plain 5 digits, so this is 15 people, not everyone); and
+>   **`/attendance` is linked from NOWHERE** and is `robots: noindex`, so a student can only reach
+>   it if someone sends the URL.
+
 > ### ✅ MERGED + DEPLOYED — Council oversight phase 1: Club health (2026-09-04)
 > Rollout step 1 of `docs/superpowers/specs/2026-09-04-council-oversight-design.md`, planned in
 > `docs/superpowers/plans/2026-09-04-council-oversight-club-health.md`. **No migration.**
@@ -2177,6 +2197,15 @@ git push origin main   # deploy to production
   safe only while a single club stays under 1,000 marks. **Coding is at 521 and is
   the one to watch** — it is the largest, and it crosses the cap at roughly twice
   its current session count.
+- **A design-system class may exist only in a descendant form.** `.hint` was
+  defined solely as `.field .hint`, so for months every `className="hint"`
+  OUTSIDE a form field rendered at full body size — the opposite of a hint —
+  with no error anywhere. Fixed 2026-09-04 by adding a base `.hint` rule.
+  **Before reaching for a utility class, grep for its bare selector**, not just
+  the class name — searching for `.hint` finds plenty of rules; searching for a
+  rule that *starts* one finds none. Verify a cascade claim in the SERVED css,
+  not by reasoning: `.field .hint` still wins here on specificity + source
+  order, and the unlayered `.hint[data-near-limit]` variants still override.
 - **`.stack` is a HORIZONTAL flex row** (`display:flex; flex-wrap:wrap;
   align-items:center`), for button groups. Used as a vertical container it makes
   every child shrink-wrap to its content — which is what squeezed the results page
