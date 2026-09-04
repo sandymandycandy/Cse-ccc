@@ -1892,10 +1892,27 @@ flow as always.
      destructive, so it needs a human decision.
 
 
-1. **Browser-verify the shipped content verticals.** Resources + gallery +
-   achievements are pushed & live. Run their items on the manual-verification
-   checklist in a browser (CRUD POSTs can't be curled), and close out the older
-   browser-unverified mutations (§4c, announcements) too.
+1. **⚠️ THE BROWSER-VERIFICATION DEBT — now SEVEN items. Do them as ONE walkthrough.**
+   Every one of these needs a real browser (server-action POSTs can't be curled,
+   and pixels can't be asserted). They have accumulated across six sessions
+   because the Chrome extension has repeatedly failed to connect. Doing them in a
+   single signed-in session is far cheaper than seven separate ones.
+   Use **`head@cse.test`** for club-scoped screens; **`tech@cse.test` needs a TOTP
+   code** (confirmed 2026-08-25) so have the authenticator to hand for council-wide ones.
+   - [ ] **Image editor on all FOUR upload forms** — the highest-risk item. It
+         replaced the file input on gallery / event poster / announcement cover /
+         achievement image. If it throws at runtime those four forms lose their
+         image field. Crop a TALL photo at `/admin/gallery/new`, save, check `/gallery`.
+   - [ ] **Admin dashboard + nav shell** (2026-09-04) — dark mode, the mobile
+         drawer + `.admin-here` current-page label, the 560px docket reflow. The
+         `wait` docket tone has **never rendered** (needs a club with a pending event).
+   - [ ] **Seat displays on a real UPCOMING event** — "Open entry" / "N seats left"
+         have only ever rendered in tests; the DB has no upcoming event.
+   - [ ] **Public results page at phone width** — only ever verified by fetching HTML.
+   - [ ] **Attendance + council dashboards, signed in.**
+   - [ ] **Feedback portal** (form + admin inbox + analytics).
+   - [ ] **Content verticals** — resources / gallery / achievements CRUD, plus the
+         older unverified mutations (§4c event duplicate/cancel, announcements).
 
 2. **Phase 2 — remaining verticals** (Storage, safe-markdown, `isSafeHttpUrl`,
    `image-upload`, `club-scope`, `clubs` foundations all exist now, so these are
