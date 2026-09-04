@@ -22,6 +22,16 @@ jobs:
       - name: Install (clean, from lockfile)
         run: npm ci
 
+      # `next-env.d.ts` and `.next/types/**` are BOTH gitignored, and
+      # next-env.d.ts `import`s the generated `.next/types/routes.d.ts` — which
+      # is where the `LayoutProps` / `PageProps` globals that `src/app/layout.tsx`
+      # uses are declared. On a fresh checkout neither exists, so `tsc --noEmit`
+      # failed with "Cannot find name 'LayoutProps'" before it ever reached the
+      # build step. Generating the route types first is the supported way to
+      # typecheck without paying for a full build.
+      - name: Generate route types (needed before typecheck)
+        run: npx next typegen
+
       - name: Typecheck
         run: npm run typecheck
 
