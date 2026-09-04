@@ -20,7 +20,9 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-04)
 
-> **`main` = `origin/main` (clean, deployed) — nothing in flight.** Club health shipped
+> **`main` = `origin/main` (clean, deployed) — nothing in flight.** The admin sidebar scroll fix
+> and the `Eligible` → `Sessions` rename shipped 2026-09-04, ⚠️ **the sidebar never opened in a
+> browser** (owner chose to ship; see its block below). Club health shipped
 > 2026-09-04 and is live at `/admin/oversight/clubs`, pushed with its browser check still owed
 > (the owner chose to ship; it is item 8 on the checklist below). The login-lockout work is
 > merged and deployed, but ⚠️ **was pushed WITHOUT the browser check the plan required** — the
@@ -65,6 +67,41 @@ end-to-end**, not a checklist of components.
 > `feat/registration-queue` and `feat/manual-attendance` are fully contained in `main` (verified with
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
+
+> ### ✅ MERGED + DEPLOYED — Admin sidebar scroll + `Eligible` renamed (2026-09-04)
+> Owner reported the rail "is not full or correctly designed i cant scrool down full". **No migration.**
+> Gate: typecheck ✓ / lint ✓ / **590 tests** ✓ / build ✓.
+>
+> - **🔥 A fixed-height flex column does NOT clip an overflowing child — `flex: 1` is not enough.**
+>   `.admin-nav` is `height: 100dvh`; the link list had `flex: 1` with no `min-height: 0` and no
+>   `overflow`. A flex item's default `min-height` is **`auto`**, so nav refused to shrink below its
+>   content and **spilled out of the panel** — the sidebar background stopped after Contact and
+>   Feedback/Admins/Audit/Sign out painted onto the *page* background, unreachable. Fixed with
+>   `min-height: 0; overflow-y: auto` on `.admin-nav nav` so the **list** scrolls and the
+>   who/sign-out foot stays pinned. Only bites roles with a long nav (a tech head has 16 links
+>   across 6 sections); short-nav roles never saw it, which is why it survived this long.
+> - **The mobile drawer was always correct** (`.admin-nav-panel` already caps + scrolls at ≤860px).
+>   The base rule is therefore **explicitly reset inside that breakpoint** — without the reset the
+>   list becomes a second scroll container nested inside the scrolling drawer. Don't delete it.
+> - **`Eligible` → `Sessions`** on the club roster, council roster and analytics watchlist, plus
+>   **both CSV exports** (`attendance/export`, `council/export`) so a download matches the screen.
+>   ⚠️ **It was NOT renamed to "Total sessions" on purpose.** The number is sessions dated on/after
+>   that member's join date (`summarizeAttendance`), so it is **per-member**, not per-club: live, it
+>   differs from the club's session count for **184/184** Ai Forge members, 92/92 CyberSentinel,
+>   80/80 Short Film and 75/235 Coding. A column headed "Total sessions" would show a different
+>   total on every row. Maths untouched — this was a label change only.
+> - **One session was deleted straight from the live DB** — `31-08-26` (Ai Forge, `1cd3530b…`, 1
+>   mark), at the owner's request. The FK cascade took its mark with it; verified 0 rows / 0 orphans
+>   after. ⚠️ **There is still NO delete-session action in the app**, so this left **no `audit_log`
+>   entry** — a raw SQL delete writes none. Offer the button if it comes up again.
+> - ⚠️ **OWED: nobody has opened the fixed sidebar in a browser.** The Chrome extension was not
+>   connected and the admin rail is behind a login. A standalone harness that loads the real
+>   `globals.css` with the real 16-link markup (no login, no deploy) was left in the session
+>   scratchpad as `sidebar-check.html`; it is gone once the scratchpad is cleared, so just open
+>   `/admin` on a short window and confirm the list scrolls with Sign out pinned.
+> - **Separate, not fixed:** Ai Forge has 2 sessions but all 184 members joined *after* they were
+>   held, so every member's denominator is 0 or 1 and the % column reads mostly 0 or 100. Same
+>   shape in CyberSentinel and Short Film. That is data-entry ordering, not a code bug.
 
 > ### ✅ MERGED + DEPLOYED — Attendance: Present/Absent split + the `.hint` fix (2026-09-04)
 > Owner asked that the public roll lookup "show what session they are present and what session they
