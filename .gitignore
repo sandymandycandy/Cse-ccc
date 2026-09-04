@@ -42,3 +42,8 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# A mangled `curl -c` once wrote the password as a FILENAME at the repo root
+# (tracked since a90fac4, on a public repo). Never again.
+password=*
+cookies.txt

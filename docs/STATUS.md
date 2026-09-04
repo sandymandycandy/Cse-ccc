@@ -1867,13 +1867,22 @@ flow as always.
 ## TODO — remaining work (ordered; pick the top unblocked item)
 
 0. **🔐 SECURITY — two open items, neither introduced by feature work.**
-   - **Two admin passwords are in git history as FILENAMES.** `password=…!Staple7`
-     and `password=…!River4` sit at the repo root, tracked since `a90fac4`, on a
-     public GitHub repo. Their *contents* are harmless (empty curl cookie jars from
-     a mangled `curl -c`), but the names carry the credentials. **If those are real
-     admin passwords, rotate them.** Deleting the files does NOT remove them from
-     history; purging history is a rewrite and the owner's call. Left in place
-     deliberately — flagged, not touched.
+   - **Two admin passwords were in git history as FILENAMES** — `password=…!Staple7`
+     and `password=…!River4` at the repo root, tracked since `a90fac4`, on a public
+     GitHub repo. Their *contents* were harmless (empty curl cookie jars from a
+     mangled `curl -c`); the names carried the credentials, and they were the REAL
+     dev admin logins.
+     **DONE 2026-09-04:** both passwords rotated via `scripts/seed-admin.mjs`,
+     **`session_epoch` bumped on both accounts** (the seeder does NOT do this — it
+     is what actually invalidates outstanding sessions, verified: a session minted
+     pre-bump now 307s to login), the two files `git rm`'d, and `password=*` added
+     to `.gitignore` so a mangled `curl -c` cannot recreate one. The new passwords
+     are in the owner's password manager and are **deliberately not recorded in
+     this repo or in agent memory** — ask the owner.
+     **⚠️ STILL OPEN — owner's call:** the old strings remain in git history and on
+     any GitHub fork/clone/cache. Purging needs a history rewrite + force-push on a
+     public repo. Rotation means the leaked strings no longer open anything, so this
+     is now cleanup, not exposure.
    - **A stale `register_for_event` overload is still in the database:**
      `(uuid,text,text,text,text,text,integer,text)` ending in `p_confirm_token_hash`,
      a leftover from the confirm-token era. Still `security definer`, still granted
