@@ -6,6 +6,8 @@ import { WeekStrip } from "@/components/WeekStrip";
 import { ClubCard } from "@/components/ClubCard";
 import { UpcomingCarousel } from "@/components/UpcomingCarousel";
 import { GalleryStrip } from "@/components/GalleryStrip";
+import { FeedbackBanner } from "@/components/FeedbackBanner";
+import { getOpenPeriod } from "@/lib/feedback/data";
 import { istFullDate } from "@/lib/datetime";
 import {
   getUpcomingEvents,
@@ -17,14 +19,16 @@ import {
 } from "@/lib/queries";
 
 export default async function HomePage() {
-  const [events, clubs, achievements, week, gallery, announcements] = await Promise.all([
-    getUpcomingEvents(6),
-    getClubsWithCounts(),
-    getAchievements(4),
-    getWeekStrip(),
-    getPublicGallery(),
-    getPublishedAnnouncements(),
-  ]);
+  const [events, clubs, achievements, week, gallery, announcements, feedbackPeriod] =
+    await Promise.all([
+      getUpcomingEvents(6),
+      getClubsWithCounts(),
+      getAchievements(4),
+      getWeekStrip(),
+      getPublicGallery(),
+      getPublishedAnnouncements(),
+      getOpenPeriod(),
+    ]);
 
   const thisWeekCount = week.filter((d) => d.event).length;
 
@@ -32,6 +36,9 @@ export default async function HomePage() {
     <>
       {/* ── Hero + rotating events ── */}
       <section className="section" style={{ paddingTop: 64 }}>
+        {/* Above the fold on purpose: a feedback window is only open for a
+            couple of weeks, so a prompt below the hero would be missed. */}
+        {feedbackPeriod ? <FeedbackBanner periodId={feedbackPeriod.id} /> : null}
         <div className="hero-grid">
           <div>
             <div className="eyebrow">Department of Computer Science</div>

@@ -64,6 +64,63 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
+> ### 🟡 BUILT ON `feat/club-feedback`, NOT YET MERGED — Club feedback portal (2026-09-04)
+> **Migration `20260904000000_club_feedback` APPLIED + VERIFIED LIVE** (tables are live; the code
+> is not deployed yet, so nothing is publicly reachable). Owner asked: "I want a feedback form."
+> **Gate green: typecheck ✓ / lint ✓ / 465 tests ✓ / build ✓** (+33 over the 432 baseline).
+> Spec: `docs/superpowers/specs/2026-09-04-club-feedback-design.md` ·
+> Plan: `docs/superpowers/plans/2026-09-04-club-feedback.md`
+>
+> A public `/feedback` form (VTU · name · club · separately-rated head and vice head · club rating ·
+> activities · suggestions) that only works while the President has a window open, plus an admin
+> inbox at `/admin/feedback`.
+>
+> - **⚠️ FIVE OWNER DECISIONS WITH ACCEPTED CONSEQUENCES — read D1–D5 in the spec before touching
+>   this.** The three that will surprise you:
+>   - **D2 — `view:feedback` is President + VP + Tech Head. The Faculty Advisor is deliberately
+>     excluded.** This is the **ONLY capability `faculty_advisor` does not hold** and it knowingly
+>     breaks the 2026-09-02 "Faculty / VP / Tech are unrestricted" invariant. **Two existing tests
+>     encoded the old invariant and were rewritten to pin the new one.** Do not "restore" the
+>     faculty grant for consistency — a test will fail, and that test is right.
+>   - **D3 — there is NO submission cap.** One-per-VTU and roster verification were both offered and
+>     declined. **Averages are therefore advisory, not evidence** — one student can move a leader's
+>     score. The compensating control is *detection*: the admin list flags a VTU appearing more than
+>     once in a period. It must never be used to reject a student.
+>   - **D4/D5 — the window is opened and closed BY HAND, always** (no cron, no auto-close date), and
+>     **no "Round N" naming anywhere** — periods are labelled by date range only.
+> - **Club heads/vice heads live in `admin_users`, NOT the `club_members` roster.** Every one of the
+>   **14 active clubs** (not 11) has 0 rows with `role='head'`/`'vice_head'` on the roster despite
+>   785 members. `admin_users` is also not one-head-per-club: Coding has 3 `club_head` accounts
+>   (incl. `club head testing`), AppNova 2, AspireX 2 near-duplicate vice heads, and 3 clubs have no
+>   vice head at all. Hence the curated `clubs.feedback_head_id` / `feedback_vice_head_id` pick and
+>   the rule that **an ambiguous club names NOBODY until curated** — a wrong name on a rating is
+>   worse than a missing one.
+> - **`feedback_responses.head_name` is a SNAPSHOT, never a join.** Leaders turn over yearly; a
+>   rating must stay attached to whoever held the post. **Never backfill these names from the id.**
+> - **The submit endpoint re-resolves the leaders server-side and re-checks the window is open.**
+>   Names sent by the browser are ignored entirely (and `.strict()` rejects them outright), so a
+>   rating cannot be attached to an arbitrary person, and a form left in a tab after Close 409s.
+> - **`getOpenPeriod` runs in the ROOT LAYOUT** (every public page) — React-`cache()`d to one query
+>   per request and **fails closed**: a DB error costs the nav link, not the header.
+> - **`FeedbackBanner` reads `localStorage` via `useSyncExternalStore`, not an effect** —
+>   `react-hooks/set-state-in-effect` rejects the effect form. Server snapshot is "dismissed", so
+>   there is no hydration mismatch and no flash.
+> - **`listResponses`' `.select()` must stay ONE string literal.** Concatenating with `+` widens it
+>   to `string` and PostgREST loses the row shape (every column types as `GenericStringError`).
+> - **⚠️ TWO OWNER CHORES BEFORE THE FIRST REAL WINDOW:** (1) **deactivate the generic `Tech Head`
+>   seed account** — the role grant lets it read every response; (2) **curate Coding Club, AppNova
+>   and AspireX** in the picker, or they name nobody.
+> - **⚠️ VISUAL/MOBILE BROWSER WALKTHROUGH STILL OWED** — the Chrome extension was unavailable.
+>   What *was* verified headlessly: every endpoint status (413/400/429/409/200), authz on all three
+>   admin routes with forged sessions (president 200 · club_head 307→/admin · anon 307→login · CSV
+>   401/403/200/400), summary averages against a hand calculation, case-insensitive duplicate-VTU
+>   flagging, CSV injection hardening, and the open/closed transition end-to-end. **Not** verified:
+>   how any of it looks, the star widget by hand, and the two server actions (open/close, leader
+>   pick) — server-action POSTs can't be curled, so their DB effects were applied directly and the
+>   read paths asserted.
+> - **All test rows deleted.** `feedback_periods`, `feedback_responses` and the curated columns are
+>   all empty/null on the live DB.
+
 > ### ✅ MERGED & PUSHED TO PROD — Host-header poisoning + the reset timing channel (2026-09-03)
 > **No migration.** Closes the two follow-ups left open by the password-reset ship.
 > **Gate green: typecheck ✓ / lint ✓ / 432 tests ✓ / build ✓** (+4 for the new `siteOrigin` suite).
@@ -1756,7 +1813,8 @@ flow as always.
    admin API route is a GET, public POSTs are session-less. Build only if a new
    non-action mutating admin route appears.
 
-6. **Phase 3:** feedback + ratings, leaderboard, ⌘K search, weekly digest,
+6. **Phase 3:** ~~feedback + ratings~~ (**built** — see the club feedback block above;
+   awaiting merge + the owed browser pass), leaderboard, ⌘K search, weekly digest,
    SEO/JSON-LD/sitemap/OG, PWA + offline calendar, analytics, scheduling heatmap,
    live wall (§13.10). **Phase 4:** launch (domain, secrets rotation, PITR, real
    accounts, training doc, security pass).

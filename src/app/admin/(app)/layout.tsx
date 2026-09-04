@@ -50,6 +50,9 @@ export default async function AdminAppLayout({
     ...(canView(session, "manage:contact")
       ? [{ href: "/admin/contact", label: "Contact" }]
       : []),
+    ...(canView(session, "view:feedback")
+      ? [{ href: "/admin/feedback", label: "Feedback" }]
+      : []),
     ...(canView(session, "manage:admins")
       ? [{ href: "/admin/users", label: "Admins" }]
       : []),

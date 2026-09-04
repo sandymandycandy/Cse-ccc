@@ -93,3 +93,7 @@ export interface BroadcastState {
   /** How many addresses the send actually reached, shown once on success. */
   sent?: number;
 }
+
+export interface FeedbackToggleState {
+  error?: string;
+}
