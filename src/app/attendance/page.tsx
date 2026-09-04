@@ -6,6 +6,78 @@ import { ROLL_RE } from "@/lib/roster/validation";
 
 export const metadata = { title: "Check attendance", robots: { index: false } };
 
+/**
+ * One half of a student's record. Present and Absent are shown as two labelled
+ * groups rather than one chronological list with a tag on every row: the
+ * question a student actually has is "which ones did I miss", and answering it
+ * from an interleaved list means reading every row.
+ *
+ * The rows therefore carry no Present/Absent word of their own — the heading
+ * above them says it once.
+ *
+ * ⚠️ Styles are explicit here rather than `className="hint"`: `.hint` is only
+ * defined as `.field .hint`, so outside a form field it renders unstyled.
+ */
+function SessionGroup({
+  label,
+  tone,
+  sessions,
+}: {
+  label: string;
+  tone: "present" | "absent";
+  sessions: { title: string; date: string }[];
+}) {
+  return (
+    <section style={{ marginTop: 22 }}>
+      <h3
+        className="label"
+        style={{
+          display: "block",
+          // Green for what they made; deliberately neutral for what they missed.
+          // This page is read by students, and grey states the fact without
+          // colouring it as a failure.
+          color: tone === "present" ? "var(--forest)" : "var(--ink-3)",
+        }}
+      >
+        {label} · {sessions.length}
+      </h3>
+      <ul style={{ listStyle: "none", padding: 0, margin: "4px 0 0" }}>
+        {sessions.map((s, i) => (
+          <li
+            key={i}
+            className="rule"
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              alignItems: "baseline",
+              padding: "10px 0",
+            }}
+          >
+            <span className="body-text" style={{ minWidth: 0 }}>
+              {s.title}
+            </span>
+            <span
+              style={{ flex: "none", font: "400 12px var(--sans)", color: "var(--ink-3)" }}
+            >
+              {istNumericDate(s.date)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** An empty group is replaced by its sentence — never an "Absent · 0" heading. */
+function GroupNote({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="body-text" style={{ marginTop: 22, color: "var(--ink-2)" }}>
+      {children}
+    </p>
+  );
+}
+
 export default async function AttendanceLookup({ searchParams }: { searchParams: Promise<{ roll?: string; new?: string }> }) {
   const { roll, new: isNew } = await searchParams;
   let result: Awaited<ReturnType<typeof getMemberAttendanceByRoll>> | null = null;
@@ -19,12 +91,16 @@ export default async function AttendanceLookup({ searchParams }: { searchParams:
     notice = "Enter a 5-digit roll number.";
   }
 
+  const history = result?.status === "active" ? result.history : [];
+  const present = history.filter((h) => h.present);
+  const absent = history.filter((h) => !h.present);
+
   return (
     <div style={{ maxWidth: 520, margin: "0 auto", padding: "clamp(32px, 6vw, 64px) 20px" }}>
       <div className="eyebrow">CSE Council</div>
       <h1 style={{ margin: "8px 0 10px" }}>Check your attendance</h1>
       <p className="lead" style={{ marginBottom: 24 }}>
-        Enter your roll number to see your attendance percentage and session history.
+        Enter your roll number to see which sessions you attended and which you missed.
       </p>
 
       {isNew ? (
@@ -74,28 +150,25 @@ export default async function AttendanceLookup({ searchParams }: { searchParams:
             <strong>{result.pct}%</strong>
             <span>{result.attended} of {result.eligible} sessions</span>
           </div>
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            {result.history.map((h, i) => (
-              <li
-                key={i}
-                className="rule"
-                style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline", padding: "10px 0" }}
-              >
-                <span className="body-text" style={{ minWidth: 0 }}>{h.title} · {istNumericDate(h.date)}</span>
-                <span
-                  style={{
-                    flex: "none",
-                    font: "500 11px var(--mono)",
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                    color: h.present ? "var(--forest)" : "var(--ink-3)",
-                  }}
-                >
-                  {h.present ? "Present" : "Absent"}
-                </span>
-              </li>
-            ))}
-          </ul>
+
+          {history.length === 0 ? (
+            <GroupNote>
+              No sessions yet — your club hasn&rsquo;t taken attendance since you joined.
+            </GroupNote>
+          ) : (
+            <>
+              {present.length > 0 ? (
+                <SessionGroup label="Present" tone="present" sessions={present} />
+              ) : (
+                <GroupNote>You haven&rsquo;t attended a session yet.</GroupNote>
+              )}
+              {absent.length > 0 ? (
+                <SessionGroup label="Absent" tone="absent" sessions={absent} />
+              ) : (
+                <GroupNote>You haven&rsquo;t missed a session.</GroupNote>
+              )}
+            </>
+          )}
         </div>
       ) : null}
     </div>
