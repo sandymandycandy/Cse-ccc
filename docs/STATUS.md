@@ -82,7 +82,7 @@ end-to-end**, not a checklist of components.
 >   ⚠️ The fix changes the look of about a dozen unopened pages; direction is unambiguous but unseen.
 > - **Three known gaps the owner passed on, still open:** an OPEN session shows "Absent" for every
 >   member (one live right now, 0 marks); the 15 `vtu`-prefixed rolls are rejected by
->   `ROLL_RE = /^d{5}$/` (810 of 825 are plain 5 digits, so this is 15 people, not everyone); and
+>   `ROLL_RE = /^\d{5}$/` (810 of 825 are plain 5 digits, so this is 15 people, not everyone); and
 >   **`/attendance` is linked from NOWHERE** and is `robots: noindex`, so a student can only reach
 >   it if someone sends the URL.
 
