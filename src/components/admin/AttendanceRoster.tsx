@@ -39,7 +39,7 @@ export function AttendanceRoster({ rows }: { rows: Row[] }) {
             <thead>
               <tr>
                 <th style={{ width: 44 }}>#</th><th>Member</th><th>Roll</th>
-                <th>Attended</th><th>Eligible</th><th>%</th>
+                <th>Attended</th><th>Sessions</th><th>%</th>
               </tr>
             </thead>
             <tbody>

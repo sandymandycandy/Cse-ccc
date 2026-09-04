@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     "Roll No",
     ...register.sessions.map((s) => `${s.title} (${istNumericDate(s.date)})`),
     "Attended",
-    "Eligible",
+    "Sessions",
     "%",
   ];
   const rows = register.rows.map((r) => [

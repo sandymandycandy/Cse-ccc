@@ -47,7 +47,7 @@ export function AttendanceAnalytics({
         <Tile n={membership.total} label="Total members" />
         <Tile n={membership.active} label="Active" />
         <Tile n={membership.pending} label="Pending onboarding" />
-        <Tile n={`${rates.overallPct}%`} label="Overall attendance" hint={`${rates.totalAttended}/${rates.totalEligible} present·eligible`} />
+        <Tile n={`${rates.overallPct}%`} label="Overall attendance" hint={`${rates.totalAttended}/${rates.totalEligible} present·sessions`} />
         <Tile n={rates.avgPresentPerSession} label="Avg present / session" />
         <Tile n={sessions.total} label="Sessions held" hint={`${sessions.open} open · ${sessions.closed} closed`} />
       </div>
@@ -74,12 +74,12 @@ export function AttendanceAnalytics({
       </form>
       {watchlist.members.length === 0 ? (
         <p className="body-text" style={{ color: "var(--ink-3)" }}>
-          Every member with eligible sessions is at or above {watchlist.threshold}%.
+          Every member who has had a session is at or above {watchlist.threshold}%.
         </p>
       ) : (
         <div className="tablewrap">
           <table className="admin">
-            <thead><tr><th style={{ width: 44 }}>#</th><th>Member</th><th>Attended</th><th>Eligible</th><th>%</th></tr></thead>
+            <thead><tr><th style={{ width: 44 }}>#</th><th>Member</th><th>Attended</th><th>Sessions</th><th>%</th></tr></thead>
             <tbody>
               {watchlist.members.map((mem, i) => (
                 <tr key={mem.memberId}>
