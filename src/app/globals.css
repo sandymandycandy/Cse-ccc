@@ -1723,10 +1723,20 @@
     flex-direction: column;
     gap: 20px;
   }
+  /* The rail is a fixed 100dvh column, so a role holding every link (a tech
+     head sees sixteen across six sections) overruns it. `flex: 1` alone does
+     NOT clip: a flex item's min-height is `auto`, so nav refuses to shrink
+     below its content and spills out of the panel — which is what painted the
+     last few links onto the page background under the sidebar. Scroll the
+     LIST, not the panel, so the who/sign-out foot stays pinned at the bottom. */
   .admin-nav nav {
     display: flex;
     flex-direction: column;
     flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
   }
   /* Sections come from `groupNavLinks`, which only labels them once a role
      holds enough links to need headings — a one-link nav renders flat. */
@@ -2124,6 +2134,9 @@
       overflow-y: auto;
     }
     .admin-nav[data-open="true"] .admin-nav-panel { display: flex; }
+    /* The drawer already caps and scrolls the whole panel, so the list must
+       not become a second scroll container nested inside it. */
+    .admin-nav nav { min-height: auto; overflow-y: visible; }
     /* Full-width, thumb-sized link rows. */
     .admin-nav nav a {
       padding: 12px 14px;
