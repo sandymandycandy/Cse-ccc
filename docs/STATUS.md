@@ -64,9 +64,13 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
-> ### 🟡 BUILT ON `feat/club-feedback`, NOT YET MERGED — Club feedback portal (2026-09-04)
-> **Migration `20260904000000_club_feedback` APPLIED + VERIFIED LIVE** (tables are live; the code
-> is not deployed yet, so nothing is publicly reachable). Owner asked: "I want a feedback form."
+> ### ✅ MERGED & PUSHED TO PROD — Club feedback portal (2026-09-04)
+> **Migration `20260904000000_club_feedback` APPLIED + VERIFIED LIVE BEFORE the code deploy.**
+> Owner asked: "I want a feedback form."
+> **⚠️ SHIPPED WITHOUT THE VISUAL BROWSER PASS THE PLAN REQUIRED** — the Chrome extension was
+> unavailable and the owner chose to ship; the check is still owed and is listed below.
+> **Nothing is publicly visible until someone presses "Open feedback"**: with no open window the
+> nav link and home banner are absent and `/feedback` shows a "check back soon" page.
 > **Gate green: typecheck ✓ / lint ✓ / 465 tests ✓ / build ✓** (+33 over the 432 baseline).
 > Spec: `docs/superpowers/specs/2026-09-04-club-feedback-design.md` ·
 > Plan: `docs/superpowers/plans/2026-09-04-club-feedback.md`
@@ -1813,8 +1817,8 @@ flow as always.
    admin API route is a GET, public POSTs are session-less. Build only if a new
    non-action mutating admin route appears.
 
-6. **Phase 3:** ~~feedback + ratings~~ (**built** — see the club feedback block above;
-   awaiting merge + the owed browser pass), leaderboard, ⌘K search, weekly digest,
+6. **Phase 3:** ~~feedback + ratings~~ (**SHIPPED** — see the club feedback block above;
+   the owed browser pass remains), leaderboard, ⌘K search, weekly digest,
    SEO/JSON-LD/sitemap/OG, PWA + offline calendar, analytics, scheduling heatmap,
    live wall (§13.10). **Phase 4:** launch (domain, secrets rotation, PITR, real
    accounts, training doc, security pass).
