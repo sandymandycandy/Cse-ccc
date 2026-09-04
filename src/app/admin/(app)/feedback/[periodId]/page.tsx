@@ -45,12 +45,17 @@ export default async function FeedbackPeriodPage({
             {period.closedAt ? istNumericDate(period.closedAt) : "present"}
           </h1>
         </div>
-        <a
-          className="btn btn-ghost btn-sm"
-          href={`/api/admin/feedback/export?period=${period.id}`}
-        >
-          Export CSV
-        </a>
+        <div className="stack" style={{ gap: 8 }}>
+          <Link className="btn btn-sm" href={`/admin/feedback/${period.id}/analytics`}>
+            Analytics
+          </Link>
+          <a
+            className="btn btn-ghost btn-sm"
+            href={`/api/admin/feedback/export?period=${period.id}`}
+          >
+            Export CSV
+          </a>
+        </div>
       </div>
 
       <p className="label" style={{ marginTop: 10, color: "var(--ink-2)" }}>
