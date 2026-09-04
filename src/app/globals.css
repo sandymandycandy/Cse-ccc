@@ -1855,6 +1855,88 @@
   .docket-row[data-tone="wait"] .docket-text { color: var(--ink-3); }
   .docket-cta { white-space: nowrap; }
 
+  /* ── club health (/admin/oversight/clubs) ──
+     Two densities of ONE row, because the 14 clubs are not one list: a handful
+     need a conversation this week, and the rest only need to stay checkable.
+     Attention rows carry the diagnosis and its two actions; a quiet row IS a
+     link — the whole row is the tap target, which is what stops nine healthy
+     clubs contributing eighteen buttons of noise.
+     Shares the docket's DNA (bordered list on a card, one row per item, the
+     action dropping below the content at 560px) so it reads as the same panel.
+     Link-only rules are scoped to `a.health-row`, like `a.admin-stat`, so they
+     cannot leak into the attention rows. */
+  .health {
+    margin-top: 12px;
+    list-style: none;
+    background: var(--card);
+    border: 1px solid var(--line-2b);
+    border-radius: var(--r-lg);
+  }
+  .health-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 10px 16px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--line);
+  }
+  .health-row:first-child { border-top: 0; }
+  .health-name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font: 400 18px / 1.25 var(--serif);
+    color: var(--ink);
+  }
+  /* The diagnosis, always in the same shape so two clubs compare at a glance
+     and no hand-written phrasing can go stale as the data moves. */
+  .health-fact {
+    margin-top: 6px;
+    font: 400 13.5px / 1.55 var(--sans);
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .health-meta {
+    margin-top: 3px;
+    font: 400 12.5px / 1.5 var(--sans);
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .health-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  a.health-row {
+    color: inherit;
+    align-items: center;
+    transition: background-color 0.15s;
+  }
+  a.health-row:hover { background: var(--sand); }
+  /* Rounded to match the container's corners; the card is NOT overflow-hidden,
+     so a focus ring on the first or last row is never clipped. */
+  a.health-row:first-child { border-radius: var(--r-lg) var(--r-lg) 0 0; }
+  a.health-row:last-child { border-radius: 0 0 var(--r-lg) var(--r-lg); }
+  a.health-row .health-name { font-size: 15.5px; }
+  .health-figures {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    align-items: baseline;
+    font: 400 13px var(--sans);
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+  /* Each figure stays whole and the SET wraps. The tightest layout is just above
+     860px, where the sidebar still takes its column but --pad has not shrunk;
+     nowrap on the whole group crushed long names like "Short Film & Movie
+     Appreciation Club" there. */
+  .health-figures > span { white-space: nowrap; }
+  .health-figures b { font-weight: 500; color: var(--ink-2); }
+
+  @media (max-width: 560px) {
+    .health-row { grid-template-columns: 1fr; padding: 14px 16px; }
+    .health-actions { justify-self: start; }
+  }
+
   .abadge {
     display: inline-block;
     padding: 3px 10px;

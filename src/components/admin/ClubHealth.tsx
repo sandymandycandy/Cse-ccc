@@ -1,39 +1,38 @@
 import Link from "next/link";
 import type { ClubVitality, VitalityFlag } from "@/lib/admin/club-vitality";
 import { LOW_TURNOUT, MIN_SESSIONS } from "@/lib/admin/club-vitality";
+import {
+  FLAG_LABEL,
+  FLAG_TONE,
+  diagnosis,
+  lastMet,
+  plural,
+  turnoutSummary,
+} from "@/lib/admin/club-vitality-copy";
 
 /**
- * The council's cross-club triage table. Pure markup over already-computed
- * `ClubVitality[]` — no fetching, no math, so the numbers here are exactly the
- * ones `computeClubVitality` was tested on.
+ * The council's cross-club triage. Markup only — the numbers come from
+ * `computeClubVitality` and the words from `club-vitality-copy`, both of which
+ * are unit-tested; nothing here computes or phrases anything.
  *
- * Every rate is rendered with the sessions and attended/eligible totals it came
- * from. There is no shape in this component that shows a percentage alone.
- *
- * `.tablewrap.cards` collapses each row into a card below 720px, which is why
- * every cell carries `data-label` — that attribute IS the header on a phone.
+ * ⚠️ THE SPLIT IS THE POINT: flagged clubs get a full row with the diagnosis and
+ * its actions, the rest get one compact link each. A single 14-row table buried
+ * the five clubs that need a conversation among nine that do not, and on a phone
+ * it became fourteen seven-line cards. `rows` arrives in triage order, so the
+ * flagged ones are already a prefix — the partition below only separates them,
+ * it never re-sorts.
  */
 
-const FLAG_LABEL: Record<VitalityFlag, string> = {
-  empty: "No members",
-  dormant: "Not meeting",
-  "unmet-demand": "Unmet demand",
-  "low-turnout": "Low turnout",
-};
-
-/** Rust for "this club is not running"; clay for "worth a look". */
-const FLAG_TONE: Record<VitalityFlag, "rejected" | "pending"> = {
-  empty: "rejected",
-  dormant: "rejected",
-  "unmet-demand": "pending",
-  "low-turnout": "pending",
-};
-
-function lastMet(days: number | null): string {
-  if (days === null) return "Never";
-  if (days === 0) return "Today";
-  if (days === 1) return "Yesterday";
-  return `${days} days ago`;
+function Flags({ flags }: { flags: VitalityFlag[] }) {
+  return (
+    <>
+      {flags.map((f) => (
+        <span key={f} className={`abadge abadge-${FLAG_TONE[f]}`}>
+          {FLAG_LABEL[f]}
+        </span>
+      ))}
+    </>
+  );
 }
 
 export function ClubHealth({
@@ -43,101 +42,61 @@ export function ClubHealth({
   rows: ClubVitality[];
   windowDays: number;
 }) {
-  const flagged = rows.filter((r) => r.flags.length > 0);
-
   if (rows.length === 0) {
     return (
       <p className="body-text" style={{ color: "var(--ink-3)", marginTop: 18 }}>
-        No active clubs.
+        No active clubs yet. Add one from Clubs to start tracking health here.
       </p>
     );
   }
 
+  const flagged = rows.filter((r) => r.flags.length > 0);
+  const steady = rows.filter((r) => r.flags.length === 0);
+  const members = rows.reduce((a, r) => a + r.activeMembers, 0);
+  const meetings = rows.reduce((a, r) => a + r.sessionsInWindow, 0);
+
   return (
-    <section style={{ marginTop: 20 }}>
-      <div className="admin-stats">
-        <div className="admin-stat">
-          <div className="n">{rows.length}</div>
-          <div className="label">Active clubs</div>
-        </div>
-        <div className="admin-stat">
-          <div className="n">{flagged.length}</div>
-          <div className="label">Needing attention</div>
-        </div>
-        <div className="admin-stat">
-          <div className="n">{rows.reduce((a, r) => a + r.activeMembers, 0)}</div>
-          <div className="label">Members on rosters</div>
-        </div>
-        <div className="admin-stat">
-          <div className="n">{rows.reduce((a, r) => a + r.sessionsInWindow, 0)}</div>
-          <div className="label">Sessions in {windowDays} days</div>
-        </div>
-      </div>
+    <>
+      {/* One quiet line of scale, rather than four tiles repeating the counts
+          the section headings already carry. */}
+      <p className="health-meta" style={{ marginTop: 10 }}>
+        {members} members across {rows.length} active {plural(rows.length, "club")} ·{" "}
+        {meetings} {plural(meetings, "meeting")} in the last {windowDays} days
+      </p>
 
-      {flagged.length === 0 ? (
-        <p className="note" style={{ marginTop: 18 }}>
-          Nothing flagged: every active club has members and has met in the last{" "}
-          {windowDays} days.
-        </p>
-      ) : null}
+      <section style={{ marginTop: 30 }}>
+        <h2 className="label" style={{ display: "block" }}>
+          Needs attention · {flagged.length}
+        </h2>
 
-      <div className="tablewrap cards" style={{ marginTop: 16 }}>
-        <table className="admin">
-          <thead>
-            <tr>
-              <th>Club</th>
-              <th>Members</th>
-              <th>Sessions</th>
-              <th>Last met</th>
-              <th>Attendance</th>
-              <th>Flags</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.clubId}>
-                <td data-primary data-label="Club" style={{ fontWeight: 500 }}>
-                  {r.name}
-                </td>
-                <td data-label="Members">{r.activeMembers}</td>
-                <td data-label="Sessions">
-                  {r.sessionsInWindow}
-                  <span className="hint"> of {r.sessionsAllTime} all time</span>
-                </td>
-                <td data-label="Last met">{lastMet(r.daysSinceLastSession)}</td>
-                <td data-label="Attendance">
-                  {/* The rate never appears without the n it came from. */}
-                  {r.eligible === 0 ? (
-                    <span style={{ color: "var(--ink-3)" }}>—</span>
-                  ) : (
-                    <>
-                      {r.ratePct}%
-                      <span className="hint">
-                        {" "}
-                        {r.attended}/{r.eligible} over {r.sessionsInWindow}{" "}
-                        {r.sessionsInWindow === 1 ? "session" : "sessions"}
-                      </span>
-                    </>
-                  )}
-                </td>
-                <td data-label="Flags">
-                  {r.flags.length === 0 ? (
-                    <span style={{ color: "var(--ink-3)" }}>—</span>
-                  ) : (
-                    <span style={{ display: "inline-flex", flexWrap: "wrap", gap: 6 }}>
-                      {r.flags.map((f) => (
-                        <span key={f} className={`abadge abadge-${FLAG_TONE[f]}`}>
-                          {FLAG_LABEL[f]}
-                        </span>
-                      ))}
-                    </span>
-                  )}
-                </td>
-                <td data-action>
+        {flagged.length === 0 ? (
+          <p className="note" style={{ marginTop: 12 }}>
+            Nothing to chase. Every active club has members and has met in the last{" "}
+            {windowDays} days.
+          </p>
+        ) : (
+          <ul className="health">
+            {flagged.map((r) => {
+              const detail = diagnosis(r);
+              return (
+                <li key={r.clubId} className="health-row">
+                  <div>
+                    <div className="health-name">
+                      {r.name}
+                      <Flags flags={r.flags} />
+                    </div>
+                    {detail ? <p className="health-fact">{detail}</p> : null}
+                    <p className="health-meta">
+                      {lastMet(r.daysSinceLastSession)}
+                      {/* Only worth saying when it differs from the window count. */}
+                      {r.sessionsAllTime !== r.sessionsInWindow
+                        ? ` · ${r.sessionsAllTime} ${plural(r.sessionsAllTime, "meeting")} in total`
+                        : ""}
+                    </p>
+                  </div>
                   {/* `resolveAttendanceScope` re-resolves `?club=` server-side
                       against manage:members, so these links cannot over-grant. */}
-                  <span className="stack">
+                  <div className="health-actions">
                     <Link className="btn btn-sm" href={`/admin/attendance?club=${r.clubId}`}>
                       Attendance
                     </Link>
@@ -147,19 +106,57 @@ export function ClubHealth({
                     >
                       Analytics
                     </Link>
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
-      <p className="hint" style={{ marginTop: 14 }}>
-        Low turnout is only flagged below {LOW_TURNOUT}% and only once a club has
-        held at least {MIN_SESSIONS} sessions in the window — one sparse meeting is
-        not a turnout problem.
+      {steady.length > 0 ? (
+        <section style={{ marginTop: 32 }}>
+          <h2 className="label" style={{ display: "block" }}>
+            Running normally · {steady.length}
+          </h2>
+          <div className="health">
+            {steady.map((r) => {
+              const over = turnoutSummary(r);
+              return (
+                <Link
+                  key={r.clubId}
+                  className="health-row"
+                  href={`/admin/attendance/analytics?club=${r.clubId}`}
+                >
+                  <span className="health-name">{r.name}</span>
+                  <span className="health-figures">
+                    <span>
+                      <b>{r.activeMembers}</b> {plural(r.activeMembers, "member")}
+                    </span>
+                    <span>
+                      {over === null ? (
+                        "No turnout yet"
+                      ) : (
+                        <>
+                          <b>{r.ratePct}%</b> {over}
+                        </>
+                      )}
+                    </span>
+                    <span>{lastMet(r.daysSinceLastSession).replace("Last met ", "")}</span>
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      <p className="hint" style={{ marginTop: 18 }}>
+        Turnout counts each member only from the date they joined. A club is
+        flagged for low turnout below {LOW_TURNOUT}%, and only once it has held{" "}
+        {MIN_SESSIONS} meetings in the window — one sparse meeting is not a
+        turnout problem.
       </p>
-    </section>
+    </>
   );
 }

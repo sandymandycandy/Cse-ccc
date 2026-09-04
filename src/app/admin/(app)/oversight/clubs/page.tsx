@@ -31,8 +31,8 @@ export default async function ClubHealthPage() {
       <div className="eyebrow">Oversight</div>
       <h1 style={{ margin: "6px 0 0" }}>Club health</h1>
       <p className="lead" style={{ marginTop: 8 }}>
-        Every active club, the ones needing attention first. Rates cover the last{" "}
-        {WINDOW_DAYS} days and are shown with the sessions they were computed from.
+        Clubs that need a conversation, most pressing first — then everyone else,
+        for when you want to check. Everything covers the last {WINDOW_DAYS} days.
       </p>
       <ClubHealth rows={rows} windowDays={WINDOW_DAYS} />
     </div>
