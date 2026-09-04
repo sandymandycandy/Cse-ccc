@@ -141,3 +141,31 @@ export async function listLeaderChoices(): Promise<ClubLeaderChoice[]> {
     };
   });
 }
+
+/**
+ * Active clubs only — the universe the analytics "silent clubs" list is drawn
+ * from. `clubNames` deliberately includes inactive clubs so an old response
+ * still resolves to a name; using it here would report retired clubs as
+ * silent every period.
+ */
+export async function listActiveClubs(): Promise<{ id: string; name: string }[]> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("clubs")
+    .select("id, name")
+    .eq("is_active", true)
+    .order("name");
+  if (error) throw error;
+  return (data ?? []).map((c) => ({ id: c.id, name: c.name }));
+}
+
+/** Active club members on the roster — the denominator for analytics reach. */
+export async function memberCount(): Promise<number> {
+  const admin = createAdminClient();
+  const { count, error } = await admin
+    .from("club_members")
+    .select("id", { count: "exact", head: true })
+    .eq("is_active", true);
+  if (error) throw error;
+  return count ?? 0;
+}

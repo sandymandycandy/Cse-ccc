@@ -35,7 +35,7 @@ export default async function AdminFeedbackPage() {
           Feedback has never been opened.
         </div>
       ) : (
-        <div className="tablewrap" style={{ marginTop: 18 }}>
+        <div className="tablewrap cards" style={{ marginTop: 18 }}>
           <table className="admin">
             <thead>
               <tr>
@@ -47,14 +47,14 @@ export default async function AdminFeedbackPage() {
             <tbody>
               {periods.map((p) => (
                 <tr key={p.id}>
-                  <td>
+                  <td data-primary>
                     <Link href={`/admin/feedback/${p.id}`}>
                       {istNumericDate(p.openedAt)} –{" "}
                       {p.closedAt ? istNumericDate(p.closedAt) : "present"}
                     </Link>
                   </td>
-                  <td>{p.responses}</td>
-                  <td>
+                  <td data-label="Responses">{p.responses}</td>
+                  <td data-label="Status">
                     <span
                       className="label"
                       style={{ color: p.closedAt ? "var(--ink-3)" : "var(--rust)" }}

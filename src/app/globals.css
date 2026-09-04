@@ -2185,7 +2185,11 @@ img {
   margin-top: 28px;
   align-items: start;
 }
-.fb-formcol { min-width: 0; }
+/* Establishes the container context `.cf-row` queries. Without it the
+   VTU/name pair never goes two-up — `@container (min-width: 440px)` has no
+   container to resolve against, so it never matches, at ANY viewport width.
+   (The contact page gets this from `.contact-form-wrap`.) */
+.fb-formcol { min-width: 0; container-type: inline-size; }
 .fb-promise {
   border-left: 3px solid var(--rust);
   padding: 4px 0 4px 20px;
@@ -2220,8 +2224,18 @@ img {
   color: var(--ink-2);
   padding: 0 8px;
 }
-.fb-stars { display: flex; gap: 4px; margin-bottom: 12px; }
-.fb-star { cursor: pointer; line-height: 1; }
+.fb-stars { display: flex; gap: 2px; margin-bottom: 12px; }
+/* 44px minimum tap target (the mobile baseline shipped in 3d4c5b0) while the
+   glyph itself stays 30px — the padding does the work, not the font size. */
+.fb-star {
+  cursor: pointer;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+}
 .fb-star input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .fb-star span[aria-hidden] { font-size: 30px; color: var(--rule); transition: color .12s; }
 .fb-star[data-on="true"] span[aria-hidden] { color: var(--rust); }
@@ -2237,6 +2251,36 @@ img {
   .fb-promise { order: -1; position: static; }
 }
 
+/* Five 44px targets need 220px before gaps; below that let them shrink rather
+   than overflow the field. The glyph shrinks with them. */
+@media (max-width: 359px) {
+  .fb-star { min-width: 40px; }
+  .fb-star span[aria-hidden] { font-size: 26px; }
+}
+
+/* Per-club leader picker: a list of small edit cards, NOT a table. It is a set
+   of per-club forms rather than comparable rows, and a form cannot span table
+   cells, so cards avoid a colSpan hack and read better at every width. */
+.fb-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+.fb-picker-card {
+  border: 1px solid var(--line-2b);
+  border-radius: var(--r-md);
+  background: var(--card);
+  padding: 15px;
+}
+.fb-picker-card h3 {
+  font: 400 18px / 1.25 var(--serif);
+  margin: 0 0 2px;
+}
+.fb-picker-card .field { margin-top: 10px; }
+.fb-picker-card select { width: 100%; }
+.fb-picker-card .btn { width: 100%; margin-top: 12px; }
+
 .fb-banner {
   display: flex;
   flex-wrap: wrap;
@@ -2250,3 +2294,123 @@ img {
   margin-bottom: 28px;
 }
 .fb-banner p { margin: 0; max-width: 60ch; }
+
+/* Per-club summary on a phone: the three averages share one row as
+   label-over-value columns instead of three stacked label/value pairs.
+   Scoped to .fb-summary so the shared `.tablewrap.cards` pattern used by
+   attendance, council and registrations is untouched. */
+@media (max-width: 720px) {
+  .tablewrap.cards.fb-summary td[data-compact] {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: calc(33.333% - 6px);
+    padding: 10px 0 4px;
+    border-bottom: none;
+    font-size: 17px;
+  }
+  .tablewrap.cards.fb-summary td[data-compact]::before { flex: none; }
+}
+
+/* ── Feedback analytics ───────────────────────────────────────
+   Charts are SINGLE-HUE by design. The rating distribution encodes magnitude
+   (bar length), not identity, so a categorical palette would be wrong — and a
+   ramp keyed to the rating would encode the same fact twice. `--forest` flips
+   to a deliberate dark-mode step in the token block, so both themes are chosen
+   rather than auto-inverted. Text stays in ink tokens, never the series colour. */
+.fb-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+.fb-chart {
+  background: var(--card);
+  border: 1px solid var(--line-2b);
+  border-radius: var(--r-lg);
+  padding: 18px;
+}
+.fb-chart h3 {
+  font: 500 10px var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 14px;
+}
+
+/* Horizontal distribution bars: label · track · count. */
+.fb-bar-row {
+  display: grid;
+  grid-template-columns: 34px 1fr 30px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.fb-bar-row:last-child { margin-bottom: 0; }
+.fb-bar-key { font: 400 12px var(--sans); color: var(--ink-2); }
+.fb-bar-track { background: var(--line); border-radius: var(--r-pill); height: 10px; }
+.fb-bar-fill {
+  height: 10px;
+  background: var(--forest);
+  /* 4px rounded data-end, anchored flat to the baseline at the origin */
+  border-radius: 0 4px 4px 0;
+  min-width: 2px;
+}
+.fb-bar-n { font: 400 12px var(--mono); color: var(--ink-2); text-align: right; }
+
+/* Responses per day. Vertical bars keep a 20-day window readable on a phone;
+   only the peak is labelled — a number on every bar would be noise. */
+.fb-timeline {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 92px;
+  padding-top: 18px;
+}
+.fb-tl-bar {
+  flex: 1 1 0;
+  min-width: 4px;
+  background: var(--forest);
+  border-radius: 4px 4px 0 0;
+  min-height: 2px;
+  position: relative;
+}
+.fb-tl-bar[data-peak]::after {
+  content: attr(data-peak);
+  position: absolute;
+  top: -17px;
+  left: 50%;
+  transform: translateX(-50%);
+  font: 400 11px var(--mono);
+  color: var(--ink-2);
+}
+.fb-tl-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font: 400 11px var(--mono);
+  color: var(--ink-3);
+}
+
+/* Delta chip on a stat tile. Direction is carried by the ▲/▼ glyph and the
+   sign, never by colour alone. */
+.fb-delta { font: 400 12px var(--mono); margin-top: 6px; }
+.fb-delta[data-dir="up"] { color: var(--forest); }
+.fb-delta[data-dir="down"] { color: var(--rust); }
+.fb-delta[data-dir="flat"] { color: var(--ink-3); }
+
+.fb-note {
+  border: 1px solid var(--line-2b);
+  border-left: 3px solid var(--clay);
+  border-radius: var(--r-sm);
+  background: var(--card);
+  padding: 13px 16px;
+  margin-top: 18px;
+}
+.fb-note p { margin: 0; max-width: 70ch; }
+
+@media (max-width: 599px) {
+  .fb-chart { padding: 15px; }
+  .fb-timeline { height: 76px; }
+}
