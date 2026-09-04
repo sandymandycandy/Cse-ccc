@@ -313,3 +313,27 @@ describe("view:feedback", () => {
     }
   });
 });
+
+describe("council oversight is gated on manage:council, not view:analytics", () => {
+  // Design D2. `view:analytics` is held at "own" by club and vice heads and at
+  // "all" by events and social media heads — gating the cross-club oversight
+  // pages on it would hand every club's numbers to nine roles. If this test
+  // fails because the gate moved, the gate is wrong, not the test.
+  const clubHead = { role: "club_head", clubId: "c1" } as const;
+  const viceHead = { role: "vice_head", clubId: "c1" } as const;
+  const eventsHead = { role: "events_head", clubId: null } as const;
+  const socialHead = { role: "social_media_head", clubId: null } as const;
+
+  it("is visible to exactly the four council roles", () => {
+    for (const role of ["faculty_advisor", "president", "vice_president", "tech_head"] as const) {
+      expect(canView({ role, clubId: null }, "manage:council")).toBe(true);
+    }
+  });
+
+  it("is refused to every role that holds view:analytics but not manage:council", () => {
+    for (const who of [clubHead, viceHead, eventsHead, socialHead]) {
+      expect(canView(who, "view:analytics")).toBe(true);
+      expect(canView(who, "manage:council")).toBe(false);
+    }
+  });
+});

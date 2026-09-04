@@ -21,6 +21,11 @@ export default async function AdminAppLayout({
     ...(home === "/admin"
       ? [{ href: "/admin", label: "Dashboard", group: "overview" as const }]
       : []),
+    // Council-only (design D1/D2). `manage:council` — NOT `view:analytics`,
+    // which club, events and social heads all hold.
+    ...(canView(session, "manage:council")
+      ? [{ href: "/admin/oversight/clubs", label: "Club health", group: "oversight" as const }]
+      : []),
     // Was unconditional, which showed an Events link to roles the page itself
     // redirects away (docs/social heads, and now the gallery manager).
     ...(canView(session, "manage:events")

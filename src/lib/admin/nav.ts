@@ -7,7 +7,14 @@
  * treatments, which is what `groupNavLinks` decides.
  */
 
-export type NavGroup = "overview" | "programme" | "content" | "people" | "inbox" | "system";
+export type NavGroup =
+  | "overview"
+  | "oversight"
+  | "programme"
+  | "content"
+  | "people"
+  | "inbox"
+  | "system";
 
 export interface NavLink {
   href: string;
@@ -24,6 +31,9 @@ export interface NavSection {
 /** Canonical section order + the heading each one renders. */
 const GROUPS: { group: NavGroup; label: string }[] = [
   { group: "overview", label: "Overview" },
+  // Council-only reading surfaces. Sits high because it is where the council
+  // starts a session, and it is empty (so dropped) for every other role.
+  { group: "oversight", label: "Oversight" },
   { group: "programme", label: "Programme" },
   { group: "content", label: "Content" },
   { group: "people", label: "People" },
