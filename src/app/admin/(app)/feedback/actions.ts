@@ -95,10 +95,26 @@ export async function setClubLeadersAction(formData: FormData): Promise<void> {
   const headId = asId(formData.get("headId"));
   const viceHeadId = asId(formData.get("viceHeadId"));
 
+  // A hand-typed name, for a leader who holds no admin account. Trimmed and
+  // capped to match the column's check constraint. Picking an account CLEARS
+  // the typed name for that role: the account wins in `resolveLeaders`, so
+  // keeping the text would leave a name on screen that the form never uses.
+  const asName = (v: FormDataEntryValue | null) => {
+    const s = String(v ?? "").trim().slice(0, 80);
+    return s.length > 0 ? s : null;
+  };
+  const headName = headId ? null : asName(formData.get("headName"));
+  const viceHeadName = viceHeadId ? null : asName(formData.get("viceHeadName"));
+
   const admin = createAdminClient();
   const { error } = await admin
     .from("clubs")
-    .update({ feedback_head_id: headId, feedback_vice_head_id: viceHeadId })
+    .update({
+      feedback_head_id: headId,
+      feedback_vice_head_id: viceHeadId,
+      feedback_head_name: headName,
+      feedback_vice_head_name: viceHeadName,
+    })
     .eq("id", clubId);
 
   if (!error) {
@@ -107,7 +123,7 @@ export async function setClubLeadersAction(formData: FormData): Promise<void> {
       action: "set_feedback_leaders",
       entity: "club",
       entityId: clubId,
-      after: { headId, viceHeadId },
+      after: { headId, viceHeadId, headName, viceHeadName },
     });
   } else {
     console.error("feedback leader pick failed", error.message);

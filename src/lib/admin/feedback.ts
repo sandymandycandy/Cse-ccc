@@ -99,6 +99,9 @@ export interface ClubLeaderChoice {
   clubName: string;
   curatedHeadId: string | null;
   curatedViceHeadId: string | null;
+  /** Hand-typed fallbacks, for a leader with no admin account. */
+  typedHeadName: string | null;
+  typedViceHeadName: string | null;
   heads: { id: string; name: string }[];
   viceHeads: { id: string; name: string }[];
 }
@@ -113,7 +116,7 @@ export async function listLeaderChoices(): Promise<ClubLeaderChoice[]> {
   const [{ data: clubs, error: cErr }, { data: admins, error: aErr }] = await Promise.all([
     admin
       .from("clubs")
-      .select("id, name, feedback_head_id, feedback_vice_head_id")
+      .select("id, name, feedback_head_id, feedback_vice_head_id, feedback_head_name, feedback_vice_head_name")
       .eq("is_active", true)
       .order("name"),
     admin
@@ -132,6 +135,8 @@ export async function listLeaderChoices(): Promise<ClubLeaderChoice[]> {
       clubName: c.name,
       curatedHeadId: c.feedback_head_id,
       curatedViceHeadId: c.feedback_vice_head_id,
+      typedHeadName: c.feedback_head_name,
+      typedViceHeadName: c.feedback_vice_head_name,
       heads: mine
         .filter((a) => a.role === "club_head")
         .map((a) => ({ id: a.id, name: a.full_name })),

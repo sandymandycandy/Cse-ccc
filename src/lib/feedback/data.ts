@@ -57,7 +57,7 @@ export async function listClubsWithLeaders(): Promise<ClubOption[]> {
     await Promise.all([
       admin
         .from("clubs")
-        .select("id, name, feedback_head_id, feedback_vice_head_id")
+        .select("id, name, feedback_head_id, feedback_vice_head_id, feedback_head_name, feedback_vice_head_name")
         .eq("is_active", true)
         .order("name"),
       admin
@@ -87,6 +87,8 @@ export async function listClubsWithLeaders(): Promise<ClubOption[]> {
     const { head, viceHead } = resolveLeaders(byClub.get(c.id) ?? [], {
       headId: c.feedback_head_id,
       viceHeadId: c.feedback_vice_head_id,
+      headName: c.feedback_head_name,
+      viceHeadName: c.feedback_vice_head_name,
     });
     return { id: c.id, name: c.name, head, viceHead };
   });

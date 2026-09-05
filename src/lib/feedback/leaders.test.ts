@@ -73,4 +73,50 @@ describe("resolveLeaders", () => {
     );
     expect(r.head).toEqual({ id: "h1", name: "Active" });
   });
+  // ---- typed names: a leader the club has, but who has no admin account ----
+
+  it("names a typed vice head when the club has no vice-head account", () => {
+    const r = resolveLeaders([head("h1", "Kishore S")], {
+      ...none,
+      viceHeadName: "Kaviya R",
+    });
+    expect(r.viceHead).toEqual({ id: null, name: "Kaviya R" });
+  });
+
+  it("prefers a typed name over the sole-candidate fallback", () => {
+    const r = resolveLeaders([vice("v1", "On file")], {
+      ...none,
+      viceHeadName: "Typed instead",
+    });
+    expect(r.viceHead).toEqual({ id: null, name: "Typed instead" });
+  });
+
+  it("prefers a curated account over a typed name", () => {
+    const r = resolveLeaders([vice("v1", "On file")], {
+      headId: null,
+      viceHeadId: "v1",
+      viceHeadName: "Typed instead",
+    });
+    expect(r.viceHead).toEqual({ id: "v1", name: "On file" });
+  });
+
+  it("falls back to a typed name when the curated pick is stale", () => {
+    const r = resolveLeaders([], { headId: "ghost", viceHeadId: null, headName: "Typed Head" });
+    expect(r.head).toEqual({ id: null, name: "Typed Head" });
+  });
+
+  it("ignores a whitespace-only typed name", () => {
+    const r = resolveLeaders([vice("v1", "On file")], { ...none, viceHeadName: "   " });
+    expect(r.viceHead).toEqual({ id: "v1", name: "On file" });
+  });
+
+  it("trims a typed name", () => {
+    const r = resolveLeaders([], { ...none, headName: "  Padded Name  " });
+    expect(r.head).toEqual({ id: null, name: "Padded Name" });
+  });
+
+  it("still resolves to nobody when there is neither an account nor a typed name", () => {
+    const r = resolveLeaders([head("h1", "Kishore S")], { ...none, viceHeadName: "" });
+    expect(r.viceHead).toBeNull();
+  });
 });

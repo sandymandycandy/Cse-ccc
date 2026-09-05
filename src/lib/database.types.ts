@@ -747,7 +747,9 @@ export type Database = {
           created_at: string
           description: string | null
           feedback_head_id: string | null
+          feedback_head_name: string | null
           feedback_vice_head_id: string | null
+          feedback_vice_head_name: string | null
           id: string
           is_active: boolean
           is_public: boolean
@@ -765,7 +767,9 @@ export type Database = {
           created_at?: string
           description?: string | null
           feedback_head_id?: string | null
+          feedback_head_name?: string | null
           feedback_vice_head_id?: string | null
+          feedback_vice_head_name?: string | null
           id?: string
           is_active?: boolean
           is_public?: boolean
@@ -783,7 +787,9 @@ export type Database = {
           created_at?: string
           description?: string | null
           feedback_head_id?: string | null
+          feedback_head_name?: string | null
           feedback_vice_head_id?: string | null
+          feedback_vice_head_name?: string | null
           id?: string
           is_active?: boolean
           is_public?: boolean

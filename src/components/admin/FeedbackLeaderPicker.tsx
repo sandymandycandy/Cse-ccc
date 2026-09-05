@@ -12,6 +12,64 @@ import { setClubLeadersAction } from "@/app/admin/(app)/feedback/actions";
  * Only clubs with more than one candidate for a role actually need a decision;
  * the rest are shown anyway so it is clear who the form is naming.
  */
+
+/**
+ * One role: the account dropdown, plus a free-text name beneath it.
+ *
+ * The text box exists because a club's real vice head may hold no admin account
+ * at all, and a role that resolves to nobody is not rendered on the public form
+ * — so those clubs silently collect no feedback. The dropdown wins when it
+ * names an account; the typed name covers everyone else.
+ */
+function LeaderField({
+  clubId,
+  role,
+  label,
+  selectName,
+  nameField,
+  candidates,
+  curatedId,
+  typedName,
+}: {
+  clubId: string;
+  role: string;
+  label: string;
+  selectName: string;
+  nameField: string;
+  candidates: { id: string; name: string }[];
+  curatedId: string | null;
+  typedName: string | null;
+}) {
+  const selectId = `${role}-${clubId}`;
+  const inputId = `${role}-name-${clubId}`;
+  return (
+    <div className="field">
+      <label htmlFor={selectId}>{label}</label>
+      <select id={selectId} name={selectName} defaultValue={curatedId ?? ""}>
+        <option value="">
+          {candidates.length === 1 ? `${candidates[0].name} (only candidate)` : "Not shown"}
+        </option>
+        {candidates.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.name}
+          </option>
+        ))}
+      </select>
+      <label htmlFor={inputId} className="hint" style={{ marginTop: 8 }}>
+        or type a name — for a {label.toLowerCase()} with no admin account
+      </label>
+      <input
+        id={inputId}
+        name={nameField}
+        type="text"
+        maxLength={80}
+        defaultValue={typedName ?? ""}
+        placeholder="e.g. Kaviya R"
+      />
+    </div>
+  );
+}
+
 export function FeedbackLeaderPicker({ clubs }: { clubs: ClubLeaderChoice[] }) {
   return (
     <div className="fb-picker">
@@ -27,45 +85,27 @@ export function FeedbackLeaderPicker({ clubs }: { clubs: ClubLeaderChoice[] }) {
               </div>
             ) : null}
 
-            <div className="field">
-              <label htmlFor={`head-${c.clubId}`}>Club head</label>
-              <select
-                id={`head-${c.clubId}`}
-                name="headId"
-                defaultValue={c.curatedHeadId ?? ""}
-              >
-                <option value="">
-                  {c.heads.length === 1
-                    ? `${c.heads[0].name} (only candidate)`
-                    : "Not shown"}
-                </option>
-                {c.heads.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <LeaderField
+              clubId={c.clubId}
+              role="head"
+              label="Club head"
+              selectName="headId"
+              nameField="headName"
+              candidates={c.heads}
+              curatedId={c.curatedHeadId}
+              typedName={c.typedHeadName}
+            />
 
-            <div className="field">
-              <label htmlFor={`vice-${c.clubId}`}>Vice head</label>
-              <select
-                id={`vice-${c.clubId}`}
-                name="viceHeadId"
-                defaultValue={c.curatedViceHeadId ?? ""}
-              >
-                <option value="">
-                  {c.viceHeads.length === 1
-                    ? `${c.viceHeads[0].name} (only candidate)`
-                    : "Not shown"}
-                </option>
-                {c.viceHeads.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <LeaderField
+              clubId={c.clubId}
+              role="vice"
+              label="Vice head"
+              selectName="viceHeadId"
+              nameField="viceHeadName"
+              candidates={c.viceHeads}
+              curatedId={c.curatedViceHeadId}
+              typedName={c.typedViceHeadName}
+            />
 
             <button type="submit" className="btn btn-ghost btn-sm">
               Save
