@@ -70,12 +70,21 @@ end-to-end**, not a checklist of components.
 > Supabase's own security advisor returns identical findings for both projects ·
 > reconcile `missing 0 differs 0 extra 0` · Seoul quiesced.
 >
-> ⚠️ **OWED — not yet done:** (1) a real browser login as an admin, to confirm
-> TOTP still decrypts (`TOTP_ENC_KEY` was deliberately carried over unchanged, so
-> it should — but it has not been proven with a real sign-in). (2) **Rotate the
-> Mumbai `service_role` key** — it was pasted into a chat transcript during the
-> migration. (3) Delete the Seoul project once you are satisfied, no earlier than
-> ~2026-09-12.
+> ✅ **Admin auth PROVEN on Mumbai (2026-09-05 19:00 UTC).** A `tech_head`
+> account with TOTP confirmed since 2026-08-25 completed a real browser login.
+> `tech_head` is in `TOTP_REQUIRED_ROLES`, so that single login proves both
+> halves at once: Argon2id verified against the migrated `password_hash`, **and**
+> `TOTP_ENC_KEY` correctly decrypted the migrated `secret_encrypted`. The failure
+> mode that would have locked all 33 admins out did not happen.
+>
+> ⚠️ **OWED — still not done:** (1) **Rotate the Mumbai `service_role` key** —
+> it was pasted into a chat transcript during the migration. (2) Delete the Seoul
+> project once satisfied, no earlier than ~2026-09-12.
+>
+> 🔧 **MAINTENANCE MODE IS CURRENTLY ON** — the public site answers 503 with a
+> maintenance page; `/admin/*` stays reachable. The switch is
+> `DEFAULT_MAINTENANCE` in `src/lib/maintenance.ts` (env `MAINTENANCE_MODE`
+> overrides it). **Turn it off by setting that constant to `false` and pushing.**
 >
 > ---
 >
