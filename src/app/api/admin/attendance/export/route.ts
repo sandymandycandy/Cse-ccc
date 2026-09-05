@@ -6,7 +6,7 @@ import { toCsv } from "@/lib/csv";
 import { istNumericDate } from "@/lib/datetime";
 import { writeAudit } from "@/lib/admin/audit";
 
-const CELL = { present: "Present", absent: "Absent", na: "" } as const;
+const CELL = { present: "Present", absent: "Absent" } as const;
 
 /** Club attendance register CSV export — anyone who can view the club's dashboard
  *  (manage:members grant), own-club scoped, audited. Opens in Excel (BOM). */

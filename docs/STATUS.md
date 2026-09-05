@@ -20,6 +20,48 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-05)
 
+> ### 2026-09-05 — 🐛 625 REAL ATTENDANCE MARKS WERE HIDDEN EVERYWHERE (root-caused + fixed)
+>
+> **Reported by the owner:** "when I export the attendance the day 1 attendance is not
+> showing". It was not an export bug — it was platform-wide, and the marks were fine in
+> the database the whole time.
+>
+> **Root cause:** `summarizeAttendance` took a `joinedDate` and skipped every session
+> dated before it, and all six callers passed **`club_members.created_at`** — the moment
+> the ROW was inserted, never when the person joined the club. Every club ran its first
+> sessions and typed its roster in afterwards, so the opening session was "not
+> applicable" for the entire roster: its Present marks exported as **blank cells** and
+> dropped out of the denominator (`Sessions` read 4 where 5 sessions had been held).
+> **625 marks across 12 clubs** were affected — worst: Ai Forge 184+133+22, CyberSentinel
+> 45, AppNova 31+14, Short Film 31+22+4, Fusion & Fashion 28+11, Coding Club 19+12+5+2.
+> It hit the CSV, the dashboard roster %, the club-health page and the **public roll
+> lookup students use to check their own attendance**.
+>
+> **Fix (owner chose "every member, every session"):** the join-date rule is GONE.
+> `summarizeAttendance(sessions, attendedIds)` no longer takes a join date and counts
+> every session the club has held. The `"na"` cell state is deleted from both registers
+> and both CSV routes. `VitalityMember.joinedDate` deleted as dead data.
+> ⚠️ **Accepted trade-off, stated to the owner and chosen anyway:** a member who
+> genuinely joins mid-term now shows **Absent** for sessions held before they arrived.
+> If that ever becomes a problem the fix is a real `joined_on` column on `club_members`,
+> editable by heads — do NOT go back to `created_at`.
+>
+> **Verified against live data:** the club the owner exported (`c0c5303f…`) now shows
+> DAY1 = 28 Present / 23 Absent, and `Sessions` = 5 for every member.
+>
+> ⚠️ **A club-vitality test changed meaning, not just syntax.** "does not flag
+> low-turnout when nobody was eligible yet" described a state that can no longer exist;
+> it now covers a club with no sessions in the window. A club whose members all
+> post-date its sessions **will now be flagged low-turnout** — correctly, since those
+> sessions finally count.
+>
+> 🔎 **SEPARATE DATA-ENTRY BUG, NOT FIXED — needs the owner or the club head:** Ai Forge
+> has a session titled "Ai-forge session 2" dated **2026-01-29** carrying **184 marks**.
+> January is almost certainly a typo for August. Until the date is corrected that session
+> sorts to the very top of every history and register. Fix it on the session, not in code.
+>
+> ---
+>
 > ### 2026-09-05 — 🐛 ATTENDANCE LOST 200 MARKS TO THE IDLE TIMEOUT (root-caused + fixed)
 >
 > **Reported by the owner:** a club head marks ~200 members, clicks Save after ~10

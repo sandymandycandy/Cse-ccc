@@ -26,11 +26,10 @@ const FUTURE = "2026-09-20";
 const club = (id: string, name = id.toUpperCase()) => ({ id, name });
 
 /** n members of `clubId`, all joined long before any fixture session. */
-function members(clubId: string, n: number, joinedDate = "2025-01-01"): VitalityMember[] {
+function members(clubId: string, n: number): VitalityMember[] {
   return Array.from({ length: n }, (_, i) => ({
     clubId,
     memberId: `${clubId}-m${i}`,
-    joinedDate,
   }));
 }
 
@@ -133,12 +132,15 @@ describe("flags", () => {
     expect(row.flags).not.toContain("low-turnout");
   });
 
-  it("does not flag low-turnout when nobody was eligible yet", () => {
-    // Two sessions in the window, but every member joined after both of them, so
-    // eligible is 0 and the 0% is a convention — not a turnout signal.
+  it("does not flag low-turnout when there was nothing to attend in the window", () => {
+    // A roster but no sessions inside the window, so eligible is 0 and the 0% is
+    // a convention — not a turnout signal. (Before 2026-09-05 this case was also
+    // reached by every member having joined after every session; the join-date
+    // eligibility rule is gone, so an unattended session now counts against a
+    // club rather than vanishing from its denominator.)
     const row = only(input({
-      members: members("c1", 10, "2026-09-01"),
-      sessions: sessions("c1", ["2026-08-10", "2026-08-12"]),
+      members: members("c1", 10),
+      sessions: [],
     }));
     expect(row.eligible).toBe(0);
     expect(row.ratePct).toBe(0);
@@ -182,13 +184,12 @@ describe("daysSinceLastSession", () => {
 
 describe("the attendance rate", () => {
   it("agrees with computeClubAnalytics on the same fixture", () => {
-    // The failure this prevents: a naive marks/(members×sessions) here would
-    // print a lower number than /admin/attendance/analytics shows for the same
-    // club, because it would ignore the join-date eligibility rule.
-    const joins = ["2025-01-01", "2026-08-10", "2026-08-25"];
+    // The failure this prevents: this page and /admin/attendance/analytics
+    // printing different rates for the same club, which they would the moment
+    // either stopped delegating to summarizeAttendance.
     const sess = sessions("c1", ["2026-08-08", "2026-08-15", "2026-08-28"]);
-    const mems: VitalityMember[] = joins.map((joinedDate, i) => ({
-      clubId: "c1", memberId: `c1-m${i}`, joinedDate,
+    const mems: VitalityMember[] = [0, 1, 2].map((i) => ({
+      clubId: "c1", memberId: `c1-m${i}`,
     }));
     const attend: VitalityMark[] = [
       { memberId: "c1-m0", sessionId: sess[0].id },
@@ -203,7 +204,7 @@ describe("the attendance rate", () => {
       const attendedIds = new Set(
         attend.filter((a) => a.memberId === m.memberId).map((a) => a.sessionId),
       );
-      const s = summarizeAttendance(sess, m.joinedDate, attendedIds);
+      const s = summarizeAttendance(sess, attendedIds);
       return { memberId: m.memberId, name: m.memberId, ...s };
     });
     const analytics = computeClubAnalytics({

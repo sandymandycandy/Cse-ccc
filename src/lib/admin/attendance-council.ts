@@ -105,7 +105,7 @@ export async function rosterWithPercent(): Promise<CouncilRosterPct[]> {
   }
   return (members ?? []).map((mem) => {
     const { attended, eligible, pct } = summarizeAttendance(
-      sess, mem.created_at.slice(0, 10), attendedByMember.get(mem.id) ?? NO_MARKS);
+      sess, attendedByMember.get(mem.id) ?? NO_MARKS);
     return { memberId: mem.id, name: mem.full_name, rollNo: mem.roll_no, designation: mem.designation, attended, eligible, pct };
   });
 }
@@ -195,7 +195,7 @@ export interface CouncilAttendanceRegister {
   rows: {
     name: string; rollNo: string | null; designation: string;
     /** Aligned with `sessions`: present / absent / na (meeting predates the member's join). */
-    cells: ("present" | "absent" | "na")[];
+    cells: ("present" | "absent")[];
     attended: number; eligible: number; pct: number;
   }[];
 }
@@ -224,12 +224,11 @@ export async function attendanceRegister(): Promise<CouncilAttendanceRegister> {
   }
 
   const rows = (members ?? []).map((mem) => {
-    const joined = mem.created_at.slice(0, 10);
     const marked = attendedByMember.get(mem.id) ?? NO_MARKS;
-    const cells = sessions.map((s): "present" | "absent" | "na" =>
-      s.date < joined ? "na" : marked.has(s.id) ? "present" : "absent",
+    const cells = sessions.map((s): "present" | "absent" =>
+      marked.has(s.id) ? "present" : "absent",
     );
-    const { attended, eligible, pct } = summarizeAttendance(sess, joined, marked);
+    const { attended, eligible, pct } = summarizeAttendance(sess, marked);
     return {
       name: mem.full_name, rollNo: mem.roll_no, designation: mem.designation,
       cells, attended, eligible, pct,

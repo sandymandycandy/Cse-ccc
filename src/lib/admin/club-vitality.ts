@@ -46,8 +46,6 @@ export interface VitalityClub {
 export interface VitalityMember {
   clubId: string;
   memberId: string;
-  /** YYYY-MM-DD the member joined (the date slice of `club_members.created_at`). */
-  joinedDate: string;
 }
 
 export interface VitalitySession {
@@ -146,7 +144,6 @@ export function computeClubVitality(
     for (const m of members) {
       const s = summarizeAttendance(
         windowSessions,
-        m.joinedDate,
         attendedByMember.get(m.memberId) ?? NO_MARKS,
       );
       attended += s.attended;

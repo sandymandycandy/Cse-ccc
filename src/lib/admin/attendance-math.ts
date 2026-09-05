@@ -4,18 +4,22 @@
  * Kept free of `server-only` and DB imports so it is unit-testable (mirrors the
  * pure `calendar-layout.ts` / `resources.ts` extraction pattern).
  *
- * A session is ELIGIBLE for a member when its `date` is on/after the date the
- * member joined — a fairer denominator than counting sessions from before they
- * existed. ATTENDED is the subset of those eligible sessions the member was
- * actually marked present at, so `attended <= eligible` always holds and the
- * percentage can never exceed 100 (a mark on a pre-join session never counts,
- * because such a session is never in the eligible set).
+ * EVERY session the club has held counts for every member on its roster.
+ * ATTENDED is the subset the member was marked present at, so `attended <=
+ * eligible` always holds and the percentage can never exceed 100 (a mark whose
+ * session id is not in the list never counts).
  *
- * `date` and `joinedDate` are compared as strings on purpose: both are
- * `YYYY-MM-DD` (a PostgREST `date` column, or the date slice of a timestamp),
- * for which lexicographic order equals chronological order. Keep them as those
- * raw strings — a raw `Date` or a differently-formatted string would silently
- * break the comparison.
+ * ⚠️ This used to take a `joinedDate` and skip sessions dated before it, using
+ * `club_members.created_at` as the join date. That silently hid **625 real marks
+ * across 12 clubs**: every club typed its roster into the system AFTER running
+ * its first sessions, so the opening session was ruled "not applicable" for the
+ * whole roster and its Present marks exported as blank cells. `created_at` is
+ * when a row was inserted, never when a person joined the club. Removed 2026-09-05
+ * at the owner's decision. The accepted trade-off: a member who genuinely joins
+ * mid-term now shows Absent for the sessions held before they arrived.
+ *
+ * `date` is kept on the session shape for callers that display it; the math no
+ * longer compares dates at all.
  */
 export interface AttendanceSummary {
   attended: number;
@@ -25,14 +29,12 @@ export interface AttendanceSummary {
 
 export function summarizeAttendance(
   sessions: readonly { id: string; date: string }[],
-  joinedDate: string,
   attendedSessionIds: ReadonlySet<string>,
 ): AttendanceSummary {
-  const eligible = sessions.filter((s) => s.date >= joinedDate);
-  const attended = eligible.filter((s) => attendedSessionIds.has(s.id)).length;
+  const attended = sessions.filter((s) => attendedSessionIds.has(s.id)).length;
   return {
     attended,
-    eligible: eligible.length,
-    pct: eligible.length === 0 ? 0 : Math.round((attended / eligible.length) * 100),
+    eligible: sessions.length,
+    pct: sessions.length === 0 ? 0 : Math.round((attended / sessions.length) * 100),
   };
 }

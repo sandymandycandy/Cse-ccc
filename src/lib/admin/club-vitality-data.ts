@@ -94,7 +94,6 @@ export async function getClubVitalityData(nowKey: string): Promise<ClubVitalityI
   const members = memberRows.map((m) => ({
     clubId: m.club_id,
     memberId: m.id,
-    joinedDate: m.created_at.slice(0, 10),
   }));
 
   const sessions = sessionRows.map((s) => ({

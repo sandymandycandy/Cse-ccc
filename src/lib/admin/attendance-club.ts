@@ -174,7 +174,7 @@ export async function rosterWithPercent(clubId: string): Promise<RosterPct[]> {
     attendedByMember.set(m.member_id, set);
   }
   return (members ?? []).map((mem) => {
-    const { attended, eligible, pct } = summarizeAttendance(sess, mem.created_at.slice(0, 10), attendedByMember.get(mem.id) ?? NO_MARKS);
+    const { attended, eligible, pct } = summarizeAttendance(sess, attendedByMember.get(mem.id) ?? NO_MARKS);
     return { memberId: mem.id, name: mem.name, rollNo: mem.roll_no, attended, eligible, pct };
   });
 }
@@ -185,7 +185,7 @@ export interface AttendanceRegister {
   rows: {
     name: string; rollNo: string | null;
     /** Aligned with `sessions`: present / absent / na (session predates the member's join). */
-    cells: ("present" | "absent" | "na")[];
+    cells: ("present" | "absent")[];
     attended: number; eligible: number; pct: number;
   }[];
 }
@@ -219,12 +219,11 @@ export async function attendanceRegister(clubId: string): Promise<AttendanceRegi
   }
 
   const rows = (members ?? []).map((mem) => {
-    const joined = mem.created_at.slice(0, 10);
     const marked = attendedByMember.get(mem.id) ?? NO_MARKS;
-    const cells = sessions.map((s): "present" | "absent" | "na" =>
-      s.date < joined ? "na" : marked.has(s.id) ? "present" : "absent",
+    const cells = sessions.map((s): "present" | "absent" =>
+      marked.has(s.id) ? "present" : "absent",
     );
-    const { attended, eligible, pct } = summarizeAttendance(sess, joined, marked);
+    const { attended, eligible, pct } = summarizeAttendance(sess, marked);
     return { name: mem.name, rollNo: mem.roll_no, cells, attended, eligible, pct };
   });
 
@@ -261,9 +260,8 @@ export async function getMemberAttendanceByRoll(roll: string): Promise<RollLooku
   const rows = (sessions ?? [])
     .map((s) => ({ id: s.id, title: s.title, date: sessionDateOf(s) }))
     .sort((a, b) => (a.date < b.date ? 1 : -1));
-  const joined = m.created_at.slice(0, 10);
-  const { attended, eligible, pct } = summarizeAttendance(rows, joined, attendedIds);
-  const history = rows.filter((s) => s.date >= joined).map((s) => ({ title: s.title, date: s.date, present: attendedIds.has(s.id) }));
+  const { attended, eligible, pct } = summarizeAttendance(rows, attendedIds);
+  const history = rows.map((s) => ({ title: s.title, date: s.date, present: attendedIds.has(s.id) }));
   return { status: "active", name: m.name, clubName, attended, eligible, pct, history };
 }
 
