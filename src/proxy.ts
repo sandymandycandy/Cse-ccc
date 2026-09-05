@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { makeIdleToken, readIdleToken, idleAction } from "@/lib/auth/idle";
+import { isMaintenanceMode, isExemptPath, maintenanceResponse } from "@/lib/maintenance";
 
 const useSecureCookies = process.env.NODE_ENV === "production";
 
@@ -31,6 +32,20 @@ function clearCookie(res: NextResponse, name: string): void {
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  // Maintenance mode (MAINTENANCE_MODE env var). Answered here, before any page
+  // renders, so the public site issues zero database queries while it is on —
+  // a maintenance page that depends on the thing being maintained is no use.
+  // /admin/* stays open: maintenance is usually exactly when the council needs
+  // to get in.
+  if (isMaintenanceMode(process.env.MAINTENANCE_MODE) && !isExemptPath(pathname)) {
+    return maintenanceResponse();
+  }
+
+  // Everything below is the admin gate. The matcher now spans the whole site
+  // for maintenance, so public routes stop here — they have no session to
+  // check, and running the JWT decode on them would be pure waste.
+  if (!isExemptPath(pathname)) return NextResponse.next();
 
   // Expose the path to the root layout so it can drop the public site chrome on
   // admin routes (Server Components can't otherwise read the current pathname).
@@ -113,5 +128,11 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  // Spans the whole site so maintenance mode can gate public routes too; the
+  // admin logic still only runs for /admin/* (see the early return above).
+  // Static assets are excluded so the maintenance page and the admin panel keep
+  // their CSS and images, and so Next's own internals are never intercepted.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff2?)$).*)",
+  ],
 };
