@@ -55,10 +55,14 @@ end-to-end**, not a checklist of components.
 > post-date its sessions **will now be flagged low-turnout** — correctly, since those
 > sessions finally count.
 >
-> 🔎 **SEPARATE DATA-ENTRY BUG, NOT FIXED — needs the owner or the club head:** Ai Forge
-> has a session titled "Ai-forge session 2" dated **2026-01-29** carrying **184 marks**.
-> January is almost certainly a typo for August. Until the date is corrected that session
-> sorts to the very top of every history and register. Fix it on the session, not in code.
+> 🔎 **Separate data-entry bug — FIXED 2026-09-05 at the owner's instruction.** Ai Forge's
+> "Ai-forge session 2" (184 marks) was dated **2026-01-29**, a typo that sorted it to the
+> top of every history and register. Corrected to **2026-08-29** by direct SQL
+> (`club_attendance_sessions.session_date`, id `b98ac3a7…`); no `audit_log` row, since raw
+> SQL bypasses the app's audit writes. Ai Forge now reads intro 28/08 → session 2 29/08 →
+> session 1 31/08. ⚠️ **"session 2" is now dated BEFORE "session 1"** — the dates are what
+> the owner asked for, so if that is wrong it is the *titles* that need swapping, by the
+> club head, not the dates.
 >
 > ---
 >
