@@ -138,7 +138,10 @@ const listRecursive = async (bucket, prefix = "") => {
     const full = prefix ? `${prefix}/${entry.name}` : entry.name;
     // PostgREST returns folders as rows with a null id.
     if (entry.id === null) out.push(...(await listRecursive(bucket, full)));
-    else out.push(full);
+    // Capture the stored mimetype: the destination buckets enforce
+    // allowed_mime_types, so a restore that has to guess from the file
+    // extension will be rejected outright.
+    else out.push({ path: full, mimetype: entry.metadata?.mimetype ?? null });
   }
   return out;
 };
@@ -150,7 +153,7 @@ console.log("");
 let totalObjects = 0;
 for (const bucket of buckets ?? []) {
   const paths = await listRecursive(bucket.name);
-  for (const p of paths) {
+  for (const { path: p, mimetype } of paths) {
     const { data, error } = await supabase.storage.from(bucket.name).download(p);
     if (error) {
       problems.push(`download ${bucket.name}/${p}: ${error.message}`);
@@ -160,7 +163,7 @@ for (const bucket of buckets ?? []) {
     const dest = path.join(outRoot, "storage", bucket.name, p);
     mkdirSync(path.dirname(dest), { recursive: true });
     writeFileSync(dest, buf);
-    manifest.storage.push({ bucket: bucket.name, path: p, bytes: buf.length, sha256: sha256(buf) });
+    manifest.storage.push({ bucket: bucket.name, path: p, mimetype, bytes: buf.length, sha256: sha256(buf) });
     totalObjects += 1;
   }
   console.log(`  bucket ${bucket.name.padEnd(24)} ${String(paths.length).padStart(4)} objects`);
