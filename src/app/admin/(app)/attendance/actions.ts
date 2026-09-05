@@ -219,6 +219,43 @@ export async function saveAttendanceAction(formData: FormData): Promise<void> {
   redirect(`/admin/attendance/sessions/${sessionId}?saved=1`);
 }
 
+/**
+ * Autosave the marks as the head works. Saves the present-set and returns —
+ * no close, no redirect, so the page keeps its scroll position and search box.
+ *
+ * This exists because marking a 200-member roster outlasts the 10-minute idle
+ * window and every tap used to be client-only state: the browser sent nothing,
+ * the proxy expired the login, and the Save POST was bounced to /admin/login,
+ * losing the lot. Each autosave is a real /admin request, so it also keeps the
+ * idle clock sliding while the head is genuinely working.
+ *
+ * Deliberately writes NO audit row: this runs every few seconds, and flooding
+ * audit_log would bury the events that matter. Attribution survives anyway —
+ * savePresence stamps marked_by on every row it inserts — and the explicit
+ * "Save draft" and "Save & close" actions still audit.
+ *
+ * Returns ok:false rather than redirecting, so the caller can surface a failure
+ * without throwing away the marks still held on screen.
+ */
+export async function autosaveAttendanceAction(
+  sessionId: string,
+  presentIds: string[],
+): Promise<{ ok: boolean }> {
+  const session = await getAdminSession();
+  if (!session) return { ok: false };
+  if (!z.string().uuid().safeParse(sessionId).success) return { ok: false };
+
+  const detail = await getSessionMarking(sessionId);
+  if (!detail) return { ok: false };
+  if (!canManage(session, "manage:members", detail.session.clubId)) return { ok: false };
+  // A closed session is finalised; autosave must not quietly reopen its marks.
+  if (detail.session.status === "closed") return { ok: false };
+
+  const present = presentIds.filter((v) => z.string().uuid().safeParse(v).success);
+  await savePresence(sessionId, present, session.id);
+  return { ok: true };
+}
+
 /** Save the current marks AND close the session (explicit finalise). Own-club scoped. */
 export async function saveAndCloseAction(formData: FormData): Promise<void> {
   const session = await getAdminSession();

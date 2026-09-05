@@ -20,6 +20,53 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-05)
 
+> ### 2026-09-05 — 🐛 ATTENDANCE LOST 200 MARKS TO THE IDLE TIMEOUT (root-caused + fixed)
+>
+> **Reported by the owner:** a club head marks ~200 members, clicks Save after ~10
+> minutes, gets "Try again", and **nothing is saved**. Deterministic, not a fluke —
+> any roster taking over 10 minutes to mark failed this way every time.
+>
+> **Root cause, traced end to end:** `IDLE_MS` is 10 minutes (`src/lib/auth/idle.ts`)
+> and `src/proxy.ts` expires the session on the first `/admin/*` request made after
+> the clock goes stale, clearing BOTH cookies and 307ing to `/admin/login`. But
+> `SessionRoster` held every tap in local React state — no `useEffect`, no polling,
+> no autosave — so the browser sent **nothing** between page load and Save. (Checked:
+> the only `setInterval` in the whole admin area is the login lockout countdown.) The
+> Save POST was therefore the first request in >10 min, got redirected, and the server
+> action received an HTML login page instead of a result — so it threw, and the admin
+> error boundary (`src/app/admin/(app)/error.tsx:25`) rendered its **"Try again"**
+> button. That is the "retry" the owner saw. The marks only ever existed in the
+> browser, so `reset()` remounted the component and lost the lot.
+>
+> **The security model was behaving correctly.** The bug was a screen whose normal task
+> outlasts the idle window with no way to tell the server anyone was still there.
+>
+> **Fix (branch `fix/attendance-autosave`):** new pure `src/lib/admin/autosave.ts`
+> (`isDirty` + `autosaveAction`, 8 tests) — one save in flight at a time, and the
+> caller MUST re-check when a save lands or the taps made during it are never
+> persisted. New `autosaveAttendanceAction` saves without closing or redirecting, so
+> scroll position and the search box survive; it writes **no audit row** on purpose
+> (it runs every few seconds and would bury the real events — `marked_by` still
+> attributes every row). `SessionRoster` autosaves 2.5s after the last tap, shows an
+> honest status line, and finally wires up **`saveAttendanceAction`**, which had
+> existed with a live `?saved=1` notice but **no button calling it**. Each autosave is
+> a real `/admin` request, so the idle clock now slides while the head works — and
+> going idle still expires the session, it just no longer costs any data.
+>
+> ⚠️ **NEVER OPENED IN A BROWSER** — this is a 10-minute timing interaction that cannot
+> be reproduced headlessly. Known gap: a failed save does not retry until the next tap
+> (the status line turns red and points at "Save draft").
+>
+> ⚠️ **`CouncilSessionRoster` HAS THE IDENTICAL BUG** and its own orphaned draft action
+> (`council/actions.ts:235`). Left alone deliberately — council rosters are small enough
+> that 10 minutes is unlikely — but it is the same defect, still live.
+>
+> **Workaround that worked before the fix**, if it is ever needed again: mark ~50,
+> press "Save & close session", press "Reopen session", continue. Each is a request, so
+> it both saves and resets the clock.
+>
+> ---
+>
 > ### 2026-09-05 — admin-account cleanup (LIVE DB, no deploy) + typed feedback leader names
 >
 > **Four admin accounts were HARD-DELETED from the production database** at the owner's
