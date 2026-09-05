@@ -14,10 +14,10 @@
     "types:gen": "supabase gen types typescript --project-id jisahccdnthzgibszwnq --schema public > src/lib/database.types.ts"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.12.4",
+    "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.3",
     "hash-wasm": "^4.12.0",
-    "next": "16.3.1",
+    "next": "16.3.4",
     "next-auth": "^5.0.0-beta.32",
     "nodemailer": "^9.1.1",
     "otpauth": "^9.5.1",
@@ -26,7 +26,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "^0.0.1",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -36,7 +36,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.1",
+    "eslint-config-next": "16.3.4",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.11"
