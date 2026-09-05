@@ -2250,7 +2250,7 @@ flow as always.
      destructive, so it needs a human decision.
 
 
-1. **⚠️ THE BROWSER-VERIFICATION DEBT — now EIGHT items. Do them as ONE walkthrough.**
+1. **⚠️ THE BROWSER-VERIFICATION DEBT — now TEN items. Do them as ONE walkthrough.**
    Every one of these needs a real browser (server-action POSTs can't be curled,
    and pixels can't be asserted). They have accumulated across six sessions
    because the Chrome extension has repeatedly failed to connect. Doing them in a
@@ -2263,6 +2263,16 @@ flow as always.
    `/admin/users`. Every surviving admin has TOTP enrolled, so have the authenticator to
    hand whichever you use. Re-running `scripts/seed-admin.mjs` would recreate a test
    login if you would rather have one back.
+   - [ ] **🔴 ATTENDANCE AUTOSAVE + "Save draft"** (2026-09-05, `dd9f084`) — **do this
+         one FIRST.** It rewrote the save path a club head uses on a live 200-person
+         roster, and it has never run in a browser. On a SMALL session: tap a few
+         members, watch the status line go "Saving…" → "All changes saved", reload the
+         page and confirm the marks came back. Then press **Save draft** and confirm the
+         session stays OPEN. If autosave is broken here it is worse than the bug it fixed.
+   - [ ] **🔴 Attendance % after the count-every-session fix** (2026-09-05, `6e48080`) —
+         confirm the dashboard roster, the register CSV and `/attendance?roll=` all show
+         the SAME figure for one member. The public lookup was verified live (roll 27685
+         → 80%, 4 of 5, DAY1 present); the admin dashboard and the CSV were **not**.
    - [ ] **Image editor on all FOUR upload forms** — the highest-risk item. It
          replaced the file input on gallery / event poster / announcement cover /
          achievement image. If it throws at runtime those four forms lose their
