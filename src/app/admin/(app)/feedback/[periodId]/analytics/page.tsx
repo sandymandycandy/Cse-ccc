@@ -10,6 +10,7 @@ import {
 } from "@/lib/admin/feedback";
 import { computeFeedbackAnalytics } from "@/lib/admin/feedback-analytics";
 import { FeedbackAnalyticsView } from "@/components/admin/FeedbackAnalytics";
+import { summarizeSocial } from "@/lib/admin/social-feedback";
 import { istNumericDate } from "@/lib/datetime";
 
 const THRESHOLDS = [2.5, 3, 3.5, 4];
@@ -92,6 +93,18 @@ export default async function FeedbackAnalyticsPage({
     belowThreshold,
   });
 
+  // Council-wide: counted per student, so a member of three clubs who answered
+  // three times still contributes one social opinion.
+  const social = summarizeSocial(
+    responses.map((r) => ({
+      vtu: r.vtu,
+      socialTeamRating: r.socialTeamRating,
+      socialLeadRating: r.socialLeadRating,
+      socialLeadName: r.socialLeadName,
+      createdAt: r.createdAt,
+    })),
+  );
+
   return (
     <div className="admin-page">
       <div className="admin-page-head">
@@ -105,6 +118,7 @@ export default async function FeedbackAnalyticsPage({
 
       <FeedbackAnalyticsView
         analytics={analytics}
+        social={social}
         periodId={periodId}
         periodLabel={label}
         thresholds={THRESHOLDS}

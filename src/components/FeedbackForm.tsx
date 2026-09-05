@@ -69,12 +69,21 @@ function Counter({ value, max }: { value: string; max: number }) {
   );
 }
 
-export function FeedbackForm({ clubs }: { clubs: ClubOption[] }) {
+export function FeedbackForm({
+  clubs,
+  socialLead,
+}: {
+  clubs: ClubOption[];
+  /** The council's Social Media Head, or null when the role is unresolved. */
+  socialLead: { id: string; name: string } | null;
+}) {
   const formRef = useRef<HTMLFormElement>(null);
   const [clubId, setClubId] = useState("");
   const [headRating, setHeadRating] = useState<number | null>(null);
   const [viceRating, setViceRating] = useState<number | null>(null);
   const [clubRating, setClubRating] = useState<number | null>(null);
+  const [socialTeamRating, setSocialTeamRating] = useState<number | null>(null);
+  const [socialLeadRating, setSocialLeadRating] = useState<number | null>(null);
   const [activities, setActivities] = useState("");
   const [suggestions, setSuggestions] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -91,6 +100,8 @@ export function FeedbackForm({ clubs }: { clubs: ClubOption[] }) {
     setHeadRating(null);
     setViceRating(null);
     setClubRating(null);
+    setSocialTeamRating(null);
+    setSocialLeadRating(null);
     setActivities("");
     setSuggestions("");
     setResult(null);
@@ -139,6 +150,10 @@ export function FeedbackForm({ clubs }: { clubs: ClubOption[] }) {
           clubRating,
           activities,
           suggestions,
+          socialTeamRating,
+          socialTeamComment: String(fd.get("socialTeamComment") ?? ""),
+          socialLeadRating,
+          socialLeadComment: String(fd.get("socialLeadComment") ?? ""),
           website: String(fd.get("website") ?? ""), // honeypot
         }),
       });
@@ -324,6 +339,53 @@ export function FeedbackForm({ clubs }: { clubs: ClubOption[] }) {
         />
         {fieldErrors.activities ? err("activities") : <Counter value={activities} max={4000} />}
       </div>
+
+      {/* Council-wide, so it sits OUTSIDE the club block: the social media team
+          covers every club, and a student rates it once whichever club they
+          picked. Both ratings are optional, like the leader blocks. */}
+      <fieldset className="fb-block">
+        <legend>
+          The council&rsquo;s social media <span className="fb-opt">Optional</span>
+        </legend>
+        <p className="hint" style={{ marginTop: -4, marginBottom: 12 }}>
+          This team covers every club, not just yours.
+        </p>
+        <Stars name="socialTeamRating" value={socialTeamRating} onChange={setSocialTeamRating} />
+        <div className="field">
+          <label htmlFor="fb-social-team-c">
+            Posts, reels, event coverage &mdash; anything to add?{" "}
+            <span className="fb-opt">Optional</span>
+          </label>
+          <textarea
+            id="fb-social-team-c"
+            name="socialTeamComment"
+            rows={3}
+            maxLength={2000}
+            placeholder="What they cover well, or what gets missed."
+          />
+        </div>
+      </fieldset>
+
+      {socialLead ? (
+        <fieldset className="fb-block">
+          <legend>
+            Social Media Head <span>&middot; {socialLead.name}</span>
+          </legend>
+          <Stars name="socialLeadRating" value={socialLeadRating} onChange={setSocialLeadRating} />
+          <div className="field">
+            <label htmlFor="fb-social-lead-c">
+              Anything to add? <span className="fb-opt">Optional</span>
+            </label>
+            <textarea
+              id="fb-social-lead-c"
+              name="socialLeadComment"
+              rows={3}
+              maxLength={2000}
+              placeholder="What they do well, or what would help."
+            />
+          </div>
+        </fieldset>
+      ) : null}
 
       <div className={rowClass("suggestions")}>
         <label htmlFor="fb-sug">

@@ -1361,6 +1361,12 @@ export type Database = {
           head_rating: number | null
           id: string
           period_id: string
+          social_lead_admin_id: string | null
+          social_lead_comment: string | null
+          social_lead_name: string | null
+          social_lead_rating: number | null
+          social_team_comment: string | null
+          social_team_rating: number | null
           student_name: string
           suggestions: string | null
           vice_admin_id: string | null
@@ -1380,6 +1386,12 @@ export type Database = {
           head_rating?: number | null
           id?: string
           period_id: string
+          social_lead_admin_id?: string | null
+          social_lead_comment?: string | null
+          social_lead_name?: string | null
+          social_lead_rating?: number | null
+          social_team_comment?: string | null
+          social_team_rating?: number | null
           student_name: string
           suggestions?: string | null
           vice_admin_id?: string | null
@@ -1399,6 +1411,12 @@ export type Database = {
           head_rating?: number | null
           id?: string
           period_id?: string
+          social_lead_admin_id?: string | null
+          social_lead_comment?: string | null
+          social_lead_name?: string | null
+          social_lead_rating?: number | null
+          social_team_comment?: string | null
+          social_team_rating?: number | null
           student_name?: string
           suggestions?: string | null
           vice_admin_id?: string | null
@@ -1427,6 +1445,13 @@ export type Database = {
             columns: ["period_id"]
             isOneToOne: false
             referencedRelation: "feedback_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_responses_social_lead_admin_id_fkey"
+            columns: ["social_lead_admin_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
             referencedColumns: ["id"]
           },
           {

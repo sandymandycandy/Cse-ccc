@@ -20,6 +20,38 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-05)
 
+> ### 2026-09-05 — Social media added to the feedback form
+>
+> Students can now rate the council's **social media team** on `/feedback`: two
+> independent optional ratings — the TEAM's output (posts, reels, coverage) and the
+> **Social Media Head** by name — each with its own comment. Migration
+> `20260905010000_feedback_social_media.sql` (six columns on `feedback_responses`)
+> **applied to the live DB and verified**. 618 tests / typecheck / lint / build green.
+>
+> **The one non-obvious decision.** Everything else in `feedback-analytics.ts` is
+> per-club, so one response = one voice. Social media is council-wide, and a student
+> in three clubs may legitimately submit three club responses — each carrying their
+> social rating. Averaged naively one person would count three times. So the social
+> figures live in a SEPARATE pure module, **`src/lib/admin/social-feedback.ts`**, which
+> counts each **student** once (keeping their most recent submission). ⚠️ **Do not
+> average the `social_*` columns directly** and do not move this into
+> `feedback-analytics.ts` — the counting rules genuinely differ.
+>
+> Head resolution reuses the clubs' refusal-to-guess rule (`social-lead.ts`): name the
+> sole active `social_media_head`, else name nobody and drop the person block, keeping
+> the team rating. One candidate exists today (Gagan sashank Votra), so it resolves.
+> `social_lead_name` is a **snapshot**, same as `head_name` — never re-derive it.
+>
+> The council reads it on `/admin/feedback/<period>/analytics` (a council-wide rating
+> filed under each club would read as if each club had its own social team). The CSV
+> export gains five columns.
+>
+> ⚠️ **NEVER OPENED IN A BROWSER.** The window is open, so the block is live to
+> students now. Worth checking first: that the two star rows post independently, and
+> that submitting with BOTH left blank still works — they are optional by design.
+>
+> ---
+>
 > ### 2026-09-05 — 🐛 625 REAL ATTENDANCE MARKS WERE HIDDEN EVERYWHERE (root-caused + fixed)
 >
 > **Reported by the owner:** "when I export the attendance the day 1 attendance is not

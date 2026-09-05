@@ -39,6 +39,23 @@ export const FeedbackSchema = z
       .optional()
       .default(""),
 
+    // Council-wide social media: the team's output and the head as a person.
+    // Both optional and independent, like the club leader blocks.
+    socialTeamRating: z.number().int().min(1).max(5).nullable().optional().default(null),
+    socialTeamComment: z
+      .string()
+      .trim()
+      .max(2000, "Too long (max 2000 characters).")
+      .optional()
+      .default(""),
+    socialLeadRating: z.number().int().min(1).max(5).nullable().optional().default(null),
+    socialLeadComment: z
+      .string()
+      .trim()
+      .max(2000, "Too long (max 2000 characters).")
+      .optional()
+      .default(""),
+
     clubRating: z.number().int().min(1, "Rate the club.").max(5),
     activities: z
       .string()
@@ -72,4 +89,8 @@ export const FEEDBACK_FIELD_KEYS = [
   "clubRating",
   "activities",
   "suggestions",
+  "socialTeamRating",
+  "socialTeamComment",
+  "socialLeadRating",
+  "socialLeadComment",
 ] as const;

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { FeedbackAnalytics as Analytics } from "@/lib/admin/feedback-analytics";
 import { THIN_SAMPLE } from "@/lib/admin/feedback-analytics";
+import type { SocialStat } from "@/lib/admin/social-feedback";
 
 const fmt = (n: number | null) => (n == null ? "—" : n.toFixed(1));
 
@@ -53,12 +54,15 @@ function Distribution({ title, counts }: { title: string; counts: number[] }) {
 
 export function FeedbackAnalyticsView({
   analytics,
+  social,
   periodId,
   periodLabel,
   thresholds,
   belowThreshold,
 }: {
   analytics: Analytics;
+  /** Council-wide social media — counted per STUDENT, not per response. */
+  social: SocialStat;
   periodId: string;
   periodLabel: string;
   thresholds: number[];
@@ -248,6 +252,34 @@ export function FeedbackAnalyticsView({
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      <h2 style={{ marginTop: 32 }}>The council&rsquo;s social media</h2>
+      <p className="label" style={{ marginTop: 6, color: "var(--ink-2)" }}>
+        Council-wide, so each student counts once however many clubs they answered
+        for{social.thin ? " — too few so far to read as a verdict" : ""}.
+      </p>
+      {social.students === 0 ? (
+        <div className="cal-empty" style={{ marginTop: 12 }}>
+          Nobody has rated social media this period.
+        </div>
+      ) : (
+        <div className="admin-stats">
+          <div className="admin-stat">
+            <div className="n">{social.teamAvg ?? "—"}</div>
+            <div className="label">Team · {social.teamRatings} rated</div>
+          </div>
+          <div className="admin-stat">
+            <div className="n">{social.leadAvg ?? "—"}</div>
+            <div className="label">
+              {social.leadName ?? "Head"} · {social.leadRatings} rated
+            </div>
+          </div>
+          <div className="admin-stat">
+            <div className="n">{social.students}</div>
+            <div className="label">Students</div>
+          </div>
         </div>
       )}
 

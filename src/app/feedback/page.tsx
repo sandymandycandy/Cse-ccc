@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getOpenPeriod, listClubsWithLeaders } from "@/lib/feedback/data";
+import { getOpenPeriod, listClubsWithLeaders, getSocialLead } from "@/lib/feedback/data";
 import { FeedbackForm } from "@/components/FeedbackForm";
 import { FeedbackPromise } from "@/components/FeedbackPromise";
 import { ButtonLink } from "@/components/ui/Button";
@@ -36,7 +36,7 @@ export default async function FeedbackPage() {
     );
   }
 
-  const clubs = await listClubsWithLeaders();
+  const [clubs, socialLead] = await Promise.all([listClubsWithLeaders(), getSocialLead()]);
 
   return (
     <section className="section" style={{ paddingTop: 56 }}>
@@ -48,7 +48,7 @@ export default async function FeedbackPage() {
       </p>
       <div className="fb-grid">
         <div className="fb-formcol">
-          <FeedbackForm clubs={clubs} />
+          <FeedbackForm clubs={clubs} socialLead={socialLead} />
         </div>
         <FeedbackPromise />
       </div>

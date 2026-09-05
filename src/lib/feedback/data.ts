@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveLeaders, type ClubLeaders, type LeaderCandidate } from "./leaders";
+import { resolveSocialLead, type ResolvedSocialLead } from "./social-lead";
 
 /**
  * Service-role reads/writes for the public feedback surface. Neither feedback
@@ -94,6 +95,25 @@ export async function listClubsWithLeaders(): Promise<ClubOption[]> {
   });
 }
 
+/**
+ * The council's Social Media Head, or null when there is not exactly one active
+ * account for the role. Council-wide, so there is nothing to scope by.
+ */
+export async function getSocialLead(): Promise<ResolvedSocialLead | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("admin_users")
+    .select("id, full_name, is_active")
+    .eq("role", "social_media_head");
+  if (error) {
+    console.error("feedback: social lead lookup failed", error.message);
+    return null;
+  }
+  return resolveSocialLead(
+    (data ?? []).map((a) => ({ id: a.id, name: a.full_name, isActive: a.is_active })),
+  );
+}
+
 /** One club's leaders, re-resolved server-side at submit time. */
 export async function getClubLeaders(clubId: string): Promise<ClubLeaders | null> {
   const clubs = await listClubsWithLeaders();
@@ -114,6 +134,11 @@ export interface InsertFeedbackInput {
   clubRating: number;
   activities: string;
   suggestions: string;
+  socialLead: ResolvedSocialLead | null;
+  socialTeamRating: number | null;
+  socialTeamComment: string;
+  socialLeadRating: number | null;
+  socialLeadComment: string;
 }
 
 /** Store one response. Returns false on a DB error (the caller answers 500). */
@@ -138,6 +163,16 @@ export async function insertFeedbackResponse(input: InsertFeedbackInput): Promis
     club_rating: input.clubRating,
     activities_feedback: input.activities,
     suggestions: input.suggestions || null,
+    // Council-wide social media. Same snapshot rule as the leader names above:
+    // a rating aimed at a head nobody could resolve is discarded, not stored
+    // against nobody. The TEAM rating stands on its own and needs no name.
+    social_team_rating: input.socialTeamRating,
+    social_team_comment: input.socialTeamComment || null,
+    social_lead_admin_id: input.socialLead?.id ?? null,
+    social_lead_name: input.socialLead?.name ?? null,
+    social_lead_rating: input.socialLead ? input.socialLeadRating : null,
+    social_lead_comment:
+      input.socialLead && input.socialLeadComment ? input.socialLeadComment : null,
   });
   if (error) {
     console.error("feedback insert failed", error);

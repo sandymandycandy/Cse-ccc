@@ -53,6 +53,11 @@ export interface FeedbackResponseRow {
   clubRating: number;
   activities: string;
   suggestions: string | null;
+  socialTeamRating: number | null;
+  socialTeamComment: string | null;
+  socialLeadName: string | null;
+  socialLeadRating: number | null;
+  socialLeadComment: string | null;
   createdAt: string;
 }
 
@@ -64,7 +69,7 @@ export async function listResponses(periodId: string): Promise<FeedbackResponseR
     // Must stay ONE string literal: concatenating with `+` widens it to
     // `string` and PostgREST can no longer infer the row shape from the
     // generated types (every column then types as GenericStringError).
-    .select("id, club_id, vtu, student_name, head_name, head_rating, head_comment, vice_name, vice_rating, vice_comment, club_rating, activities_feedback, suggestions, created_at")
+    .select("id, club_id, vtu, student_name, head_name, head_rating, head_comment, vice_name, vice_rating, vice_comment, club_rating, activities_feedback, suggestions, social_team_rating, social_team_comment, social_lead_name, social_lead_rating, social_lead_comment, created_at")
     .eq("period_id", periodId)
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -82,6 +87,11 @@ export async function listResponses(periodId: string): Promise<FeedbackResponseR
     clubRating: r.club_rating,
     activities: r.activities_feedback,
     suggestions: r.suggestions,
+    socialTeamRating: r.social_team_rating,
+    socialTeamComment: r.social_team_comment,
+    socialLeadName: r.social_lead_name,
+    socialLeadRating: r.social_lead_rating,
+    socialLeadComment: r.social_lead_comment,
     createdAt: r.created_at,
   }));
 }

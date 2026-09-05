@@ -2,6 +2,7 @@ import { FeedbackSchema, FEEDBACK_FIELD_KEYS } from "@/lib/feedback/schema";
 import {
   getOpenPeriod,
   getClubLeaders,
+  getSocialLead,
   insertFeedbackResponse,
 } from "@/lib/feedback/data";
 import { checkFeedbackLimits } from "@/lib/rate-limit";
@@ -75,6 +76,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "Choose your club." }, { status: 400 });
   }
 
+  // 6b) The social media head is resolved server-side too, for the same reason:
+  //     a name posted by the browser could attach a one-star rating to anyone.
+  const socialLead = await getSocialLead();
+
   // 7) store
   const ok = await insertFeedbackResponse({
     periodId: period.id,
@@ -89,6 +94,11 @@ export async function POST(request: Request) {
     clubRating: input.clubRating,
     activities: input.activities,
     suggestions: input.suggestions,
+    socialLead,
+    socialTeamRating: input.socialTeamRating ?? null,
+    socialTeamComment: input.socialTeamComment,
+    socialLeadRating: input.socialLeadRating ?? null,
+    socialLeadComment: input.socialLeadComment,
   });
   if (!ok) {
     return Response.json({ error: "Something went wrong. Please try again." }, { status: 500 });

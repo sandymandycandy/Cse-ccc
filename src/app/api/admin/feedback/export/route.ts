@@ -40,6 +40,11 @@ export async function GET(request: Request) {
     "Club rating",
     "Activities",
     "Suggestions",
+    "Social media team rating",
+    "Social media team feedback",
+    "Social media head",
+    "Social media head rating",
+    "Social media head feedback",
   ];
   const body = rows.map((r) => [
     istNumericDate(r.createdAt),
@@ -55,6 +60,11 @@ export async function GET(request: Request) {
     r.clubRating,
     r.activities,
     r.suggestions ?? "",
+    r.socialTeamRating ?? "",
+    r.socialTeamComment ?? "",
+    r.socialLeadName ?? "",
+    r.socialLeadRating ?? "",
+    r.socialLeadComment ?? "",
   ]);
 
   await writeAudit({
