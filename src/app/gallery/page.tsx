@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { getPublicGallery } from "@/lib/queries";
 
 export const metadata: Metadata = {
@@ -27,13 +28,21 @@ export default async function GalleryPage() {
         <div className="gallery-grid">
           {photos.map((p) => (
             <figure key={p.id}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              {/* The masonry grid is `columns: 260px`, so a column is ~260px wide
+                  and never wider than 300 even on a large screen. `sizes` says so
+                  explicitly — without it next/image assumes full viewport width
+                  and fetches a needlessly large file for a thumbnail-sized slot.
+                  Every row carries real dimensions (backfilled 2026-09-06), which
+                  is what reserves the right space and keeps the masonry from
+                  reflowing as photos arrive. */}
+              <Image
                 src={p.imageUrl}
                 alt={p.caption ?? ""}
                 loading="lazy"
-                width={p.width ?? undefined}
-                height={p.height ?? undefined}
+                width={p.width ?? 1600}
+                height={p.height ?? 900}
+                sizes="(max-width: 600px) 100vw, 300px"
+                style={{ width: "100%", height: "auto" }}
               />
               {p.caption || p.clubName ? (
                 <figcaption>

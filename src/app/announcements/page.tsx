@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { getPublishedAnnouncements } from "@/lib/queries";
 import { istFullDate } from "@/lib/datetime";
@@ -42,12 +43,13 @@ export default async function AnnouncementsPage() {
               }}
             >
               {a.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <Image
                   src={a.imageUrl}
                   alt=""
+                  loading="lazy"
                   width={120}
                   height={80}
+                  sizes="120px"
                   style={{ width: 120, height: 80, objectFit: "cover", borderRadius: 6 }}
                 />
               ) : null}

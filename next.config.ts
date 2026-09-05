@@ -27,10 +27,38 @@ const securityHeaders = [
   { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
 ];
 
+/**
+ * Storage images are served from the Supabase project, so next/image needs that
+ * host allow-listed. Derived from the env var rather than hardcoded: the project
+ * ref changed once already (Seoul -> Mumbai, 2026-09-05), and a literal hostname
+ * here would have silently broken every image on the site the moment it moved.
+ */
+const supabaseHostname = (() => {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").hostname || null;
+  } catch {
+    return null;
+  }
+})();
+
 const nextConfig: NextConfig = {
   // Pin the workspace root — a stray package-lock.json in the parent (home) dir
   // otherwise makes Turbopack infer the wrong root.
   turbopack: { root: import.meta.dirname },
+  images: {
+    // AVIF first, WebP second: both are far smaller than the source JPEG/WebP
+    // originals, and Next falls back automatically for browsers that lack them.
+    formats: ["image/avif", "image/webp"],
+    remotePatterns: supabaseHostname
+      ? [
+          {
+            protocol: "https",
+            hostname: supabaseHostname,
+            pathname: "/storage/v1/object/public/**",
+          },
+        ]
+      : [],
+  },
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },

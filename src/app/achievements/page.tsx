@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { ButtonLink } from "@/components/ui/Button";
 import { getPublicAchievements } from "@/lib/queries";
 import { renderMarkdown } from "@/lib/markdown";
@@ -48,11 +49,16 @@ export default async function AchievementsPage() {
               }}
             >
               {a.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                // Rendered at a fixed 160x110, so that is all we ask for. The
+                // originals here are full-size uploads — one is 744KB — and were
+                // previously downloaded whole to fill a thumbnail.
+                <Image
                   src={a.imageUrl}
                   alt=""
                   loading="lazy"
+                  width={160}
+                  height={110}
+                  sizes="160px"
                   style={{ width: 160, height: 110, objectFit: "cover", borderRadius: 8 }}
                 />
               ) : null}

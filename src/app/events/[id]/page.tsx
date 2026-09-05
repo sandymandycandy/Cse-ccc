@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Panel } from "@/components/ui/Surface";
@@ -116,11 +117,23 @@ export default async function EventDetailPage({ params }: Params) {
           {/* main */}
           <div>
             {event.posterUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              // The two posters in storage are 762KB and 375KB JPEGs served at
+              // full size. `priority` because this is the page's main image and
+              // sits above the fold; `height: auto` keeps whatever aspect the
+              // poster actually has, since posters are not a fixed shape.
+              <Image
                 src={event.posterUrl}
                 alt={`${event.title} poster`}
-                style={{ width: "100%", borderRadius: "var(--r-lg)", display: "block" }}
+                width={1200}
+                height={1600}
+                priority
+                sizes="(max-width: 900px) 100vw, 620px"
+                style={{
+                  width: "100%",
+                  height: "auto",
+                  borderRadius: "var(--r-lg)",
+                  display: "block",
+                }}
               />
             ) : null}
             {event.blurb ? (
