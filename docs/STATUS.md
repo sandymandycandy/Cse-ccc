@@ -28,15 +28,20 @@ end-to-end**, not a checklist of components.
 > session scratchpad (`admin-users-removed-2026-09-05.json`); no password hashes or TOTP
 > secrets were written to disk. Deleted: `head@cse.test` (Coding Head) ·
 > `anithashankar08@gmail.com` (Appo nova head) · `sandysandeepkur05@gmail.com` (club head
-> testing) · `logith.exe@gmail.com` (LOGITH A, an AspireX duplicate). Also: **`sandy`
+> testing) · `logith.exe@gmail.com` (LOGITH A, an AspireX duplicate) · **`tech@cse.test`
+> (the bootstrap Tech Head** seeded by `scripts/seed-admin.mjs`, password + TOTP enrolled;
+> it had no attendance rows, so nothing blocked the delete). **No `@cse.test` account
+> survives**, and the only remaining keyholders are **`sandy` (tech_head)** and **Sai Varun
+> (vice_president)** — there is no faculty advisor account and no spare tech head. 32 admin
+> accounts remain, down from 37. Also: **`sandy`
 > (`vtu27884@veltech.edu.in`) was KEPT** as an active tech_head, with only its Coding Club
 > link cleared — `club_id` is now null, matching `tech@cse.test`, as a council-wide role
 > should be. `sandy` **cannot** be deleted: 87 `club_attendance` marks and one council
 > session sit behind `NO ACTION` foreign keys, so the DELETE fails outright.
 >
-> ⚠️ **Consequences to know before the browser walkthrough:** `head@cse.test` was the
-> credential this file told you to use for club-scoped screens, and it is gone — see
-> item 1 of the TODO. 33 admin accounts remain (was 37).
+> ⚠️ **Consequences to know before the browser walkthrough:** BOTH credentials this file
+> told you to use — `head@cse.test` for club-scoped screens and `tech@cse.test` for
+> council-wide ones — are gone. See item 1 of the TODO for what to use instead.
 >
 > **Side effect worth having:** the deletions removed every duplicate-leader situation.
 > Every active club now has **exactly one active head**, so the feedback form's head
@@ -2150,11 +2155,14 @@ flow as always.
    and pixels can't be asserted). They have accumulated across six sessions
    because the Chrome extension has repeatedly failed to connect. Doing them in a
    single signed-in session is far cheaper than eight separate ones.
-   ⚠️ **`head@cse.test` NO LONGER EXISTS** — it was hard-deleted 2026-09-05 at the
-   owner's request (see START HERE). There is **no test club_head account left**, so
-   club-scoped screens now need either a real head's login or a fresh invite from
-   `/admin/users`. **`tech@cse.test` needs a TOTP code** (confirmed 2026-08-25) so have
-   the authenticator to hand for council-wide ones.
+   ⚠️ **BOTH SEEDED TEST LOGINS ARE GONE.** `head@cse.test` and `tech@cse.test` were
+   hard-deleted 2026-09-05 at the owner's request — **there are no `@cse.test` accounts
+   left at all**, and every credential this file used to name for a walkthrough is dead.
+   Use a real account: `sandy` (`vtu27884@veltech.edu.in`, tech_head) for council-wide
+   screens, and for club-scoped ones either a real head's login or a fresh invite from
+   `/admin/users`. Every surviving admin has TOTP enrolled, so have the authenticator to
+   hand whichever you use. Re-running `scripts/seed-admin.mjs` would recreate a test
+   login if you would rather have one back.
    - [ ] **Image editor on all FOUR upload forms** — the highest-risk item. It
          replaced the file input on gallery / event poster / announcement cover /
          achievement image. If it throws at runtime those four forms lose their
