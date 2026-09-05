@@ -18,8 +18,54 @@ end-to-end**, not a checklist of components.
 
 ---
 
-## 🚦 START HERE — current git/deploy state (2026-09-04)
+## 🚦 START HERE — current git/deploy state (2026-09-05)
 
+> ### 2026-09-05 — admin-account cleanup (LIVE DB, no deploy) + typed feedback leader names
+>
+> **Four admin accounts were HARD-DELETED from the production database** at the owner's
+> request, by raw SQL through the Supabase MCP — so none of it is in `audit_log`, which
+> only records deactivations. Identity columns for all of them are backed up in the
+> session scratchpad (`admin-users-removed-2026-09-05.json`); no password hashes or TOTP
+> secrets were written to disk. Deleted: `head@cse.test` (Coding Head) ·
+> `anithashankar08@gmail.com` (Appo nova head) · `sandysandeepkur05@gmail.com` (club head
+> testing) · `logith.exe@gmail.com` (LOGITH A, an AspireX duplicate). Also: **`sandy`
+> (`vtu27884@veltech.edu.in`) was KEPT** as an active tech_head, with only its Coding Club
+> link cleared — `club_id` is now null, matching `tech@cse.test`, as a council-wide role
+> should be. `sandy` **cannot** be deleted: 87 `club_attendance` marks and one council
+> session sit behind `NO ACTION` foreign keys, so the DELETE fails outright.
+>
+> ⚠️ **Consequences to know before the browser walkthrough:** `head@cse.test` was the
+> credential this file told you to use for club-scoped screens, and it is gone — see
+> item 1 of the TODO. 33 admin accounts remain (was 37).
+>
+> **Side effect worth having:** the deletions removed every duplicate-leader situation.
+> Every active club now has **exactly one active head**, so the feedback form's head
+> resolves automatically everywhere and `feedback_head_id` picks are no longer needed to
+> break ties. AspireX's curated vice-head pick pointed at the deleted LOGITH A and was
+> cleared to null by `ON DELETE SET NULL`; the remaining `LOGITH` (`vtu34393`) now
+> resolves as the sole candidate.
+>
+> **Typed feedback leader names** (branch `feat/feedback-typed-leader-names`): the
+> `/admin/feedback` → "Who the form names" picker now has a free-text name box under each
+> dropdown, for a head or vice head who holds no admin account. Migration
+> `20260905000000_feedback_typed_leader_names.sql` (two nullable `clubs.feedback_*_name`
+> columns, 1–80 char check) **applied to the live DB and verified**. Precedence in
+> `resolveLeaders`: account pick → typed name → sole candidate → nobody; the typed name
+> deliberately outranks the sole-candidate fallback, and picking an account clears the
+> typed name for that role. 597 tests / typecheck / lint / build all green.
+> ⚠️ **NEVER OPENED IN A BROWSER** — the picker markup changed and the save action is a
+> server-action POST that cannot be curled. **Three clubs are the reason this exists**:
+> Animatrix (E-Sports), Animatrix (Game development) and Nature Club have no vice-head
+> account, and `FeedbackForm.tsx:275` omits the whole Vice Head block when a role
+> resolves to nobody — so students are never even asked. **Nobody has typed a name yet;
+> the three clubs stay silent until someone does.**
+>
+> **Stale comment fixed:** `src/lib/feedback/leaders.ts` used to claim Coding Club had
+> three heads, AppNova two and AspireX duplicate vice heads. All of that data is gone as
+> of today; the comment now describes the real reason the resolver exists.
+>
+> ---
+>
 > **`main` = `origin/main` (clean, deployed) — nothing in flight.** The admin sidebar scroll fix
 > and the `Eligible` → `Sessions` rename shipped 2026-09-04, ⚠️ **the sidebar never opened in a
 > browser** (owner chose to ship; see its block below). Club health shipped
@@ -2104,8 +2150,11 @@ flow as always.
    and pixels can't be asserted). They have accumulated across six sessions
    because the Chrome extension has repeatedly failed to connect. Doing them in a
    single signed-in session is far cheaper than eight separate ones.
-   Use **`head@cse.test`** for club-scoped screens; **`tech@cse.test` needs a TOTP
-   code** (confirmed 2026-08-25) so have the authenticator to hand for council-wide ones.
+   ⚠️ **`head@cse.test` NO LONGER EXISTS** — it was hard-deleted 2026-09-05 at the
+   owner's request (see START HERE). There is **no test club_head account left**, so
+   club-scoped screens now need either a real head's login or a fresh invite from
+   `/admin/users`. **`tech@cse.test` needs a TOTP code** (confirmed 2026-08-25) so have
+   the authenticator to hand for council-wide ones.
    - [ ] **Image editor on all FOUR upload forms** — the highest-risk item. It
          replaced the file input on gallery / event poster / announcement cover /
          achievement image. If it throws at runtime those four forms lose their
@@ -2117,7 +2166,10 @@ flow as always.
          have only ever rendered in tests; the DB has no upcoming event.
    - [ ] **Public results page at phone width** — only ever verified by fetching HTML.
    - [ ] **Attendance + council dashboards, signed in.**
-   - [ ] **Feedback portal** (form + admin inbox + analytics).
+   - [ ] **Feedback portal** (form + admin inbox + analytics) — now also the
+         **typed leader-name boxes** on `/admin/feedback` (2026-09-05). Type a vice-head
+         name for Nature Club, save, and confirm `/feedback` shows a Vice Head block for
+         it; then pick an account from a dropdown and confirm the typed name is cleared.
    - [ ] **Content verticals** — resources / gallery / achievements CRUD, plus the
          older unverified mutations (§4c event duplicate/cancel, announcements).
    - [ ] **Club health** (`/admin/oversight/clubs`, 2026-09-04) — never opened,
