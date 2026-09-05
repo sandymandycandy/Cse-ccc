@@ -54,3 +54,6 @@ cookies.txt
 # secrets. Same lesson as the password= line above.
 ccc-backups/
 /backups/
+
+# Supabase CLI scratch (created by `npx supabase ...`)
+supabase/.temp/

@@ -1,6 +1,6 @@
 # Mumbai region migration — design
 
-**Status:** approved in brainstorming 2026-09-05, not yet executed.
+**Status:** approved 2026-09-05. Phase 1 DONE (Mumbai project `jisahccdnthzgibszwnq` provisioned); Phases 2-5 not yet executed.
 **Scope:** move the platform's two runtime halves from Seoul + Washington to
 Mumbai — the Supabase project from `ap-northeast-2` to `ap-south-1`, and the
 Vercel functions from the default `iad1` to `bom1`.
@@ -111,11 +111,21 @@ invalidate the plan — whether the Hobby plan permits pinning `bom1` — before
 any data is in motion. `bom1`→Seoul is a shorter hop than `iad1`→Seoul, so
 even with the database still in Korea, nothing regresses.
 
-**Phase 1 — provision (~10 min).** Delete `qsyfbbhrrqoskpxljtrf`. Create a
-fresh `ap-south-1` project, set its database password. Pre-create
-`btree_gist` in `public` — it is the one installed extension a
-`--schema=public` dump will not carry, and `pgcrypto` / `uuid-ossp` /
-`pg_stat_statements` / `supabase_vault` ship with every new project.
+**Phase 1 — provision (~10 min). ✅ DONE 2026-09-05 16:23 UTC.** The paused
+project was deleted by the owner (without the inventory step, so its contents
+are unrecoverable — it was believed to be an abandoned first attempt). The new
+project is **`jisahccdnthzgibszwnq`, "ccc mumbai", `ap-south-1`, Postgres
+17.6.1.166**, verified reachable and empty (0 tables, 0 buckets).
+
+`btree_gist` has been pre-created in `public` — it is the one installed
+extension a `--schema=public` dump will not carry, and `pgcrypto` /
+`uuid-ossp` / `pg_stat_statements` / `supabase_vault` ship with every new
+project. The extension list on Mumbai now matches Seoul exactly, all six at
+identical versions.
+
+Still outstanding for this phase: the owner sets a database password on the
+new project (needed for the restore, and not recoverable later — only
+resettable).
 
 **Phase 2 — database (~15 min).** `pg_dump` Seoul with `--schema=public
 --no-owner`, **keeping privileges**, and restore into Mumbai.
@@ -127,6 +137,14 @@ fresh `ap-south-1` project, set its database password. Pre-create
 
 > ⚠️ Connect over the **session pooler** host, not `db.<ref>.supabase.co`.
 > Direct connections on the free plan are IPv6-only.
+
+> ⚠️ **Copy the migration ledger separately.** Seoul's
+> `supabase_migrations.schema_migrations` holds 37 rows, and a
+> `--schema=public` dump does not carry them — that table lives in its own
+> schema. Left empty, Mumbai looks to Supabase like a database with no
+> migrations ever applied, so the next `apply_migration` or `db push` would
+> try to replay all 37 against a schema that already has everything. Those
+> rows are copied across as their own step, after the restore.
 
 **Phase 3 — storage (~5 min).** A Node script over service-role keys on both
 ends: create the 6 buckets with their exact `public` / `file_size_limit` /
