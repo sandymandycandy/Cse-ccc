@@ -60,6 +60,10 @@ end-to-end**, not a checklist of components.
 > be reproduced headlessly. Known gap: a failed save does not retry until the next tap
 > (the status line turns red and points at "Save draft").
 >
+> **Follow-up queued, not built:** sortable date + search on the session history table —
+> plan at `docs/superpowers/plans/2026-09-05-session-history-sort-search.md`, TODO item 1a.
+> The owner asked for it to be written up for the next person rather than built now.
+>
 > ⚠️ **`CouncilSessionRoster` HAS THE IDENTICAL BUG** and its own orphaned draft action
 > (`council/actions.ts:235`). Left alone deliberately — council rosters are small enough
 > that 10 minutes is unlikely — but it is the same defect, still live.
@@ -2236,6 +2240,26 @@ flow as always.
          rows lead with Ai Forge / Nature / Animatrix (E-Sports); that a "Running
          normally" row is tappable across its whole width; the 560px collapse and
          the figures wrapping around 861px; and that the badges read in dark mode.
+
+1a. **📋 Session history — sortable date + search — PLANNED, NOT BUILT (2026-09-05).**
+   **Handed off deliberately: the owner asked for this to be written up rather than
+   built, for the next person to pick up.** Full task-by-task plan, ready to execute:
+   **`docs/superpowers/plans/2026-09-05-session-history-sort-search.md`**.
+   A search box over the Session history table on `/admin/attendance`, plus a Date
+   column header that toggles newest ⇄ oldest. Design agreed in chat and approved.
+   - **The current order is already newest-first and MUST stay the default** — this
+     adds user-controlled sorting, it does not change what you see on load. (The owner
+     asked for ascending, then descending, then clarified they wanted sorting controls.)
+   - Shape: one pure `src/lib/admin/session-sort.ts` (TDD, 5 cases) + one client
+     component `SessionHistory.tsx` that re-orders rows the server already sent.
+     **No server, query or `listSessions` change** — re-ordering the fetch would make
+     `.limit(200)` return the *oldest* 200.
+   - It also fixes a live inconsistency: the server sorts `session_date` nulls last
+     while the table displays `sessionDate ?? openedAt`, so an undated session shows a
+     recent date but sits at the bottom. Sorting on the displayed value ends that.
+   - Reuses `matchesAny`, `pctOfStrength`, `istNumericDate` — all pure and client-safe.
+   - **Council session history is the same table and is NOT in scope** (separate
+     component, `attendance-council.ts:129`). Follow-up only if asked.
 
 2. **Phase 2 — remaining verticals** (Storage, safe-markdown, `isSafeHttpUrl`,
    `image-upload`, `club-scope`, `clubs` foundations all exist now, so these are
