@@ -20,6 +20,24 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-05)
 
+> ### ⚠️ NEVER RUN `supabase db push` ON THIS PROJECT
+>
+> The migration ledger and the migration filenames **share no version numbers**.
+> Everything was applied through the Supabase MCP `apply_migration` tool, which
+> stamps its own timestamp, while the files carry hand-written ones —
+> files run `20260820120001…`, the ledger runs `20260820171713…`, with **zero
+> overlap**. So `db push` sees all 35 local migrations as unapplied and would
+> replay the entire history against a schema that already has every bit of it.
+>
+> **Apply migrations via the MCP `apply_migration` tool.** That is how all 37
+> ledger entries got there.
+>
+> The two deliberately-held DROP migrations have been moved out of
+> `supabase/migrations/` into **`supabase/held/`** (see the README there) so no
+> tool can run them by accident — while they sat in the migrations directory, a
+> single `db push` would have deleted `club_member_auth` (15 rows),
+> `member_invites` (3) and `student_devices` (3).
+
 > ### 2026-09-05 — 🌏 MIGRATED TO MUMBAI. New Supabase project + Vercel `bom1`.
 >
 > **The database has moved.** The live project is now
