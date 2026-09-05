@@ -47,3 +47,10 @@ next-env.d.ts
 # (tracked since a90fac4, on a public repo). Never again.
 password=*
 cookies.txt
+
+# Database backups. scripts/backup-supabase.mjs writes OUTSIDE the repo by
+# design and refuses a path inside it — this is belt-and-braces, because the
+# dumps hold roll numbers, student emails, Argon2 hashes and encrypted TOTP
+# secrets. Same lesson as the password= line above.
+ccc-backups/
+/backups/
