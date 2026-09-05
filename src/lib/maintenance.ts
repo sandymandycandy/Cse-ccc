@@ -102,7 +102,7 @@ const PAGE = `<!doctype html>
     <p class="lead">The site is temporarily down for scheduled maintenance.</p>
     <p>Nothing you&rsquo;ve submitted has been lost &mdash; attendance, registrations and feedback are all safe. Please check back in a little while.</p>
     <hr>
-    <p class="foot">If you need something urgently, contact your club head.</p>
+    <p class="foot">If you need something urgently, contact your Technical Head, President or Vice Head.</p>
   </main>
 </body>
 </html>
