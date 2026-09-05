@@ -1,7 +1,7 @@
 /**
  * Autosave decisions for the attendance rosters.
  *
- * Marking a 200-member roster takes far longer than the 10-minute idle window
+ * Marking a 200-member roster can take longer than the idle window
  * (`src/lib/auth/idle.ts`), and every tap used to be client-only state — so the
  * browser sent nothing for the whole session, the proxy expired the login, and
  * the Save POST was redirected to /admin/login. The action then threw, the admin

@@ -1,15 +1,17 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 /**
- * Idle-session support (SECURITY_SPEC §3). Admin sessions expire after 10 minutes
- * of inactivity, on top of the JWT's 8h absolute cap. The proxy tracks activity
+ * Idle-session support (SECURITY_SPEC §3). Admin sessions expire after 20 minutes
+ * of inactivity, on top of the JWT's 8h absolute cap. The spec allows 30 minutes,
+ * so this is still stricter than documented; it was 10 until 2026-09-05, widened
+ * at the owner's request after a long attendance roster kept outlasting it. The proxy tracks activity
  * with a signed, httpOnly "last seen" cookie — deliberately separate from the
  * Auth.js session token so this logic can never corrupt the login state. A wrong
  * decision here can only send an admin back to /admin/login, never further.
  */
 
 /** The inactivity window. */
-export const IDLE_MS = 10 * 60 * 1000;
+export const IDLE_MS = 20 * 60 * 1000;
 
 function sign(value: string, secret: string): string {
   return createHmac("sha256", secret).update(value).digest("base64url");

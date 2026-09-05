@@ -26,7 +26,10 @@ end-to-end**, not a checklist of components.
 > minutes, gets "Try again", and **nothing is saved**. Deterministic, not a fluke —
 > any roster taking over 10 minutes to mark failed this way every time.
 >
-> **Root cause, traced end to end:** `IDLE_MS` is 10 minutes (`src/lib/auth/idle.ts`)
+> **Root cause, traced end to end:** `IDLE_MS` was 10 minutes (`src/lib/auth/idle.ts`;
+> **widened to 20 on 2026-09-05** at the owner's request, as defence in depth on top of
+> the autosave — note `SECURITY_SPEC.md:68` and `BUILD_PLAN.md:426` both specify "8h
+> absolute, **30 min idle**", so 10 was already stricter than documented and 20 still is)
 > and `src/proxy.ts` expires the session on the first `/admin/*` request made after
 > the clock goes stale, clearing BOTH cookies and 307ing to `/admin/login`. But
 > `SessionRoster` held every tap in local React state — no `useEffect`, no polling,

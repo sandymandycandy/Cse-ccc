@@ -223,8 +223,8 @@ export async function saveAttendanceAction(formData: FormData): Promise<void> {
  * Autosave the marks as the head works. Saves the present-set and returns —
  * no close, no redirect, so the page keeps its scroll position and search box.
  *
- * This exists because marking a 200-member roster outlasts the 10-minute idle
- * window and every tap used to be client-only state: the browser sent nothing,
+ * This exists because marking a 200-member roster can outlast the idle window
+ * (20 minutes) and every tap used to be client-only state: the browser sent nothing,
  * the proxy expired the login, and the Save POST was bounced to /admin/login,
  * losing the lot. Each autosave is a real /admin request, so it also keeps the
  * idle clock sliding while the head is genuinely working.
