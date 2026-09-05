@@ -31,7 +31,7 @@ Native). The full product spec lives in [`docs/`](docs):
 - **Framework:** Next.js 16 App Router, React 19, TypeScript (strict)
 - **Styling:** Tailwind v4 on a single token layer (`src/app/globals.css`)
 - **Fonts:** DM Serif Display · Space Grotesk · IBM Plex Mono (via `next/font`)
-- **Backend:** Supabase (Postgres + RLS + Storage) — project `svkbleeibbrjryeovvjw`
+- **Backend:** Supabase (Postgres + RLS + Storage) — project `jisahccdnthzgibszwnq`
 - **Hosting:** Vercel (Phase 4)
 
 ## Local development
@@ -77,7 +77,7 @@ Seed data (the 11 clubs) is in [`supabase/seed.sql`](supabase/seed.sql) and
 
 ```bash
 # Supabase CLI
-supabase link --project-ref svkbleeibbrjryeovvjw
+supabase link --project-ref jisahccdnthzgibszwnq
 supabase db push          # applies migrations
 supabase db reset         # migrations + seed.sql (local/dev only)
 ```

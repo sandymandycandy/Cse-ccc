@@ -20,6 +20,65 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-05)
 
+> ### 2026-09-05 — 🌏 MIGRATED TO MUMBAI. New Supabase project + Vercel `bom1`.
+>
+> **The database has moved.** The live project is now
+> **`jisahccdnthzgibszwnq`** ("ccc mumbai", `ap-south-1`). The old Seoul project
+> `svkbleeibbrjryeovvjw` ("ccc new", `ap-northeast-2`) is **retained, intact and
+> running** as the rollback path — do not delete it before ~2026-09-12. Vercel
+> functions are pinned to **`bom1`** in `vercel.json`; verified live via
+> `X-Vercel-Id: bom1::bom1::…`. Every student is in India and a page render was
+> previously going Chennai → Washington → Seoul.
+>
+> **Design + full reasoning:** `docs/superpowers/specs/2026-09-05-mumbai-region-migration-design.md`.
+>
+> **How it was done, and why not the obvious way.** The repo's 37 migration
+> FILES do **not** reproduce the live database — three were never applied, two of
+> them the held DROP migrations. Replaying them would have destroyed live rows in
+> `member_invites`, `club_member_auth` and `student_devices`. So the schema was
+> introspected out of the live catalog (`pg_get_functiondef`, `pg_get_constraintdef`,
+> `pg_indexes.indexdef`) and rebuilt, then verified by fingerprint. `pg_dump
+> --schema=public` was the original plan and would ALSO have failed here: it
+> carries neither event triggers (losing the `ensure_rls` control) nor the
+> `supabase_migrations` ledger.
+>
+> ⚠️ **Two security gaps a fresh Supabase project has, both closed — check these
+> if you ever provision another one.** (1) `anon`/`authenticated` get full
+> privileges on **all** tables by default; Seoul had them on only 19 of 41. That
+> difference is the `club_members` roll_no SELECT lockout and the append-only
+> `audit_log` (`service_role` deliberately has no DELETE/UPDATE/TRUNCATE there).
+> (2) **All 11 functions were `PUBLIC`-executable**; only 3 should be. Left alone,
+> anyone with the publishable key could call `register_for_event` and
+> `redeem_attendance_scan` straight over the REST API, bypassing every app-layer
+> rate limit and validation. Verified after fixing: 11/11 anon permission
+> assertions pass.
+>
+> **Tooling built for it, reusable:** `scripts/backup-supabase.mjs` (full logical
+> backup + manifest of hashes), `scripts/verify-backup.mjs` (re-derives everything
+> from disk, asserts PK uniqueness), `scripts/restore-backup.mjs`,
+> `scripts/reconcile.mjs` (row-level diff between two projects).
+> ⚠️ `reconcile.mjs` deliberately has **no auto-apply for DIFFERS rows** — after a
+> cutover a difference may be a NEW edit on the target, and blindly overwriting
+> from the source would silently revert it. Apply those by hand, and **disable the
+> relevant `set_updated_at` trigger first** or the repair stamps `now()` over the
+> timestamp you are restoring.
+>
+> **Verified:** 13 structural fingerprints identical (enums, columns, constraints,
+> indexes, functions, triggers, event triggers, RLS flags, policies, table grants,
+> function grants, default privileges, buckets) · all 5,014 rows match by content
+> hash · 62 FKs applied with zero violations · 9 storage objects hash-matched ·
+> Supabase's own security advisor returns identical findings for both projects ·
+> reconcile `missing 0 differs 0 extra 0` · Seoul quiesced.
+>
+> ⚠️ **OWED — not yet done:** (1) a real browser login as an admin, to confirm
+> TOTP still decrypts (`TOTP_ENC_KEY` was deliberately carried over unchanged, so
+> it should — but it has not been proven with a real sign-in). (2) **Rotate the
+> Mumbai `service_role` key** — it was pasted into a chat transcript during the
+> migration. (3) Delete the Seoul project once you are satisfied, no earlier than
+> ~2026-09-12.
+>
+> ---
+>
 > ### 2026-09-05 — Social media added to the feedback form
 >
 > Students can now rate the council's **social media team** on `/feedback`: two
