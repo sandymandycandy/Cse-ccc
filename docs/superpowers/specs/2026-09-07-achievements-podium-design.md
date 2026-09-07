@@ -147,9 +147,23 @@ reason: a query failure must not masquerade as "no winners yet".
 
 ## Public display
 
-`<Podium>` is **extracted** from what `/events/[id]/results` renders today and
-shared, so both halves of the board and the event page cannot drift apart. That
-was the point of D3's "same shape as results, one renderer".
+`<Podium>` is a **new component used only by the achievements board**. The
+event results page is not touched.
+
+> **D6 — amended 2026-09-07, during execution. This reverses the "one renderer"
+> half of D3.** The original design extracted `<Podium>` out of
+> `/events/[id]/results` so the board and the event page could not drift. On
+> review the owner chose not to touch the results page at all: it is live,
+> correct, and carries score and team name on its podium cards, none of which a
+> manual achievement entry has. Extracting would have meant either dropping the
+> score from a working production page or widening `Winner` to carry fields half
+> the board can never populate.
+>
+> The cost, stated and accepted: **two podium components now exist and can drift
+> apart.** The mitigation is that both render from the same `podiumOf` /
+> `entrantsOf` pair, so the *standings* they show cannot disagree — only their
+> presentation can. D3's "rank + name + optional roll" shape is unchanged and
+> still the right one; it is only the shared-component claim that is withdrawn.
 
 Each board entry shows title, club and date, then its podium. Automatic entries
 link through to the full event results; manual entries have nowhere to link and

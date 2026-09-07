@@ -4,7 +4,7 @@
 
 **Goal:** Turn `/achievements` into a board announcing top 1/2/3 prize winners — read live from published event results, plus hand-entered outside wins — with ties (`1, 2, 3, 3`) rendered as first-class.
 
-**Architecture:** A pure module (`achievements-board.ts`) composes the *existing* `podiumOf` / `entrantsOf` rather than re-deriving ranking. Automatic entries are read live from `results` at render time (never snapshotted), gated by a per-event `show_on_achievements` toggle. Manual entries live in a `winners` jsonb column on `achievements`. One extracted `<Podium>` component renders both halves and the event results page, so they cannot drift.
+**Architecture:** A pure module (`achievements-board.ts`) composes the *existing* `podiumOf` / `entrantsOf` rather than re-deriving ranking. Automatic entries are read live from `results` at render time (never snapshotted), gated by a per-event `show_on_achievements` toggle. Manual entries live in a `winners` jsonb column on `achievements`. A `<Podium>` component renders both halves of the board; the event results page keeps its own existing rendering and is **not touched** (spec D6, amended during execution).
 
 **Tech Stack:** Next 16.3.1 App Router (RSC, Turbopack) · React 19 · TypeScript strict · Supabase (Postgres, Mumbai `jisahccdnthzgibszwnq`) · vitest (`environment: "node"` — no DOM, so only pure modules are unit-testable; components are verified by build + live fetch).
 
@@ -427,13 +427,17 @@ git commit -m "feat(achievements): pure board core — winners, podium mapping, 
 
 ---
 
-### Task 3: Extract the `<Podium>` component
+### Task 3: The `<Podium>` component
 
-This is a **pure refactor**. `/events/[id]/results` must render byte-identically afterwards; only the source location changes. Doing it before the board exists means any regression is attributable to this task alone.
+**AMENDED during execution (spec D6).** This task no longer extracts anything.
+The owner chose to leave `/events/[id]/results` completely untouched, so
+`<Podium>` is a new component used only by the achievements board. Do **not**
+edit the results page in this task or any later one.
 
 **Files:**
 - Create: `src/components/Podium.tsx`
-- Modify: `src/app/events/[id]/results/page.tsx` (replace the inline champion/runners markup)
+- Modify: `src/app/globals.css` (podium styles)
+- **Do NOT modify:** `src/app/events/[id]/results/page.tsx`
 
 **Interfaces:**
 - Consumes: `Winner`, `groupByRank` from `@/lib/achievements-board` (Task 2).
@@ -543,52 +547,28 @@ In `src/app/globals.css`, inside the same top-level block that holds the existin
   }
 ```
 
-- [ ] **Step 3: Use it on the results page**
-
-In `src/app/events/[id]/results/page.tsx`:
-
-1. Add the imports:
-
-```tsx
-import { Podium } from "@/components/Podium";
-import { winnersFromResults } from "@/lib/achievements-board";
-```
-
-2. Inside the `rounds.map(...)` callback, replace the `const podium = …` line and the two blocks that follow it (the `{champions.map(...)}` block and the `{runners.length > 0 ? …}` block) with:
-
-```tsx
-            const podium = podiumOf(round.results);
-```
-
-...retained for the "Full standings" label check, plus this in place of the two removed blocks:
-
-```tsx
-                <Podium winners={winnersFromResults(round.results)} />
-```
-
-Leave the `Full standings` label, the standings table, and the `Entrants` helper exactly as they are — the table still uses `Entrants`. If `champions` / `runners` / `showScore` become unused, delete those bindings; `npx eslint` will name them.
-
-**Note:** the podium no longer shows a score or a team name. Both remain in the Full standings table directly beneath it. Confirm this is acceptable at the Task 3 review gate — if the score must stay on the podium, `Winner` needs a `score` field and Task 2's tests need a case for it.
-
-- [ ] **Step 4: Verify the results page still renders**
+- [ ] **Step 3: Verify it compiles and nothing else moved**
 
 Run: `npx tsc --noEmit && npx eslint . && npm test && npm run build`
 Expected: all clean.
 
-Then with a dev server running (`npm run dev`; if port 3000 is taken by an existing `next dev`, that server is serving this same working directory and hot-reloads):
+The component is not rendered anywhere yet — Task 5 is its first consumer. That
+is expected; `eslint` will not flag an exported component as unused.
+
+Confirm the results page is genuinely untouched:
 
 ```bash
-curl -s "http://localhost:3000/events/4f6a6f19-7435-4c14-947f-fdce1cfec8d1/results" \
-  | grep -o 'podium-place\|Joint third\|Mohanrao Adduri\|P.KISHORE' | sort | uniq -c
+git status --short "src/app/events/[id]/results/page.tsx"
 ```
 
-Expected: `podium-place` ×3, `Joint third` ×1, and both names present — PITCH DESK has one first, one second and a tied third.
+Expected: **no output.** If that file shows as modified, the D6 amendment was
+violated — revert it before committing.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add src/components/Podium.tsx src/app/globals.css "src/app/events/[id]/results/page.tsx"
-git commit -m "refactor(results): extract shared Podium component"
+git add src/components/Podium.tsx src/app/globals.css
+git commit -m "feat(achievements): Podium component for the board"
 ```
 
 ---

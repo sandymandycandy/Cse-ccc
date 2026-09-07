@@ -1121,6 +1121,51 @@
     gap: 10px;
   }
 
+  /* ── podium (achievements board; the results page keeps its own — spec D6) ── */
+  .podium {
+    display: grid;
+    gap: 10px;
+    margin: 14px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .podium-place {
+    display: grid;
+    grid-template-columns: 92px 1fr;
+    gap: 14px;
+    align-items: baseline;
+    padding: 12px 14px;
+    border: 1px solid var(--line-2);
+    border-left: 3px solid var(--line-3);
+    border-radius: var(--r-sm);
+    background: var(--card);
+  }
+  .podium-place[data-place="1"] { border-left-color: var(--clay); }
+  .podium-place[data-place="2"] { border-left-color: var(--ink-3); }
+  .podium-place[data-place="3"] { border-left-color: var(--forest); }
+  .podium-label {
+    font: 500 10px var(--mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .podium-people { display: grid; gap: 4px; min-width: 0; }
+  .podium-person {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    justify-content: space-between;
+    font: 400 15px var(--sans);
+  }
+  .podium-person .roll {
+    font: 500 11px var(--mono);
+    color: var(--ink-3);
+    flex: none;
+  }
+  @media (max-width: 559px) {
+    .podium-place { grid-template-columns: 1fr; gap: 6px; }
+  }
+
   /* ── calendar (BUILD_PLAN §5) ──────────────────────────────────────────── */
 
   /* toolbar: period label · view tabs · prev/today/next */
