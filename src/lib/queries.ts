@@ -4,6 +4,12 @@ import { orderStandings } from "@/lib/results";
 import { isSafeHttpUrl } from "@/lib/url";
 import { validateFormSchema, type FormField } from "@/lib/registration-form/schema";
 import { registrationPhase, type RegPhase } from "@/lib/registration/phase";
+import {
+  type BoardEntry,
+  mergeBoard,
+  parseWinners,
+  winnersFromResults,
+} from "@/lib/achievements-board";
 import type { Database } from "@/lib/database.types";
 import type {
   CalendarEvent,
@@ -647,6 +653,99 @@ export async function getPublicAchievements(): Promise<PublicAchievement[]> {
     clubName: a.clubs?.name ?? null,
   }));
 }
+
+/**
+ * The achievements board: hand-entered wins plus the podium of every event
+ * whose results are published and which has not been hidden from the board.
+ *
+ * Automatic entries are derived at read time, never snapshotted, so the board
+ * cannot disagree with an event's own results page. An event has rounds, so
+ * "the podium" means one of them: the highest-`sort` round that actually has
+ * published results — not simply the last round, which may be an unplayed final.
+ */
+export async function getAchievementsBoard(): Promise<BoardEntry[]> {
+  const supabase = createPublicClient();
+
+  const manualQ = supabase
+    .from("achievements")
+    .select("id, title, description, happened_on, image_path, created_at, winners, clubs(name)")
+    .order("happened_on", { ascending: false, nullsFirst: false })
+    .limit(500);
+
+  const autoQ = supabase
+    .from("events")
+    .select(
+      "id, title, starts_at, created_at, show_on_achievements, " +
+        "event_clubs ( is_primary, clubs ( name ) ), " +
+        "event_rounds ( sort, results ( roll_no, display_name, team_name, team_members, rank, score, advanced, remarks, published_at ) )",
+    )
+    .eq("show_on_achievements", true)
+    .limit(500);
+
+  const [manualRes, autoRes] = await Promise.all([manualQ, autoQ]);
+
+  if (manualRes.error) throw manualRes.error;
+  // A failed auto query must not masquerade as "no winners yet" — log it and
+  // fall back to the manual half, the way getPublishedResults does.
+  if (autoRes.error) console.error("getAchievementsBoard: auto half failed", autoRes.error);
+
+  const manual: BoardEntry[] = (manualRes.data ?? []).map((a) => ({
+    id: a.id,
+    kind: "manual" as const,
+    title: a.title,
+    clubName: a.clubs?.name ?? null,
+    date: a.happened_on,
+    fallbackDate: a.created_at,
+    winners: parseWinners(a.winners),
+    description: a.description,
+    imageUrl: a.image_path
+      ? supabase.storage.from("achievements").getPublicUrl(a.image_path).data.publicUrl
+      : null,
+    href: null,
+  }));
+
+  type AutoRow = {
+    id: string;
+    title: string;
+    starts_at: string;
+    created_at: string;
+    event_clubs: { is_primary: boolean; clubs: { name: string } | null }[];
+    event_rounds: {
+      sort: number;
+      results: (PublishedResult & { published_at: string | null })[];
+    }[];
+  };
+
+  const auto: BoardEntry[] = [];
+  for (const e of (autoRes.data ?? []) as unknown as AutoRow[]) {
+    // Highest-sort round that has at least one published result.
+    const round = [...(e.event_rounds ?? [])]
+      .sort((a, b) => b.sort - a.sort)
+      .find((r) => (r.results ?? []).some((x) => x.published_at != null));
+    if (!round) continue;
+
+    const published = round.results.filter((r) => r.published_at != null);
+    const winners = winnersFromResults(published);
+    if (winners.length === 0) continue;
+
+    const primary = e.event_clubs?.find((ec) => ec.is_primary) ?? e.event_clubs?.[0];
+    auto.push({
+      id: e.id,
+      kind: "event" as const,
+      title: e.title,
+      clubName: primary?.clubs?.name ?? null,
+      date: e.starts_at,
+      fallbackDate: e.created_at,
+      winners,
+      description: null,
+      imageUrl: null,
+      href: `/events/${e.id}/results`,
+    });
+  }
+
+  return mergeBoard(auto, manual);
+}
+
 
 // ── Gallery (Phase 2) ────────────────────────────────────────────────────────
 
