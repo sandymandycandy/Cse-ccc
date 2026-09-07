@@ -1149,7 +1149,14 @@
     text-transform: uppercase;
     color: var(--ink-3);
   }
-  .podium-people { display: grid; gap: 4px; min-width: 0; }
+  /* one block per standing, so a team reads as ONE winner and two tied
+     entrants read as two */
+  .podium-standings { display: grid; gap: 10px; min-width: 0; }
+  .podium-standing { display: grid; gap: 2px; min-width: 0; }
+  .podium-standings > .podium-standing + .podium-standing {
+    border-top: 1px dashed var(--line-2);
+    padding-top: 10px;
+  }
   .podium-person {
     display: flex;
     gap: 10px;

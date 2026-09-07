@@ -12,11 +12,27 @@ import { entrantsOf, podiumOf } from "@/lib/podium";
 
 export type Rank = 1 | 2 | 3;
 
-/** One person on a podium. A team becomes several of these sharing a rank. */
-export interface Winner {
-  rank: Rank;
+/** One person named on a standing. */
+export interface Person {
   name: string;
   roll: string | null;
+}
+
+/**
+ * ONE STANDING on a podium — not one person.
+ *
+ * The distinction is load-bearing. A place is "joint" when two separate
+ * standings tie for it, NOT when one team happens to field several people.
+ * Flattening a team into several winners made PITCH DESK's single winning team
+ * render as "Joint champion", which is simply false. Counting standings gets
+ * both cases right: one team of four is a Champion; two tied entrants are Joint
+ * champions.
+ *
+ * A hand-entered winner is a standing of exactly one person.
+ */
+export interface Winner {
+  rank: Rank;
+  people: Person[];
 }
 
 export interface BoardEntry {
@@ -59,20 +75,21 @@ export function parseWinners(json: unknown): Winner[] {
     const name = typeof r.name === "string" ? r.name.trim() : "";
     if (name === "") continue;
     const rawRoll = typeof r.roll === "string" ? r.roll.trim() : "";
-    out.push({ rank, name, roll: rawRoll === "" ? null : rawRoll });
+    out.push({ rank, people: [{ name, roll: rawRoll === "" ? null : rawRoll }] });
   }
   return out;
 }
 
-/** The podium of a round, flattened to people. Teams keep every member. */
+/**
+ * The podium of a round, one Winner per standing. A team stays a single
+ * standing carrying every member, so it never reads as a tie.
+ */
 export function winnersFromResults(results: readonly PublishedResult[]): Winner[] {
   const out: Winner[] = [];
   for (const standing of podiumOf(results)) {
     const rank = standing.rank;
     if (!isRank(rank)) continue;
-    for (const e of entrantsOf(standing)) {
-      out.push({ rank, name: e.name, roll: e.roll });
-    }
+    out.push({ rank, people: entrantsOf(standing).map((e) => ({ name: e.name, roll: e.roll })) });
   }
   return out;
 }

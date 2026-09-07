@@ -43,7 +43,7 @@ describe("parseWinners", () => {
   it("keeps well-formed rows", () => {
     expect(
       parseWinners([{ rank: 1, name: "Rahul K", roll: "VTU28001" }]),
-    ).toEqual([{ rank: 1, name: "Rahul K", roll: "VTU28001" }]);
+    ).toEqual([{ rank: 1, people: [{ name: "Rahul K", roll: "VTU28001" }] }]);
   });
 
   it("returns [] for null, a non-array, and an empty array", () => {
@@ -62,14 +62,14 @@ describe("parseWinners", () => {
       { rank: 3, name: "Also good", roll: "VTU2" },
     ]);
     expect(out).toEqual([
-      { rank: 1, name: "Good", roll: null },
-      { rank: 3, name: "Also good", roll: "VTU2" },
+      { rank: 1, people: [{ name: "Good", roll: null }] },
+      { rank: 3, people: [{ name: "Also good", roll: "VTU2" }] },
     ]);
   });
 
   it("blanks an empty roll to null and trims", () => {
     expect(parseWinners([{ rank: 2, name: "  Priya  ", roll: "   " }])).toEqual([
-      { rank: 2, name: "Priya", roll: null },
+      { rank: 2, people: [{ name: "Priya", roll: null }] },
     ]);
   });
 });
@@ -93,7 +93,7 @@ describe("winnersFromResults", () => {
     expect(out).toHaveLength(1);
   });
 
-  it("expands a team standing into one row per member, sharing the rank", () => {
+  it("keeps a team as ONE standing carrying every member", () => {
     const out = winnersFromResults([
       res({
         rank: 2,
@@ -104,26 +104,51 @@ describe("winnersFromResults", () => {
       }),
     ]);
     expect(out).toEqual([
-      { rank: 2, name: "Captain", roll: "RC" },
-      { rank: 2, name: "Mate One", roll: "RM1" },
+      {
+        rank: 2,
+        people: [
+          { name: "Captain", roll: "RC" },
+          { name: "Mate One", roll: "RM1" },
+        ],
+      },
     ]);
   });
 });
 
 describe("groupByRank", () => {
+  it("counts standings, not people — one team is a single standing", () => {
+    const groups = groupByRank([
+      {
+        rank: 1,
+        people: [
+          { name: "Captain", roll: "RC" },
+          { name: "Mate", roll: "RM" },
+        ],
+      },
+    ]);
+    // One standing at rank 1, so the page must read "Champion", not "Joint".
+    expect(groups[0].winners).toHaveLength(1);
+    expect(groups[0].winners[0].people).toHaveLength(2);
+  });
+
   it("buckets 1/2/3 in order and lets a tie share a bucket", () => {
     const winners: Winner[] = [
-      { rank: 3, name: "C", roll: null },
-      { rank: 1, name: "A", roll: null },
-      { rank: 3, name: "D", roll: null },
+      { rank: 3, people: [{ name: "C", roll: null }] },
+      { rank: 1, people: [{ name: "A", roll: null }] },
+      { rank: 3, people: [{ name: "D", roll: null }] },
     ];
     const groups = groupByRank(winners);
     expect(groups.map((g) => g.rank)).toEqual([1, 3]);
-    expect(groups[1].winners.map((w) => w.name)).toEqual(["C", "D"]);
+    expect(groups[1].winners.flatMap((w) => w.people.map((p) => p.name))).toEqual([
+      "C",
+      "D",
+    ]);
   });
 
   it("omits a rank nobody holds", () => {
-    expect(groupByRank([{ rank: 2, name: "B", roll: null }])).toHaveLength(1);
+    expect(
+      groupByRank([{ rank: 2, people: [{ name: "B", roll: null }] }]),
+    ).toHaveLength(1);
   });
 });
 
