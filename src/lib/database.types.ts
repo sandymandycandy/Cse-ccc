@@ -24,6 +24,7 @@ export type Database = {
           id: string
           image_path: string | null
           title: string
+          winners: Json | null
         }
         Insert: {
           club_id?: string | null
@@ -34,6 +35,7 @@ export type Database = {
           id?: string
           image_path?: string | null
           title: string
+          winners?: Json | null
         }
         Update: {
           club_id?: string | null
@@ -44,6 +46,7 @@ export type Database = {
           id?: string
           image_path?: string | null
           title?: string
+          winners?: Json | null
         }
         Relationships: [
           {
@@ -1209,6 +1212,7 @@ export type Database = {
           rescheduled_from: string | null
           rules: string | null
           selection_mode: Database["public"]["Enums"]["selection_mode"]
+          show_on_achievements: boolean
           starts_at: string
           status: Database["public"]["Enums"]["event_status"]
           title: string
@@ -1240,6 +1244,7 @@ export type Database = {
           rescheduled_from?: string | null
           rules?: string | null
           selection_mode?: Database["public"]["Enums"]["selection_mode"]
+          show_on_achievements?: boolean
           starts_at: string
           status?: Database["public"]["Enums"]["event_status"]
           title: string
@@ -1271,6 +1276,7 @@ export type Database = {
           rescheduled_from?: string | null
           rules?: string | null
           selection_mode?: Database["public"]["Enums"]["selection_mode"]
+          show_on_achievements?: boolean
           starts_at?: string
           status?: Database["public"]["Enums"]["event_status"]
           title?: string
