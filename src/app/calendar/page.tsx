@@ -7,7 +7,7 @@ import { normalizeView, queryRange } from "@/lib/calendar-layout";
 export const metadata: Metadata = {
   title: "Calendar",
   description:
-    "Every talk, contest, workshop and hackathon across the eleven clubs — month, week, day and agenda views.",
+    "Every talk, contest, workshop and hackathon across the eleven clubs — browse by month or as a list of what's coming up.",
 };
 
 type SearchParams = { searchParams: Promise<{ view?: string; d?: string }> };

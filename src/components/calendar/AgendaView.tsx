@@ -33,8 +33,13 @@ export function AgendaView({
   if (groups.length === 0) {
     return (
       <div className="cal-empty">
-        Nothing scheduled between {istShortDay(anchor)} and{" "}
-        {istShortDay(addDays(anchor, 60))}.
+        <p>
+          Nothing scheduled between {istShortDay(anchor)} and{" "}
+          {istShortDay(addDays(anchor, 60))}.
+        </p>
+        <Link href="/events/past" className="btn btn-ghost btn-sm">
+          Browse past events
+        </Link>
       </div>
     );
   }

@@ -1,16 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { CalendarEvent } from "@/lib/types";
 import {
   type CalView,
   CAL_VIEWS,
+  clubsInRange,
   stepAnchor,
 } from "@/lib/calendar-layout";
-import { istMonthYear, istShortDay, istWeekdayLong, addDays, dowMon0 } from "@/lib/datetime";
+import { istMonthYear } from "@/lib/datetime";
 import { MonthView } from "./MonthView";
-import { TimeGridView } from "./TimeGridView";
 import { AgendaView } from "./AgendaView";
 import { DaySheet } from "./DaySheet";
 
@@ -22,21 +23,12 @@ interface ClubChip {
 
 const VIEW_LABEL: Record<CalView, string> = {
   month: "Month",
-  week: "Week",
-  day: "Day",
-  agenda: "Agenda",
+  agenda: "List",
 };
 
 /** The period heading for the current view — what the reader is looking at. */
 function periodLabel(view: CalView, anchor: string): string {
-  if (view === "month") return istMonthYear(anchor);
-  if (view === "day") return istWeekdayLong(anchor) + ", " + istShortDay(anchor);
-  if (view === "week") {
-    const start = addDays(anchor, -dowMon0(anchor));
-    const end = addDays(start, 6);
-    return `${istShortDay(start)} – ${istShortDay(end)}`;
-  }
-  return "Upcoming"; // agenda
+  return view === "month" ? istMonthYear(anchor) : "Upcoming";
 }
 
 export function Calendar({
@@ -59,7 +51,8 @@ export function Calendar({
 
   const go = useCallback(
     (nextView: CalView, nextAnchor: string) => {
-      router.push(`/calendar?view=${nextView}&d=${nextAnchor}`);
+      // scroll:false — stepping months shouldn't yank the page back to the top.
+      router.push(`/calendar?view=${nextView}&d=${nextAnchor}`, { scroll: false });
     },
     [router],
   );
@@ -81,16 +74,10 @@ export function Calendar({
         case "M":
           go("month", anchor);
           break;
-        case "w":
-        case "W":
-          go("week", anchor);
-          break;
-        case "d":
-        case "D":
-          go("day", anchor);
-          break;
         case "a":
         case "A":
+        case "l":
+        case "L":
           go("agenda", anchor);
           break;
         case "t":
@@ -108,9 +95,23 @@ export function Calendar({
     return () => window.removeEventListener("keydown", onKey);
   }, [view, anchor, today, go]);
 
+  // Only clubs with something in the loaded range are worth offering.
+  const rangeClubs = useMemo(() => clubsInRange(events, clubs), [events, clubs]);
+
+  /**
+   * A selection made in another month can name clubs that aren't here. Ignoring
+   * those keeps the page from going blank with no chip left to switch back off.
+   */
+  const active = useMemo(() => {
+    if (selected === null) return null;
+    const inRange = new Set(rangeClubs.map((c) => c.slug));
+    const kept = [...selected].filter((s) => inRange.has(s));
+    return kept.length === 0 ? null : new Set(kept);
+  }, [selected, rangeClubs]);
+
   const filtered = useMemo(
-    () => (selected ? events.filter((e) => selected.has(e.clubSlug)) : events),
-    [events, selected],
+    () => (active ? events.filter((e) => active.has(e.clubSlug)) : events),
+    [events, active],
   );
 
   // §5.5: with all on, tapping one club isolates it; tapping the last one clears.
@@ -131,7 +132,7 @@ export function Calendar({
           {periodLabel(view, anchor)}
         </h1>
 
-        <div className="stack" style={{ gap: 12 }}>
+        <div className="cal-controls">
           <div className="cal-tabs" role="tablist" aria-label="Calendar view">
             {CAL_VIEWS.map((v) => (
               <button
@@ -176,28 +177,31 @@ export function Calendar({
         </div>
       </div>
 
-      <div className="cal-filter" role="group" aria-label="Filter by club">
-        <button
-          type="button"
-          className="cal-fchip"
-          aria-pressed={selected === null}
-          onClick={() => setSelected(null)}
-        >
-          All clubs
-        </button>
-        {clubs.map((c) => (
+      {/* Rendered only when there is something to filter. */}
+      {rangeClubs.length > 0 ? (
+        <div className="cal-filter" role="group" aria-label="Filter by club">
           <button
-            key={c.slug}
             type="button"
             className="cal-fchip"
-            aria-pressed={selected !== null && selected.has(c.slug)}
-            onClick={() => toggleClub(c.slug)}
+            aria-pressed={active === null}
+            onClick={() => setSelected(null)}
           >
-            <span className="dot" style={{ background: c.color }} aria-hidden />
-            {c.shortName}
+            All clubs
           </button>
-        ))}
-      </div>
+          {rangeClubs.map((c) => (
+            <button
+              key={c.slug}
+              type="button"
+              className="cal-fchip"
+              aria-pressed={active !== null && active.has(c.slug)}
+              onClick={() => toggleClub(c.slug)}
+            >
+              <span className="dot" style={{ background: c.color }} aria-hidden />
+              {c.shortName}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {view === "month" ? (
         <MonthView
@@ -206,11 +210,17 @@ export function Calendar({
           events={filtered}
           onOpenDay={setSheetDay}
         />
-      ) : view === "agenda" ? (
-        <AgendaView anchor={anchor} today={today} events={filtered} />
       ) : (
-        <TimeGridView view={view} anchor={anchor} today={today} events={filtered} />
+        <AgendaView anchor={anchor} today={today} events={filtered} />
       )}
+
+      {/* The grid still orients the reader, so say what's missing under it. */}
+      {view === "month" && filtered.length === 0 ? (
+        <p className="cal-note">
+          Nothing scheduled in {istMonthYear(anchor)}.{" "}
+          <Link href="/events/past">Browse past events</Link>
+        </p>
+      ) : null}
 
       {sheetDay ? (
         <DaySheet
