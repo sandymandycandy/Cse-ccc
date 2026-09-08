@@ -2243,6 +2243,64 @@ migration**). Verify gate green (**typecheck/lint clean, 109/109 tests, build �
   the **club edit save** (as council + as a club_head confirming own-club-only)
   and the **mark-handled toggle** (+ faculty sees read-only, no toggle button).
 
+### Achievements podium — built 2026-09-08 *(on `feat/achievements-podium`, NOT yet merged)*
+
+`/achievements` is now a **board**, not just a list. Two halves, merged newest
+first by calendar day:
+
+- **Automatic** — every event with published results contributes its podium,
+  derived live from `results` at render time. It **cannot drift**, because
+  nothing is copied: the board composes the same `rankByScore` / `podiumOf` /
+  `entrantsOf` the event results page renders from, so the two can never
+  disagree. For each event it walks the rounds newest-first and takes the
+  highest-sort round that *actually has published results* — not simply the last
+  round, which may be an unplayed final.
+- **Manual** — hand-entered wins (`achievements.winners` jsonb), for things that
+  never were an event here: an external hackathon, an inter-college prize.
+
+⚠️ **`show_on_achievements` DEFAULTS TO TRUE — this is opt-out, not opt-in.**
+Publishing an event's results puts it on the public achievements board unless
+someone unticks "Show this event's podium on the achievements board" on the
+event form. Anyone who assumes a new toggle starts off will be wrong.
+
+**A `Winner` is a STANDING, not a person** — the one distinction worth carrying
+in your head here. A place is "joint" when two separate *standings* tie for it,
+never when one team fields several people. The first cut flattened teams into
+one winner per person, and PITCH DESK — a team event with a single rank-1 row —
+rendered as "Joint champion" over two names, which is simply false. Counting
+standings gets both cases right: a team of four is a Champion; two tied entrants
+are Joint champions. A hand-entered winner is a standing of exactly one person,
+which is why the stored jsonb stays flat (`{rank,name,roll}`) while the rendered
+type nests (`{rank, people[]}`) — `parseWinners` is the seam between them, and it
+DROPS malformed rows rather than throwing, so one bad hand-edit in the Supabase
+dashboard cannot 500 a public page.
+
+Migration went through the MCP `apply_migration` tool, **not `db push`** — see
+the warning at the top of this file; `db push` would replay 35 migrations
+against a schema that already has all of them.
+
+Three reads that were missing and would each have shipped a silent bug:
+`getAchievementForEdit` did not select `winners` (edit form could never
+prefill); `getEventForEdit` did not select `show_on_achievements` (an unticked
+box would default back to true on every event edit, re-publishing a podium
+someone had deliberately hidden); and the event `CreateSchema` is `.strict()`,
+so a new form field must be declared there or the entire parse fails.
+
+Files: `src/lib/achievements-board.ts` (pure, unit-tested), `src/components/
+Podium.tsx`, `src/components/admin/WinnersEditor.tsx`, `getAchievementsBoard()`
+in `src/lib/queries.ts`. Design + plan:
+`docs/superpowers/specs/2026-09-07-achievements-podium-design.md`,
+`docs/superpowers/plans/2026-09-07-achievements-podium.md`.
+
+**Verification state.** The automatic half is confirmed against live data:
+`/achievements` renders PITCH DESK as Champion / Second / Joint third across 4
+standings — `podium-place` ×3 in the markup. ⚠️ When re-running that curl check,
+**strip `<script>` blocks first** — Next inlines the RSC flight payload into the
+HTML, so every marker greps as exactly 2× and `podium-place` reads 6, which is
+not a duplication bug. Still unverified, both needing a TOTP admin login:
+the manual-entry round-trip through `/admin/achievements/new`, and the event
+board toggle actually hiding a podium.
+
 ### Phase 2 started 2026-08-24
 - **Achievements** — 4th vertical *(deployed)*. Public `/achievements` list
   (optional image + title + date + **safe-markdown** description + club label,
