@@ -42,6 +42,7 @@ const CreateSchema = z
     registrationOpensAt: z.string().optional(), // IST datetime-local; validated in parseSchedule
     registrationClosesAt: z.string().optional(),
     waitlistEnabled: z.coerce.boolean().optional(),
+    showOnAchievements: z.coerce.boolean().optional(),
   })
   .strict();
 
@@ -59,6 +60,7 @@ function parseEvent(formData: FormData) {
     registrationOpensAt: formData.get("registrationOpensAt") || undefined,
     registrationClosesAt: formData.get("registrationClosesAt") || undefined,
     waitlistEnabled: formData.get("waitlistEnabled") === "on",
+    showOnAchievements: formData.get("showOnAchievements") === "on",
   });
 }
 
@@ -165,6 +167,7 @@ export async function createEventAction(
       registration_opens_at: sched.opensAt,
       registration_closes_at: sched.closesAt,
       waitlist_enabled: parsed.data.waitlistEnabled ?? true,
+      show_on_achievements: parsed.data.showOnAchievements ?? true,
       status: "published",
       approval_status: autoApproved ? "approved" : "pending",
       approved_by: autoApproved ? session.id : null,
@@ -334,6 +337,7 @@ export async function updateEventAction(
     registration_opens_at: string | null;
     registration_closes_at: string | null;
     waitlist_enabled: boolean;
+    show_on_achievements: boolean;
     poster_path?: string;
   } = {
     title,
@@ -347,6 +351,7 @@ export async function updateEventAction(
     registration_opens_at: sched.opensAt,
     registration_closes_at: sched.closesAt,
     waitlist_enabled: parsed.data.waitlistEnabled ?? true,
+    show_on_achievements: parsed.data.showOnAchievements ?? true,
   };
   if (poster.path) update.poster_path = poster.path;
 

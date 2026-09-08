@@ -70,6 +70,7 @@ export default async function EditEventPage({
           registrationOpensAtLocal: event.registrationOpensAt ? istLocalInput(event.registrationOpensAt) : "",
           registrationClosesAtLocal: event.registrationClosesAt ? istLocalInput(event.registrationClosesAt) : "",
           waitlistEnabled: event.waitlistEnabled,
+          showOnAchievements: event.showOnAchievements,
         }}
       />
 

@@ -135,6 +135,7 @@ export interface EventForEdit {
   registrationOpensAt: string | null;
   registrationClosesAt: string | null;
   waitlistEnabled: boolean;
+  showOnAchievements: boolean;
 }
 
 /**
@@ -153,6 +154,7 @@ export async function getEventForEdit(
       "id, title, description, starts_at, ends_at, venue_text, poster_path, capacity, status, " +
         "approval_status, rejection_reason, selection_mode, registration_form, " +
         "registration_opens_at, registration_closes_at, waitlist_enabled, " +
+        "show_on_achievements, " +
         "event_clubs ( club_id, is_primary )",
     )
     .eq("id", eventId)
@@ -177,6 +179,7 @@ export async function getEventForEdit(
     registration_opens_at: string | null;
     registration_closes_at: string | null;
     waitlist_enabled: boolean | null;
+    show_on_achievements: boolean | null;
     event_clubs: { club_id: string; is_primary: boolean }[];
   };
   const primary = row.event_clubs.find((l) => l.is_primary) ?? row.event_clubs[0];
@@ -206,6 +209,9 @@ export async function getEventForEdit(
     registrationOpensAt: row.registration_opens_at,
     registrationClosesAt: row.registration_closes_at,
     waitlistEnabled: row.waitlist_enabled ?? true,
+    // Opt-out, matching the column default: an event is on the board unless
+    // someone unticks it.
+    showOnAchievements: row.show_on_achievements ?? true,
   };
 }
 

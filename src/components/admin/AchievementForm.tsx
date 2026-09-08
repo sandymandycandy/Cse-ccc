@@ -2,7 +2,9 @@
 
 import { useActionState } from "react";
 import type { AchievementFormState } from "@/lib/admin/form-state";
+import type { Winner } from "@/lib/achievements-board";
 import { ImageEditor } from "./ImageEditor";
+import { WinnersEditor } from "./WinnersEditor";
 
 type AchievementAction = (
   prev: AchievementFormState,
@@ -17,6 +19,7 @@ export interface AchievementInitial {
   happenedOn: string | null;
   clubId: string | null;
   imageUrl: string | null;
+  winners: Winner[];
 }
 
 export function AchievementForm({
@@ -48,7 +51,7 @@ export function AchievementForm({
 
       <div className="field">
         <label htmlFor="title">Title</label>
-        <input id="title" name="title" required maxLength={140} defaultValue={initial?.title} placeholder="e.g. 1st place — Smart India Hackathon 2026" />
+        <input id="title" name="title" required maxLength={140} defaultValue={initial?.title} placeholder="e.g. Smart India Hackathon 2026" />
       </div>
 
       <div className="field">
@@ -66,6 +69,8 @@ export function AchievementForm({
           <code>`code`</code>, <code>[link](https://…)</code>, and <code>-</code> / <code>1.</code> lists.
         </span>
       </div>
+
+      <WinnersEditor initial={initial?.winners} />
 
       <div className="field">
         <label htmlFor="happenedOn">Date (optional)</label>

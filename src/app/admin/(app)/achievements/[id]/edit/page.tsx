@@ -40,6 +40,7 @@ export default async function EditAchievementPage({
           happenedOn: achievement.happenedOn,
           clubId: achievement.clubId,
           imageUrl: achievement.imageUrl,
+          winners: achievement.winners,
         }}
       />
 

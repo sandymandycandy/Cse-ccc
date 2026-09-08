@@ -18,15 +18,44 @@ const Schema = z.object({
   happenedOn: z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]),
   // "" = council-wide (no club); a uuid = that club.
   clubId: z.union([z.literal(""), z.string().uuid()]),
+  // The flat {rank,name,roll} shape stored in the jsonb — one row per person,
+  // which `parseWinners` reads back as a standing of one. Ranks repeat freely:
+  // two 3rds is a tie, and deduplicating them would erase a joint place.
+  winners: z
+    .array(
+      z.object({
+        rank: z.coerce.number().int().min(1).max(3),
+        name: z.string().trim().min(1).max(120),
+        roll: z.string().trim().max(40).nullable().optional(),
+      }),
+    )
+    .max(20),
 });
 
 function parse(formData: FormData) {
+  const rawWinners = formData.get("winners");
+  let winners: unknown = [];
+  if (typeof rawWinners === "string" && rawWinners.trim() !== "") {
+    try {
+      winners = JSON.parse(rawWinners);
+    } catch {
+      winners = null; // fails the schema below with a readable message
+    }
+  }
   return Schema.safeParse({
     title: formData.get("title"),
     description: formData.get("description") ?? "",
     happenedOn: formData.get("happenedOn") ?? "",
     clubId: formData.get("clubId") ?? "",
+    winners,
   });
+}
+
+/** Empty list normalises to null, so "no winners" stores nothing. */
+function winnersPayload(rows: { rank: number; name: string; roll?: string | null }[]) {
+  return rows.length > 0
+    ? rows.map((w) => ({ rank: w.rank, name: w.name, roll: w.roll ?? null }))
+    : null;
 }
 
 export async function createAchievementAction(
@@ -61,6 +90,7 @@ export async function createAchievementAction(
       happened_on: happenedOn,
       image_path: img.path ?? null,
       club_id: resolved.clubId,
+      winners: winnersPayload(parsed.data.winners),
       created_by: session.id,
     })
     .select("id")
@@ -119,8 +149,15 @@ export async function updateAchievementAction(
     description: string | null;
     happened_on: string | null;
     club_id: string | null;
+    winners: { rank: number; name: string; roll: string | null }[] | null;
     image_path?: string;
-  } = { title, description, happened_on: happenedOn, club_id: resolved.clubId };
+  } = {
+    title,
+    description,
+    happened_on: happenedOn,
+    club_id: resolved.clubId,
+    winners: winnersPayload(parsed.data.winners),
+  };
   if (img.path !== undefined) update.image_path = img.path;
 
   const { error } = await admin.from("achievements").update(update).eq("id", id);

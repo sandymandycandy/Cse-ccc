@@ -26,6 +26,7 @@ export interface EventFormInitial {
   registrationOpensAtLocal: string;
   registrationClosesAtLocal: string;
   waitlistEnabled: boolean;
+  showOnAchievements: boolean;
 }
 
 type EventAction = (
@@ -187,6 +188,21 @@ export function EventForm({
         </label>
         <span className="hint">
           Extra students join a waitlist you can promote from on the registrations page.
+        </span>
+      </div>
+
+      <div className="field">
+        <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 400 }}>
+          <input
+            type="checkbox"
+            name="showOnAchievements"
+            defaultChecked={initial ? initial.showOnAchievements : true}
+          />
+          Show this event&rsquo;s podium on the achievements board
+        </label>
+        <span className="hint">
+          On by default. Once results are published, the top three appear on the
+          public achievements page — untick to keep them off it.
         </span>
       </div>
 

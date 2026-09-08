@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { parseWinners, type Winner } from "@/lib/achievements-board";
 
 /** Admin-side achievement reads (service role). Like the other content
  *  verticals, achievements have no draft state — a row is public once saved. */
@@ -22,6 +23,8 @@ export interface AchievementForEdit {
   clubId: string | null;
   imagePath: string | null;
   imageUrl: string | null;
+  /** Normalised out of the untyped jsonb, so the form never sees a bad row. */
+  winners: Winner[];
 }
 
 function publicUrl(path: string): string {
@@ -52,7 +55,7 @@ export async function getAchievementForEdit(id: string): Promise<AchievementForE
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("achievements")
-    .select("id, title, description, happened_on, club_id, image_path")
+    .select("id, title, description, happened_on, club_id, image_path, winners")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
@@ -65,5 +68,6 @@ export async function getAchievementForEdit(id: string): Promise<AchievementForE
     clubId: data.club_id,
     imagePath: data.image_path,
     imageUrl: data.image_path ? publicUrl(data.image_path) : null,
+    winners: parseWinners(data.winners),
   };
 }
