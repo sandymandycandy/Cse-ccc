@@ -52,6 +52,11 @@ export default async function AdminAppLayout({
     ...(canView(session, "manage:council")
       ? [{ href: "/admin/council", label: "Council", group: "people" as const }]
       : []),
+    // Public presentation of the council roster — who shows on /team, and their
+    // links. Separate from Council → Members, which is the attendance roster.
+    ...(canView(session, "manage:council")
+      ? [{ href: "/admin/team", label: "Team page", group: "content" as const }]
+      : []),
     ...(canView(session, "manage:resources")
       ? [{ href: "/admin/resources", label: "Resources", group: "people" as const }]
       : []),
