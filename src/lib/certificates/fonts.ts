@@ -9,7 +9,7 @@ import familyData from "./font-families.json";
 
 export type FontFamilyId =
   | "playfair"
-  | "cormorant"
+  | "crimson"
   | "lora"
   | "cinzel"
   | "montserrat"
@@ -23,7 +23,7 @@ export type FaceVariant = "r" | "b" | "i" | "bi";
 /** Every face that actually ships (must match font-families.json). */
 export type FaceId =
   | "playfair-r" | "playfair-b" | "playfair-i" | "playfair-bi"
-  | "cormorant-r" | "cormorant-b" | "cormorant-i" | "cormorant-bi"
+  | "crimson-r" | "crimson-b" | "crimson-i" | "crimson-bi"
   | "lora-r" | "lora-b" | "lora-i" | "lora-bi"
   | "cinzel-r" | "cinzel-b"
   | "montserrat-r" | "montserrat-b" | "montserrat-i" | "montserrat-bi"
@@ -85,6 +85,26 @@ export function faceFor(id: FontFamilyId, bold: boolean, italic: boolean): FaceI
 }
 
 export const faceFile = (face: FaceId): string => `${face}.ttf`;
+
+/**
+ * Faces pdf-lib must embed whole rather than subset.
+ *
+ * pdf-lib's subsetter writes a broken `glyf` table for some fonts — the glyphs
+ * it emits cannot be decoded again, which prints as blank or garbled text. It
+ * hits plain letters, not just accents, so it is never acceptable. These three
+ * fail that way and embed correctly when the whole font goes in (~80–125 KB
+ * instead of ~6 KB). `font-embedding.test.ts` proves the list is complete:
+ * it re-reads the embedded font out of a rendered PDF for every face.
+ * Cormorant Garamond was dropped from the bundle over this — pdf-lib cannot
+ * embed it at all — and Crimson Text took its place.
+ */
+export const FULL_EMBED_FACES: ReadonlySet<FaceId> = new Set<FaceId>([
+  "poppins-i",
+  "poppins-bi",
+  "greatvibes-r",
+]);
+
+export const needsFullEmbed = (face: FaceId): boolean => FULL_EMBED_FACES.has(face);
 
 /** CSS font-family name the editor registers each family under. */
 export const cssFamily = (id: FontFamilyId): string => `cert-${id}`;

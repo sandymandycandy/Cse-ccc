@@ -1,6 +1,6 @@
 [
   { "id": "playfair", "label": "Playfair Display", "googleName": "Playfair Display", "oflDir": "playfairdisplay", "variants": ["r", "b", "i", "bi"] },
-  { "id": "cormorant", "label": "Cormorant Garamond", "googleName": "Cormorant Garamond", "oflDir": "cormorantgaramond", "variants": ["r", "b", "i", "bi"] },
+  { "id": "crimson", "label": "Crimson Text", "googleName": "Crimson Text", "oflDir": "crimsontext", "variants": ["r", "b", "i", "bi"] },
   { "id": "lora", "label": "Lora", "googleName": "Lora", "oflDir": "lora", "variants": ["r", "b", "i", "bi"] },
   { "id": "cinzel", "label": "Cinzel", "googleName": "Cinzel", "oflDir": "cinzel", "variants": ["r", "b"] },
   { "id": "montserrat", "label": "Montserrat", "googleName": "Montserrat", "oflDir": "montserrat", "variants": ["r", "b", "i", "bi"] },

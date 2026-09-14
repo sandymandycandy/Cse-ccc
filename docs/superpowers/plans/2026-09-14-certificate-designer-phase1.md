@@ -20,7 +20,7 @@
 - `dangerouslySetInnerHTML` is banned by ESLint (SECURITY_SPEC §5).
 - Every exported handler in `src/app/api/admin/**/route.ts` must call `requireSession` / `requireRole` / `requireCapability` (local ESLint rule).
 - Every certificate action and route requires `issue:participation_certificate` **and** `canManage(session, cap, event.clubId)`. Revoke is phase 2.
-- Fonts: exactly the 8 families / 24 faces in `font-families.json`; **no synthetic bold/italic**.
+- Fonts: exactly the 8 families / 24 faces in `font-families.json`; **no synthetic bold/italic**. Faces in `FULL_EMBED_FACES` are embedded whole rather than subset (pdf-lib corrupts their glyphs), guarded by `font-embedding.test.ts`.
 - OpenType `liga`, `clig`, `calt`, `dlig`, `kern` are **off on both sides** (PDF embed option + editor CSS).
 - The PDF page's long edge is **842 pt**; all design positions are % of the page.
 - Design assets live in the **private** bucket `certificate-assets` at `<eventId>/<uuid>.<png|jpg>`, ≤ **8 MB**, PNG/JPEG only.
@@ -40,6 +40,7 @@
 | `scripts/fetch-cert-fonts.mjs`, `scripts/build-font-metrics.mjs` | One-off: download TTFs; generate metrics | 1 |
 | `public/fonts/cert/*` | 24 TTFs + OFL licences (generated, committed) | 1 |
 | `src/lib/certificates/metrics/*` | Per-face advance widths + `index.ts` (generated, committed) | 1 |
+| `src/lib/certificates/font-embedding.test.ts` | Proves every drawn glyph survives into the PDF | 6 |
 | `src/lib/certificates/design.ts` | Design document types, validation, v1 conversion, helpers | 2 |
 | `src/lib/certificates/image-type.ts` | PNG/JPEG magic bytes + pixel size | 2 |
 | `src/lib/certificates/fields.ts` | Field catalogue, value resolution, transforms, IST dates | 3 |
@@ -104,7 +105,7 @@ Expected: exits 0. If npm fails with `Cannot read properties of null (reading 'e
 ```json
 [
   { "id": "playfair", "label": "Playfair Display", "googleName": "Playfair Display", "oflDir": "playfairdisplay", "variants": ["r", "b", "i", "bi"] },
-  { "id": "cormorant", "label": "Cormorant Garamond", "googleName": "Cormorant Garamond", "oflDir": "cormorantgaramond", "variants": ["r", "b", "i", "bi"] },
+  { "id": "crimson", "label": "Crimson Text", "googleName": "Crimson Text", "oflDir": "crimsontext", "variants": ["r", "b", "i", "bi"] },
   { "id": "lora", "label": "Lora", "googleName": "Lora", "oflDir": "lora", "variants": ["r", "b", "i", "bi"] },
   { "id": "cinzel", "label": "Cinzel", "googleName": "Cinzel", "oflDir": "cinzel", "variants": ["r", "b"] },
   { "id": "montserrat", "label": "Montserrat", "googleName": "Montserrat", "oflDir": "montserrat", "variants": ["r", "b", "i", "bi"] },
@@ -128,7 +129,7 @@ import familyData from "./font-families.json";
 
 export type FontFamilyId =
   | "playfair"
-  | "cormorant"
+  | "crimson"
   | "lora"
   | "cinzel"
   | "montserrat"
@@ -142,7 +143,7 @@ export type FaceVariant = "r" | "b" | "i" | "bi";
 /** Every face that actually ships (must match font-families.json). */
 export type FaceId =
   | "playfair-r" | "playfair-b" | "playfair-i" | "playfair-bi"
-  | "cormorant-r" | "cormorant-b" | "cormorant-i" | "cormorant-bi"
+  | "crimson-r" | "crimson-b" | "crimson-i" | "crimson-bi"
   | "lora-r" | "lora-b" | "lora-i" | "lora-bi"
   | "cinzel-r" | "cinzel-b"
   | "montserrat-r" | "montserrat-b" | "montserrat-i" | "montserrat-bi"
@@ -204,6 +205,26 @@ export function faceFor(id: FontFamilyId, bold: boolean, italic: boolean): FaceI
 }
 
 export const faceFile = (face: FaceId): string => `${face}.ttf`;
+
+/**
+ * Faces pdf-lib must embed whole rather than subset.
+ *
+ * pdf-lib's subsetter writes a broken `glyf` table for some fonts — the glyphs
+ * it emits cannot be decoded again, which prints as blank or garbled text. It
+ * hits plain letters, not just accents, so it is never acceptable. These three
+ * fail that way and embed correctly when the whole font goes in (~80–125 KB
+ * instead of ~6 KB). `font-embedding.test.ts` proves the list is complete:
+ * it re-reads the embedded font out of a rendered PDF for every face.
+ * Cormorant Garamond was dropped from the bundle over this — pdf-lib cannot
+ * embed it at all — and Crimson Text took its place.
+ */
+export const FULL_EMBED_FACES: ReadonlySet<FaceId> = new Set<FaceId>([
+  "poppins-i",
+  "poppins-bi",
+  "greatvibes-r",
+]);
+
+export const needsFullEmbed = (face: FaceId): boolean => FULL_EMBED_FACES.has(face);
 
 /** CSS font-family name the editor registers each family under. */
 export const cssFamily = (id: FontFamilyId): string => `cert-${id}`;
@@ -2524,7 +2545,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 **Files:**
 - Replace: `src/lib/certificates/render.ts` (v1's `renderCertificatePdf` is removed)
 - Replace: `src/lib/certificates/render.test.ts`
-- Create: `src/lib/certificates/font-files.ts`
+- Create: `src/lib/certificates/font-files.ts`, `src/lib/certificates/font-embedding.test.ts`
 
 **Interfaces:**
 - Consumes: `AssetRef`, `Design`, `DEFAULT_STYLE`, `emptyDesign` (Task 2); `FaceId`, `ALL_FACES`, `faceFile` (Task 1); `layoutText` (Task 4); `METRICS`, `NO_FEATURES` (Task 1).
@@ -2540,13 +2561,12 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ```ts
 import { describe, it, expect } from "vitest";
-import { readFile, mkdir, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { PDFDocument } from "pdf-lib";
 import { renderCertificatesPdf, PAGE_LONG_EDGE_PT } from "./render";
 import { DEFAULT_STYLE, emptyDesign, type Design } from "./design";
-import { ALL_FACES, faceFile, type FaceId, type FaceVariant, type FontFamilyId } from "./fonts";
+import { faceFile, type FaceId } from "./fonts";
 
 // 1×1 PNG — enough to exercise embedding.
 const PNG = new Uint8Array(
@@ -2629,53 +2649,6 @@ describe("renderCertificatesPdf", () => {
     expect(isPdf(bytes)).toBe(true);
     expect(loads).toEqual(["template"]);
   });
-
-  // Writes one specimen PDF per face for the one-time visual check of pdf-lib's
-  // font subsetting (spec §6.5). Open them from the printed folder.
-  it("renders a specimen of every bundled face", async () => {
-    const out = path.join(tmpdir(), "cert-font-specimens");
-    await mkdir(out, { recursive: true });
-    for (const face of ALL_FACES) {
-      const [family, variant] = face.split("-") as [FontFamilyId, FaceVariant];
-      const d = emptyDesign();
-      d.elements = [
-        {
-          id: "s",
-          name: "Specimen",
-          type: "text",
-          x: 5,
-          y: 10,
-          w: 90,
-          h: 80,
-          locked: false,
-          hidden: false,
-          align: "left",
-          lineHeight: 1.3,
-          fit: "wrap",
-          paragraphs: [
-            {
-              runs: [
-                {
-                  kind: "text",
-                  text: `${face}: The quick brown fox jumps over the lazy dog. ÀÉÎÕÜ àéîõü Śrī ₹1,000 “quotes” — 0123456789`,
-                  style: {
-                    ...DEFAULT_STYLE,
-                    font: family,
-                    bold: variant.includes("b"),
-                    italic: variant.includes("i"),
-                    sizePct: 5,
-                  },
-                },
-              ],
-            },
-          ],
-        },
-      ];
-      const bytes = await renderCertificatesPdf({ design: d, pages: [{ valueFor: () => "" }], loadAsset: async () => PNG, loadFont });
-      await writeFile(path.join(out, `${face}.pdf`), bytes);
-    }
-    console.log(`font specimens written to ${out}`);
-  }, 60_000);
 });
 ```
 
@@ -2693,7 +2666,7 @@ import "server-only";
 import { PDFDocument, StandardFonts, degrees, rgb, type PDFFont, type PDFImage } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import type { AssetRef, Design } from "./design";
-import type { FaceId } from "./fonts";
+import { needsFullEmbed, type FaceId } from "./fonts";
 import { layoutText } from "./layout";
 import { METRICS } from "./metrics";
 import { NO_FEATURES } from "./pdf-features";
@@ -2752,7 +2725,9 @@ export async function renderCertificatesPdf(input: RenderInput): Promise<Uint8Ar
   const font = (face: FaceId) => {
     let p = fonts.get(face);
     if (!p) {
-      p = input.loadFont(face).then((bytes) => pdf.embedFont(bytes, { subset: true, features: NO_FEATURES }));
+      p = input
+        .loadFont(face)
+        .then((bytes) => pdf.embedFont(bytes, { subset: !needsFullEmbed(face), features: NO_FEATURES }));
       fonts.set(face, p);
     }
     return p;
@@ -2848,16 +2823,164 @@ export function loadFontFile(face: FaceId): Promise<Uint8Array> {
 - [ ] **Step 4: Run the test**
 
 Run: `npx vitest run src/lib/certificates/render.test.ts`
-Expected: PASS, 3 tests. The log prints `font specimens written to …/cert-font-specimens`.
+Expected: PASS, 2 tests.
 
-- [ ] **Step 5: One-time visual check of font subsetting (spec §6.5 risk)**
+- [ ] **Step 5: Prove every glyph survives embedding (spec §6.5 risk)**
 
-Open each of the 24 PDFs in that folder in Chrome. Every specimen must show readable glyphs in its face, including `ÀÉÎÕÜ àéîõü ₹ “” —`. `Śrī` may lose glyphs only where the metrics lack them. If any face shows boxes or garbage, it needs non-subset embedding: add a `FULL_EMBED: ReadonlySet<FaceId>` to `render.ts`, pass `subset: !FULL_EMBED.has(face)` to `embedFont`, re-run Step 4, and record the face in the commit message.
+`pdf-lib`'s subsetter writes an undecodable `glyf` table for some fonts — plain letters included, not only accents — so `fonts.ts` lists the faces that must be embedded whole (`FULL_EMBED_FACES`). This test keeps that list honest: for each face it renders a sample, pulls the embedded font program back out of the PDF, and decodes every glyph id the page draws.
+
+`src/lib/certificates/font-embedding.test.ts`:
+
+```ts
+import { describe, it, expect } from "vitest";
+import { readFile } from "node:fs/promises";
+import { inflateSync } from "node:zlib";
+import path from "node:path";
+import { PDFDocument, PDFDict, PDFName, PDFRawStream } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
+import { ALL_FACES, faceFile, type FaceId, type FontFamilyId, type FaceVariant } from "./fonts";
+import { DEFAULT_STYLE, emptyDesign, type Design } from "./design";
+import { renderCertificatesPdf } from "./render";
+
+/**
+ * Every glyph we draw must survive into the PDF.
+ *
+ * pdf-lib's font subsetting writes an undecodable `glyf` table for some fonts,
+ * which prints as blank or garbled text — and it hits plain letters, not only
+ * accented ones. `FULL_EMBED_FACES` lists the faces that must therefore go in
+ * whole. This test is what keeps that list honest: for each bundled face it
+ * renders a sample, pulls the embedded font program back out of the PDF, and
+ * decodes every glyph id the page actually draws. It is also the gate on adding
+ * or updating a font.
+ */
+
+// No spaces: the space is the one glyph that legitimately has no outline, and a
+// subset font's cmap may not identify it, so leaving it out keeps the rule simple —
+// every drawn glyph must have outline data.
+const SAMPLE = "Thequickbrownfoxjumpsoverthelazydog0123456789ÜnïcodeÀÉÎÕÜàéîõü";
+const fontPath = (face: FaceId) => path.join(process.cwd(), "public", "fonts", "cert", faceFile(face));
+const loadFont = async (face: FaceId) => new Uint8Array(await readFile(fontPath(face)));
+
+/** A 1×1 PNG stands in for the template. */
+const PNG = new Uint8Array(
+  Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    "base64",
+  ),
+);
+
+function sampleDesign(face: FaceId, text: string): Design {
+  const [family, variant] = face.split("-") as [FontFamilyId, FaceVariant];
+  const design = emptyDesign();
+  design.elements = [
+    {
+      id: "s",
+      name: "Specimen",
+      type: "text",
+      x: 5,
+      y: 20,
+      w: 90,
+      h: 60,
+      locked: false,
+      hidden: false,
+      align: "left",
+      lineHeight: 1.3,
+      fit: "wrap",
+      paragraphs: [
+        {
+          runs: [
+            {
+              kind: "text",
+              text,
+              style: { ...DEFAULT_STYLE, font: family, bold: variant.includes("b"), italic: variant.includes("i"), sizePct: 4 },
+            },
+          ],
+        },
+      ],
+    },
+  ];
+  return design;
+}
+
+const decodeStream = (stream: PDFRawStream): Buffer => {
+  const raw = Buffer.from(stream.getContents());
+  return String(stream.dict.get(PDFName.of("Filter"))) === "/FlateDecode" ? inflateSync(raw) : raw;
+};
+
+/** The embedded font program plus every glyph id the page draws. */
+async function readBackFont(pdfBytes: Uint8Array) {
+  const pdf = await PDFDocument.load(pdfBytes);
+  let fontBytes: Buffer | null = null;
+  const contents: Buffer[] = [];
+  for (const [, obj] of pdf.context.enumerateIndirectObjects()) {
+    if (obj instanceof PDFDict) {
+      const ref = obj.get(PDFName.of("FontFile2"));
+      if (ref) fontBytes = decodeStream(pdf.context.lookup(ref) as PDFRawStream);
+    }
+    if (obj instanceof PDFRawStream && obj.dict.get(PDFName.of("FontFile2")) === undefined) {
+      try {
+        contents.push(decodeStream(obj));
+      } catch {
+        // not a stream we can read; it is not the content stream either
+      }
+    }
+  }
+  const gids = new Set<number>();
+  for (const stream of contents) {
+    for (const match of stream.toString("latin1").matchAll(/<([0-9A-Fa-f]+)>\s*Tj/g)) {
+      const hex = match[1];
+      for (let i = 0; i + 4 <= hex.length; i += 4) gids.add(parseInt(hex.slice(i, i + 4), 16));
+    }
+  }
+  return { fontBytes, gids };
+}
+
+describe("embedded fonts", () => {
+  it.each(ALL_FACES)("%s: every drawn glyph decodes out of the PDF", async (face) => {
+    const source = fontkit.create(Buffer.from(await loadFont(face)));
+    const text = [...SAMPLE].filter((ch) => source.hasGlyphForCodePoint(ch.codePointAt(0)!)).join("");
+    expect(text.length).toBeGreaterThan(40);
+
+    const pdfBytes = await renderCertificatesPdf({
+      design: sampleDesign(face, text),
+      pages: [{ valueFor: () => "" }],
+      loadAsset: async () => PNG,
+      loadFont,
+    });
+
+    const { fontBytes, gids } = await readBackFont(pdfBytes);
+    expect(fontBytes, "no font program embedded").not.toBeNull();
+    expect(gids.size).toBeGreaterThan(20);
+
+    const embedded = fontkit.create(fontBytes!);
+    const broken: number[] = [];
+    for (const gid of gids) {
+      if (gid === 0 || gid >= embedded.numGlyphs) {
+        broken.push(gid);
+        continue;
+      }
+      try {
+        const glyph = embedded.getGlyph(gid);
+        // A glyph with no outline is only legitimate for the space.
+        if (glyph.path.commands.length === 0 && glyph.advanceWidth > 0 && glyph.codePoints?.[0] !== 32) broken.push(gid);
+      } catch {
+        broken.push(gid);
+      }
+    }
+    expect(broken, `${face} has ${broken.length} unusable glyphs — add it to FULL_EMBED_FACES`).toEqual([]);
+  }, 20_000);
+});
+```
+
+Run: `npx vitest run src/lib/certificates/font-embedding.test.ts`
+Expected: PASS, 24 tests.
+
+Sanity-check the test itself: temporarily empty `FULL_EMBED_FACES` in `fonts.ts` and re-run — `poppins-i`, `poppins-bi` and `greatvibes-r` must fail with "unusable glyphs". Restore the set afterwards.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/lib/certificates/render.ts src/lib/certificates/render.test.ts src/lib/certificates/font-files.ts
+git add src/lib/certificates/render.ts src/lib/certificates/render.test.ts src/lib/certificates/font-files.ts src/lib/certificates/font-embedding.test.ts
 git commit -m "feat(certificates): render designs to A4-sized multi-page PDFs via the shared layout
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"

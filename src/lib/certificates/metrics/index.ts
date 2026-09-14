@@ -4,10 +4,10 @@ import playfairR from "./playfair-r.json";
 import playfairB from "./playfair-b.json";
 import playfairI from "./playfair-i.json";
 import playfairBI from "./playfair-bi.json";
-import cormorantR from "./cormorant-r.json";
-import cormorantB from "./cormorant-b.json";
-import cormorantI from "./cormorant-i.json";
-import cormorantBI from "./cormorant-bi.json";
+import crimsonR from "./crimson-r.json";
+import crimsonB from "./crimson-b.json";
+import crimsonI from "./crimson-i.json";
+import crimsonBI from "./crimson-bi.json";
 import loraR from "./lora-r.json";
 import loraB from "./lora-b.json";
 import loraI from "./lora-i.json";
@@ -30,10 +30,10 @@ export const METRICS: Record<FaceId, FaceMetrics> = {
   "playfair-b": playfairB,
   "playfair-i": playfairI,
   "playfair-bi": playfairBI,
-  "cormorant-r": cormorantR,
-  "cormorant-b": cormorantB,
-  "cormorant-i": cormorantI,
-  "cormorant-bi": cormorantBI,
+  "crimson-r": crimsonR,
+  "crimson-b": crimsonB,
+  "crimson-i": crimsonI,
+  "crimson-bi": crimsonBI,
   "lora-r": loraR,
   "lora-b": loraB,
   "lora-i": loraI,

@@ -464,7 +464,7 @@ alongside:
 | Family id | Faces | Character |
 | --- | --- | --- |
 | `playfair` Playfair Display | R B I BI | formal serif |
-| `cormorant` Cormorant Garamond | R B I BI | classic serif |
+| `crimson` Crimson Text | R B I BI | classic serif |
 | `lora` Lora | R B I BI | readable serif |
 | `cinzel` Cinzel | R B | engraved capitals |
 | `montserrat` Montserrat | R B I BI | geometric sans |
@@ -556,10 +556,17 @@ refreshed on page load). This fixes the v1 1 MB bug.
   This fixes v1's 1 px = 1 pt, which gave oversized pages. All coordinates
   scale from %.
 - Template and each image are embedded once per document (cache by asset path).
-  Faces are embedded once per document, `subset: true`.
-  - **Risk:** `pdf-lib` subsetting mis-renders some fonts. The render test emits
-    a specimen PDF per face for a one-time visual check. Any face that fails
-    gets `subset: false` in `fonts.ts`.
+  Faces are embedded once per document, subset unless the face is listed in
+  `FULL_EMBED_FACES`.
+  - **Settled during implementation (2026-09-14).** `pdf-lib`'s subsetter writes
+    an undecodable `glyf` table for some fonts — plain letters included, not just
+    accents. Measured across all 24 faces: **Cormorant Garamond** is unusable
+    (pdf-lib cannot even embed it whole) and was replaced by **Crimson Text**;
+    **Poppins Italic, Poppins Bold Italic and Great Vibes** are embedded whole
+    (`FULL_EMBED_FACES` in `fonts.ts`, ~80–125 KB instead of ~6 KB); the other 20
+    faces subset cleanly. `font-embedding.test.ts` re-reads the embedded font out
+    of a rendered PDF for every face and fails if any drawn glyph is unusable, so
+    the list cannot silently rot and a new font is checked automatically.
 - Text: `page.drawText(run.text, { x, y: pageH − baselineY, size, font, color })`
   after converting px → pt. Underline via `drawLine` from the metrics.
 - QR: `qrcode`'s `QRCode.create(url, { errorCorrectionLevel: "M" })` module
@@ -648,8 +655,9 @@ Unit (vitest, pure):
 - `serial.test.ts`: 128-bit format.
 
 Render (vitest, node): multi-page PDF with template + image + rich text + QR;
-page count; shared image object count = 1; per-face specimen PDF written to a
-temp dir for the one-time visual subset check.
+page count; shared image object count = 1; plus `font-embedding.test.ts` — for
+every face, render, pull the embedded font back out of the PDF and decode every
+glyph id drawn (guards `FULL_EMBED_FACES`, §6.5).
 
 Gate: `npm run typecheck`, `lint`, `test`, `build` all green per phase.
 
