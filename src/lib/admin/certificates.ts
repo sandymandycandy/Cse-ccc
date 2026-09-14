@@ -22,19 +22,25 @@ import {
   buildFieldCatalogue,
   designContextFor,
   fieldLabel,
+  memberValues,
   registrantValues,
+  sheetValues,
+  teamOf,
   type CertEventInfo,
   type FieldGroup,
 } from "@/lib/certificates/fields";
 import { sniffImage } from "@/lib/certificates/image-type";
 import {
   countRecipients,
+  memberKey,
   registrationKey,
+  sheetKey,
   statusByKey,
   type Recipient,
   type RecipientCounts,
 } from "@/lib/certificates/recipients";
 import { designWithUnknownFieldsAsText } from "@/lib/certificates/rich-text";
+import type { SheetRow } from "@/lib/certificates/sheet";
 import { getEventFormSchema, listRegistrations } from "./registrations";
 
 /**
@@ -215,49 +221,230 @@ export async function ensureParticipantsGroup(eventId: string, actorId: string |
   return group;
 }
 
-/** Attendees as certificate recipients, each with values and issue status (phase 1: registrants). */
-export async function listParticipantRecipients(event: CertEvent): Promise<Recipient[]> {
+/** Every group on the event, Participants first. */
+export async function listGroups(eventId: string, actorId: string | null): Promise<CertificateGroup[]> {
+  await ensureParticipantsGroup(eventId, actorId);
+  const { data } = await createAdminClient()
+    .from("certificate_groups")
+    .select(GROUP_COLUMNS)
+    .eq("event_id", eventId)
+    .order("kind", { ascending: true })
+    .order("sort", { ascending: true })
+    .order("created_at", { ascending: true });
+  const groups = (data ?? []).map((row) => toGroup(row as GroupRow));
+  return [...groups].sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "participants" ? -1 : 1));
+}
+
+/** A new uploaded-list group, starting from the Participants design so it looks the same. */
+export async function createSheetGroup(input: {
+  eventId: string;
+  name: string;
+  actorId: string;
+}): Promise<CertificateGroup | { error: string }> {
+  const participants = await ensureParticipantsGroup(input.eventId, input.actorId);
+  const { data, error } = await createAdminClient()
+    .from("certificate_groups")
+    .insert({
+      event_id: input.eventId,
+      kind: "sheet",
+      name: input.name,
+      design: participants.design as unknown as Json,
+      created_by: input.actorId,
+      sort: Date.now() % 100000,
+    })
+    .select(GROUP_COLUMNS)
+    .single();
+  if (error || !data) return { error: "Could not add that group. Try again." };
+  return toGroup(data as GroupRow);
+}
+
+export async function renameGroup(eventId: string, groupId: string, name: string): Promise<boolean> {
+  const { error } = await createAdminClient()
+    .from("certificate_groups")
+    .update({ name, updated_at: new Date().toISOString() })
+    .eq("id", groupId)
+    .eq("event_id", eventId)
+    .eq("kind", "sheet");
+  return !error;
+}
+
+/** Delete an uploaded group. Certificates already issued from it keep their snapshot. */
+export async function deleteSheetGroup(eventId: string, groupId: string): Promise<boolean> {
+  const { error } = await createAdminClient()
+    .from("certificate_groups")
+    .delete()
+    .eq("id", groupId)
+    .eq("event_id", eventId)
+    .eq("kind", "sheet");
+  return !error;
+}
+
+export async function listSheetRows(groupId: string): Promise<SheetRow[]> {
+  const { data } = await createAdminClient()
+    .from("certificate_sheet_rows")
+    .select("row_no, name, email, data")
+    .eq("group_id", groupId)
+    .order("row_no", { ascending: true });
+  return (data ?? []).map((r) => ({
+    row_no: r.row_no,
+    name: r.name,
+    email: r.email,
+    data: (r.data ?? {}) as Record<string, string>,
+  }));
+}
+
+/** Replace a group's rows in one transaction, and record its columns. */
+export async function replaceSheetRows(
+  eventId: string,
+  groupId: string,
+  columns: string[],
+  rows: SheetRow[],
+): Promise<{ error: string } | { count: number }> {
   const admin = createAdminClient();
-  const [registrations, ledger] = await Promise.all([
+  const { data, error } = await admin.rpc("replace_certificate_sheet_rows", {
+    p_group_id: groupId,
+    p_rows: rows as unknown as Json,
+  });
+  if (error) return { error: "Could not save those rows. Try again." };
+  const updated = await admin
+    .from("certificate_groups")
+    .update({ sheet_columns: columns, updated_at: new Date().toISOString() })
+    .eq("id", groupId)
+    .eq("event_id", eventId);
+  if (updated.error) return { error: "Saved the rows but not the columns. Try the upload again." };
+  return { count: typeof data === "number" ? data : rows.length };
+}
+
+/** The event's ledger, as status per recipient key. */
+async function ledgerStatus(eventId: string) {
+  const { data, error } = await createAdminClient()
+    .from("certificates")
+    .select("id, recipient_key, serial, issued_at, revoked_at, revoked_reason")
+    .eq("event_id", eventId)
+    .eq("type", "participation");
+  if (error) throw error;
+  return statusByKey(data ?? []);
+}
+
+/**
+ * Everyone who should get a certificate, across every group (spec §3.1):
+ * attendees, each member of an attending team, and every uploaded row. Team
+ * members with no address of their own are delivered via their leader.
+ */
+export async function listAllRecipients(event: CertEvent, groups: CertificateGroup[]): Promise<Recipient[]> {
+  const participants = groups.find((g) => g.kind === "participants");
+  const sheetGroups = groups.filter((g) => g.kind === "sheet");
+  const [registrations, status, sheetRows] = await Promise.all([
     listRegistrations(event.id),
-    admin
-      .from("certificates")
-      .select("id, recipient_key, serial, issued_at, revoked_at, revoked_reason")
-      .eq("event_id", event.id)
-      .eq("type", "participation"),
+    ledgerStatus(event.id),
+    Promise.all(sheetGroups.map(async (g) => ({ group: g, rows: await listSheetRows(g.id) }))),
   ]);
-  if (ledger.error) throw ledger.error;
-  const status = statusByKey(ledger.data ?? []);
-  return registrations
-    .filter((r) => r.attended)
-    .map((r) => {
-      const key = registrationKey(r.id);
-      return {
+
+  const out: Recipient[] = [];
+  const taken = new Set<string>();
+
+  if (participants) {
+    for (const registration of registrations.filter((r) => r.attended)) {
+      const team = teamOf(registration, event.schema);
+      const leaderEmail = registration.email.trim() || null;
+      const teamLabel = registration.teamName?.trim() || (team.length > 0 ? `Team ${out.length + 1}` : null);
+      const key = registrationKey(registration.id);
+      taken.add(key);
+      out.push({
         key,
-        registrationId: r.id,
-        name: r.name.trim(),
-        email: r.email.trim() || null,
-        values: registrantValues({ event: event.info, schema: event.schema, registration: r, groupLabel: PARTICIPATION_LABEL }),
+        groupId: participants.id,
+        groupLabel: PARTICIPATION_LABEL,
+        kind: "registration",
+        registrationId: registration.id,
+        name: registration.name.trim(),
+        teamLabel: team.length > 0 ? teamLabel : null,
+        email: leaderEmail,
+        deliverTo: leaderEmail,
+        viaLeader: false,
+        values: registrantValues({
+          event: event.info,
+          schema: event.schema,
+          registration,
+          groupLabel: PARTICIPATION_LABEL,
+        }),
         status: status.get(key) ?? { state: "pending" },
-      };
-    });
+      });
+
+      for (const member of team.filter((p) => !p.isLeader)) {
+        const memberK = memberKey(registration.id, member, taken);
+        out.push({
+          key: memberK,
+          groupId: participants.id,
+          groupLabel: PARTICIPATION_LABEL,
+          kind: "member",
+          registrationId: registration.id,
+          name: member.name || member.roll,
+          teamLabel,
+          email: member.email,
+          deliverTo: member.email ?? leaderEmail,
+          viaLeader: !member.email && !!leaderEmail,
+          values: memberValues({
+            event: event.info,
+            schema: event.schema,
+            registration,
+            member,
+            groupLabel: PARTICIPATION_LABEL,
+          }),
+          status: status.get(memberK) ?? { state: "pending" },
+        });
+      }
+    }
+  }
+
+  for (const { group, rows } of sheetRows) {
+    for (const row of rows) {
+      const key = sheetKey(group.id, row, taken);
+      out.push({
+        key,
+        groupId: group.id,
+        groupLabel: group.name,
+        kind: "sheet",
+        registrationId: null,
+        name: row.name.trim(),
+        teamLabel: null,
+        email: row.email,
+        deliverTo: row.email,
+        viaLeader: false,
+        values: sheetValues({ event: event.info, columns: group.sheetColumns, row, groupLabel: group.name }),
+        status: status.get(key) ?? { state: "pending" },
+      });
+    }
+  }
+
+  return out;
 }
 
 export interface CertificateWorkspace {
   event: CertEvent;
+  groups: CertificateGroup[];
+  /** The group the Design tab is editing. */
   group: CertificateGroup;
   /** The stored design, with any field that no longer exists shown as text — what the editor opens. */
   editableDesign: Design;
   catalogue: FieldGroup[];
+  /** Every recipient, across every group. */
   recipients: Recipient[];
+  /** Counts for the active group. */
   counts: RecipientCounts;
   assetUrls: Record<string, string>;
 }
 
-export async function getCertificateWorkspace(eventId: string, actorId: string | null): Promise<CertificateWorkspace | null> {
+export async function getCertificateWorkspace(
+  eventId: string,
+  actorId: string | null,
+  activeGroupId?: string,
+): Promise<CertificateWorkspace | null> {
   const event = await getCertEvent(eventId);
   if (!event) return null;
-  const group = await ensureParticipantsGroup(eventId, actorId);
+  const groups = await listGroups(eventId, actorId);
+  const group = groups.find((g) => g.id === activeGroupId) ?? groups[0];
+  if (!group) return null;
+
   const catalogue = buildFieldCatalogue({ formSchema: event.schema, sheetColumns: group.sheetColumns });
   const ctx = designContextFor(event.schema, group.sheetColumns);
   const editableDesign = designWithUnknownFieldsAsText(
@@ -266,10 +453,19 @@ export async function getCertificateWorkspace(eventId: string, actorId: string |
     (key) => fieldLabel(catalogue, key),
   );
   const [recipients, assetUrls] = await Promise.all([
-    listParticipantRecipients(event),
+    listAllRecipients(event, groups),
     signAssetUrls(assetRefsOf(editableDesign)),
   ]);
-  return { event, group, editableDesign, catalogue, recipients, counts: countRecipients(recipients), assetUrls };
+  return {
+    event,
+    groups,
+    group,
+    editableDesign,
+    catalogue,
+    recipients,
+    counts: countRecipients(recipients.filter((r) => r.groupId === group.id)),
+    assetUrls,
+  };
 }
 
 /** Other events whose design this admin may copy: they manage the event and it has a template. */

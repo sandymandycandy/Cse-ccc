@@ -3,35 +3,32 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { issueCertificatesBatchAction } from "@/app/admin/(app)/events/[id]/certificates/actions";
-import type { IssueMode, RecipientCounts, RecipientStatus } from "@/lib/certificates/recipients";
-
-export interface IssueRow {
-  key: string;
-  name: string;
-  email: string | null;
-  status: RecipientStatus;
-}
+import type { IssueMode, RecipientCounts } from "@/lib/certificates/recipients";
 
 interface Progress {
   done: number;
   failed: number;
   skipped: number;
+  emails: number;
   remaining: number;
 }
 
 /**
- * Bulk issuing (spec §5.2): the browser calls one server batch at a time
- * behind a progress bar, so a long run survives the function timeout and can
- * be stopped. Closing the tab only stops it; the next run picks up where it left.
+ * Bulk issuing (spec §5.2): the browser calls one server batch at a time behind
+ * a progress bar, so a long run survives the function timeout and can be
+ * stopped. Closing the tab only stops it; the next run picks up where it left,
+ * and nobody is ever issued twice.
  */
 export function IssuePanel({
   eventId,
-  rows,
+  groupId,
+  groupName,
   counts,
   hasTemplate,
 }: {
   eventId: string;
-  rows: IssueRow[];
+  groupId: string;
+  groupName: string;
   counts: RecipientCounts;
   hasTemplate: boolean;
 }) {
@@ -45,11 +42,17 @@ export function IssuePanel({
     stop.current = false;
     setRunning(mode);
     setError(null);
-    const p: Progress = { done: 0, failed: 0, skipped: 0, remaining: mode === "email" ? counts.pendingEmail : counts.pendingEmail + counts.noEmail };
+    const p: Progress = {
+      done: 0,
+      failed: 0,
+      skipped: 0,
+      emails: 0,
+      remaining: mode === "email" ? counts.pendingEmail : counts.pendingEmail + counts.noEmail,
+    };
     setProgress({ ...p });
     try {
       while (!stop.current) {
-        const res = await issueCertificatesBatchAction({ eventId, mode });
+        const res = await issueCertificatesBatchAction({ eventId, groupIds: [groupId], mode });
         if (!res.ok) {
           setError(res.error);
           break;
@@ -57,6 +60,7 @@ export function IssuePanel({
         p.done += res.sent + res.recorded;
         p.failed += res.failed;
         p.skipped += res.skipped;
+        p.emails += res.emails;
         p.remaining = res.remaining;
         setProgress({ ...p });
         if (res.processed === 0 || res.remaining === 0) break;
@@ -76,10 +80,11 @@ export function IssuePanel({
   const total = progress ? progress.done + progress.failed + progress.remaining : 0;
 
   return (
-    <section style={{ marginTop: 20 }}>
+    <section style={{ marginTop: 18 }}>
       <p className="body-text">
-        {counts.total} attended · {counts.issued} issued · {counts.pendingEmail} to email
-        {counts.noEmail ? ` · ${counts.noEmail} without an email` : ""}
+        <strong>{groupName}</strong>: {counts.total} {counts.total === 1 ? "person" : "people"} · {counts.issued} issued ·{" "}
+        {counts.pendingEmail} to email
+        {counts.noEmail ? ` · ${counts.noEmail} without an address (issue then download)` : ""}
         {counts.revoked ? ` · ${counts.revoked} revoked` : ""}
       </p>
 
@@ -112,7 +117,8 @@ export function IssuePanel({
         <div style={{ marginTop: 12, maxWidth: 520 }}>
           <progress value={progress.done + progress.failed} max={Math.max(1, total)} style={{ width: "100%" }} />
           <p className="hint">
-            {progress.done} done{progress.failed ? ` · ${progress.failed} failed (retried next run)` : ""}
+            {progress.done} done{progress.emails ? ` in ${progress.emails} email${progress.emails === 1 ? "" : "s"}` : ""}
+            {progress.failed ? ` · ${progress.failed} failed (retried next run)` : ""}
             {progress.skipped ? ` · ${progress.skipped} already issued` : ""} · {progress.remaining} left
           </p>
         </div>
@@ -123,44 +129,10 @@ export function IssuePanel({
         </p>
       ) : null}
 
-      {rows.length > 0 ? (
-        <div className="tablewrap" style={{ marginTop: 16 }}>
-          <table className="admin">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Certificate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={r.key}>
-                  <td>{i + 1}</td>
-                  <td style={{ fontWeight: 500 }}>{r.name || "—"}</td>
-                  <td>{r.email ?? <span style={{ color: "var(--rust)" }}>no email</span>}</td>
-                  <td>
-                    {r.status.state === "issued" ? (
-                      <span className="abadge abadge-approved" title={r.status.serial}>
-                        Issued
-                      </span>
-                    ) : r.status.state === "revoked" ? (
-                      <span className="abadge abadge-rejected">Revoked</span>
-                    ) : (
-                      <span className="abadge abadge-pending">Pending</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="cal-empty" style={{ marginTop: 14 }}>
-          No attendees yet — mark people present on the registrations page first.
-        </div>
-      )}
+      <p className="hint" style={{ marginTop: 14, maxWidth: 620 }}>
+        Team members without an email of their own are sent to their team leader, who gets one message with every
+        certificate for their team. See who gets what on the <strong>Recipients</strong> tab.
+      </p>
     </section>
   );
 }

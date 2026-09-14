@@ -2635,6 +2635,47 @@
   }
   .cd-menu-item:hover { background: var(--sand); }
   .cd-copy { margin-top: 14px; }
+  /* Recipients tab + group bar */
+  .cd-groups { display: grid; gap: 8px; margin-top: 14px; }
+  .cd-groups input[type="text"],
+  .cd-groups input:not([type]),
+  .cd-filters input,
+  .cd-filters select,
+  .cd-upload select {
+    padding: 7px 10px;
+    border: 1px solid var(--line-3);
+    border-radius: 8px;
+    background: var(--paper-2);
+    color: var(--ink);
+    font: 400 13px var(--sans);
+  }
+  .cd-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-md);
+    background: var(--card);
+  }
+  .cd-filters input[type="search"] { flex: 1 1 240px; min-width: 0; }
+  .cd-confirm {
+    display: grid;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--line-3);
+    border-radius: var(--r-md);
+    background: var(--sand);
+  }
+  .cd-upload { display: grid; gap: 10px; }
+  @media (max-width: 599px) {
+    /* 16px stops iOS Safari zooming the page when a control takes focus. */
+    .cd-filters input,
+    .cd-filters select,
+    .cd-groups input,
+    .cd-upload select { font-size: 16px; }
+  }
 }
 
 @keyframes cal-fade { from { opacity: 0; } to { opacity: 1; } }

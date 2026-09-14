@@ -8,8 +8,21 @@ import { getAdminSession, type AdminSession } from "@/lib/auth/guards";
 import { canManage } from "@/lib/auth/capabilities";
 import { writeAudit } from "@/lib/admin/audit";
 import { getEventForAttendance, type AttendanceEvent } from "@/lib/admin/attendance";
-import { getCertEvent, getGroup, getParticipantsGroup } from "@/lib/admin/certificates";
-import { issueParticipantBatch, type IssueBatchResult } from "@/lib/admin/certificate-issue";
+import {
+  createSheetGroup,
+  deleteSheetGroup,
+  getCertEvent,
+  getGroup,
+  getParticipantsGroup,
+  renameGroup,
+  replaceSheetRows,
+} from "@/lib/admin/certificates";
+import {
+  issueBatch,
+  reissueForRecipient,
+  revokeCertificate,
+  type IssueBatchResult,
+} from "@/lib/admin/certificate-issue";
 import { assetLoader, signAssetUrls, verifyNewAssets } from "@/lib/certificates/assets";
 import {
   assetKey,
@@ -23,6 +36,7 @@ import {
 } from "@/lib/certificates/design";
 import { buildFieldCatalogue, designContextFor, fieldLabel } from "@/lib/certificates/fields";
 import type { IssueMode } from "@/lib/certificates/recipients";
+import { buildSheetRows, type ColumnChoice } from "@/lib/certificates/sheet";
 import { designWithUnknownFieldsAsText } from "@/lib/certificates/rich-text";
 
 const CAP = "issue:participation_certificate";
@@ -31,6 +45,13 @@ const uuid = z.string().uuid();
 export type ActionResult = { ok: true } | { ok: false; error: string };
 export type UploadTicket = { ok: true; path: string; token: string } | { ok: false; error: string };
 export type IssueBatchResponse = ({ ok: true } & IssueBatchResult) | { ok: false; error: string };
+export type GroupResult = { ok: true; groupId: string } | { ok: false; error: string };
+export type SheetUploadResult =
+  | { ok: true; rows: number; dropped: number; invalidEmails: number; columns: string[] }
+  | { ok: false; error: string };
+export type ReissueResult =
+  | { ok: true; serial: string; emailed: boolean; superseded: boolean }
+  | { ok: false; error: string };
 export type CopyDesignResult =
   | { ok: true; design: Design; assetUrls: Record<string, string> }
   | { ok: false; error: string };
@@ -112,15 +133,184 @@ export async function createCertificateUploadAction(input: {
 }
 
 /** Issue the next batch; the Issue tab calls this in a loop (spec §5.2). */
-export async function issueCertificatesBatchAction(input: { eventId: string; mode: IssueMode }): Promise<IssueBatchResponse> {
+export async function issueCertificatesBatchAction(input: {
+  eventId: string;
+  groupIds: string[];
+  mode: IssueMode;
+}): Promise<IssueBatchResponse> {
   const auth = await authorize(input.eventId);
   if (!auth.ok) return { ok: false, error: auth.error };
   if (input.mode !== "email" && input.mode !== "record") return { ok: false, error: "Unknown issue mode." };
+  const groupIds = (input.groupIds ?? []).filter((id) => uuid.safeParse(id).success);
+  if (groupIds.length === 0) return { ok: false, error: "Choose at least one group to issue." };
 
-  const result = await issueParticipantBatch({ eventId: input.eventId, mode: input.mode, actorId: auth.session.id });
+  const result = await issueBatch({ eventId: input.eventId, groupIds, mode: input.mode, actorId: auth.session.id });
   if ("error" in result) return { ok: false, error: result.error };
   revalidatePath(`/admin/events/${input.eventId}/certificates`);
   return { ok: true, ...result };
+}
+
+// ── groups ───────────────────────────────────────────────────────────────────
+
+const groupName = z.string().trim().min(1).max(60);
+
+/** Add an uploaded-list group (volunteers, judges…), starting from the Participants design. */
+export async function createCertificateGroupAction(input: {
+  eventId: string;
+  name: string;
+}): Promise<GroupResult> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const name = groupName.safeParse(input.name);
+  if (!name.success) return { ok: false, error: "Give the group a name (up to 60 characters)." };
+
+  const created = await createSheetGroup({ eventId: input.eventId, name: name.data, actorId: auth.session.id });
+  if ("error" in created) return { ok: false, error: created.error };
+  await writeAudit({
+    actorId: auth.session.id,
+    action: "create",
+    entity: "certificate_group",
+    entityId: created.id,
+    after: { eventId: input.eventId, name: name.data },
+  });
+  revalidatePath(`/admin/events/${input.eventId}/certificates`);
+  return { ok: true, groupId: created.id };
+}
+
+export async function renameCertificateGroupAction(input: {
+  eventId: string;
+  groupId: string;
+  name: string;
+}): Promise<ActionResult> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const name = groupName.safeParse(input.name);
+  if (!name.success) return { ok: false, error: "Give the group a name (up to 60 characters)." };
+  if (!(await renameGroup(input.eventId, input.groupId, name.data))) {
+    return { ok: false, error: "Could not rename that group." };
+  }
+  await writeAudit({
+    actorId: auth.session.id,
+    action: "update",
+    entity: "certificate_group",
+    entityId: input.groupId,
+    after: { name: name.data },
+  });
+  revalidatePath(`/admin/events/${input.eventId}/certificates`);
+  return { ok: true };
+}
+
+/** Delete an uploaded group. Certificates already issued from it keep their own snapshot. */
+export async function deleteCertificateGroupAction(input: { eventId: string; groupId: string }): Promise<ActionResult> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const group = await getGroup(input.eventId, input.groupId);
+  if (!group) return { ok: false, error: "That group no longer exists." };
+  if (group.kind !== "sheet") return { ok: false, error: "The participants group can't be deleted." };
+  if (!(await deleteSheetGroup(input.eventId, input.groupId))) {
+    return { ok: false, error: "Could not delete that group." };
+  }
+  await writeAudit({
+    actorId: auth.session.id,
+    action: "delete",
+    entity: "certificate_group",
+    entityId: input.groupId,
+    before: { name: group.name },
+  });
+  revalidatePath(`/admin/events/${input.eventId}/certificates`);
+  return { ok: true };
+}
+
+/**
+ * Replace an uploaded group's people. The browser parses the file (CSV here,
+ * XLSX via read-excel-file) and sends rows; the caps are re-checked server-side.
+ */
+export async function uploadCertificateSheetAction(input: {
+  eventId: string;
+  groupId: string;
+  table: string[][];
+  choice: ColumnChoice;
+}): Promise<SheetUploadResult> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const group = await getGroup(input.eventId, input.groupId);
+  if (!group || group.kind !== "sheet") return { ok: false, error: "Upload into one of your own groups." };
+  if (!Array.isArray(input.table)) return { ok: false, error: "That file could not be read." };
+
+  const built = buildSheetRows(input.table, input.choice);
+  if (!built.ok) return { ok: false, error: built.error };
+
+  const saved = await replaceSheetRows(input.eventId, input.groupId, built.columns, built.rows);
+  if ("error" in saved) return { ok: false, error: saved.error };
+
+  await writeAudit({
+    actorId: auth.session.id,
+    action: "upload",
+    entity: "certificate_sheet",
+    entityId: input.groupId,
+    after: {
+      eventId: input.eventId,
+      group: group.name,
+      rows: built.rows.length,
+      dropped: built.dropped,
+      invalidEmails: built.invalidEmails,
+      columns: built.columns,
+    },
+  });
+  revalidatePath(`/admin/events/${input.eventId}/certificates`);
+  return { ok: true, rows: built.rows.length, dropped: built.dropped, invalidEmails: built.invalidEmails, columns: built.columns };
+}
+
+// ── one certificate at a time ────────────────────────────────────────────────
+
+/**
+ * Issue this person's certificate again with today's data and design: a live
+ * one is superseded, a revoked or never-issued one is written fresh (spec §5.3).
+ */
+export async function reissueCertificateAction(input: {
+  eventId: string;
+  recipientKey: string;
+}): Promise<ReissueResult> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const key = z.string().trim().min(1).max(200).safeParse(input.recipientKey);
+  if (!key.success) return { ok: false, error: "Missing recipient." };
+
+  const result = await reissueForRecipient({
+    eventId: input.eventId,
+    recipientKey: key.data,
+    actorId: auth.session.id,
+  });
+  if ("error" in result) return { ok: false, error: result.error };
+  revalidatePath(`/admin/events/${input.eventId}/certificates`);
+  return { ok: true, ...result };
+}
+
+/**
+ * Revoke — the one certificate action that needs more than issuing rights
+ * (spec D8): Faculty Advisor, Vice President or Tech Head.
+ */
+export async function revokeCertificateAction(input: {
+  eventId: string;
+  certificateId: string;
+  reason: string;
+}): Promise<ActionResult> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  if (!canManage(auth.session, "revoke:certificate", auth.ev.clubId)) {
+    return { ok: false, error: "Only the Faculty Advisor, Vice President or Tech Head can revoke. You can re-issue instead." };
+  }
+  if (!uuid.safeParse(input.certificateId).success) return { ok: false, error: "Missing certificate." };
+
+  const result = await revokeCertificate({
+    eventId: input.eventId,
+    certificateId: input.certificateId,
+    reason: String(input.reason ?? ""),
+    actorId: auth.session.id,
+  });
+  if ("error" in result) return { ok: false, error: result.error };
+  revalidatePath(`/admin/events/${input.eventId}/certificates`);
+  return { ok: true };
 }
 
 /**
