@@ -355,6 +355,19 @@ export async function getIssuedCertificate(certificateId: string): Promise<Issue
   };
 }
 
+/**
+ * Several issued certificates at once, in the order asked for. Chunked so a
+ * booklet of 300 does not build one enormous IN list.
+ */
+export async function getIssuedCertificates(ids: string[]): Promise<IssuedCertificate[]> {
+  const out = new Map<string, IssuedCertificate>();
+  for (let i = 0; i < ids.length; i += 100) {
+    const loaded = await Promise.all(ids.slice(i, i + 100).map((id) => getIssuedCertificate(id)));
+    for (const cert of loaded) if (cert) out.set(cert.id, cert);
+  }
+  return ids.map((id) => out.get(id)).filter((c): c is IssuedCertificate => !!c);
+}
+
 /** Re-render an issued certificate exactly as it was sent. */
 export async function renderIssuedCertificate(cert: IssuedCertificate): Promise<Uint8Array> {
   return renderCertificatesPdf({

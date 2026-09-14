@@ -3,7 +3,7 @@ import { requireSession } from "@/lib/auth/guards";
 import { canManage } from "@/lib/auth/capabilities";
 import { getEventForAttendance } from "@/lib/admin/attendance";
 import { getCertificateWorkspace } from "@/lib/admin/certificates";
-import { getIssuedCertificate } from "@/lib/admin/certificate-issue";
+import { getIssuedCertificates } from "@/lib/admin/certificate-issue";
 import { assetLoader } from "@/lib/certificates/assets";
 import { loadFontFile } from "@/lib/certificates/font-files";
 import { renderCertificatesPdf } from "@/lib/certificates/render";
@@ -41,15 +41,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     );
   }
 
-  // Each page is drawn from the certificate's own snapshot, so the booklet
-  // matches what each person received rather than today's design.
-  const pages: { valueFor: (key: string) => string }[] = [];
-  for (const recipient of issued) {
-    if (recipient.status.state !== "issued") continue;
-    const cert = await getIssuedCertificate(recipient.status.certificateId);
-    if (!cert) continue;
-    pages.push({ valueFor: (key) => cert.values[key] ?? "" });
-  }
+  // Each page is drawn from the certificate's OWN design version and snapshot,
+  // so the booklet matches what each person received rather than today's design.
+  const certificates = await getIssuedCertificates(
+    issued.map((r) => (r.status.state === "issued" ? r.status.certificateId : "")).filter(Boolean),
+  );
+  const pages = certificates.map((cert) => ({
+    design: cert.design,
+    valueFor: (key: string) => cert.values[key] ?? "",
+  }));
   if (pages.length === 0) return Response.json({ error: "Could not rebuild those certificates." }, { status: 500 });
 
   let pdf: Uint8Array;

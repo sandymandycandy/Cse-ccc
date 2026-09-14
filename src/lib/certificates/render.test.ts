@@ -116,3 +116,32 @@ describe("renderCertificatesPdf — verification QR", () => {
     expect(isPdf(bytes)).toBe(true);
   });
 });
+
+describe("renderCertificatesPdf — a design per page", () => {
+  it("draws each page with its own design and size, embedding each template once", async () => {
+    const landscape = design();
+    const portrait: Design = { ...emptyDesign(), page: { template: asset("portrait"), widthPx: 2480, heightPx: 3508 } };
+    const loads: string[] = [];
+    const bytes = await renderCertificatesPdf({
+      design: landscape,
+      pages: [
+        { valueFor: () => "asha r" },
+        { valueFor: () => "ravi k", design: portrait },
+        { valueFor: () => "kim p" },
+      ],
+      loadAsset: async (ref) => {
+        loads.push(ref.path);
+        return PNG;
+      },
+      loadFont,
+    });
+    const doc = await PDFDocument.load(bytes);
+    expect(doc.getPageCount()).toBe(3);
+    const sizes = doc.getPages().map((p) => p.getSize());
+    expect(sizes[0].width).toBeGreaterThan(sizes[0].height);
+    expect(sizes[1].height).toBeCloseTo(PAGE_LONG_EDGE_PT, 5);
+    expect(sizes[1].width).toBeLessThan(sizes[1].height);
+    expect(sizes[2]).toEqual(sizes[0]);
+    expect(loads.sort()).toEqual(["logo", "portrait", "template"]);
+  });
+});

@@ -23,8 +23,13 @@ import { siteOrigin } from "@/lib/site-origin";
 export const PAGE_LONG_EDGE_PT = 842;
 
 export interface RenderInput {
+  /** The design every page uses unless the page brings its own. */
   design: Design;
-  pages: { valueFor: (field: string) => string }[];
+  /**
+   * One entry per page. A page may carry its own design — the print booklet
+   * draws each certificate with the design version it was issued with.
+   */
+  pages: { valueFor: (field: string) => string; design?: Design }[];
   loadAsset: (ref: AssetRef) => Promise<Uint8Array>;
   loadFont: (face: FaceId) => Promise<Uint8Array>;
   /** Origin the verification QR points at. Defaults to NEXT_PUBLIC_SITE_URL; tests pass their own. */
@@ -38,13 +43,6 @@ const rgbHex = (hex: string) =>
   rgb(parseInt(hex.slice(1, 3), 16) / 255, parseInt(hex.slice(3, 5), 16) / 255, parseInt(hex.slice(5, 7), 16) / 255);
 
 export async function renderCertificatesPdf(input: RenderInput): Promise<Uint8Array> {
-  const { design } = input;
-  const W = design.page.widthPx;
-  const H = design.page.heightPx;
-  const k = PAGE_LONG_EDGE_PT / Math.max(W, H); // page px → pt
-  const pageW = W * k;
-  const pageH = H * k;
-
   const origin = input.verifyOrigin ?? siteOrigin() ?? "";
 
   const pdf = await PDFDocument.create();
@@ -75,7 +73,15 @@ export async function renderCertificatesPdf(input: RenderInput): Promise<Uint8Ar
     return p;
   };
 
-  for (const { valueFor } of input.pages) {
+  for (const entry of input.pages) {
+    const { valueFor } = entry;
+    // Sizes are per page: a booklet can mix designs, so nothing here is hoisted.
+    const design = entry.design ?? input.design;
+    const W = design.page.widthPx;
+    const H = design.page.heightPx;
+    const k = PAGE_LONG_EDGE_PT / Math.max(W, H); // page px → pt
+    const pageW = W * k;
+    const pageH = H * k;
     const page = pdf.addPage([pageW, pageH]);
     if (design.page.template) {
       page.drawImage(await image(design.page.template), { x: 0, y: 0, width: pageW, height: pageH });
