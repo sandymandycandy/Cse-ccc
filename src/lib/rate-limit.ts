@@ -110,6 +110,11 @@ export function checkRollLookupLimits(ip: string): RateResult {
   return rateLimit(`lookup:ip:${ip}`, 20, 10 * MIN);
 }
 
+/** Public certificate verification: 20 per IP / minute (spec §7). */
+export function checkVerifyLimits(ip: string): RateResult {
+  return rateLimit(`verify:ip:${ip}`, 20, MIN);
+}
+
 /** The admin login contract: 3 attempts, then a 1-minute lockout. Shared by the
  *  consuming check and the read-only peek so the two can never disagree. */
 const LOGIN_MAX = 3;

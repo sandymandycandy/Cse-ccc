@@ -2679,6 +2679,76 @@
     .cd-groups input,
     .cd-upload select { font-size: 16px; }
   }
+
+  /* ── /verify — public certificate check ── */
+  .verify-page {
+    max-width: 580px;
+    margin: 0 auto;
+    padding: clamp(32px, 6vw, 64px) 20px;
+  }
+  .verify-title {
+    font: 400 clamp(30px, 5vw, 44px) / 1.05 var(--serif);
+    letter-spacing: -0.02em;
+    margin: 0 0 8px;
+  }
+  .eyebrow + .verify-title { margin-top: 10px; }
+  .verify-verdict {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 18px;
+    align-items: start;
+    margin: 18px 0 22px;
+  }
+  .verify-mark {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    margin-top: 2px;
+    border-radius: 50%;
+    font: 600 24px / 1 var(--sans);
+    background: var(--sand);
+    color: var(--ink-2);
+  }
+  .verify-verdict[data-tone="valid"] .verify-mark { background: var(--forest-tint); color: var(--forest); }
+  .verify-verdict[data-tone="revoked"] .verify-mark { background: var(--rust-tint); color: var(--rust); }
+  .verify-verdict[data-tone="revoked"] .verify-title { color: var(--rust); }
+  .verify-card { padding: clamp(18px, 4vw, 26px); }
+  .verify-name {
+    font: 400 clamp(26px, 4vw, 34px) / 1.1 var(--serif);
+    margin: 4px 0 0;
+    overflow-wrap: anywhere;
+  }
+  .verify-facts {
+    display: grid;
+    grid-template-columns: minmax(96px, auto) 1fr;
+    gap: 12px 20px;
+    margin: 18px 0 0;
+  }
+  .verify-card > .verify-facts:first-child { margin-top: 0; }
+  .verify-facts dt {
+    font: 500 10px var(--mono);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    padding-top: 4px;
+  }
+  .verify-facts dd {
+    margin: 0;
+    font: 400 14.5px / 1.5 var(--sans);
+    color: var(--ink);
+    overflow-wrap: anywhere;
+  }
+  .verify-facts .verify-serial { font: 500 13px / 1.6 var(--mono); letter-spacing: 0.02em; }
+  .verify-again { margin-top: 28px; padding: 14px clamp(18px, 4vw, 24px); }
+  .verify-again summary { cursor: pointer; }
+  @media (max-width: 479px) {
+    .verify-verdict { gap: 14px; }
+    .verify-mark { width: 42px; height: 42px; font-size: 20px; }
+    .verify-facts { grid-template-columns: 1fr; gap: 2px; }
+    .verify-facts dd { margin-bottom: 10px; }
+    .verify-page input { font-size: 16px; }
+  }
 }
 
 @keyframes cal-fade { from { opacity: 0; } to { opacity: 1; } }
