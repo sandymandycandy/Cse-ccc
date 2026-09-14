@@ -82,7 +82,6 @@ export function countRecipients(recipients: Recipient[]): RecipientCounts {
 /** "Certificate - Asha R - Hack Night.pdf", safe as an attachment or ZIP entry name. */
 export function certificateFileName(name: string, eventTitle: string): string {
   const base = `Certificate - ${name.trim() || "Participant"} - ${eventTitle.trim()}`
-    // eslint-disable-next-line no-control-regex
     .replace(/[\\/:*?"<>|\x00-\x1f]+/g, " ")
     .replace(/\s+/g, " ")
     .trim()

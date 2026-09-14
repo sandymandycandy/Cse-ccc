@@ -15,8 +15,8 @@ export default async function CertificatesPage() {
       <div className="eyebrow">Certificates</div>
       <h1 style={{ margin: "6px 0 0" }}>Participation certificates</h1>
       <p className="body-text" style={{ marginTop: 8, maxWidth: 620 }}>
-        Pick an event to upload its certificate template, position the name and email
-        every attendee their PDF. Only people marked <strong>present</strong> appear.
+        Pick an event to design its certificate — template, logos, wording and fields —
+        then issue every attendee their PDF. Only people marked <strong>present</strong> appear.
       </p>
 
       {events.length === 0 ? (
@@ -54,7 +54,7 @@ export default async function CertificatesPage() {
                       href={`/admin/events/${e.id}/certificates`}
                       className="btn btn-accent btn-sm"
                     >
-                      Issue
+                      Open
                     </Link>
                   </td>
                 </tr>
