@@ -198,6 +198,65 @@ function answerValues(schema: FormField[], answers: Record<string, unknown> | nu
   return out;
 }
 
+const rosterEntryOf = (r: RegistrationForFields): RosterEntry => ({
+  name: r.name,
+  teamName: r.teamName,
+  roll: r.roll,
+  department: r.department,
+  year: r.year,
+  email: r.email,
+  phone: r.phone,
+  customAnswers: r.customAnswers,
+});
+
+/** Everyone on this entry — the leader first, then the members they listed. */
+export function teamOf(registration: RegistrationForFields, schema: FormField[]): TeamPerson[] {
+  if (!hasTeamBlock(schema)) return [];
+  return listParticipants([rosterEntryOf(registration)], schema)
+    .filter((p) => p.name.trim() !== "" || p.roll.trim() !== "")
+    .map((p) => ({
+      name: p.name.trim(),
+      roll: p.roll.trim(),
+      department: p.department?.trim() || null,
+      year: p.year?.trim() || null,
+      email: p.email?.trim() || null,
+      phone: p.phone?.trim() || null,
+      isLeader: p.role === "leader",
+    }));
+}
+
+/** One person on a team entry, flattened out of the registration's answers. */
+export interface TeamPerson {
+  name: string;
+  roll: string;
+  department: string | null;
+  year: string | null;
+  email: string | null;
+  phone: string | null;
+  isLeader: boolean;
+}
+
+/** What the whole entry shares: its team, the event, and the answers it submitted. */
+function entryValues(input: {
+  event: CertEventInfo;
+  schema: FormField[];
+  registration: RegistrationForFields;
+  groupLabel: string;
+}): FieldValues {
+  const team = teamOf(input.registration, input.schema);
+  const isTeamEvent = hasTeamBlock(input.schema);
+  return {
+    "team.name": input.registration.teamName?.trim() ?? "",
+    "team.members": team.map((p) => p.name).filter(Boolean).join(", "),
+    "team.size": isTeamEvent ? String(team.length) : "",
+    ...eventValues(input.event),
+    ...answerValues(input.schema, input.registration.customAnswers),
+    "cert.serial": "",
+    "cert.issueDate": "",
+    "cert.group": input.groupLabel,
+  };
+}
+
 /**
  * Values for the person who submitted a registration — a solo participant, or
  * the leader of a team (spec §3.1). Serial and issue date are filled at issue.
@@ -208,19 +267,7 @@ export function registrantValues(input: {
   registration: RegistrationForFields;
   groupLabel: string;
 }): FieldValues {
-  const { event, schema, registration: r } = input;
-  const team = hasTeamBlock(schema);
-  const entry: RosterEntry = {
-    name: r.name,
-    teamName: r.teamName,
-    roll: r.roll,
-    department: r.department,
-    year: r.year,
-    email: r.email,
-    phone: r.phone,
-    customAnswers: r.customAnswers,
-  };
-  const people = team ? listParticipants([entry], schema).filter((p) => p.name.trim() !== "") : [];
+  const r = input.registration;
   return {
     "person.name": r.name.trim(),
     "person.roll": r.roll.trim(),
@@ -228,12 +275,64 @@ export function registrantValues(input: {
     "person.year": r.year == null ? "" : String(r.year),
     "person.email": r.email.trim(),
     "person.phone": r.phone?.trim() ?? "",
-    "person.role": team ? "Team leader" : "Participant",
-    "team.name": r.teamName?.trim() ?? "",
-    "team.members": people.map((p) => p.name.trim()).join(", "),
-    "team.size": team ? String(people.length) : "",
-    ...eventValues(event),
-    ...answerValues(schema, r.customAnswers),
+    "person.role": hasTeamBlock(input.schema) ? "Team leader" : "Participant",
+    ...entryValues(input),
+  };
+}
+
+/**
+ * Values for one member of a team: their own identity, their team's shared
+ * answers. A member the form did not ask for a department simply prints none.
+ */
+export function memberValues(input: {
+  event: CertEventInfo;
+  schema: FormField[];
+  registration: RegistrationForFields;
+  member: TeamPerson;
+  groupLabel: string;
+}): FieldValues {
+  const m = input.member;
+  return {
+    "person.name": m.name,
+    "person.roll": m.roll,
+    "person.department": m.department ?? "",
+    "person.year": m.year ?? "",
+    "person.email": m.email ?? "",
+    "person.phone": m.phone ?? "",
+    "person.role": "Team member",
+    ...entryValues(input),
+  };
+}
+
+/**
+ * Values for a row of an uploaded list (volunteers, judges). Its own columns
+ * are addressable as `sheet.<column>`; the person fields the sheet has no
+ * column for print empty.
+ */
+export function sheetValues(input: {
+  event: CertEventInfo;
+  columns: string[];
+  row: { name: string; email: string | null; data: Record<string, unknown> | null };
+  groupLabel: string;
+}): FieldValues {
+  const columns: FieldValues = {};
+  for (const column of input.columns) {
+    const value = input.row.data?.[column];
+    columns[`sheet.${column}`] = value == null ? "" : String(value).trim();
+  }
+  return {
+    "person.name": input.row.name.trim(),
+    "person.roll": "",
+    "person.department": "",
+    "person.year": "",
+    "person.email": input.row.email?.trim() ?? "",
+    "person.phone": "",
+    "person.role": input.groupLabel,
+    "team.name": "",
+    "team.members": "",
+    "team.size": "",
+    ...eventValues(input.event),
+    ...columns,
     "cert.serial": "",
     "cert.issueDate": "",
     "cert.group": input.groupLabel,

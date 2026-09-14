@@ -1,9 +1,14 @@
 import { describe, it, expect } from "vitest";
 import {
   certificateFileName,
+  chunkBySize,
   countRecipients,
+  cutBatch,
+  groupByDestination,
+  memberKey,
   pendingRecipients,
   registrationKey,
+  sheetKey,
   statusByKey,
   type CertificateLedgerRow,
   type Recipient,
@@ -47,23 +52,55 @@ describe("statusByKey", () => {
   });
 });
 
-describe("pending + counts", () => {
-  const r = (key: string, email: string | null, status: Recipient["status"]): Recipient => ({
-    key,
-    registrationId: key,
-    name: key,
-    email,
-    values: {},
-    status,
+describe("recipient keys", () => {
+  it("keys registrations, and their team members under them", () => {
+    const taken = new Set<string>();
+    expect(registrationKey("abc")).toBe("reg:abc");
+    expect(memberKey("abc", { name: "Ravi K", roll: " VTU1002 " }, taken)).toBe("reg:abc:m:vtu1002");
+    // Roll wins over name; a member with no roll falls back to the name.
+    expect(memberKey("abc", { name: "  Asha   R ", roll: "" }, taken)).toBe("reg:abc:m:asha r");
   });
+
+  it("numbers duplicates inside one team so nobody collides", () => {
+    const taken = new Set<string>();
+    expect(memberKey("abc", { name: "Ravi", roll: "VTU1" }, taken)).toBe("reg:abc:m:vtu1");
+    expect(memberKey("abc", { name: "Ravi", roll: "VTU1" }, taken)).toBe("reg:abc:m:vtu1#2");
+    expect(memberKey("abc", { name: "Ravi", roll: "vtu1" }, taken)).toBe("reg:abc:m:vtu1#3");
+  });
+
+  it("keys sheet rows by email, else name, so a re-upload keeps people matched", () => {
+    const taken = new Set<string>();
+    expect(sheetKey("g1", { name: "Asha", email: "A@X.COM" }, taken)).toBe("sheet:g1:a@x.com");
+    expect(sheetKey("g1", { name: "No Mail", email: null }, taken)).toBe("sheet:g1:no mail");
+    expect(sheetKey("g1", { name: "No Mail", email: null }, taken)).toBe("sheet:g1:no mail#2");
+  });
+});
+
+const person = (over: Partial<Recipient>): Recipient => ({
+  key: "reg:1",
+  groupId: "g1",
+  groupLabel: "Participation",
+  kind: "registration",
+  registrationId: "1",
+  name: "Asha",
+  teamLabel: null,
+  email: "asha@x.com",
+  deliverTo: "asha@x.com",
+  viaLeader: false,
+  values: {},
+  status: { state: "pending" },
+  ...over,
+});
+
+describe("pending + counts", () => {
   const list = [
-    r("a", "a@x", { state: "pending" }),
-    r("b", null, { state: "pending" }),
-    r("c", "c@x", { state: "issued", certificateId: "1", serial: "S", issuedAt: "t" }),
-    r("d", "d@x", { state: "revoked", revokedAt: "t" }),
+    person({ key: "a" }),
+    person({ key: "b", email: null, deliverTo: null }),
+    person({ key: "c", status: { state: "issued", certificateId: "1", serial: "S", issuedAt: "t" } }),
+    person({ key: "d", status: { state: "revoked", revokedAt: "t" } }),
   ];
 
-  it("emails only pending recipients with an address; records any pending one", () => {
+  it("emails only pending recipients with a destination; records any pending one", () => {
     expect(pendingRecipients(list, "email").map((x) => x.key)).toEqual(["a"]);
     expect(pendingRecipients(list, "record").map((x) => x.key)).toEqual(["a", "b"]);
   });
@@ -71,9 +108,60 @@ describe("pending + counts", () => {
   it("counts", () => {
     expect(countRecipients(list)).toEqual({ total: 4, issued: 1, revoked: 1, pendingEmail: 1, noEmail: 1 });
   });
+});
 
-  it("keys registrations", () => {
-    expect(registrationKey("abc")).toBe("reg:abc");
+describe("groupByDestination", () => {
+  it("puts everyone sharing an address in one email, in list order", () => {
+    const leader = person({ key: "reg:1", name: "Asha", deliverTo: "asha@x.com" });
+    const mate = person({ key: "reg:1:m:v2", name: "Ravi", kind: "member", email: null, deliverTo: "asha@x.com", viaLeader: true });
+    const other = person({ key: "reg:2", name: "Kim", deliverTo: "KIM@X.com" });
+    const dests = groupByDestination([leader, mate, other]);
+    expect(dests).toHaveLength(2);
+    expect(dests[0]).toMatchObject({ email: "asha@x.com" });
+    expect(dests[0].recipients.map((r) => r.name)).toEqual(["Asha", "Ravi"]);
+    // Case-insensitive grouping keeps the address as first written.
+    expect(dests[1].email).toBe("KIM@X.com");
+  });
+
+  it("skips recipients with nowhere to send", () => {
+    expect(groupByDestination([person({ deliverTo: null })])).toEqual([]);
+  });
+});
+
+describe("cutBatch", () => {
+  const dest = (email: string, n: number) => ({
+    email,
+    recipients: Array.from({ length: n }, (_, i) => person({ key: `${email}:${i}` })),
+  });
+
+  it("takes whole destinations until the batch is big enough", () => {
+    const batch = cutBatch([dest("a", 3), dest("b", 30), dest("c", 20), dest("d", 5)], 40);
+    expect(batch.map((d) => d.email)).toEqual(["a", "b", "c"]);
+    expect(batch.flatMap((d) => d.recipients)).toHaveLength(53);
+  });
+
+  it("never splits a destination, even one larger than the batch", () => {
+    const batch = cutBatch([dest("big", 90), dest("next", 1)], 40);
+    expect(batch.map((d) => d.email)).toEqual(["big"]);
+  });
+
+  it("returns nothing when there is nothing to do", () => {
+    expect(cutBatch([], 40)).toEqual([]);
+  });
+});
+
+describe("chunkBySize", () => {
+  it("splits once the running total would pass the cap", () => {
+    const items = [5, 5, 5, 30, 1];
+    expect(chunkBySize(items, (n) => n * 1024 * 1024, 20 * 1024 * 1024)).toEqual([[5, 5, 5], [30], [1]]);
+  });
+
+  it("keeps an over-cap item on its own rather than dropping it", () => {
+    expect(chunkBySize([50], (n) => n * 1024 * 1024, 20 * 1024 * 1024)).toEqual([[50]]);
+  });
+
+  it("returns nothing for no items", () => {
+    expect(chunkBySize([], () => 1, 10)).toEqual([]);
   });
 });
 

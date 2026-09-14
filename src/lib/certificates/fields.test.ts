@@ -7,6 +7,9 @@ import {
   fieldLabel,
   fieldNameValue,
   formatEventDate,
+  memberValues,
+  sheetValues,
+  teamOf,
   registrantValues,
   titleCase,
   type CertEventInfo,
@@ -136,6 +139,45 @@ describe("registrantValues", () => {
       "event.club": "Coding Club",
       "form.project": "Smart Bins",
       "cert.group": "Participation",
+    });
+  });
+
+  it("resolves a team member: own identity, the team's shared answers", () => {
+    const schema = [...defaultFormFor(), teamBlock, projectQ];
+    const team = teamOf(reg, schema);
+    expect(team.map((p) => p.name)).toEqual(["asha r", "Ravi K"]);
+    const member = team.find((p) => !p.isLeader)!;
+    const v = memberValues({ event, schema, registration: reg, member, groupLabel: "Participation" });
+    expect(v).toMatchObject({
+      "person.name": "Ravi K",
+      "person.roll": "VTU1002",
+      "person.role": "Team member",
+      "person.department": "", // the form never asked members for one
+      "team.name": "Byte Me",
+      "team.members": "asha r, Ravi K",
+      "team.size": "2",
+      "form.project": "Smart Bins",
+      "event.title": "Hack Night",
+    });
+  });
+
+  it("resolves a sheet row: its own columns, no team, event details shared", () => {
+    const v = sheetValues({
+      event,
+      columns: ["Role", "Shift"],
+      row: { name: " Kim ", email: "kim@x.com", data: { Role: "Judge", Shift: 2 } },
+      groupLabel: "Judges",
+    });
+    expect(v).toMatchObject({
+      "person.name": "Kim",
+      "person.email": "kim@x.com",
+      "person.roll": "",
+      "person.role": "Judges",
+      "sheet.Role": "Judge",
+      "sheet.Shift": "2",
+      "team.name": "",
+      "event.date": "14 September 2026",
+      "cert.group": "Judges",
     });
   });
 
