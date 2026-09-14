@@ -1,10 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
   LEADERSHIP_TITLES,
+  groupByClub,
   initialsOf,
   leadershipRankOf,
   mapRosterRows,
   socialsOf,
+  roleRankOf,
   sortRoster,
   splitRoster,
   type RosterMember,
@@ -19,6 +21,21 @@ const m = (designation: string, name: string, rollNo: string | null = null): Ros
   instagramUrl: null,
   bio: null,
   photoUrl: null,
+  clubId: null,
+  clubName: null,
+  clubSlug: null,
+});
+
+/** Same, but attached to a club — for the grouping tests. */
+const inClub = (
+  clubName: string,
+  designation: string,
+  name: string,
+): RosterMember => ({
+  ...m(designation, name),
+  clubId: clubName.toLowerCase(),
+  clubName,
+  clubSlug: clubName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
 });
 
 describe("initialsOf — the monogram shown in place of a photo", () => {
@@ -101,8 +118,8 @@ describe("sortRoster — A→Z by role, then by name", () => {
   });
 
   it("breaks a name tie on the id, so the order never flickers between renders", () => {
-    const a = { id: "a", name: "Same", rollNo: null, designation: "Head", linkedinUrl: null, instagramUrl: null, bio: null, photoUrl: null };
-    const b = { id: "b", name: "Same", rollNo: null, designation: "Head", linkedinUrl: null, instagramUrl: null, bio: null, photoUrl: null };
+    const a = { ...m("Head", "Same"), id: "a" };
+    const b = { ...m("Head", "Same"), id: "b" };
     expect(sortRoster([b, a]).map((x) => x.id)).toEqual(["a", "b"]);
   });
 
@@ -210,8 +227,25 @@ describe("mapRosterRows — DB rows to public members, with links sanitised", ()
         instagramUrl: null,
         bio: null,
         photoUrl: null,
+        clubId: null,
+        clubName: null,
+        clubSlug: null,
       },
     ]);
+  });
+
+  it("carries the joined club through, for grouping on /team", () => {
+    const out = mapRosterRows([
+      { ...row(), club_id: "c1", clubs: { id: "c1", name: "Ai Forge Club", slug: "ai-forge" } },
+    ]);
+    expect(out[0].clubId).toBe("c1");
+    expect(out[0].clubName).toBe("Ai Forge Club");
+    expect(out[0].clubSlug).toBe("ai-forge");
+  });
+
+  it("leaves the club null when the row carries no join", () => {
+    // A member self-registered through /council/join/[token] has no club set.
+    expect(mapRosterRows([row()])[0].clubName).toBeNull();
   });
 
   it("keeps well-formed http(s) links on both fields", () => {
@@ -318,5 +352,84 @@ describe("mapRosterRows — bio and photo", () => {
 
   it("is null when no resolver is supplied, rather than leaking a bare path as a URL", () => {
     expect(mapRosterRows([row({ photo_path: "abc.jpg" })])[0].photoUrl).toBeNull();
+  });
+});
+
+
+describe("roleRankOf — head before vice head inside a club", () => {
+  it("ranks a head above a vice head", () => {
+    expect(roleRankOf("Head")).toBeLessThan(roleRankOf("Vice Head"));
+  });
+
+  it("is case-insensitive, because the roster holds both spellings", () => {
+    expect(roleRankOf("vice head")).toBe(roleRankOf("Vice Head"));
+  });
+
+  it("recognises a vice head whose title also names the club", () => {
+    // Real roster row.
+    expect(roleRankOf("Vice Head Cyber Sentinel Club")).toBe(roleRankOf("Vice Head"));
+  });
+
+  it("does not treat a word merely CONTAINING 'vice' as a vice head", () => {
+    // Guards the obvious substring bug: "Services Head" is not a vice head.
+    expect(roleRankOf("Services Head")).toBe(roleRankOf("Head"));
+  });
+});
+
+describe("groupByClub — the public /team sections", () => {
+  it("returns no groups for an empty roster", () => {
+    expect(groupByClub([])).toEqual([]);
+  });
+
+  it("puts two members of one club in a single group", () => {
+    const rows = [inClub("Coding Club", "Head", "Navaneeth"), inClub("Coding Club", "Vice Head", "Sureesha")];
+    const groups = groupByClub(rows);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].clubName).toBe("Coding Club");
+    expect(groups[0].members.map((x) => x.name)).toEqual(["Navaneeth", "Sureesha"]);
+  });
+
+  it("orders the head first even when the vice head comes first in the input", () => {
+    const rows = [inClub("Yoga Club", "Vice Head", "Kanala"), inClub("Yoga Club", "Head", "Vanka")];
+    expect(groupByClub(rows)[0].members.map((x) => x.name)).toEqual(["Vanka", "Kanala"]);
+  });
+
+  it("orders two vice heads of one club A→Z by name", () => {
+    // Ai Forge really does have two vice heads.
+    const rows = [
+      inClub("Ai Forge", "Vice Head", "VENKATA MANIDHAR REDDY D"),
+      inClub("Ai Forge", "Vice Head", "DASA MANISAI"),
+    ];
+    expect(groupByClub(rows)[0].members.map((x) => x.name)).toEqual([
+      "DASA MANISAI",
+      "VENKATA MANIDHAR REDDY D",
+    ]);
+  });
+
+  it("orders the groups A→Z by club name", () => {
+    const rows = [inClub("Yoga Club", "Head", "V"), inClub("Coding Club", "Head", "N")];
+    expect(groupByClub(rows).map((g) => g.clubName)).toEqual(["Coding Club", "Yoga Club"]);
+  });
+
+  it("sorts club names case-insensitively", () => {
+    const rows = [inClub("appnova Club", "Head", "M"), inClub("Ai Forge Club", "Head", "R")];
+    expect(groupByClub(rows).map((g) => g.clubName)).toEqual(["Ai Forge Club", "appnova Club"]);
+  });
+
+  it("puts members with no club in a trailing group, after every named club", () => {
+    const rows = [m("Vice head", "K.Shashidhar Rao"), inClub("Yoga Club", "Head", "Vanka")];
+    const groups = groupByClub(rows);
+    expect(groups.map((g) => g.clubName)).toEqual(["Yoga Club", null]);
+    expect(groups[1].members.map((x) => x.name)).toEqual(["K.Shashidhar Rao"]);
+  });
+
+  it("returns only the no-club group when nobody has a club", () => {
+    const groups = groupByClub([m("Club Head", "Prathesh Kumar V")]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].clubId).toBeNull();
+  });
+
+  it("keeps the club's slug on the group, for linking to /clubs/<slug>", () => {
+    expect(groupByClub([inClub("Nature Club", "Head", "Rakshana")])[0].clubSlug).toBe("nature-club");
   });
 });

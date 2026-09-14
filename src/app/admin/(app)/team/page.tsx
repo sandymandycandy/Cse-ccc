@@ -2,9 +2,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireViewPage } from "@/lib/auth/guards";
 import { canManage, canView } from "@/lib/auth/capabilities";
-import { listTeamMembers, TeamColumnsMissingError } from "@/lib/admin/team";
+import { listClubOptions, listTeamMembers, TeamColumnsMissingError } from "@/lib/admin/team";
 import { TeamRow } from "@/components/admin/TeamRow";
-import { saveTeamLinksAction, setTeamVisibilityAction } from "./actions";
+import { AddTeamMember } from "@/components/admin/AddTeamMember";
+import {
+  addTeamMemberAction,
+  saveTeamLinksAction,
+  setTeamVisibilityAction,
+  setTeamVisibilityBulkAction,
+} from "./actions";
 
 export default async function AdminTeamPage() {
   const session = await requireViewPage("manage:council");
@@ -58,6 +64,10 @@ export default async function AdminTeamPage() {
   }
 
   const live = members.filter((m) => m.isPublic && m.isActive).length;
+  const clubs = await listClubOptions();
+  // The bulk form lives OUTSIDE every row, and each row's checkbox joins it by
+  // `form={BULK_FORM_ID}` — HTML forbids nested forms and a row already has two.
+  const BULK_FORM_ID = "team-bulk";
 
   return (
     <div className="admin-page">
@@ -78,9 +88,11 @@ export default async function AdminTeamPage() {
         live right now.
       </p>
       <p className="body-text" style={{ marginTop: 8, maxWidth: 620, color: "var(--ink-3)" }}>
-        Names, roles, roll numbers and phone numbers are edited in{" "}
-        <Link href="/admin/council/members">Council → Members</Link> — this page only
-        controls what the public sees.
+        Name, role and club can be edited here, and they are the{" "}
+        <em>same</em> record as{" "}
+        <Link href="/admin/council/members">Council → Members</Link> — a change here
+        shows there too. Email, phone and attendance still live on that page, and
+        are never published.
       </p>
 
       {members.length === 0 ? (
@@ -89,17 +101,52 @@ export default async function AdminTeamPage() {
           <Link href="/admin/council/members">Council → Members</Link> first.
         </p>
       ) : (
-        <div style={{ marginTop: 24, display: "grid", gap: 12 }}>
-          {members.map((m) => (
-            <TeamRow
-              key={m.id}
-              member={m}
-              saveAction={saveTeamLinksAction}
-              visibilityAction={setTeamVisibilityAction}
-              canEdit={canEdit}
-            />
-          ))}
-        </div>
+        <>
+          {canEdit ? (
+            <form
+              id={BULK_FORM_ID}
+              action={setTeamVisibilityBulkAction}
+              className="panel"
+              style={{
+                marginTop: 20,
+                padding: "12px 16px",
+                borderRadius: "var(--r-md)",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              <span className="label">With the ticked people</span>
+              {/* Posts the state it WANTS, never a flip — same rule as one row. */}
+              <button type="submit" name="next" value="public" className="btn btn-sm btn-primary">
+                Publish selected
+              </button>
+              <button type="submit" name="next" value="hidden" className="btn btn-sm">
+                Hide selected
+              </button>
+              <span className="hint" style={{ marginLeft: "auto" }}>
+                Tick nobody and nothing happens.
+              </span>
+            </form>
+          ) : null}
+
+          <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
+            {members.map((m) => (
+              <TeamRow
+                key={m.id}
+                member={m}
+                clubs={clubs}
+                saveAction={saveTeamLinksAction}
+                visibilityAction={setTeamVisibilityAction}
+                bulkFormId={BULK_FORM_ID}
+                canEdit={canEdit}
+              />
+            ))}
+          </div>
+
+          {canEdit ? <AddTeamMember action={addTeamMemberAction} clubs={clubs} /> : null}
+        </>
       )}
     </div>
   );

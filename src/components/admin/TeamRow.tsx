@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { TeamAvatar } from "@/components/TeamAvatar";
 import type { TeamLinksState } from "@/lib/admin/form-state";
-import type { TeamAdminRow } from "@/lib/admin/team";
+import type { ClubOption, TeamAdminRow } from "@/lib/admin/team";
 
 type SaveAction = (prev: TeamLinksState, formData: FormData) => Promise<TeamLinksState>;
 
@@ -16,13 +16,20 @@ const initial: TeamLinksState = {};
  */
 export function TeamRow({
   member,
+  clubs,
   saveAction,
   visibilityAction,
+  bulkFormId,
   canEdit,
 }: {
   member: TeamAdminRow;
+  clubs: ClubOption[];
   saveAction: SaveAction;
   visibilityAction: (formData: FormData) => void | Promise<void>;
+  /** The id of the page-level bulk form this row's checkbox belongs to. HTML
+   *  forbids NESTED forms, and this row already contains two of its own — so the
+   *  checkbox joins the bulk form by `form=`, which is what that attribute is for. */
+  bulkFormId: string;
   canEdit: boolean;
 }) {
   const [state, formAction, pending] = useActionState(saveAction, initial);
@@ -34,6 +41,16 @@ export function TeamRow({
     >
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {canEdit ? (
+            <input
+              type="checkbox"
+              form={bulkFormId}
+              name="ids"
+              value={member.id}
+              aria-label={`Select ${member.name}`}
+              style={{ width: 18, height: 18, flex: "none" }}
+            />
+          ) : null}
           <TeamAvatar name={member.name} photoUrl={member.photoUrl} size={44} />
           <div>
             <div style={{ fontWeight: 500 }}>{member.name}</div>
@@ -80,6 +97,54 @@ export function TeamRow({
           {state.error ? (
             <div className="note" style={{ borderLeftColor: "var(--rust)" }}>{state.error}</div>
           ) : null}
+
+          <div className="admin-form-row">
+            <div className="field">
+              <label htmlFor={`name-${member.id}`}>Name</label>
+              <input
+                id={`name-${member.id}`}
+                name="name"
+                required
+                maxLength={120}
+                defaultValue={member.name}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor={`role-${member.id}`}>Role</label>
+              <input
+                id={`role-${member.id}`}
+                name="designation"
+                required
+                maxLength={80}
+                defaultValue={member.designation}
+                placeholder="Head"
+              />
+              <span className="hint">
+                Printed as-is on the card. <code>Head</code> or <code>Vice Head</code>{" "}
+                for a club; one of <code>President</code>, <code>Vice President</code>,{" "}
+                <code>Technical Head</code>, <code>Events Head</code>,{" "}
+                <code>Documentation Head</code>, <code>Social Media Head</code> puts
+                them in the council leadership row — spelled exactly.
+              </span>
+            </div>
+          </div>
+
+          <div className="field">
+            <label htmlFor={`club-${member.id}`}>Club</label>
+            <select id={`club-${member.id}`} name="clubId" defaultValue={member.clubId ?? ""}>
+              <option value="">— none (council-wide) —</option>
+              {clubs.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <span className="hint">
+              Decides which section they appear under on <code>/team</code>. Leave
+              blank for council leadership, or if they lead no single club.
+            </span>
+          </div>
+
           <div className="admin-form-row">
             <div className="field">
               <label htmlFor={`li-${member.id}`}>LinkedIn</label>
@@ -147,6 +212,7 @@ export function TeamRow({
         </form>
       ) : (
         <div className="label">
+          {member.clubName ?? "No club"} ·{" "}
           {member.linkedinUrl ? "LinkedIn set" : "No LinkedIn"} ·{" "}
           {member.instagramUrl ? "Instagram set" : "No Instagram"}
         </div>

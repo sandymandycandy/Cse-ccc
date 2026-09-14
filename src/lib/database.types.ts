@@ -948,6 +948,7 @@ export type Database = {
         Row: {
           approved_at: string | null
           bio: string | null
+          club_id: string | null
           created_at: string
           designation: string
           email: string | null
@@ -964,6 +965,7 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           bio?: string | null
+          club_id?: string | null
           created_at?: string
           designation: string
           email?: string | null
@@ -980,6 +982,7 @@ export type Database = {
         Update: {
           approved_at?: string | null
           bio?: string | null
+          club_id?: string | null
           created_at?: string
           designation?: string
           email?: string | null
@@ -993,7 +996,15 @@ export type Database = {
           photo_path?: string | null
           roll_no?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "council_members_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       council_settings: {
         Row: {
