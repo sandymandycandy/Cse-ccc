@@ -40,7 +40,7 @@ export function AchievementForm({
   const [state, formAction, pending] = useActionState(action, initialState);
 
   return (
-    <form action={formAction} encType="multipart/form-data" style={{ marginTop: 20, maxWidth: 640 }}>
+    <form action={formAction} style={{ marginTop: 20, maxWidth: 640 }}>
       {id ? <input type="hidden" name="id" value={id} /> : null}
 
       {state.error ? (

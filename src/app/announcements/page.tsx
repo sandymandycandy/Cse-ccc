@@ -50,7 +50,10 @@ export default async function AnnouncementsPage() {
                   width={120}
                   height={80}
                   sizes="120px"
-                  style={{ width: 120, height: 80, objectFit: "cover", borderRadius: 6 }}
+                  // Height follows the image so a portrait poster is not
+                  // reduced to a thin cropped band. Same reason the detail
+                  // page dropped its maxHeight + cover.
+                  style={{ width: 120, height: "auto", borderRadius: 6 }}
                 />
               ) : null}
               <div>

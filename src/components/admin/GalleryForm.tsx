@@ -37,7 +37,7 @@ export function GalleryForm({
   const editing = Boolean(id);
 
   return (
-    <form action={formAction} encType="multipart/form-data" style={{ marginTop: 20, maxWidth: 560 }}>
+    <form action={formAction} style={{ marginTop: 20, maxWidth: 560 }}>
       {id ? <input type="hidden" name="id" value={id} /> : null}
 
       {state.error ? (

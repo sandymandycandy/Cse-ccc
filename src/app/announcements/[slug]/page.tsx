@@ -41,9 +41,13 @@ export default async function AnnouncementPage({
       {a.imageUrl ? (
         // Announcement images carry no stored dimensions, so 1600x900 is a
         // space-reservation hint only — `height: auto` means the real aspect
-        // wins once the file arrives. The CSS is unchanged from the raw <img>
-        // it replaces, so the rendered result is identical; the gain is that
-        // Next now serves a resized AVIF/WebP instead of the full upload.
+        // wins once the file arrives.
+        //
+        // ⚠️ Deliberately NO `maxHeight` and NO `objectFit: cover` here: posters
+        // are routinely portrait (the first real one is 1080x1350), and the old
+        // `maxHeight: 380` + `cover` silently cropped about 55% of such an image
+        // away — the announcement's own page is the one place it must be shown
+        // whole. A tall poster therefore renders tall, which is correct.
         <Image
           src={a.imageUrl}
           alt=""
@@ -54,8 +58,6 @@ export default async function AnnouncementPage({
           style={{
             width: "100%",
             height: "auto",
-            maxHeight: 380,
-            objectFit: "cover",
             borderRadius: 8,
             marginTop: 24,
           }}

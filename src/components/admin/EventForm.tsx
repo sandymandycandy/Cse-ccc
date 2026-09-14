@@ -56,7 +56,7 @@ export function EventForm({
   const [state, formAction, pending] = useActionState(action, emptyState);
 
   return (
-    <form action={formAction} encType="multipart/form-data" style={{ marginTop: 20 }}>
+    <form action={formAction} style={{ marginTop: 20 }}>
       {eventId ? <input type="hidden" name="eventId" value={eventId} /> : null}
 
       {state.error ? (

@@ -75,7 +75,7 @@ export function TeamRow({
       ) : null}
 
       {canEdit ? (
-        <form action={formAction} encType="multipart/form-data" style={{ display: "grid", gap: 10 }}>
+        <form action={formAction} style={{ display: "grid", gap: 10 }}>
           <input type="hidden" name="id" value={member.id} />
           {state.error ? (
             <div className="note" style={{ borderLeftColor: "var(--rust)" }}>{state.error}</div>

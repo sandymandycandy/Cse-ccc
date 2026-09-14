@@ -385,6 +385,20 @@ end-to-end**, not a checklist of components.
 >   never been typed into — the create/update actions are server-action POSTs that cannot be
 >   curled. **Open `/admin/announcements/new`, set a hide-after time, save, and watch it leave
 >   the home page.**
+> - **FOLLOW-UP 2026-09-14 — two fixes the owner reported after the deploy.**
+>   1. **The announcement cover was being cropped in half.** The detail page rendered it with
+>      `maxHeight: 380` + `objectFit: cover`; the first real poster is **1080x1350 (portrait
+>      4:5)**, which at the 680px container is ~850px tall — so **~55% of it was cut away**, top
+>      and bottom. Both clamps are now GONE on `/announcements/<slug>`, and the list thumbnail
+>      went from a fixed `120x80` `cover` box (a thin band of a portrait poster) to
+>      `width:120, height:auto`. ⚠️ **Don't reintroduce a `maxHeight` or `objectFit: cover` on
+>      these two** — posters here are routinely portrait and a tall image rendering tall is the
+>      intended result. Note the `ImageEditor` upload side was already fine: it offers an
+>      "Original" preset, which is how a 4:5 file got in.
+>   2. **`encType="multipart/form-data"` removed from FIVE forms** (Achievement, Announcement,
+>      Event, Gallery, TeamRow). React supplies the encoding itself when a form's `action` is a
+>      function and logs a console error when you also pass it, then overrides it. Harmless but
+>      noisy, and it was the same defect in every upload form, not just the one reported.
 > - **Files:** new `src/lib/announcements/hero.ts` (+`.test.ts`, 15 cases),
 >   `src/components/HeroAnnouncement.tsx`, one migration; edited `src/app/page.tsx`,
 >   `globals.css`, `SiteHeader.tsx`, `queries.ts`, `lib/admin/announcements.ts`,
