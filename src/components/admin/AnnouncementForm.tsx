@@ -16,6 +16,8 @@ export interface AnnouncementInitial {
   body: string;
   published: boolean;
   imageUrl: string | null;
+  /** Pre-formatted for a datetime-local input (IST wall-clock), "" for none. */
+  expiresAtLocal: string;
 }
 
 export function AnnouncementForm({
@@ -69,6 +71,22 @@ export function AnnouncementForm({
         <input type="checkbox" name="published" defaultChecked={init?.published} style={{ width: "auto" }} />
         <span>Published (visible to everyone)</span>
       </label>
+
+      <div className="field">
+        <label htmlFor="expiresAt">Hide from the site after (IST, optional)</label>
+        <input
+          id="expiresAt"
+          name="expiresAt"
+          type="datetime-local"
+          defaultValue={init?.expiresAtLocal}
+        />
+        <span className="hint">
+          Leave blank and it stays up until a newer announcement replaces it in the
+          hero. After this time it disappears from the home page and{" "}
+          <code>/announcements</code> — it is <strong>not</strong> deleted, stays
+          listed here, and anyone holding its link can still open it.
+        </span>
+      </div>
 
       <button type="submit" className="btn btn-primary" disabled={pending}>
         {pending ? "Saving…" : submitLabel}

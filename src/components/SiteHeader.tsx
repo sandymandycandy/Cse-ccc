@@ -12,7 +12,9 @@ const LINKS = [
   { href: "/calendar", label: "Calendar" },
   { href: "/clubs", label: "Clubs" },
   { href: "/gallery", label: "Gallery" },
-  { href: "/announcements", label: "Announcements" },
+  // Announcements deliberately NOT in the nav: the latest live notice is
+  // surfaced in the home hero instead. /announcements is still a real page,
+  // reached from that hero card and from "All notices →" on the home page.
   { href: "/team", label: "Team" },
 ] as const;
 

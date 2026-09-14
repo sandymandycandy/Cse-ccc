@@ -557,6 +557,8 @@ export interface AnnouncementCard {
   excerpt: string;
   publishedAt: string;
   imageUrl: string | null;
+  /** ISO timestamp after which this drops off the public site, or null. */
+  expiresAt: string | null;
 }
 
 export interface AnnouncementDetail {
@@ -577,13 +579,30 @@ function excerpt(md: string, max = 160): string {
   return text.length > max ? text.slice(0, max).trimEnd() + "…" : text;
 }
 
-/** Published announcements, newest first (RLS also enforces published-only). */
+/**
+ * Published, NOT-YET-EXPIRED announcements, newest first (RLS also enforces
+ * published-only).
+ *
+ * The expiry filter is applied here, in SQL, because this one read feeds every
+ * public surface — the home hero, the home Announcements section and
+ * /announcements. Filtering here is what makes an expired notice vanish from
+ * all three at once. Filtering in SQL rather than after the fetch also keeps
+ * `.limit(100)` counting live notices instead of letting old ones eat the cap.
+ *
+ * Deliberately NOT applied to `getAnnouncementBySlug`: a link already sent to
+ * students keeps working after the notice leaves the lists.
+ *
+ * Admin reads (`listAnnouncementsForAdmin`) bypass this entirely and show past
+ * announcements on purpose.
+ */
 export async function getPublishedAnnouncements(): Promise<AnnouncementCard[]> {
   const supabase = createPublicClient();
+  // One string literal: splitting a .select() degrades the inferred row type.
   const { data, error } = await supabase
     .from("announcements")
-    .select("slug, title, body_markdown, published_at, image_path")
+    .select("slug, title, body_markdown, published_at, image_path, expires_at")
     .not("published_at", "is", null)
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
     .order("published_at", { ascending: false })
     .limit(100);
   if (error) throw error;
@@ -595,6 +614,7 @@ export async function getPublishedAnnouncements(): Promise<AnnouncementCard[]> {
     imageUrl: a.image_path
       ? supabase.storage.from("announcements").getPublicUrl(a.image_path).data.publicUrl
       : null,
+    expiresAt: a.expires_at,
   }));
 }
 

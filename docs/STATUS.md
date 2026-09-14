@@ -337,7 +337,65 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
-> ### 🟡 BUILT ON BRANCH `feat/team-page` — NOT merged, NOT deployed (2026-09-13)
+> ### 🟡 BUILT ON BRANCH `feat/hero-announcement` — NOT merged (2026-09-14)
+> The **latest announcement in the home hero**, an **admin-set expiry**, and **Announcements
+> removed from the header nav**. **MIGRATION ALREADY APPLIED LIVE** (`announcement_expiry` —
+> one nullable `announcements.expires_at timestamptz`). Gate: typecheck ✓ / lint ✓ /
+> **716 tests** ✓ / build ✓.
+>
+> - **The owner revised the rule mid-build, and the second answer is the one that shipped.**
+>   The first answer was "expiry removes it from the hero only, it stays on `/announcements`". They then
+>   said: *"i mean for the admin panel, for frontend no need to display the past"*. So an expired
+>   notice now leaves **every public surface** — hero, the home Announcements section and
+>   `/announcements` — and stays visible **only in `/admin/announcements`**.
+> - **⚠️ The detail page `/announcements/<slug>` deliberately still returns 200 for an expired
+>   notice.** "No need to display" was read as *don't list it*, not *break it*. A link already
+>   sent to students keeps working. `getAnnouncementBySlug` is intentionally NOT expiry-filtered —
+>   if a hard 404 is ever wanted, that is the one place to change.
+> - **One filter, one place.** The expiry test lives in `getPublishedAnnouncements()`
+>   (`queries.ts`), which is the single read feeding all three public surfaces — that is what
+>   makes one notice vanish from all of them at once. It is applied **in SQL**, not after the
+>   fetch, so `.limit(100)` keeps counting *live* notices instead of letting old ones eat the cap
+>   (the `.limit()`/1,000-row lesson from club health, applied early).
+> - **`listAnnouncementsForAdmin` must NEVER gain an expiry filter** — the admin list is the one
+>   place past announcements stay visible, which is the whole point of the owner's revision.
+> - **Verified against the LIVE row, end to end.** Production does not read `expires_at` yet, so
+>   setting it on the real "Happy Ganesh Chaturthi" row was invisible to the live site — that is
+>   what made a real three-state test safe. Future expiry → present in hero and on
+>   `/announcements`; expiry 5.5h in the past → **0** on the hero, **0** on the home page, **0**
+>   in the `/announcements` list, the "Nothing to announce just yet" copy rendered, and the detail
+>   page still **200**; restored to null → back. The row was left at `expires_at = null`.
+> - **`pickHeroAnnouncement` sorts internally** rather than trusting the query's order, so the
+>   hero still shows the newest notice if the ordering ever changes. `isAnnouncementLive` is
+>   exported and shared by the query, the picker and the admin badge, so there is one rule.
+> - **An unparseable expiry keeps the notice VISIBLE — deliberately the opposite of the team
+>   roster's fail-closed rule.** A notice is not sensitive; bad data must not silently blank the
+>   hero. An expiry of exactly `now` counts as expired.
+> - **`.hero-side` is load-bearing.** `.hero-grid` is `align-items: center`, so the right column
+>   needed a flex-column wrapper for the note and the carousel to share a gap. The note is one
+>   `<a>`, so it must never contain another link.
+> - **The "Past" badge is neutral grey (`.abadge-past`), never rust.** An expired notice is
+>   finished, not failed — same reasoning as the grey "Absent" tag on the public roll lookup.
+> - **The FOOTER still links `/announcements`** — only the header `SiteHeader` nav entry was
+>   removed, as asked. With it out of the header, that footer link and the home page's
+>   "All notices →" are how the archive is reached. Say so if the footer link should go too.
+> - **⏳ OWED — never opened in a browser.** Chrome was disconnected this session too. Markup and
+>   behaviour are verified by fetching HTML from a dev server against the live DB, but the hero
+>   note's **spacing, dark mode and phone width are unseen**, and the `datetime-local` field has
+>   never been typed into — the create/update actions are server-action POSTs that cannot be
+>   curled. **Open `/admin/announcements/new`, set a hide-after time, save, and watch it leave
+>   the home page.**
+> - **Files:** new `src/lib/announcements/hero.ts` (+`.test.ts`, 15 cases),
+>   `src/components/HeroAnnouncement.tsx`, one migration; edited `src/app/page.tsx`,
+>   `globals.css`, `SiteHeader.tsx`, `queries.ts`, `lib/admin/announcements.ts`,
+>   `admin/(app)/announcements/{page.tsx,actions.ts,[id]/edit/page.tsx}`,
+>   `components/admin/AnnouncementForm.tsx`, `database.types.ts`.
+
+> ### ✅ MERGED + DEPLOYED — the public `/team` roster + `/admin/team` (2026-09-14)
+> Merged to `main` as `a4f70ae` on 2026-09-14 at the owner's explicit call, with the browser
+> check still owed (Chrome was disconnected again). Gate re-run before merging: typecheck ✓ /
+> lint ✓ / **701 tests** ✓ / build ✓. Blast radius is small — `/team` publishes NOBODY until
+> someone toggles a member public in `/admin/team`. Everything below still applies.
 > The public **`/team` roster + per-person profiles**, and a new **`/admin/team`** surface to
 > control them. **TWO MIGRATIONS ARE ALREADY APPLIED LIVE** (ledger `20260913061902
 > council_member_link` and `council_member_profile`) — so the DB is ahead of `main`, which is
@@ -2503,7 +2561,7 @@ flow as always.
      destructive, so it needs a human decision.
 
 
-1. **⚠️ THE BROWSER-VERIFICATION DEBT — now TEN items. Do them as ONE walkthrough.**
+1. **⚠️ THE BROWSER-VERIFICATION DEBT — now TWELVE items. Do them as ONE walkthrough.**
    Every one of these needs a real browser (server-action POSTs can't be curled,
    and pixels can't be asserted). They have accumulated across six sessions
    because the Chrome extension has repeatedly failed to connect. Doing them in a
@@ -2516,6 +2574,14 @@ flow as always.
    `/admin/users`. Every surviving admin has TOTP enrolled, so have the authenticator to
    hand whichever you use. Re-running `scripts/seed-admin.mjs` would recreate a test
    login if you would rather have one back.
+   - [ ] **Hero announcement + expiry** (2026-09-14, `feat/hero-announcement`) — open
+         `/admin/announcements/new`, set a hide-after time, save, and confirm the note appears in
+         the home hero above the events carousel and then leaves at that time. Check its spacing
+         in dark mode and at phone width, where the hero stacks to one column. The
+         `datetime-local` field has never been typed into.
+   - [ ] **`/team`, `/team/<id>` and `/admin/team`** (merged 2026-09-14, `a4f70ae`) — click
+         Publish on a member, upload a photo, save a bio; then check the grid and a profile at
+         phone width. Never opened.
    - [ ] **🔴 ATTENDANCE AUTOSAVE + "Save draft"** (2026-09-05, `dd9f084`) — **do this
          one FIRST.** It rewrote the save path a club head uses on a live 200-person
          roster, and it has never run in a browser. On a SMALL session: tap a few
