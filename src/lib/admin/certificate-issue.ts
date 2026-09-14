@@ -26,6 +26,7 @@ import {
   getCertificateWorkspace,
   listAllRecipients,
   listGroups,
+  listOutdatedRecipients,
   type CertEvent,
   type CertificateGroup,
 } from "./certificates";
@@ -379,6 +380,217 @@ export async function renderIssuedCertificate(cert: IssuedCertificate): Promise<
   });
 }
 
+/** Retire the live certificate and write its replacement in one transaction (spec §5.3). */
+async function supersedeCertificate(input: {
+  oldId: string;
+  group: CertificateGroup;
+  recipient: Recipient;
+  versionId: string;
+  actorId: string;
+}): Promise<{ id: string; serial: string; values: FieldValues } | null> {
+  const serial = newCertificateSerial();
+  const values: FieldValues = {
+    ...input.recipient.values,
+    "cert.serial": serial,
+    "cert.issueDate": formatIstDate(new Date()),
+    "cert.group": input.recipient.groupLabel,
+  };
+  const { data, error } = await createAdminClient().rpc("supersede_certificate", {
+    p_old_id: input.oldId,
+    p_new: {
+      serial,
+      hmac: certificateHmac(serial),
+      issued_by: input.actorId,
+      group_id: input.group.id,
+      design_version_id: input.versionId,
+      recipient_name: input.recipient.name,
+      recipient_email: input.recipient.deliverTo,
+      snapshot: { values, groupLabel: input.recipient.groupLabel },
+    } as unknown as Json,
+  });
+  if (error || !data) return null;
+  return { id: data as string, serial, values };
+}
+
+/** Put a superseded certificate back: the replacement is deleted, the old one is live again. */
+const undoSupersede = async (newId: string) => {
+  await createAdminClient().rpc("undo_supersede", { p_new_id: newId });
+};
+
+export interface ReissueBatchResult {
+  /** Recipients this call attempted. 0 = nothing left to do. */
+  processed: number;
+  reissued: number;
+  emails: number;
+  failed: number;
+  /** Outdated recipients left after this call. */
+  remaining: number;
+}
+
+/**
+ * Replace the certificates that no longer match their group's design or their
+ * owner's details (spec §5.3, "re-issue all with the latest design").
+ *
+ * Only outdated ones are touched, so a run that is stopped — or that fails
+ * halfway — can simply be run again: a replaced certificate matches and drops
+ * out of the list. Replacements go out by destination like first issues, so a
+ * leader holding their team's certificates gets ONE email with all of them.
+ */
+export async function reissueOutdatedBatch(args: {
+  eventId: string;
+  groupIds: string[];
+  actorId: string;
+}): Promise<ReissueBatchResult | { error: string }> {
+  const [event, ws] = await Promise.all([
+    getCertEvent(args.eventId),
+    getCertificateWorkspace(args.eventId, args.actorId),
+  ]);
+  if (!event || !ws) return { error: "That event no longer exists." };
+
+  const groups = ws.groups.filter((g) => args.groupIds.includes(g.id));
+  if (groups.length === 0) return { error: "Choose at least one group." };
+  for (const group of groups) {
+    const problem = designProblem(group, event);
+    if (problem) return { error: problem };
+  }
+
+  const byGroup = new Map(groups.map((g) => [g.id, g]));
+  const outdated = await listOutdatedRecipients(
+    args.eventId,
+    groups,
+    ws.recipients.filter((r) => byGroup.has(r.groupId)),
+  );
+
+  // Addressed people first, whole destinations at a time; then fill the rest of
+  // the batch with people who have nowhere to send (their replacement is
+  // written for download).
+  const destinations = cutBatch(groupByDestination(outdated), ISSUE_BATCH);
+  const addressed = new Set(destinations.flatMap((d) => d.recipients));
+  const spare = Math.max(0, ISSUE_BATCH - addressed.size);
+  const unaddressed = outdated.filter((r) => !r.deliverTo).slice(0, spare);
+
+  const result: ReissueBatchResult = {
+    processed: addressed.size + unaddressed.length,
+    reissued: 0,
+    emails: 0,
+    failed: 0,
+    remaining: outdated.length,
+  };
+  const serials: { from: string; to: string }[] = [];
+
+  const versionIds = new Map<string, string>();
+  const versionFor = async (group: CertificateGroup) => {
+    let id = versionIds.get(group.id);
+    if (!id) {
+      id = await ensureDesignVersion(group.id, group.design);
+      versionIds.set(group.id, id);
+    }
+    return id;
+  };
+
+  const loadAsset = assetLoader();
+  const replace = async (recipient: Recipient) => {
+    if (recipient.status.state !== "issued") return null;
+    const group = byGroup.get(recipient.groupId)!;
+    const from = recipient.status.serial;
+    const done = await supersedeCertificate({
+      oldId: recipient.status.certificateId,
+      group,
+      recipient,
+      versionId: await versionFor(group),
+      actorId: args.actorId,
+    });
+    if (!done) return null;
+    return { group, from, ...done };
+  };
+
+  for (const destination of destinations) {
+    const prepared: Prepared[] = [];
+    for (const recipient of destination.recipients) {
+      const replaced = await replace(recipient);
+      if (!replaced) {
+        result.failed++;
+        continue;
+      }
+      try {
+        const pdf = await renderCertificatesPdf({
+          design: replaced.group.design,
+          pages: [{ valueFor: (key) => replaced.values[key] ?? "" }],
+          loadAsset,
+          loadFont: loadFontFile,
+          title: `Certificate — ${event.title}`,
+        });
+        prepared.push({
+          recipient,
+          certificateId: replaced.id,
+          pdf,
+          filename: certificateFileName(recipient.name, event.title),
+        });
+        serials.push({ from: replaced.from, to: replaced.serial });
+      } catch (err) {
+        console.error("certificate re-issue render failed:", err instanceof Error ? err.message : err);
+        await undoSupersede(replaced.id);
+        result.failed++;
+      }
+    }
+    if (prepared.length === 0) continue;
+
+    for (const chunk of chunkBySize(prepared, (p) => p.pdf.byteLength, MAX_ATTACHMENT_BYTES)) {
+      const attachments: EmailAttachment[] = chunk.map((p) => ({
+        filename: p.filename,
+        content: Buffer.from(p.pdf),
+        contentType: "application/pdf",
+      }));
+      const many = chunk.length > 1;
+      const subject = many
+        ? `Updated certificates — ${event.title} (${chunk.length})`
+        : `Your updated certificate — ${event.title}`;
+      const { html, text } = renderEmail("participation_certificate", subject, chunk[0].recipient.name, {
+        body: many
+          ? `These replace the certificates we sent earlier: ${chunk.map((p) => p.recipient.name).join(", ")}. Please use these ones.`
+          : "This replaces the certificate we sent you earlier. Please use this one.",
+      });
+      const sent = await sendEmail({ to: destination.email, subject, html, text, attachments });
+      if (sent.ok) {
+        result.reissued += chunk.length;
+        result.emails++;
+      } else {
+        console.error("certificate re-issue email failed:", sent.error);
+        for (const p of chunk) await undoSupersede(p.certificateId);
+        result.failed += chunk.length;
+      }
+    }
+  }
+
+  // No address: the replacement is written and downloaded from the Recipients tab.
+  for (const recipient of unaddressed) {
+    const replaced = await replace(recipient);
+    if (!replaced) {
+      result.failed++;
+      continue;
+    }
+    serials.push({ from: replaced.from, to: replaced.serial });
+    result.reissued++;
+  }
+
+  result.remaining = Math.max(0, outdated.length - result.reissued);
+  await writeAudit({
+    actorId: args.actorId,
+    action: "reissue",
+    entity: "certificate",
+    entityId: args.eventId,
+    after: {
+      mode: "outdated",
+      groups: groups.map((g) => g.name),
+      reissued: result.reissued,
+      failed: result.failed,
+      emails: result.emails,
+      serials,
+    },
+  });
+  return result;
+}
+
 /**
  * Issue this person's certificate again with today's data and design
  * (spec §5.3–5.4). If they hold a live one it is superseded in a single
@@ -391,7 +603,6 @@ export async function reissueForRecipient(args: {
   recipientKey: string;
   actorId: string;
 }): Promise<{ error: string } | { serial: string; emailed: boolean; superseded: boolean }> {
-  const admin = createAdminClient();
   const [event, ws] = await Promise.all([
     getCertEvent(args.eventId),
     getCertificateWorkspace(args.eventId, args.actorId),
@@ -405,33 +616,24 @@ export async function reissueForRecipient(args: {
   const problem = designProblem(group, event);
   if (problem) return { error: problem };
 
-  const serial = newCertificateSerial();
-  const values: FieldValues = {
-    ...recipient.values,
-    "cert.serial": serial,
-    "cert.issueDate": formatIstDate(new Date()),
-    "cert.group": recipient.groupLabel,
-  };
   const versionId = await ensureDesignVersion(group.id, group.design);
   const live = recipient.status.state === "issued" ? recipient.status : null;
 
   let newId: string;
+  let serial: string;
+  let values: FieldValues;
   if (live) {
-    const { data, error } = await admin.rpc("supersede_certificate", {
-      p_old_id: live.certificateId,
-      p_new: {
-        serial,
-        hmac: certificateHmac(serial),
-        issued_by: args.actorId,
-        group_id: group.id,
-        design_version_id: versionId,
-        recipient_name: recipient.name,
-        recipient_email: recipient.deliverTo,
-        snapshot: { values, groupLabel: recipient.groupLabel },
-      } as unknown as Json,
+    const done = await supersedeCertificate({
+      oldId: live.certificateId,
+      group,
+      recipient,
+      versionId,
+      actorId: args.actorId,
     });
-    if (error || !data) return { error: "Could not re-issue that certificate. Try again." };
-    newId = data as string;
+    if (!done) return { error: "Could not re-issue that certificate. Try again." };
+    newId = done.id;
+    serial = done.serial;
+    values = done.values;
   } else {
     const reserved = await reserveCertificate({
       eventId: args.eventId,
@@ -444,7 +646,8 @@ export async function reissueForRecipient(args: {
     if (reserved === "exists") return { error: "Someone just issued this one — reload the page." };
     if (!reserved) return { error: "Could not issue that certificate. Try again." };
     newId = reserved.id;
-    Object.assign(values, reserved.values);
+    values = reserved.values;
+    serial = values["cert.serial"];
   }
 
   let emailed = false;
@@ -477,7 +680,7 @@ export async function reissueForRecipient(args: {
       emailed = true;
     } catch (err) {
       console.error("certificate re-issue failed:", err instanceof Error ? err.message : err);
-      if (live) await admin.rpc("undo_supersede", { p_new_id: newId });
+      if (live) await undoSupersede(newId);
       else await deleteRows([newId]);
       return {
         error: live

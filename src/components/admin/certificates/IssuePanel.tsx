@@ -2,8 +2,17 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { issueCertificatesBatchAction } from "@/app/admin/(app)/events/[id]/certificates/actions";
+import {
+  issueCertificatesBatchAction,
+  reissueOutdatedBatchAction,
+} from "@/app/admin/(app)/events/[id]/certificates/actions";
 import type { IssueMode, RecipientCounts } from "@/lib/certificates/recipients";
+
+/** How many issued certificates are out of date, and how many of those can be emailed. */
+export interface OutdatedCounts {
+  total: number;
+  withEmail: number;
+}
 
 interface Progress {
   done: number;
@@ -24,18 +33,21 @@ export function IssuePanel({
   groupId,
   groupName,
   counts,
+  outdated,
   hasTemplate,
 }: {
   eventId: string;
   groupId: string;
   groupName: string;
   counts: RecipientCounts;
+  outdated: OutdatedCounts;
   hasTemplate: boolean;
 }) {
   const router = useRouter();
-  const [running, setRunning] = useState<IssueMode | null>(null);
+  const [running, setRunning] = useState<IssueMode | "reissue" | null>(null);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmReplace, setConfirmReplace] = useState(false);
   const stop = useRef(false);
 
   async function run(mode: IssueMode) {
@@ -71,6 +83,40 @@ export function IssuePanel({
       }
     } catch {
       setError("Lost the connection while issuing. Run again to continue — nobody gets a certificate twice.");
+    } finally {
+      setRunning(null);
+      router.refresh();
+    }
+  }
+
+
+  async function replaceOutdated() {
+    stop.current = false;
+    setConfirmReplace(false);
+    setRunning("reissue");
+    setError(null);
+    const p: Progress = { done: 0, failed: 0, skipped: 0, emails: 0, remaining: outdated.total };
+    setProgress({ ...p });
+    try {
+      while (!stop.current) {
+        const res = await reissueOutdatedBatchAction({ eventId, groupIds: [groupId] });
+        if (!res.ok) {
+          setError(res.error);
+          break;
+        }
+        p.done += res.reissued;
+        p.failed += res.failed;
+        p.emails += res.emails;
+        p.remaining = res.remaining;
+        setProgress({ ...p });
+        if (res.processed === 0 || res.remaining === 0) break;
+        if (res.reissued === 0) {
+          setError("Every replacement in the last batch failed. Check the email settings, then run again.");
+          break;
+        }
+      }
+    } catch {
+      setError("Lost the connection while replacing. Run again to continue — only outdated certificates are replaced.");
     } finally {
       setRunning(null);
       router.refresh();
@@ -128,6 +174,57 @@ export function IssuePanel({
           {error}
         </p>
       ) : null}
+
+      <section className="rule" style={{ marginTop: 22, paddingTop: 16 }}>
+        <div className="label">Already issued</div>
+        {outdated.total === 0 ? (
+          <p className="hint" style={{ marginTop: 6, maxWidth: 620 }}>
+            Everyone issued has the current design and their current details. Edit the design, or correct someone&rsquo;s
+            name, and their replacement appears here.
+          </p>
+        ) : (
+          <>
+            <p className="body-text" style={{ marginTop: 6, maxWidth: 620 }}>
+              <strong>{outdated.total}</strong>{" "}
+              {outdated.total === 1 ? "certificate was" : "certificates were"} issued with an older design or older
+              details.
+            </p>
+            {confirmReplace ? (
+              <div className="cd-confirm" style={{ marginTop: 10, maxWidth: 620 }}>
+                <p className="body-text">
+                  Replace {outdated.total} {outdated.total === 1 ? "certificate" : "certificates"}?{" "}
+                  {outdated.withEmail} {outdated.withEmail === 1 ? "person gets" : "people get"} the new one by email
+                  {outdated.total - outdated.withEmail > 0
+                    ? `, and ${outdated.total - outdated.withEmail} without an address ${
+                        outdated.total - outdated.withEmail === 1 ? "is" : "are"
+                      } replaced for download`
+                    : ""}
+                  . Each old certificate then reads &ldquo;replaced by a newer certificate&rdquo; when checked.
+                </p>
+                <div className="stack">
+                  <button type="button" className="btn btn-accent btn-sm" onClick={replaceOutdated}>
+                    Replace {outdated.total}
+                  </button>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmReplace(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="stack" style={{ marginTop: 10 }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={running !== null || !hasTemplate}
+                  onClick={() => setConfirmReplace(true)}
+                >
+                  {running === "reissue" ? "Replacing…" : `Re-issue ${outdated.total} with the latest design`}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </section>
 
       <p className="hint" style={{ marginTop: 14, maxWidth: 620 }}>
         Team members without an email of their own are sent to their team leader, who gets one message with every

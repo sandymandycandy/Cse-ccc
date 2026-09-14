@@ -33,9 +33,12 @@ import { sniffImage } from "@/lib/certificates/image-type";
 import {
   countRecipients,
   memberKey,
+  outdatedRecipients,
+  printedFields,
   registrationKey,
   sheetKey,
   statusByKey,
+  type LiveCertificate,
   type Recipient,
   type RecipientCounts,
 } from "@/lib/certificates/recipients";
@@ -139,10 +142,69 @@ export async function getParticipantsGroup(eventId: string): Promise<Certificate
   return data ? toGroup(data as GroupRow) : null;
 }
 
+/** The identity of a design: the hash its version row is keyed by. */
+export const designHash = (design: Design): string =>
+  createHash("sha256").update(canonicalJson(design)).digest("hex");
+
+/**
+ * The version id this design was recorded under, or null if it has never been
+ * issued. Read-only — unlike `ensureDesignVersion` it records nothing, so it is
+ * safe to ask while rendering a page.
+ */
+export async function findDesignVersion(groupId: string, design: Design): Promise<string | null> {
+  const { data } = await createAdminClient()
+    .from("certificate_design_versions")
+    .select("id")
+    .eq("group_id", groupId)
+    .eq("hash", designHash(design))
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
+/**
+ * What each live certificate was made from, by certificate id: the design
+ * version it used and the values it printed. This is what says whether a
+ * certificate still matches the design and the person's current details.
+ */
+export async function liveCertificateDetails(eventId: string): Promise<Map<string, LiveCertificate>> {
+  const { data } = await createAdminClient()
+    .from("certificates")
+    .select("id, design_version_id, snapshot")
+    .eq("event_id", eventId)
+    .eq("type", "participation")
+    .is("revoked_at", null);
+  const out = new Map<string, LiveCertificate>();
+  for (const row of (data ?? []) as { id: string; design_version_id: string | null; snapshot: Json | null }[]) {
+    const snapshot = row.snapshot as { values?: Record<string, string> } | null;
+    out.set(row.id, { designVersionId: row.design_version_id, values: snapshot?.values ?? {} });
+  }
+  return out;
+}
+
+/**
+ * The issued people whose certificate no longer matches their group's design
+ * or their current details — what "re-issue outdated" works through.
+ */
+export async function listOutdatedRecipients(
+  eventId: string,
+  groups: CertificateGroup[],
+  recipients: Recipient[],
+): Promise<Recipient[]> {
+  const live = await liveCertificateDetails(eventId);
+  const byGroup = new Map(
+    await Promise.all(
+      groups.map(async (group) =>
+        [group.id, { versionId: await findDesignVersion(group.id, group.design), printed: printedFields(group.design) }] as const,
+      ),
+    ),
+  );
+  return outdatedRecipients(recipients, live, byGroup);
+}
+
 /** The immutable version row for this exact design (created on first use). */
 export async function ensureDesignVersion(groupId: string, design: Design): Promise<string> {
   const admin = createAdminClient();
-  const hash = createHash("sha256").update(canonicalJson(design)).digest("hex");
+  const hash = designHash(design);
   const find = () =>
     admin.from("certificate_design_versions").select("id").eq("group_id", groupId).eq("hash", hash).maybeSingle();
   const existing = await find();
@@ -431,6 +493,8 @@ export interface CertificateWorkspace {
   recipients: Recipient[];
   /** Counts for the active group. */
   counts: RecipientCounts;
+  /** Issued certificates in the active group that no longer match the design or their details. */
+  outdated: { total: number; withEmail: number };
   assetUrls: Record<string, string>;
 }
 
@@ -456,6 +520,8 @@ export async function getCertificateWorkspace(
     listAllRecipients(event, groups),
     signAssetUrls(assetRefsOf(editableDesign)),
   ]);
+  const inGroup = recipients.filter((r) => r.groupId === group.id);
+  const stale = await listOutdatedRecipients(eventId, [group], inGroup);
   return {
     event,
     groups,
@@ -463,7 +529,8 @@ export async function getCertificateWorkspace(
     editableDesign,
     catalogue,
     recipients,
-    counts: countRecipients(recipients.filter((r) => r.groupId === group.id)),
+    counts: countRecipients(inGroup),
+    outdated: { total: stale.length, withEmail: stale.filter((r) => r.deliverTo).length },
     assetUrls,
   };
 }

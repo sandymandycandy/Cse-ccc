@@ -20,8 +20,10 @@ import {
 import {
   issueBatch,
   reissueForRecipient,
+  reissueOutdatedBatch,
   revokeCertificate,
   type IssueBatchResult,
+  type ReissueBatchResult,
 } from "@/lib/admin/certificate-issue";
 import { assetLoader, signAssetUrls, verifyNewAssets } from "@/lib/certificates/assets";
 import {
@@ -45,6 +47,7 @@ const uuid = z.string().uuid();
 export type ActionResult = { ok: true } | { ok: false; error: string };
 export type UploadTicket = { ok: true; path: string; token: string } | { ok: false; error: string };
 export type IssueBatchResponse = ({ ok: true } & IssueBatchResult) | { ok: false; error: string };
+export type ReissueBatchResponse = ({ ok: true } & ReissueBatchResult) | { ok: false; error: string };
 export type GroupResult = { ok: true; groupId: string } | { ok: false; error: string };
 export type SheetUploadResult =
   | { ok: true; rows: number; dropped: number; invalidEmails: number; columns: string[] }
@@ -145,6 +148,25 @@ export async function issueCertificatesBatchAction(input: {
   if (groupIds.length === 0) return { ok: false, error: "Choose at least one group to issue." };
 
   const result = await issueBatch({ eventId: input.eventId, groupIds, mode: input.mode, actorId: auth.session.id });
+  if ("error" in result) return { ok: false, error: result.error };
+  revalidatePath(`/admin/events/${input.eventId}/certificates`);
+  return { ok: true, ...result };
+}
+
+/**
+ * Replace the certificates that no longer match the design or their owner's
+ * details (spec §5.3). The Issue tab calls this in a loop, like issuing.
+ */
+export async function reissueOutdatedBatchAction(input: {
+  eventId: string;
+  groupIds: string[];
+}): Promise<ReissueBatchResponse> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const groupIds = (input.groupIds ?? []).filter((id) => uuid.safeParse(id).success);
+  if (groupIds.length === 0) return { ok: false, error: "Choose at least one group." };
+
+  const result = await reissueOutdatedBatch({ eventId: input.eventId, groupIds, actorId: auth.session.id });
   if ("error" in result) return { ok: false, error: result.error };
   revalidatePath(`/admin/events/${input.eventId}/certificates`);
   return { ok: true, ...result };

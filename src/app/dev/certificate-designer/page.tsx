@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DesignerHarness } from "@/components/admin/certificates/DesignerHarness";
+import { IssueHarness } from "@/components/admin/certificates/IssueHarness";
 import { RecipientsHarness } from "@/components/admin/certificates/RecipientsHarness";
 
 /**
@@ -12,6 +13,7 @@ import { RecipientsHarness } from "@/components/admin/certificates/RecipientsHar
 const PANELS = [
   { id: "design", label: "Designer" },
   { id: "recipients", label: "Recipients" },
+  { id: "issue", label: "Issue" },
 ] as const;
 
 export default async function CertificateDesignerHarnessPage({
@@ -21,7 +23,7 @@ export default async function CertificateDesignerHarnessPage({
 }) {
   if (process.env.NODE_ENV === "production") notFound();
   const { panel } = await searchParams;
-  const active = panel === "recipients" ? "recipients" : "design";
+  const active = PANELS.some((p) => p.id === panel) ? (panel as (typeof PANELS)[number]["id"]) : "design";
 
   return (
     <div className="admin-page cd-page">
@@ -39,7 +41,7 @@ export default async function CertificateDesignerHarnessPage({
           </Link>
         ))}
       </nav>
-      {active === "recipients" ? <RecipientsHarness /> : <DesignerHarness />}
+      {active === "recipients" ? <RecipientsHarness /> : active === "issue" ? <IssueHarness /> : <DesignerHarness />}
     </div>
   );
 }

@@ -134,6 +134,7 @@ export default async function EventCertificatesPage({
           groupId={ws.group.id}
           groupName={ws.group.name}
           counts={ws.counts}
+          outdated={ws.outdated}
           hasTemplate={!!ws.group.design.page.template}
         />
       )}
