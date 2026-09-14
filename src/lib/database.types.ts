@@ -944,35 +944,50 @@ export type Database = {
       council_members: {
         Row: {
           approved_at: string | null
+          bio: string | null
           created_at: string
           designation: string
           email: string | null
           full_name: string
           id: string
+          instagram_url: string | null
           is_active: boolean
+          is_public: boolean
+          linkedin_url: string | null
           phone: string | null
+          photo_path: string | null
           roll_no: string | null
         }
         Insert: {
           approved_at?: string | null
+          bio?: string | null
           created_at?: string
           designation: string
           email?: string | null
           full_name: string
           id?: string
+          instagram_url?: string | null
           is_active?: boolean
+          is_public?: boolean
+          linkedin_url?: string | null
           phone?: string | null
+          photo_path?: string | null
           roll_no?: string | null
         }
         Update: {
           approved_at?: string | null
+          bio?: string | null
           created_at?: string
           designation?: string
           email?: string | null
           full_name?: string
           id?: string
+          instagram_url?: string | null
           is_active?: boolean
+          is_public?: boolean
+          linkedin_url?: string | null
           phone?: string | null
+          photo_path?: string | null
           roll_no?: string | null
         }
         Relationships: []

@@ -97,3 +97,10 @@ export interface BroadcastState {
 export interface FeedbackToggleState {
   error?: string;
 }
+
+export interface TeamLinksState {
+  error?: string;
+  /** Set after a successful save so the row can confirm inline, without the whole
+   *  page flashing — /admin/team saves one member at a time. */
+  saved?: boolean;
+}

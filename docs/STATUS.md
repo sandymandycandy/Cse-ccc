@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-04.**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-13.**
 
 ## What this is
 
@@ -336,6 +336,83 @@ end-to-end**, not a checklist of components.
 > `feat/registration-queue` and `feat/manual-attendance` are fully contained in `main` (verified with
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
+
+> ### 🟡 BUILT ON BRANCH `feat/team-page` — NOT merged, NOT deployed (2026-09-13)
+> The public **`/team` roster + per-person profiles**, and a new **`/admin/team`** surface to
+> control them. **TWO MIGRATIONS ARE ALREADY APPLIED LIVE** (ledger `20260913061902
+> council_member_link` and `council_member_profile`) — so the DB is ahead of `main`, which is
+> harmless: nothing on `main` reads the new columns. Gate: typecheck ✓ / lint ✓ / **701 tests** ✓
+> / build ✓.
+>
+> - **The data was already there.** `council_members` (the council *attendance* roster, fed by
+>   `/council/join/[token]`) holds 27 real people with `designation` / `full_name` / `roll_no` —
+>   exactly role + name + VTU. No new people table was needed.
+> - **Designations are self-typed free text and inconsistent** — `Coding club/Head` next to
+>   `Coding club - vice head`, `Cybersentinal club` (typo), and `Club Head` / `Vice head` naming
+>   no club at all. Owner's call: **print them verbatim**, sort A→Z by role. Cleaning them is a
+>   data edit in `/admin/council/members`, not a code change.
+> - **⚠️ `is_public` DEFAULTS TO FALSE, and the read FAILS CLOSED.** Owner chose hidden-by-default
+>   so nobody reaches a crawlable page without an explicit click. The first cut fell back to a
+>   select *without* the visibility column when the migration was unapplied — which published all
+>   26 eligible members, precisely the people the default exists to protect. **If visibility
+>   cannot be read, publish nobody.** Applying the migration therefore *empties* `/team` until
+>   members are toggled; that is intended.
+> - **A hidden member 404s on `/team/<id>`, not just off the grid.** Gating only the list would
+>   leave every hidden person reachable by a guessed or stale link, defeating the Hide button. The
+>   profile read repeats all three gates (`is_public`, `is_active`, `approved_at`). The uuid is
+>   regex-checked *before* the query, because a malformed id makes Postgres raise `22P02` — a
+>   **500**, not a 404.
+> - **⚠️ SECOND PII SURFACE on this table.** `council_members` also holds `email` and `phone`.
+>   `PUBLIC_COLS` in `src/lib/council/public-roster.ts` never names them and must not — rows go
+>   straight into a server component's props, so anything selected is public. Verified against the
+>   rendered HTML: zero emails, zero phone numbers, including in the inlined RSC payload.
+> - **Leadership tier exists in code and has NO DATA.** `LEADERSHIP_TITLES` recognises exactly
+>   `President`, `Vice President`, `Technical Head`, `Events Head`, `Documentation Head`,
+>   `Social Media Head` and pins them above the club heads. **Zero of the 27 rows match** — those
+>   six people have never been entered. Matching is exact on purpose: a looser rule would promote
+>   the real `Vice head` row (a club vice head who named no club) into the council leadership.
+>   Faculty Advisor is deliberately absent (owner: "no faculty is needed").
+> - **Card behaviour changed three times; the final shape is load-bearing.** The card is a link to
+>   `/team/<id>` and the socials live on the *profile*, because an anchor wrapping the tile cannot
+>   contain further anchors. Do not "helpfully" add a social link back onto the card.
+> - **`bio` and photos are per-person, edited in `/admin/team`.** `bio` is PLAIN TEXT rendered with
+>   `white-space: pre-line` — never Markdown or HTML — and replaces the generic "Part of the CSE
+>   Club Council…" paragraph when set (that sentence is the fallback). Photos go to a new public
+>   `council-photos` bucket (2 MB) through the existing `handleImageUpload`; `TeamAvatar` falls
+>   back to an initials monogram in the same box, so the grid does not reflow as photos arrive.
+>   Upload happens *before* the row update (a failed upload changes nothing), `photo_path` is
+>   omitted when no file was chosen (saving text never clears a photo), and the replaced object is
+>   deleted only *after* the row points at the new one.
+>
+> **🔥 Four gotchas worth keeping:**
+> 1. **`console.error("msg", postgrestError)` prints `{}`.** `PostgrestError` extends `Error`,
+>    whose properties are non-enumerable. This hid a live `PGRST303 "JWT issued at future"` for
+>    an entire debugging round. Log `code` / `message` / `details` / `hint` explicitly.
+> 2. **A failed read and an empty roster are DIFFERENT states.** `getCouncilRoster` returns `null`
+>    for failure and `[]` for nobody, and the page renders different copy. Collapsing them showed
+>    "the roster is being put together" over a transient outage — indistinguishable from the truth.
+> 3. **A supabase-js `.select()` must be ONE string literal.** Splitting `COLS` into `"a" + "b"`
+>    degrades the inferred row type to `GenericStringError` and every field access fails to compile.
+> 4. **`PGRST303 "JWT issued at future"` happens transiently** after the machine resumes from sleep
+>    (all four MCP servers also died with ENOTFOUND at the same moment). It self-recovered; the
+>    local clock was exact. Don't go hunting a code bug for it.
+>
+> - **`database.types.ts` was regenerated from the live schema via the MCP** (the CLI is still
+>   absent, so `npm run types:gen` would truncate it). A hand-edited interim version diffed to
+>   **zero lines** against the generated output.
+> - **⏳ OWED — nobody has LOOKED at any of this.** The Chrome extension was disconnected all
+>   session, so `/team`, `/team/<id>` and `/admin/team` were verified only by fetching HTML and by
+>   stub-probing the render paths. **Layout, spacing and phone width are unverified.** Also owed:
+>   a real click through Publish, a real photo upload, and a real `bio` save — the sandbox blocked
+>   writing to live rows, so the admin write path has never executed.
+> - **State of the data right now: 27 rows, 0 published, 0 with photos or bios, 0 leadership.**
+>   `/team` is intentionally empty until someone hits Publish.
+> - **Files:** new `src/lib/council/roster.ts` (+`.test.ts`, 44 cases), `public-roster.ts`,
+>   `src/lib/admin/team.ts`, `src/components/TeamCard.tsx`, `TeamAvatar.tsx`,
+>   `src/components/admin/TeamRow.tsx`, `src/app/team/[id]/page.tsx`,
+>   `src/app/admin/(app)/team/{page,actions}.tsx|ts`, two migrations; edited
+>   `src/app/team/page.tsx`, `globals.css`, `admin/(app)/layout.tsx` (nav), `form-state.ts`,
+>   `database.types.ts`.
 
 > ### ✅ MERGED + DEPLOYED — Admin sidebar scroll + `Eligible` renamed (2026-09-04)
 > Owner reported the rail "is not full or correctly designed i cant scrool down full". **No migration.**
@@ -2503,7 +2580,9 @@ flow as always.
      tables exist), **`/my-events`** (needs a student-lookup model — no student
      login today), **waitlist auto-promote** (server/cron), **reminder cron**,
      **`.ics` feeds**, **venue booking**, **co-hosted events**, **email prefs**,
-     **`/about` + `/team` org chart**, **schedules**.
+     **`/about`**, **schedules**. (`/team` is now BUILT on `feat/team-page` —
+     see the block above; the org-chart *hierarchy lines* were not built, and the six
+     officer rows still need entering.)
    - NOTE: the remaining stub pages (§5) are placeholders these real features
      replace — `/gallery`, `/resources`, `/achievements` are now REAL.
    - **Phase-2 exit gate:** a club head runs their club end-to-end without

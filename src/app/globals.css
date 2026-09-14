@@ -507,6 +507,30 @@
     .clubs { grid-template-columns: 1fr; }
   }
 
+  /* /team person card. The whole tile is a link to that member's profile, so the
+     tap target is the card, not a line of small text. Link-only rules are scoped to
+     `a.team-card` (like `a.admin-stat`) so they cannot leak elsewhere.
+     `color: inherit` is the important one — the global `a { color: var(--forest) }`
+     would otherwise turn every name green. */
+  a.team-card {
+    color: inherit;
+    transition: border-color 0.18s, transform 0.12s;
+  }
+  a.team-card:hover { border-color: var(--line-4); transform: translateY(-1px); }
+
+  /* Social links on a member's profile page. Comfortable tap target rather than
+     bare 10px text. */
+  .team-card-link {
+    font: 500 10px var(--mono);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--forest);
+    min-height: 24px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .team-card-link:hover { color: var(--forest-deep); }
+
   /* admin table — scrolls in its own container, page never scrolls sideways.
      The edge shadows are a pure-CSS scroll affordance: the "cover" gradients
      (background-attachment: local) scroll with the content and hide the shadow
