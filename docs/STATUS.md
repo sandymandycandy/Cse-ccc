@@ -416,6 +416,37 @@ end-to-end**, not a checklist of components.
 >   `admin/(app)/announcements/{page.tsx,actions.ts,[id]/edit/page.tsx}`,
 >   `components/admin/AnnouncementForm.tsx`, `database.types.ts`.
 
+> ### ✅ MERGED + DEPLOYED — announcements made responsive (2026-09-14)
+> Owner: *"make the announcements page responsive for pc and mobile"*. **No migration.**
+> Gate: typecheck ✓ / lint ✓ / **731 tests** ✓ / build ✓.
+>
+> - **🔥 Root cause: both announcement pages were styled ENTIRELY with inline `style={{}}`
+>   objects, and an inline style cannot carry a media query.** There was no phone behaviour at
+>   all — the desktop layout was simply used at every width. The layout now lives in
+>   `globals.css` as `.notice-list` / `.notice-row` / `.notice-thumb` / `.notice-title`.
+> - **The list row shrinks its thumbnail at ≤599px rather than stacking** (120px → 92px). A
+>   full-width portrait poster on a phone would be ~450px tall and push every other notice off
+>   the screen. 599px is this codebase's existing phone breakpoint — the same one `.evrow` uses.
+> - **Thumbnails fit INSIDE a 120px box** (`width/height: auto` + `max-width`/`max-height`)
+>   instead of being cropped to one. Keeps the whole poster visible, per the crop fix earlier the
+>   same day, while stopping a portrait image from making its row 50% taller than its neighbours.
+> - **`minmax(0, 1fr)`, never `1fr`,** for the text track: a grid track's default minimum is
+>   `auto`, so one long unbroken word would push the row wider than the screen.
+> - **⚠️ `.prose` HAD NEVER BEEN DEFINED.** Both `/announcements/<slug>` and `/achievements`
+>   render `className="prose"`, and there was no such rule anywhere in `globals.css` — so
+>   markdown body copy had no wrapping rule (a bare URL could scroll a phone sideways) and its
+>   headings fell through to the PAGE scale: an `# heading` rendered at
+>   `clamp(27px, 3.6vw, 38px)` in the middle of 15px paragraphs. Now defined, with headings
+>   stepped down to 22/18/16px. **This changes the look of the achievements page too.**
+> - **The detail article gained `margin-inline: auto`** (`.reading`). It had a bare
+>   `maxWidth: 680` with no auto margin, so on a wide monitor it hugged the left edge — the "for
+>   pc" half of the request.
+> - **Verified:** every class renders; all six rules and the `@media (max-width: 599px)` block
+>   confirmed present **in the served stylesheet**, not just the source; `/announcements`,
+>   the detail page, `/achievements` and `/` all 200.
+> - **⏳ OWED — never opened in a browser.** Chrome has not connected in three sessions, so no
+>   phone-width rendering of this has been seen.
+
 > ### 🟡 BUILT ON BRANCH `feat/team-by-club` — NOT merged (2026-09-14)
 > `/team` is now **grouped by club**, the roster has a **real `club_id`**, `/admin/team` gained
 > **bulk publish/hide** and **manual editing + add**, and the **six council officers finally

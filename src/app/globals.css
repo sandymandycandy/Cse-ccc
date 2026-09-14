@@ -714,6 +714,84 @@
     flex-wrap: wrap;
   }
 
+  /* ── announcements ──────────────────────────────────────────────────────
+     Both announcement pages were styled ENTIRELY with inline style objects, and
+     an inline style cannot carry a media query — so the desktop layout was being
+     used at every width, including a 360px phone. The layout lives here so it
+     can actually respond. */
+  .notice-list {
+    display: grid;
+    gap: 20px;
+    margin-top: 28px;
+    max-width: 720px;
+  }
+  .notice-row {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: 16px;
+    padding-bottom: 20px;
+    align-items: start;
+    color: var(--ink);
+  }
+  /* minmax(0, 1fr) above, not 1fr: a grid track's default min is `auto`, so a
+     long unbroken word would push the row wider than the screen. */
+  .notice-row.no-thumb { grid-template-columns: minmax(0, 1fr); }
+  /* Fits the image INSIDE a 120px box rather than cropping it to one — the whole
+     poster still shows (the 2026-09-14 crop fix) while rows keep an even height
+     whatever shape arrives. Portrait posters are the norm here. */
+  .notice-thumb {
+    width: auto;
+    height: auto;
+    max-width: 120px;
+    max-height: 120px;
+    border-radius: 6px;
+    justify-self: start;
+  }
+  .notice-title { font: 400 20px / 1.3 var(--serif); margin: 4px 0 6px; }
+
+  @media (max-width: 599px) {
+    /* 599px is this codebase's phone breakpoint — the same one `.evrow` uses.
+       The thumb shrinks rather than stacking: a full-width portrait poster on a
+       phone would be ~450px tall and push every other notice off the screen. */
+    .notice-list { gap: 16px; margin-top: 22px; }
+    .notice-row {
+      grid-template-columns: 92px minmax(0, 1fr);
+      gap: 12px;
+      padding-bottom: 16px;
+    }
+    .notice-thumb { max-width: 92px; max-height: 92px; }
+    .notice-title { font-size: 18px; }
+  }
+
+  /* A reading page. Caps its measure AND centres it — with a bare max-width the
+     article hugs the left edge of a wide monitor with empty space beside it. */
+  .reading { max-width: 680px; margin-inline: auto; }
+
+  /* ── markdown body ──
+     ⚠️ `.prose` was referenced by the announcement AND achievement pages but had
+     never been DEFINED anywhere, so body copy had no wrapping rule and its
+     headings fell through to the page scale — an `# heading` rendered at
+     clamp(27px, 3.6vw, 38px) in the middle of 15px paragraphs. Defining it
+     changes the look of both pages. */
+  .prose { overflow-wrap: break-word; }
+  .prose > * + * { margin-top: 1em; }
+  .prose p,
+  .prose li { font: 400 15.5px / 1.7 var(--sans); color: var(--ink-2); }
+  .prose ul,
+  .prose ol { padding-left: 1.3em; }
+  .prose li + li { margin-top: 0.4em; }
+  /* Stepped down from the page scale: these sit INSIDE body copy. */
+  .prose h2 { font: 400 22px / 1.25 var(--serif); margin-top: 1.5em; }
+  .prose h3 { font: 400 18px / 1.3 var(--serif); margin-top: 1.4em; }
+  .prose h4 { font: 500 16px / 1.35 var(--sans); margin-top: 1.3em; }
+  .prose a { color: var(--forest); }
+  .prose code {
+    font: 500 0.9em var(--mono);
+    background: var(--sand);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
   /* footer */
   .footer-grid {
     display: grid;
