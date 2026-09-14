@@ -1,6 +1,6 @@
 # Certificate designer — design
 
-**Status:** approved in chat 2026-09-14. Not implemented.
+**Status:** approved in chat 2026-09-14. All three phases implemented on `feat/certificate-designer` (2026-09-14); not merged — owed human walkthroughs in STATUS.md.
 **Scope:** replace the v1 per-event certificate page (upload a finished image,
 click-place one name, bulk-email PDFs) with a real designer. You upload a base
 template, then place logos and signatures and type rich text containing fields

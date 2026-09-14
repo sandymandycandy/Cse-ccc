@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-13.**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-14.**
 
 ## What this is
 
@@ -337,6 +337,55 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
+> ### 🟡 BUILT ON BRANCH `feat/certificate-designer` — phase 3, NOT merged (2026-09-14)
+> **Anyone holding a certificate can prove it is real.** The certificate designer is now **complete —
+> all three phases are on this branch**, waiting only on the human walkthroughs below before it merges.
+> Gate: typecheck ✓ / lint ✓ / **943 tests** ✓ / build ✓. **No migration.**
+> Plan: `docs/superpowers/plans/2026-09-14-certificate-designer-phase3.md`.
+> - **Verification QR.** `+ QR` in the designer adds a square code (colour prop; the panel shows its
+>   printed size on A4 and warns under 20 mm). Every certificate's QR encodes
+>   `${NEXT_PUBLIC_SITE_URL}/verify/<its serial>`. `src/lib/certificates/qr.ts` turns the symbol into
+>   ONE path; the editor SVG and the PDF (`drawSvgPath`) draw that same path under the same placement,
+>   pinned by `qr-fidelity.test.tsx` — the same promise `layout-fidelity` makes for text.
+> - **Serials are now 128 random bits** (SECURITY_SPEC §9), Crockford base32:
+>   `CSE-2026-XXXXX-XXXXX-XXXXX-XXXXX-XXXXXX`, year in IST. That is what makes a public lookup by serial
+>   safe. The older 32-bit `CSE-2026-XXXXXXXX` shape is still accepted. Production held no certificates on 2026-09-14, **but it keeps minting that guessable shape until this branch merges** — another reason not to issue in prod before then.
+> - **`/verify/<serial>`** (public, `noindex`): **Valid** (name · event · club · event date · group ·
+>   issued · serial) / **Replaced by a newer certificate** (event · issued, no name) / **Revoked** (event ·
+>   revoked date, no name, no reason) / **Not a valid certificate**. **`/verify`** is a typed lookup that
+>   forgives case, spaces and O/0 I/1 mix-ups and redirects to the same page. 20 checks/min per IP;
+>   every answer padded to 450 ms so timing reveals nothing. The lookup selects only displayable columns
+>   and reads `snapshot` by its `groupLabel` key alone (the snapshot also holds email and roll).
+> - **⚠️ `NEXT_PUBLIC_SITE_URL` is set in Vercel for PRODUCTION ONLY** (checked with `vercel env ls`), and
+>   **not in `.env.local`**. Rendering an issued certificate that has a QR **refuses** without it
+>   (fail closed — a dead QR is worse than a failed send, which rolls back and retries). So on a preview
+>   deployment or locally, issuing/downloading a QR design fails with that error; add the var to
+>   `.env.local` (and Vercel Preview) to exercise it there. The watermarked **Preview PDF** falls back to
+>   the request origin, so designing works everywhere.
+> - **Verified, not just tested:**
+>   - **Real PDF → scan:** a certificate rendered by the real renderer with a fresh serial, rasterised
+>     with pdf.js in headless Chrome, **decodes to `https://cse-ccc.vercel.app/verify/<that serial>`**, and
+>     its printed serial text matches.
+>   - **Editor over CDP (9 checks):** the canvas QR decodes from a screenshot, uneven corner drags keep it
+>     square, <20 mm warns, colour follows, `+ QR`/undo, layer icon, no page errors.
+>   - **Live DB, read path:** the live `certificates` table is **empty** (nothing issued in prod yet), so
+>     three throwaway rows (valid / revoked / replaced) carrying **canary** email, roll and revoke-reason
+>     strings were inserted, checked and **deleted — table back to 0 rows**. Every state rendered; **no
+>     canary reached the HTML**; hit/miss/revoked timings sat together at 0.58–0.82 s; the 21st check from
+>     one IP was refused; desktop, 400 px and dark mode had no horizontal overflow.
+> - **⚠️ OWED — the human bits** (need a real issue + a phone):
+>   1. Issue & email one certificate from a design with a QR; **scan the QR on the received PDF with a
+>      phone** → "Valid certificate" with the right name.
+>   2. **Revoke** it, scan again → "Revoked", no name.
+>   3. Re-issue someone, scan the **old** PDF → "Replaced by a newer certificate"; the new one → Valid.
+>   4. Look at `/verify` on a real phone.
+> - **⚠️ Found, NOT fixed (phase 2 code): the print booklet draws every page with the group's CURRENT
+>   design**, not the design version each certificate was issued with
+>   (`api/admin/events/[id]/certificates/print/route.ts` passes `ws.group.design`; its comment claims
+>   otherwise). The single-certificate download and ZIP are correct (they use the stored version). It only
+>   bites if a design is edited after issuing — e.g. a QR added later appears in the booklet but not on
+>   the emailed PDFs. Fixing it needs the renderer to accept a design per page.
+
 > ### 🟡 BUILT ON BRANCH `feat/certificate-designer` — phase 2, NOT merged (2026-09-14)
 > **Everyone who earned a certificate can get one, and a wrong one can be put right.** Sits on top of
 > phase 1 (below) on the same branch. Gate: typecheck ✓ / lint ✓ / **910 tests** ✓ / build ✓.
@@ -370,7 +419,7 @@ end-to-end**, not a checklist of components.
 >   it; send to a team whose members have no addresses and confirm the leader gets one mail with all
 >   of them; re-issue someone and confirm the replacement arrives; revoke and confirm a later bulk run
 >   skips them.
-> - **Not built yet:** phase 3 — the QR code on the certificate and the public `/verify/<serial>` page.
+> - Phase 3 (QR + public `/verify/<serial>`) is now built too — see the block above.
 
 > ### 🟡 BUILT ON BRANCH `feat/certificate-designer` — phase 1 (2026-09-14)
 > **Certificate designer, phase 1.** Replaces the v1 one-name positioner on

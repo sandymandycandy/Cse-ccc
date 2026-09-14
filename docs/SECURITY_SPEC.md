@@ -209,7 +209,7 @@ rotated every ~5 s, TTL ~10 s, accepted only while the session is open (default 
 
 - Two types, per PRD v1.1: **participation** issues automatically to `attended = true` registrations; **winner** is issued manually by an authorised role picking placements from the attendee list. Winner issuance is a separate capability (`issue:winner_certificate`) and every issuance writes an audit row naming the actor — a fake award is the highest-value forgery on this platform, so it must never be attributable to "the system".
 - An admin override to issue participation certificates to "all registrants" rather than attendees exists, but is logged loudly.
-- Serial: 128 bits from `crypto.randomBytes`, rendered as `CSE-2026-XXXX-XXXX`.
+- Serial: 128 bits from `crypto.randomBytes`, Crockford base32, rendered as `CSE-2026-XXXXX-XXXXX-XXXXX-XXXXX-XXXXXX` (year in IST). The v1 issuer (2026-09-01) minted 32-bit `CSE-2026-XXXXXXXX` serials; the verify page still accepts that shape, and the production table held no certificates at all on 2026-09-14 — but production keeps minting the old shape until `feat/certificate-designer` merges.
 - Each PDF prints the serial plus a QR pointing to `https://<site>/verify/<serial>`.
 - `/verify/[serial]` is public and rate-limited; it shows student name, event, date, issuing club, **certificate type**, and issue date — and nothing else. Unknown or revoked serials return a clear "not valid" page. Responses are timing-uniform.
 - Storage: a dedicated bucket path, served via **signed URLs with a 15-minute TTL** rather than public links, so a certificate URL can't be enumerated or shared indefinitely.
