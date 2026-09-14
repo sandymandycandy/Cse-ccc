@@ -88,6 +88,11 @@ describe("transforms", () => {
     expect(titleCase("dr. k.s. ravi")).toBe("Dr. K.S. Ravi");
   });
 
+  it("keeps the editor's {Field} placeholders readable", () => {
+    expect(titleCase("{Name}")).toBe("{Name}");
+    expect(titleCase("{Team name}")).toBe("{Team Name}");
+  });
+
   it("applies upper / none", () => {
     expect(applyTransform("Asha", "upper")).toBe("ASHA");
     expect(applyTransform("asha", "none")).toBe("asha");

@@ -19,7 +19,6 @@ import { FIELD_NODE } from "@/lib/certificates/rich-text";
 import { Canvas } from "./Canvas";
 import { editorReducer, initEditorState } from "./designer-state";
 import { FieldMenu } from "./FieldMenu";
-import { clampPct } from "./geometry";
 import type { AssetKind } from "./image-prep";
 import { LayersPanel } from "./LayersPanel";
 import { PropertiesPanel } from "./PropertiesPanel";
@@ -138,23 +137,16 @@ export function CertificateDesigner(props: CertificateDesignerProps) {
       } else if (e.key.startsWith("Arrow") && state.selection.length) {
         e.preventDefault();
         const step = e.shiftKey ? 1 : 0.1;
-        const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
-        const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
         dispatch({
-          type: "update",
-          key: "nudge",
-          changes: state.design.elements
-            .filter((el) => state.selection.includes(el.id) && !el.locked)
-            .map((el) => {
-              const r = clampPct({ x: el.x + dx, y: el.y + dy, w: el.w, h: el.h });
-              return { id: el.id, patch: { x: r.x, y: r.y } };
-            }),
+          type: "nudge",
+          dx: e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0,
+          dy: e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0,
         });
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [state.editingId, state.selection, state.design.elements]);
+  }, [state.editingId, state.selection.length]);
 
   useEffect(() => {
     if (!state.dirty) return;

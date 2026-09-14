@@ -112,11 +112,17 @@ export function fieldLabel(catalogue: FieldGroup[], key: string): string {
   return key;
 }
 
-/** "asha r" → "Asha R", "JOHN o'NEIL-SMITH" → "John O'neil-Smith". */
+/**
+ * "asha r" → "Asha R", "JOHN o'NEIL-SMITH" → "John O'neil-Smith".
+ *
+ * Opening brackets and braces are word boundaries too, so the editor's
+ * `{Name}` placeholders survive a Title Case field with their label intact.
+ * The apostrophe deliberately is not one — O'neil, not O'Neil.
+ */
 export function titleCase(value: string): string {
   return value
     .toLowerCase()
-    .replace(/(^|[\s\-.(/])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toUpperCase());
+    .replace(/(^|[\s\-.(/[{])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toUpperCase());
 }
 
 export function applyTransform(value: string, transform: FieldTransform): string {

@@ -52,6 +52,24 @@ describe("editorReducer", () => {
     expect(s.past).toHaveLength(2);
   });
 
+  it("nudges the selection from current state, so a burst of key presses all count", () => {
+    let s = stateWith(text("a"), text("b"), text("c", { locked: true }));
+    s = editorReducer(s, { type: "select", ids: ["a", "c"] });
+    // Three presses in one React batch: each must build on the last.
+    for (let i = 0; i < 3; i++) s = editorReducer(s, { type: "nudge", dx: 0.1, dy: 0 });
+    expect(s.design.elements[0].x).toBeCloseTo(10.3, 5);
+    expect(s.design.elements[1].x).toBe(10); // not selected
+    expect(s.design.elements[2].x).toBe(10); // locked
+    expect(s.past).toHaveLength(1); // one undo step for the burst
+  });
+
+  it("keeps a nudge inside the range validation accepts", () => {
+    let s = stateWith(text("a", { x: -49.95 }));
+    s = editorReducer(s, { type: "select", ids: ["a"] });
+    s = editorReducer(s, { type: "nudge", dx: -1, dy: 0 });
+    expect(s.design.elements[0].x).toBe(-50);
+  });
+
   it("caps the undo history", () => {
     let s = stateWith(text("a"));
     for (let i = 0; i < UNDO_LIMIT + 20; i++) s = editorReducer(s, { type: "update", changes: [{ id: "a", patch: { x: i } }] });

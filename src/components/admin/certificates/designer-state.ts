@@ -29,6 +29,7 @@ export type EditorAction =
   | { type: "startEdit"; id: string }
   | { type: "endEdit" }
   | { type: "update"; changes: { id: string; patch: ElementPatch }[]; key?: string }
+  | { type: "nudge"; dx: number; dy: number }
   | { type: "setTemplate"; template: AssetRef }
   | { type: "add"; element: DesignElement }
   | { type: "deleteSelected" }
@@ -51,6 +52,9 @@ function commit(state: EditorState, next: Design, key: string | null = null): Ed
 }
 
 const withElements = (design: Design, elements: DesignElement[]): Design => ({ ...design, elements });
+
+/** Keep a nudged coordinate inside the range design validation accepts. */
+const clampPct = (n: number) => Math.round(Math.min(150, Math.max(-50, n)) * 1000) / 1000;
 
 export function editorReducer(state: EditorState, action: EditorAction): EditorState {
   const { design } = state;
@@ -82,6 +86,18 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         return { ...el, ...patch } as DesignElement;
       });
       return changed ? commit(state, withElements(design, elements), action.key ?? null) : state;
+    }
+
+    case "nudge": {
+      // Computed here, not by the caller: arrow keys can repeat faster than
+      // React re-renders, and a caller working from the rendered design would
+      // base every press in a burst on the same stale position and lose moves.
+      const moving = design.elements.filter((el) => state.selection.includes(el.id) && !el.locked);
+      if (moving.length === 0) return state;
+      const elements = design.elements.map((el) =>
+        moving.includes(el) ? { ...el, x: clampPct(el.x + action.dx), y: clampPct(el.y + action.dy) } : el,
+      );
+      return commit(state, withElements(design, elements), "nudge");
     }
 
     case "setTemplate":

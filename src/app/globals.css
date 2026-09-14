@@ -2480,6 +2480,9 @@
     .cd-narrow { display: block; }
     .cd-wide { display: none; }
   }
+  /* The canvas wants every pixel it can get, so this page opts out of the
+     960px admin column and spreads to the shell's own width. */
+  .admin-page:has(.cd) { max-width: 1500px; }
   .cd-toolbar {
     display: flex;
     flex-wrap: wrap;
