@@ -337,7 +337,42 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
-> ### 🟡 BUILT ON BRANCH `feat/certificate-designer` — NOT merged (2026-09-14)
+> ### 🟡 BUILT ON BRANCH `feat/certificate-designer` — phase 2, NOT merged (2026-09-14)
+> **Everyone who earned a certificate can get one, and a wrong one can be put right.** Sits on top of
+> phase 1 (below) on the same branch. Gate: typecheck ✓ / lint ✓ / **910 tests** ✓ / build ✓.
+> **No migration** — phase 1 already applied the tables and RPCs this needed.
+> Plan: `docs/superpowers/plans/2026-09-14-certificate-designer-phase2.md`.
+> - **Team members get their own certificate.** A present team yields one per person, each with their
+>   own name and their team's shared details. Members who gave no email of their own are delivered
+>   **via their team leader**, who receives **one message carrying every certificate for their team**
+>   (split only if the attachments would pass 20 MB). A batch takes whole destinations, so a team is
+>   never split across two runs.
+> - **Uploaded lists.** An event can have any number of groups besides Participants — Volunteers,
+>   Judges — each with **its own design and wording**, starting as a copy of the participants one.
+>   CSV is parsed in the browser; `.xlsx` goes through `read-excel-file`, loaded only when an Excel
+>   file is actually picked. Columns are confirmed against a preview before anything is saved, and a
+>   re-upload replaces the list while certificates already issued stay valid.
+> - **Recipients tab:** everyone across every group, with search (name, email, team, serial), group and
+>   status filters, and **per-person warnings computed with that group's own design** — a field their
+>   record leaves empty, text that will not fit its box, characters the chosen font cannot print.
+> - **Downloads:** one certificate; a **ZIP built in the browser** (one fetch per certificate, so no
+>   response is ever large); and a **print booklet** that embeds the template once for the whole run.
+> - **Re-issue is keyed by the person, not the certificate**, so the same button supersedes a live one
+>   and brings back a revoked one. Either way a failed email is rolled back — a superseded row is
+>   restored, a fresh row deleted — so the ledger never claims a certificate that did not go out.
+> - **Revoke** needs `revoke:certificate` (Faculty Advisor / VP / Tech Head) and a written reason;
+>   bulk issuing then leaves that person alone until someone re-issues. Everyone with issuing rights
+>   can re-issue. Every group create/rename/delete, sheet upload, issue run, re-issue and revoke is audited.
+> - **Browser-verified** through the extended harness at **`/dev/certificate-designer?panel=recipients`**
+>   (12 CDP checks: recipient kinds, leader routing, revoked-row actions, search on team, both filters,
+>   the ZIP/print controls following them, revoke demanding a reason, phone width).
+> - **⚠️ OWED — still the human bits** (an admin login + TOTP): upload a real volunteer list and issue
+>   it; send to a team whose members have no addresses and confirm the leader gets one mail with all
+>   of them; re-issue someone and confirm the replacement arrives; revoke and confirm a later bulk run
+>   skips them.
+> - **Not built yet:** phase 3 — the QR code on the certificate and the public `/verify/<serial>` page.
+
+> ### 🟡 BUILT ON BRANCH `feat/certificate-designer` — phase 1 (2026-09-14)
 > **Certificate designer, phase 1.** Replaces the v1 one-name positioner on
 > **`/admin/events/[id]/certificates`** with **Design / Issue** tabs. Gate: typecheck ✓ / lint ✓ /
 > **876 tests** ✓ / build ✓. Spec `docs/superpowers/specs/2026-09-14-certificate-designer-design.md`,
