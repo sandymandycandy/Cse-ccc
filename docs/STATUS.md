@@ -444,6 +444,16 @@ end-to-end**, not a checklist of components.
 > - **Verified:** every class renders; all six rules and the `@media (max-width: 599px)` block
 >   confirmed present **in the served stylesheet**, not just the source; `/announcements`,
 >   the detail page, `/achievements` and `/` all 200.
+> - **FOLLOW-UP — the DETAIL page is now picture-left / words-right on PC** (owner: *"maybe use
+>   the picture on the left and content on the right … for the pc view"*). This is the other half
+>   of the uncropped-cover change: a portrait poster at the 680px measure rendered about
+>   **680x850** — a full screen of picture before a single word. In a 360px column it is
+>   ~360x450, under a third of the area.
+>   ⚠️ **The article widens to 1040px ONLY when there is an image** (`.reading.has-media`). An
+>   announcement with no cover keeps 680px, because a lone column of prose at 1040px is an
+>   unreadable line length. Below **899px** it collapses to one column, image first, and the
+>   measure drops back to 680px so a tablet is not reading at full width.
+>   `sizes` is `(max-width: 899px) 100vw, 360px` so a phone does not fetch a desktop-sized file.
 > - **⏳ OWED — never opened in a browser.** Chrome has not connected in three sessions, so no
 >   phone-width rendering of this has been seen.
 

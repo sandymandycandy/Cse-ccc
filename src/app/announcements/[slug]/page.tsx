@@ -29,43 +29,46 @@ export default async function AnnouncementPage({
   if (!a) notFound();
 
   return (
-    <article className="section reading" style={{ paddingTop: 56 }}>
+    // `has-media` widens the measure and turns on the two-column split; without
+    // an image the article stays a plain 680px reading column.
+    <article
+      className={`section reading${a.imageUrl ? " has-media" : ""}`}
+      style={{ paddingTop: 56 }}
+    >
       <Link href="/announcements" className="label" style={{ color: "var(--forest)" }}>
         ← Announcements
       </Link>
-      <div className="eyebrow" style={{ marginTop: 20 }}>
-        {istFullDate(a.publishedAt)}
-      </div>
-      <h1 style={{ margin: "10px 0 0" }}>{a.title}</h1>
 
-      {a.imageUrl ? (
-        // Announcement images carry no stored dimensions, so 1600x900 is a
-        // space-reservation hint only — `height: auto` means the real aspect
-        // wins once the file arrives.
-        //
-        // ⚠️ Deliberately NO `maxHeight` and NO `objectFit: cover` here: posters
-        // are routinely portrait (the first real one is 1080x1350), and the old
-        // `maxHeight: 380` + `cover` silently cropped about 55% of such an image
-        // away — the announcement's own page is the one place it must be shown
-        // whole. A tall poster therefore renders tall, which is correct.
-        <Image
-          src={a.imageUrl}
-          alt=""
-          width={1600}
-          height={900}
-          priority
-          sizes="(max-width: 800px) 100vw, 760px"
-          style={{
-            width: "100%",
-            height: "auto",
-            borderRadius: 8,
-            marginTop: 24,
-          }}
-        />
-      ) : null}
+      <div className="notice-detail">
+        {a.imageUrl ? (
+          // Announcement images carry no stored dimensions, so 1600x900 is a
+          // space-reservation hint only — `height: auto` in the CSS means the real
+          // aspect wins once the file arrives.
+          //
+          // ⚠️ Deliberately NO `max-height` and NO `object-fit: cover`: posters are
+          // routinely portrait (the first real one is 1080x1350), and an earlier
+          // `maxHeight: 380` + `cover` silently cropped about 55% of such an image
+          // away — this page is the one place it must be shown whole. The tall
+          // shape is handled by giving it its own column, not by cropping it.
+          <div className="notice-media">
+            <Image
+              src={a.imageUrl}
+              alt=""
+              width={1600}
+              height={900}
+              priority
+              sizes="(max-width: 899px) 100vw, 360px"
+            />
+          </div>
+        ) : null}
 
-      <div className="prose" style={{ marginTop: 24 }}>
-        {renderMarkdown(a.bodyMarkdown)}
+        <div>
+          <div className="eyebrow">{istFullDate(a.publishedAt)}</div>
+          <h1 style={{ margin: "10px 0 0" }}>{a.title}</h1>
+          <div className="prose" style={{ marginTop: 24 }}>
+            {renderMarkdown(a.bodyMarkdown)}
+          </div>
+        </div>
       </div>
     </article>
   );
