@@ -21,8 +21,12 @@ export interface RecipientRow {
   groupName: string;
   kind: "registration" | "member" | "sheet";
   name: string;
+  /** Roll / VTU number, when their record has one — searchable. */
+  roll: string;
   teamLabel: string | null;
   email: string | null;
+  /** Where their certificate is actually emailed: their own address, or their leader's. */
+  deliverTo: string | null;
   viaLeader: boolean;
   warnings: string[];
   status:
@@ -67,7 +71,7 @@ export function RecipientsPanel({ eventId, rows, groups, canRevoke }: Props) {
         return false;
       }
       if (!q) return true;
-      return [row.name, row.email ?? "", row.teamLabel ?? "", row.groupName, row.status.state === "issued" ? row.status.serial : ""]
+      return [row.name, row.roll, row.email ?? "", row.teamLabel ?? "", row.groupName, row.status.state === "issued" ? row.status.serial : ""]
         .join(" ")
         .toLowerCase()
         .includes(q);
@@ -140,7 +144,7 @@ export function RecipientsPanel({ eventId, rows, groups, canRevoke }: Props) {
         <input
           type="search"
           value={query}
-          placeholder="Search name, email, team or serial"
+          placeholder="Search name, roll, email, team or serial"
           aria-label="Search recipients"
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -262,9 +266,14 @@ export function RecipientsPanel({ eventId, rows, groups, canRevoke }: Props) {
                   </td>
                   <td>
                     {row.status.state === "issued" ? (
-                      <span className="abadge abadge-approved" title={`${row.status.serial} · ${istDateMedium(row.status.issuedAt)}`}>
-                        Issued
-                      </span>
+                      <>
+                        <span className="abadge abadge-approved">Issued</span>
+                        <div className="cd-serial">
+                          {row.status.serial}
+                          <br />
+                          {istDateMedium(row.status.issuedAt)}
+                        </div>
+                      </>
                     ) : row.status.state === "revoked" ? (
                       <span className="abadge abadge-rejected">Revoked</span>
                     ) : (
@@ -291,7 +300,7 @@ export function RecipientsPanel({ eventId, rows, groups, canRevoke }: Props) {
                             disabled={busyKey !== null}
                             onClick={() => reissue(row)}
                           >
-                            {busyKey === row.key ? "Working…" : "Re-issue"}
+                            {busyKey === row.key ? "Working…" : row.deliverTo ? "Re-issue & email" : "Re-issue"}
                           </button>
                           {canRevoke ? (
                             <button
@@ -308,14 +317,30 @@ export function RecipientsPanel({ eventId, rows, groups, canRevoke }: Props) {
                           ) : null}
                         </>
                       ) : (
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          disabled={busyKey !== null}
-                          onClick={() => reissue(row)}
-                        >
-                          {busyKey === row.key ? "Working…" : row.status.state === "revoked" ? "Issue again" : "Issue now"}
-                        </button>
+                        <>
+                          <a
+                            className="btn btn-ghost btn-sm"
+                            href={`/api/admin/events/${eventId}/certificates/preview?group=${row.groupId}&recipient=${encodeURIComponent(row.key)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Preview
+                          </a>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            disabled={busyKey !== null}
+                            onClick={() => reissue(row)}
+                          >
+                            {busyKey === row.key
+                              ? "Working…"
+                              : row.status.state === "revoked"
+                                ? "Issue again"
+                                : row.deliverTo
+                                  ? "Issue & email"
+                                  : "Issue now"}
+                          </button>
+                        </>
                       )}
                     </div>
                   </td>

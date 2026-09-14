@@ -2669,6 +2669,13 @@
     background: var(--sand);
   }
   .cd-upload { display: grid; gap: 10px; }
+  /* The serial and date under an Issued badge: small, monospaced, wrappable. */
+  .cd-serial {
+    font: 400 10.5px / 1.45 var(--mono);
+    color: var(--ink-3);
+    margin-top: 4px;
+    overflow-wrap: anywhere;
+  }
   /* Keep a row's actions on one line — three buttons stacked make every row tall. */
   .cd-actions-cell { white-space: nowrap; }
   .cd-actions-cell .stack { flex-wrap: nowrap; gap: 6px; }
