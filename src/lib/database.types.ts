@@ -463,55 +463,211 @@ export type Database = {
           },
         ]
       }
+      certificate_design_versions: {
+        Row: {
+          created_at: string
+          design: Json
+          group_id: string | null
+          hash: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          design: Json
+          group_id?: string | null
+          hash: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          design?: Json
+          group_id?: string | null
+          hash?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificate_design_versions_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "certificate_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      certificate_groups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          design: Json
+          event_id: string
+          id: string
+          kind: Database["public"]["Enums"]["certificate_group_kind"]
+          name: string
+          sheet_columns: string[]
+          sort: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          design: Json
+          event_id: string
+          id?: string
+          kind: Database["public"]["Enums"]["certificate_group_kind"]
+          name: string
+          sheet_columns?: string[]
+          sort?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          design?: Json
+          event_id?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["certificate_group_kind"]
+          name?: string
+          sheet_columns?: string[]
+          sort?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificate_groups_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificate_groups_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      certificate_sheet_rows: {
+        Row: {
+          data: Json
+          email: string | null
+          group_id: string
+          id: string
+          name: string
+          row_no: number
+        }
+        Insert: {
+          data?: Json
+          email?: string | null
+          group_id: string
+          id?: string
+          name: string
+          row_no: number
+        }
+        Update: {
+          data?: Json
+          email?: string | null
+          group_id?: string
+          id?: string
+          name?: string
+          row_no?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificate_sheet_rows_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "certificate_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       certificates: {
         Row: {
+          design_version_id: string | null
           download_path: string | null
           event_id: string
+          group_id: string | null
           hmac: string
           id: string
           issued_at: string
           issued_by: string | null
           placement: number | null
+          recipient_email: string | null
+          recipient_key: string | null
+          recipient_name: string | null
           registration_id: string | null
           revoked_at: string | null
           revoked_reason: string | null
           serial: string
+          snapshot: Json | null
+          superseded_by: string | null
           type: Database["public"]["Enums"]["certificate_type"]
         }
         Insert: {
+          design_version_id?: string | null
           download_path?: string | null
           event_id: string
+          group_id?: string | null
           hmac: string
           id?: string
           issued_at?: string
           issued_by?: string | null
           placement?: number | null
+          recipient_email?: string | null
+          recipient_key?: string | null
+          recipient_name?: string | null
           registration_id?: string | null
           revoked_at?: string | null
           revoked_reason?: string | null
           serial: string
+          snapshot?: Json | null
+          superseded_by?: string | null
           type: Database["public"]["Enums"]["certificate_type"]
         }
         Update: {
+          design_version_id?: string | null
           download_path?: string | null
           event_id?: string
+          group_id?: string | null
           hmac?: string
           id?: string
           issued_at?: string
           issued_by?: string | null
           placement?: number | null
+          recipient_email?: string | null
+          recipient_key?: string | null
+          recipient_name?: string | null
           registration_id?: string | null
           revoked_at?: string | null
           revoked_reason?: string | null
           serial?: string
+          snapshot?: Json | null
+          superseded_by?: string | null
           type?: Database["public"]["Enums"]["certificate_type"]
         }
         Relationships: [
+          {
+            foreignKeyName: "certificates_design_version_id_fkey"
+            columns: ["design_version_id"]
+            isOneToOne: false
+            referencedRelation: "certificate_design_versions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "certificates_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificates_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "certificate_groups"
             referencedColumns: ["id"]
           },
           {
@@ -526,6 +682,13 @@ export type Database = {
             columns: ["registration_id"]
             isOneToOne: false
             referencedRelation: "registrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificates_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "certificates"
             referencedColumns: ["id"]
           },
         ]
@@ -2144,6 +2307,15 @@ export type Database = {
               status: string
             }[]
           }
+      replace_certificate_sheet_rows: {
+        Args: { p_group_id: string; p_rows: Json }
+        Returns: number
+      }
+      supersede_certificate: {
+        Args: { p_new: Json; p_old_id: string }
+        Returns: string
+      }
+      undo_supersede: { Args: { p_new_id: string }; Returns: undefined }
     }
     Enums: {
       admin_role:
@@ -2159,6 +2331,7 @@ export type Database = {
         | "gallery_manager"
       approval_status: "pending" | "approved" | "rejected"
       attendance_status: "open" | "closed"
+      certificate_group_kind: "participants" | "sheet"
       certificate_type: "participation" | "winner"
       checkin_method: "door" | "self" | "manual"
       club_category: "tech" | "media" | "cultural" | "wellness" | "career"
@@ -2312,6 +2485,7 @@ export const Constants = {
       ],
       approval_status: ["pending", "approved", "rejected"],
       attendance_status: ["open", "closed"],
+      certificate_group_kind: ["participants", "sheet"],
       certificate_type: ["participation", "winner"],
       checkin_method: ["door", "self", "manual"],
       club_category: ["tech", "media", "cultural", "wellness", "career"],
