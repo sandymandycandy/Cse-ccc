@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-14.**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-14 (certificate designer shipped).**
 
 ## What this is
 
@@ -18,7 +18,11 @@ end-to-end**, not a checklist of components.
 
 ---
 
-## 🚦 START HERE — current git/deploy state (2026-09-05)
+## 🚦 START HERE — current git/deploy state (2026-09-14)
+
+> **2026-09-14:** `main == origin/main @ c7cdb1c`, clean, nothing in flight. The **certificate
+> designer (all three phases) merged and deployed** today — see the SHIPPED block below. The owed
+> work is the live human walkthrough listed there, not code.
 
 > ### ⚠️ NEVER RUN `supabase db push` ON THIS PROJECT
 >
@@ -337,9 +341,26 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
-> ### 🟡 BUILT ON BRANCH `feat/certificate-designer` — phase 3, NOT merged (2026-09-14)
-> **Anyone holding a certificate can prove it is real.** The certificate designer is now **complete —
-> all three phases are on this branch**, waiting only on the human walkthroughs below before it merges.
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-14 — the whole certificate designer, all three phases
+>
+> `feat/certificate-designer` (33 commits) merged to `main` as `c7cdb1c` and pushed; Vercel built it
+> in 58s and it is **live**. Gate before the push: typecheck ✓ / lint ✓ / **952 tests** ✓ / build ✓.
+> **No migration ran** — phase 1's schema was applied when it was built, and it was re-verified on the
+> live database before merging (3 tables, 7 new `certificates` columns, 3 RPCs, the
+> `certificate-assets` bucket and the one-live-per-recipient index all present; RLS on with no
+> anon/authenticated grants on any of them).
+>
+> **Production smoke, after the deploy:** `/`, `/events`, `/calendar`, `/clubs`, `/gallery` and the new
+> `/verify` all 200 · an unknown serial says "Not a valid certificate" and carries `noindex` · the
+> typed lookup 307s to the canonical serial · `/admin/certificates` still redirects to login · the
+> 21st check from one client is refused · **`/dev/certificate-designer` 404s in production**, as it must.
+>
+> **⚠️ Nothing has been issued in production yet** — `certificates` is empty. The owed human
+> walkthroughs below are now the LIVE ones, and the first real issue run is the moment to do them.
+
+> ### ✅ MERGED & LIVE — certificate designer, phase 3 (2026-09-14)
+> **Anyone holding a certificate can prove it is real.** The last of the three phases; all three are
+> now merged and live.
 > Gate: typecheck ✓ / lint ✓ / **943 tests** ✓ / build ✓. **No migration.**
 > Plan: `docs/superpowers/plans/2026-09-14-certificate-designer-phase3.md`.
 > - **Verification QR.** `+ QR` in the designer adds a square code (colour prop; the panel shows its
@@ -382,9 +403,9 @@ end-to-end**, not a checklist of components.
 > - **A phase-2 bug found here has since been fixed:** the print booklet was drawing every page with
 >   the group's current design rather than each certificate's own version. See the phase 2 block below.
 
-> ### 🟡 BUILT ON BRANCH `feat/certificate-designer` — phase 2 (complete), NOT merged (2026-09-14)
+> ### ✅ MERGED & LIVE — certificate designer, phase 2 (2026-09-14)
 > **Everyone who earned a certificate can get one, and a wrong one can be put right.** Sits on top of
-> phase 1 (below) on the same branch. Gate when first built: typecheck ✓ / lint ✓ / **910 tests** ✓ / build ✓
+> phase 1 (below). Gate when first built: typecheck ✓ / lint ✓ / **910 tests** ✓ / build ✓
 > (see the completion note at the end of this block for the current numbers).
 > **No migration** — phase 1 already applied the tables and RPCs this needed.
 > Plan: `docs/superpowers/plans/2026-09-14-certificate-designer-phase2.md`.
@@ -451,7 +472,7 @@ end-to-end**, not a checklist of components.
 >     print the **booklet** after a design change and confirm it matches the emailed PDFs.
 > - Phase 3 (QR + public `/verify/<serial>`) is now built too — see the block above.
 
-> ### 🟡 BUILT ON BRANCH `feat/certificate-designer` — phase 1 (2026-09-14)
+> ### ✅ MERGED & LIVE — certificate designer, phase 1 (2026-09-14)
 > **Certificate designer, phase 1.** Replaces the v1 one-name positioner on
 > **`/admin/events/[id]/certificates`** with **Design / Issue** tabs. Gate: typecheck ✓ / lint ✓ /
 > **876 tests** ✓ / build ✓. Spec `docs/superpowers/specs/2026-09-14-certificate-designer-design.md`,
@@ -2943,11 +2964,17 @@ flow as always.
    - **Phase-2 exit gate:** a club head runs their club end-to-end without
      messaging anyone; Docs Head updates a Drive link without a deploy.
 
-3. **Certificates (§12.6) + `/verify/:serial`** — ⛔ **PARKED per owner ("keep it
-   locked"), and also blocked on org assets** (club logos + a faculty signature
-   image for the PDF). Logic is unblocked (winner certs ← final-round standings;
-   participation ← `attended` rows; `certificates` table + HMAC serials exist),
-   but **do not start without the owner unlocking it.**
+3. **Certificates (§12.6) + `/verify/:serial`** — ✅ **SHIPPED & LIVE 2026-09-14**
+   (unparked by the owner and built as the three-phase certificate designer —
+   see the blocks above). **Participation certificates only.** What is left:
+   - **Winner certificates** — a separate project that reuses this engine: a new
+     group kind fed by `results`, gated on `issue:winner_certificate`. Not started.
+   - **Student self-service download** (`/events/:id/certificate` in BUILD_PLAN) —
+     not built; today an admin downloads or re-issues on someone's behalf.
+   - **Org assets are still owed by the owner** and now block nothing but good
+     looks: club logos and a faculty signature image to place in the design.
+   - Moving the certificate HMAC to its own `CERT_HMAC_SECRET` (needs the owner to
+     set that env var in Vercel); verification does not depend on it.
 
 4. **Remaining Phase-1 admin surfaces (unbuilt):** `/admin/scan` kiosk (needs a
    camera — hard to verify headless); real `/admin/certificates` (see #3).
