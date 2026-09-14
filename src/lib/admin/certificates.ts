@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/database.types";
 import { canManage, type AdminIdentity } from "@/lib/auth/capabilities";
 import { istDateMedium } from "@/lib/datetime";
-import type { FormField } from "@/lib/registration-form/schema";
+import { validateFormSchema, type FormField } from "@/lib/registration-form/schema";
 import { validateCertificateConfig } from "@/lib/certificates/config";
 import {
   assetRefsOf,
@@ -564,39 +564,114 @@ export interface CertificateEventRow {
   id: string;
   title: string;
   startsAt: string;
-  attended: number;
+  /** Everyone due a certificate: attendees, their team members, and uploaded rows. */
+  people: number;
   issued: number;
 }
 
-/** Events that have at least one attendee, for the certificates hub. Newest first. */
+/** Read every row of a table in pages — Supabase caps a single select at 1000. */
+async function selectAll<T>(
+  query: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+): Promise<T[]> {
+  const page = 1000;
+  const out: T[] = [];
+  for (let from = 0; ; from += page) {
+    const { data } = await query(from, from + page - 1);
+    if (!data?.length) break;
+    out.push(...data);
+    if (data.length < page) break;
+  }
+  return out;
+}
+
+/**
+ * The certificates hub: every event that has anyone to certify, with the same
+ * people count the Recipients tab shows — attendees expanded into their team
+ * members, plus uploaded lists. Read-only: viewing the hub never creates a
+ * group. Newest first.
+ */
 export async function listCertificateEvents(): Promise<CertificateEventRow[]> {
   const admin = createAdminClient();
 
-  const [attRes, certRes] = await Promise.all([
-    admin.from("registrations").select("event_id").eq("attended", true),
-    admin.from("certificates").select("event_id, revoked_at").eq("type", "participation"),
+  const [attendedRows, groupRows, certRows] = await Promise.all([
+    selectAll<{ event_id: string | null }>((from, to) =>
+      admin.from("registrations").select("event_id").eq("attended", true).range(from, to),
+    ),
+    selectAll<{ id: string; event_id: string; kind: "participants" | "sheet" }>((from, to) =>
+      admin.from("certificate_groups").select("id, event_id, kind").range(from, to),
+    ),
+    selectAll<{ event_id: string; revoked_at: string | null }>((from, to) =>
+      admin.from("certificates").select("event_id, revoked_at").eq("type", "participation").range(from, to),
+    ),
   ]);
 
-  const attended = new Map<string, number>();
-  for (const r of attRes.data ?? []) {
-    if (r.event_id) attended.set(r.event_id, (attended.get(r.event_id) ?? 0) + 1);
+  const sheetGroups = groupRows.filter((g) => g.kind === "sheet");
+  const sheetCounts = await Promise.all(
+    sheetGroups.map(async (group) => {
+      const { count } = await admin
+        .from("certificate_sheet_rows")
+        .select("id", { count: "exact", head: true })
+        .eq("group_id", group.id);
+      return { eventId: group.event_id, count: count ?? 0 };
+    }),
+  );
+
+  const eventIds = new Set<string>();
+  const attendedPerEvent = new Map<string, number>();
+  for (const row of attendedRows) {
+    if (!row.event_id) continue;
+    eventIds.add(row.event_id);
+    attendedPerEvent.set(row.event_id, (attendedPerEvent.get(row.event_id) ?? 0) + 1);
   }
-  if (attended.size === 0) return [];
+  const sheetPerEvent = new Map<string, number>();
+  for (const { eventId, count } of sheetCounts) {
+    if (count === 0) continue;
+    eventIds.add(eventId);
+    sheetPerEvent.set(eventId, (sheetPerEvent.get(eventId) ?? 0) + count);
+  }
+  const issuedPerEvent = new Map<string, number>();
+  for (const row of certRows) {
+    eventIds.add(row.event_id);
+    if (!row.revoked_at) issuedPerEvent.set(row.event_id, (issuedPerEvent.get(row.event_id) ?? 0) + 1);
+  }
+  if (eventIds.size === 0) return [];
 
-  const issued = new Map<string, number>();
-  for (const c of certRes.data ?? []) {
-    if (c.event_id && !c.revoked_at) issued.set(c.event_id, (issued.get(c.event_id) ?? 0) + 1);
+  // Team members are recipients too, so the attendee count alone would be wrong
+  // for a team event. Expand them here, once for every event, rather than per row.
+  const ids = [...eventIds];
+  const [events, forms, teamRegistrations] = await Promise.all([
+    admin.from("events").select("id, title, starts_at").in("id", ids),
+    admin.from("events").select("id, registration_form").in("id", ids),
+    selectAll<{ event_id: string | null; custom_answers: Json | null }>((from, to) =>
+      admin.from("registrations").select("event_id, custom_answers").eq("attended", true).range(from, to),
+    ),
+  ]);
+
+  const schemas = new Map<string, FormField[]>();
+  for (const row of (forms.data ?? []) as { id: string; registration_form: unknown }[]) {
+    const parsed = row.registration_form ? validateFormSchema(row.registration_form) : null;
+    schemas.set(row.id, parsed?.ok ? parsed.fields : []);
+  }
+  const membersPerEvent = new Map<string, number>();
+  for (const row of teamRegistrations) {
+    const schema = row.event_id ? schemas.get(row.event_id) : undefined;
+    if (!row.event_id || !schema?.length) continue;
+    const team = teamOf(
+      { name: "", roll: "", department: null, year: null, email: "", phone: null, teamName: null, customAnswers: row.custom_answers as Record<string, unknown> | null },
+      schema,
+    );
+    const members = team.filter((p) => !p.isLeader).length;
+    if (members > 0) membersPerEvent.set(row.event_id, (membersPerEvent.get(row.event_id) ?? 0) + members);
   }
 
-  const { data: events } = await admin.from("events").select("id, title, starts_at").in("id", [...attended.keys()]);
-
-  return (events ?? [])
+  return ((events.data ?? []) as { id: string; title: string; starts_at: string }[])
     .map((e) => ({
       id: e.id,
       title: e.title,
       startsAt: e.starts_at,
-      attended: attended.get(e.id) ?? 0,
-      issued: issued.get(e.id) ?? 0,
+      people:
+        (attendedPerEvent.get(e.id) ?? 0) + (membersPerEvent.get(e.id) ?? 0) + (sheetPerEvent.get(e.id) ?? 0),
+      issued: issuedPerEvent.get(e.id) ?? 0,
     }))
     .sort((a, b) => b.startsAt.localeCompare(a.startsAt));
 }
