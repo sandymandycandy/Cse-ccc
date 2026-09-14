@@ -9,11 +9,26 @@ import { writeAudit } from "@/lib/admin/audit";
 import { uniqueSlug, getAnnouncementForEdit } from "@/lib/admin/announcements";
 import { handleImageUpload } from "@/lib/admin/image-upload";
 import type { AnnouncementFormState } from "@/lib/admin/form-state";
+import { istLocalToUTC } from "@/lib/datetime";
 
 const Schema = z.object({
   title: z.string().trim().min(3).max(140),
   body: z.string().trim().min(1).max(20000),
 });
+
+/**
+ * The optional "hide after" time, IST wall-clock → UTC ISO, or null for blank.
+ *
+ * A past time is allowed on purpose: on the edit form it is the natural way to
+ * pull a notice off the public site immediately. Returns `undefined` only when
+ * the field holds something that is not a valid datetime, which the callers
+ * turn into a form error rather than silently storing null.
+ */
+function readExpiresAt(formData: FormData): string | null | undefined {
+  const raw = String(formData.get("expiresAt") ?? "").trim();
+  if (!raw) return null;
+  return istLocalToUTC(raw) ?? undefined;
+}
 
 export async function createAnnouncementAction(
   _prev: AnnouncementFormState,
@@ -30,6 +45,8 @@ export async function createAnnouncementAction(
   if (!parsed.success) return { error: "Check the form — title and body are required." };
   const { title, body } = parsed.data;
   const published = formData.get("published") === "on";
+  const expiresAt = readExpiresAt(formData);
+  if (expiresAt === undefined) return { error: "Check the hide-after date and time." };
 
   const img = await handleImageUpload(formData, { bucket: "announcements" });
   if (img.error) return { error: img.error };
@@ -45,6 +62,7 @@ export async function createAnnouncementAction(
       published_at: published ? new Date().toISOString() : null,
       author_id: session.id,
       image_path: img.path ?? null,
+      expires_at: expiresAt,
     })
     .select("id")
     .single();
@@ -81,6 +99,8 @@ export async function updateAnnouncementAction(
   if (!parsed.success) return { error: "Check the form — title and body are required." };
   const { title, body } = parsed.data;
   const published = formData.get("published") === "on";
+  const expiresAt = readExpiresAt(formData);
+  if (expiresAt === undefined) return { error: "Check the hide-after date and time." };
 
   const img = await handleImageUpload(formData, { bucket: "announcements" });
   if (img.error) return { error: img.error };
@@ -91,12 +111,15 @@ export async function updateAnnouncementAction(
     body_markdown: string;
     published_at: string | null;
     image_path?: string;
+    expires_at: string | null;
   } = {
     title,
     body_markdown: body,
     // Keep the original publish time when it stays published; set now on a
     // draft→publish; clear on unpublish.
     published_at: published ? existing.publishedAt ?? new Date().toISOString() : null,
+    // Always written, so clearing the box really does remove the expiry.
+    expires_at: expiresAt,
   };
   if (img.path !== undefined) update.image_path = img.path;
 

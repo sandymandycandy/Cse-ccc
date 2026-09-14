@@ -227,6 +227,7 @@ export type Database = {
           author_id: string | null
           body_markdown: string
           created_at: string
+          expires_at: string | null
           id: string
           image_path: string | null
           published_at: string | null
@@ -238,6 +239,7 @@ export type Database = {
           author_id?: string | null
           body_markdown: string
           created_at?: string
+          expires_at?: string | null
           id?: string
           image_path?: string | null
           published_at?: string | null
@@ -249,6 +251,7 @@ export type Database = {
           author_id?: string | null
           body_markdown?: string
           created_at?: string
+          expires_at?: string | null
           id?: string
           image_path?: string | null
           published_at?: string | null

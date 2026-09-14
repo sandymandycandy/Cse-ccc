@@ -9,6 +9,7 @@ export interface AdminAnnouncementRow {
   title: string;
   publishedAt: string | null;
   updatedAt: string;
+  expiresAt: string | null;
 }
 
 export interface AnnouncementForEdit {
@@ -18,13 +19,19 @@ export interface AnnouncementForEdit {
   bodyMarkdown: string;
   publishedAt: string | null;
   imagePath: string | null;
+  expiresAt: string | null;
 }
 
+/**
+ * Every announcement, drafts and PAST ones included — the admin list is the one
+ * place expired notices stay visible, so the council can see what has run.
+ * Never add an expiry filter here; the public reads in `queries.ts` own that.
+ */
 export async function listAnnouncementsForAdmin(): Promise<AdminAnnouncementRow[]> {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("announcements")
-    .select("id, slug, title, published_at, updated_at")
+    .select("id, slug, title, published_at, updated_at, expires_at")
     .order("updated_at", { ascending: false })
     .limit(200);
   if (error) throw error;
@@ -34,6 +41,7 @@ export async function listAnnouncementsForAdmin(): Promise<AdminAnnouncementRow[
     title: a.title,
     publishedAt: a.published_at,
     updatedAt: a.updated_at,
+    expiresAt: a.expires_at,
   }));
 }
 
@@ -41,7 +49,7 @@ export async function getAnnouncementForEdit(id: string): Promise<AnnouncementFo
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("announcements")
-    .select("id, slug, title, body_markdown, published_at, image_path")
+    .select("id, slug, title, body_markdown, published_at, image_path, expires_at")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
@@ -53,6 +61,7 @@ export async function getAnnouncementForEdit(id: string): Promise<AnnouncementFo
     bodyMarkdown: data.body_markdown,
     publishedAt: data.published_at,
     imagePath: data.image_path,
+    expiresAt: data.expires_at,
   };
 }
 

@@ -3,6 +3,7 @@ import { requireViewPage } from "@/lib/auth/guards";
 import { canManage } from "@/lib/auth/capabilities";
 import { getAnnouncementForEdit } from "@/lib/admin/announcements";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { istLocalInput } from "@/lib/datetime";
 import { AnnouncementForm } from "@/components/admin/AnnouncementForm";
 import { updateAnnouncementAction } from "../../actions";
 
@@ -38,6 +39,7 @@ export default async function EditAnnouncementPage({
           body: a.bodyMarkdown,
           published: a.publishedAt != null,
           imageUrl,
+          expiresAtLocal: a.expiresAt ? istLocalInput(a.expiresAt) : "",
         }}
       />
     </div>

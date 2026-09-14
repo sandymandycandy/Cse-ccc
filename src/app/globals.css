@@ -661,6 +661,45 @@
     .hero-grid { grid-template-columns: 1fr; gap: 28px; }
   }
 
+  /* Hero notice — the latest live announcement, above the events carousel.
+     `.hero-side` exists because the right column now holds TWO things while
+     `.hero-grid` is `align-items: center`; without a flex column wrapper the
+     note and the carousel would not share a gap. Motion here is covered by the
+     global prefers-reduced-motion reset above. */
+  .hero-side {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+  }
+  .hero-note {
+    padding: 16px 18px;
+    text-decoration: none;
+    transition: border-color 0.18s ease;
+  }
+  .hero-note:hover { border-color: var(--forest); }
+  .hero-note-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .hero-note-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 8px;
+    font: 400 19px/1.3 var(--serif);
+  }
+  /* inline-block or the nudge does nothing — transforms don't apply to inline */
+  .hero-note-arrow {
+    display: inline-block;
+    color: var(--forest);
+    transition: transform 0.18s ease;
+  }
+  .hero-note:hover .hero-note-arrow { transform: translateX(3px); }
+
   /* section scaffolding */
   .section {
     padding: 48px var(--pad);
@@ -1929,6 +1968,10 @@
   .abadge-pending { background: var(--clay-tint); color: var(--clay); }
   .abadge-approved { background: var(--forest-tint); color: var(--forest); }
   .abadge-rejected { background: var(--rust-tint); color: var(--rust); }
+  /* An expired announcement is finished, not failed — neutral, never rust.
+     Same reasoning as the grey "Absent" tag on the public roll lookup.
+     Both tokens are defined per-theme, so this reads in dark mode too. */
+  .abadge-past { background: var(--line-2); color: var(--ink-3); }
 
   .admin-approvals { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
   .admin-approval {

@@ -7,7 +7,9 @@ import { ClubCard } from "@/components/ClubCard";
 import { UpcomingCarousel } from "@/components/UpcomingCarousel";
 import { GalleryStrip } from "@/components/GalleryStrip";
 import { FeedbackBanner } from "@/components/FeedbackBanner";
+import { HeroAnnouncement } from "@/components/HeroAnnouncement";
 import { getOpenPeriod } from "@/lib/feedback/data";
+import { pickHeroAnnouncement } from "@/lib/announcements/hero";
 import { istFullDate } from "@/lib/datetime";
 import {
   getUpcomingEvents,
@@ -31,6 +33,9 @@ export default async function HomePage() {
     ]);
 
   const thisWeekCount = week.filter((d) => d.event).length;
+  // `announcements` is already expiry-filtered by the query; the picker adds the
+  // "newest wins" rule and is the tested source of truth for what the hero shows.
+  const heroNote = pickHeroAnnouncement(announcements, new Date());
 
   return (
     <>
@@ -75,7 +80,16 @@ export default async function HomePage() {
             </div>
           </div>
 
-          <UpcomingCarousel events={events} />
+          <div className="hero-side">
+            {heroNote ? (
+              <HeroAnnouncement
+                slug={heroNote.slug}
+                title={heroNote.title}
+                publishedAt={heroNote.publishedAt}
+              />
+            ) : null}
+            <UpcomingCarousel events={events} />
+          </div>
         </div>
       </section>
 
