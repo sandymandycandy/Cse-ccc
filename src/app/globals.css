@@ -767,6 +767,46 @@
      article hugs the left edge of a wide monitor with empty space beside it. */
   .reading { max-width: 680px; margin-inline: auto; }
 
+  /* ── announcement detail: picture left, words right ──
+     Widens ONLY when there is an image. A lone column of prose at 1040px is an
+     unreadable line length, so an announcement with no cover keeps the 680px
+     measure above.
+
+     Why side-by-side at all: once the cover stopped being cropped (2026-09-14) a
+     portrait poster — the norm here, the first real one is 1080x1350 — rendered
+     about 680x850 at the reading measure, a full screen of picture before a
+     single word. In a 360px column it is ~360x450, under a third of the area. */
+  .reading.has-media { max-width: 1040px; }
+
+  .notice-detail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    margin-top: 20px;
+    align-items: start;
+  }
+  /* minmax(0, …) on BOTH tracks: a grid track's default minimum is `auto`, so one
+     long unbroken word in the body would widen the entire layout. */
+  .reading.has-media .notice-detail {
+    grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+    gap: 40px;
+  }
+  .notice-media img {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+  }
+
+  @media (max-width: 899px) {
+    /* One column, image first — the hero treatment, and the measure comes back
+       down so the body is not reading at 1040px on a tablet. */
+    .reading.has-media { max-width: 680px; }
+    .reading.has-media .notice-detail {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 22px;
+    }
+  }
+
   /* ── markdown body ──
      ⚠️ `.prose` was referenced by the announcement AND achievement pages but had
      never been DEFINED anywhere, so body copy had no wrapping rule and its
