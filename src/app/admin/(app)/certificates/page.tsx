@@ -26,7 +26,7 @@ export default async function CertificatesPage() {
           list of volunteers or judges — then issue certificates from there.
         </div>
       ) : (
-        <div className="tablewrap" style={{ marginTop: 20 }}>
+        <div className="tablewrap cards" style={{ marginTop: 20 }}>
           <table className="admin">
             <thead>
               <tr>
@@ -40,17 +40,17 @@ export default async function CertificatesPage() {
             <tbody>
               {events.map((e) => (
                 <tr key={e.id}>
-                  <td style={{ fontWeight: 500 }}>{e.title}</td>
-                  <td>{istFullDate(e.startsAt)}</td>
-                  <td>{e.people}</td>
-                  <td>
+                  <td data-primary="" style={{ fontWeight: 500 }}>{e.title}</td>
+                  <td data-label="Date">{istFullDate(e.startsAt)}</td>
+                  <td data-label="People">{e.people}</td>
+                  <td data-label="Issued">
                     {e.issued >= e.people && e.people > 0 ? (
                       <span className="abadge abadge-approved">{e.issued} / {e.people}</span>
                     ) : (
                       `${e.issued} / ${e.people}`
                     )}
                   </td>
-                  <td>
+                  <td data-action="">
                     <Link
                       href={`/admin/events/${e.id}/certificates`}
                       className="btn btn-accent btn-sm"

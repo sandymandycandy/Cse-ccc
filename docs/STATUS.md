@@ -358,6 +358,29 @@ end-to-end**, not a checklist of components.
 > **⚠️ Nothing has been issued in production yet** — `certificates` is empty. The owed human
 > walkthroughs below are now the LIVE ones, and the first real issue run is the moment to do them.
 
+> ### 📱 Certificate pages on a phone — responsive pass (2026-09-14, after the ship)
+>
+> The certificate pages passed "no horizontal page overflow" from the start, but the Recipients table
+> was a **968px-wide sideways scroller** inside it: on a phone you saw Name, Group, Team and Email, and
+> **every action — Download, Preview, Re-issue, Revoke — was off-screen to the right.** Fixed by opting
+> both certificate tables into the project's existing `.tablewrap.cards` pattern (the one the
+> attendance, council, registrations and feedback tables already use), so below 720px each row becomes
+> a card: the name heads it, the rest are label → value lines, and the buttons wrap full-width.
+> - **Recipients** (`RecipientsPanel`) and the **hub** (`/admin/certificates`) both converted. The row
+>   number is hidden in card form — it belongs to a wide table's scan order, not a card.
+> - **Tap targets:** the search box and the two filter selects were 33–35px tall; they are 44px on
+>   anything ≤899px now, matching the rest of the system. (The 16px font rule on phones stays — it is
+>   what stops iOS zooming on focus.)
+> - **The Design tab still refuses below 1024px** — placing elements needs the room, and that is the
+>   spec's call (§1). But the dead-end note now says so in a sentence and links to **Recipients** and
+>   **Issue**, which do work on a phone.
+> - **Checked over CDP at 360, 400 and 768px** (and 1024/1440 for no desktop regression): no page
+>   overflow, nothing wider than the viewport outside a deliberate scroller, no control under 36px,
+>   no console errors. Gate: typecheck ✓ / lint ✓ / **952 tests** ✓ / build ✓.
+> - **⚠️ Seen in code, not in a browser: the hub table.** `/admin/certificates` needs a login, so its
+>   card layout is the shared pattern's, not something I watched render. Glance at it on a phone during
+>   the walkthrough below.
+
 > ### ✅ MERGED & LIVE — certificate designer, phase 3 (2026-09-14)
 > **Anyone holding a certificate can prove it is real.** The last of the three phases; all three are
 > now merged and live.

@@ -231,7 +231,7 @@ export function RecipientsPanel({ eventId, rows, groups, canRevoke }: Props) {
             : "No one matches that search."}
         </div>
       ) : (
-        <div className="tablewrap" style={{ marginTop: 14 }}>
+        <div className="tablewrap cards" style={{ marginTop: 14 }}>
           <table className="admin">
             <thead>
               <tr>
@@ -248,14 +248,14 @@ export function RecipientsPanel({ eventId, rows, groups, canRevoke }: Props) {
             <tbody>
               {visible.map((row, i) => (
                 <tr key={row.key}>
-                  <td>{i + 1}</td>
-                  <td style={{ fontWeight: 500 }}>
+                  <td data-label="#" data-index="">{i + 1}</td>
+                  <td data-primary="" style={{ fontWeight: 500 }}>
                     {row.name || "—"}
                     {KIND_LABEL[row.kind] ? <span className="hint"> · {KIND_LABEL[row.kind]}</span> : null}
                   </td>
-                  <td>{row.groupName}</td>
-                  <td>{row.teamLabel ?? "—"}</td>
-                  <td>
+                  <td data-label="Group">{row.groupName}</td>
+                  <td data-label="Team">{row.teamLabel ?? "—"}</td>
+                  <td data-label="Email">
                     {row.email ? (
                       row.email
                     ) : row.viaLeader ? (
@@ -264,7 +264,7 @@ export function RecipientsPanel({ eventId, rows, groups, canRevoke }: Props) {
                       <span style={{ color: "var(--rust)" }}>none</span>
                     )}
                   </td>
-                  <td>
+                  <td data-label="Certificate">
                     {row.status.state === "issued" ? (
                       <>
                         <span className="abadge abadge-approved">Issued</span>
@@ -280,14 +280,14 @@ export function RecipientsPanel({ eventId, rows, groups, canRevoke }: Props) {
                       <span className="abadge abadge-pending">Not issued</span>
                     )}
                   </td>
-                  <td>
+                  <td data-label="Needs a look">
                     {row.warnings.length === 0 ? (
                       <span className="hint">—</span>
                     ) : (
                       <span style={{ color: "var(--clay)" }}>{row.warnings.join("; ")}</span>
                     )}
                   </td>
-                  <td className="cd-actions-cell">
+                  <td className="cd-actions-cell" data-action="">
                     <div className="stack">
                       {row.status.state === "issued" ? (
                         <>

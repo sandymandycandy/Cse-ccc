@@ -327,7 +327,23 @@ export function CertificateDesigner(props: CertificateDesignerProps) {
   return (
     <div className="cd">
       <style>{FONT_CSS}</style>
-      <p className="note cd-narrow">Open this page on a laptop or desktop to edit the design.</p>
+      <div className="note cd-narrow">
+        <strong>Designing needs a laptop.</strong> Placing text and images on a certificate wants a screen
+        wider than this one, so the editor opens on a laptop or desktop.
+        {props.offline ? null : (
+          <div className="stack cd-narrow-actions">
+            <a className="btn btn-ghost btn-sm" href={`/admin/events/${eventId}/certificates?tab=recipients`}>
+              Recipients
+            </a>
+            <a className="btn btn-ghost btn-sm" href={`/admin/events/${eventId}/certificates?tab=issue`}>
+              Issue
+            </a>
+          </div>
+        )}
+        <p className="hint" style={{ marginTop: props.offline ? 8 : 10 }}>
+          Checking who gets a certificate, issuing them and downloading them all work on a phone.
+        </p>
+      </div>
 
       <div className="cd-wide">
         <div className="cd-toolbar">

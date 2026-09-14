@@ -648,6 +648,9 @@
     }
     .tablewrap.cards td[data-action]::before { content: none; }
     .tablewrap.cards td[data-action] .btn { width: 100%; }
+
+    /* the row number belongs to the wide table's scan order, not to a card */
+    .tablewrap.cards td[data-index] { display: none; }
   }
 
   /* home hero — text + next-event panel, stacks under 900px */
@@ -2475,6 +2478,7 @@
     border-color: var(--ink);
     color: var(--paper);
   }
+  .cd-narrow-actions { margin-top: 12px; }
   .cd-narrow { display: none; }
   @media (max-width: 1023px) {
     .cd-narrow { display: block; }
@@ -2676,9 +2680,26 @@
     margin-top: 4px;
     overflow-wrap: anywhere;
   }
+  @media (max-width: 720px) {
+    .tablewrap.cards .cd-serial { text-align: right; }
+  }
   /* Keep a row's actions on one line — three buttons stacked make every row tall. */
   .cd-actions-cell { white-space: nowrap; }
   .cd-actions-cell .stack { flex-wrap: nowrap; gap: 6px; }
+  /* As a card (below 720px) the row is no longer a row: the buttons wrap and
+     share the card's width, so each is a real tap target. */
+  @media (max-width: 720px) {
+    .tablewrap.cards .cd-actions-cell { white-space: normal; }
+    .tablewrap.cards .cd-actions-cell .stack { flex-wrap: wrap; gap: 8px; }
+    .tablewrap.cards td[data-action] .stack .btn { flex: 1 1 8.5rem; width: auto; }
+  }
+  @media (max-width: 899px) {
+    /* A real tap target on touch screens (the rest of the system uses 44px). */
+    .cd-filters input,
+    .cd-filters select,
+    .cd-groups input,
+    .cd-upload select { min-height: 44px; }
+  }
   @media (max-width: 599px) {
     /* 16px stops iOS Safari zooming the page when a control takes focus. */
     .cd-filters input,
