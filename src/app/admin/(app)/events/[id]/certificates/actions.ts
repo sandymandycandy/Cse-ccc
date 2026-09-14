@@ -4,215 +4,394 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/database.types";
-import { getAdminSession } from "@/lib/auth/guards";
+import { getAdminSession, type AdminSession } from "@/lib/auth/guards";
 import { canManage } from "@/lib/auth/capabilities";
 import { writeAudit } from "@/lib/admin/audit";
-import { getEventForAttendance } from "@/lib/admin/attendance";
-import { getCertificateSetup, CERTIFICATE_TEMPLATE_BUCKET } from "@/lib/admin/certificates";
-import { renderCertificatePdf } from "@/lib/certificates/render";
-import { validateCertificateConfig } from "@/lib/certificates/config";
-import { newCertificateSerial, certificateHmac } from "@/lib/certificates/serial";
-import { renderEmail } from "@/lib/email/templates";
-import { sendEmail } from "@/lib/email/transport";
+import { getEventForAttendance, type AttendanceEvent } from "@/lib/admin/attendance";
+import {
+  createSheetGroup,
+  deleteSheetGroup,
+  getCertEvent,
+  getGroup,
+  getParticipantsGroup,
+  renameGroup,
+  replaceSheetRows,
+} from "@/lib/admin/certificates";
+import {
+  issueBatch,
+  reissueForRecipient,
+  reissueOutdatedBatch,
+  revokeCertificate,
+  type IssueBatchResult,
+  type ReissueBatchResult,
+} from "@/lib/admin/certificate-issue";
+import { assetLoader, signAssetUrls, verifyNewAssets } from "@/lib/certificates/assets";
+import {
+  assetKey,
+  assetRefsOf,
+  CERT_ASSET_BUCKET,
+  isKnownField,
+  MAX_ASSET_BYTES,
+  validateDesign,
+  type AssetRef,
+  type Design,
+} from "@/lib/certificates/design";
+import { buildFieldCatalogue, designContextFor, fieldLabel } from "@/lib/certificates/fields";
+import type { IssueMode } from "@/lib/certificates/recipients";
+import { buildSheetRows, type ColumnChoice } from "@/lib/certificates/sheet";
+import { designWithUnknownFieldsAsText } from "@/lib/certificates/rich-text";
 
 const CAP = "issue:participation_certificate";
-/** Per click cap — Gmail is ~1 mail/s, so this stays well inside the function
- *  timeout and the daily cap; issuing is resumable (click again to continue). */
-const BATCH = 40;
+const uuid = z.string().uuid();
 
-export type CertificateSetupState = { error?: string; ok?: boolean };
-export type CertificateIssueState = {
-  error?: string;
-  message?: string;
-};
+export type ActionResult = { ok: true } | { ok: false; error: string };
+export type UploadTicket = { ok: true; path: string; token: string } | { ok: false; error: string };
+export type IssueBatchResponse = ({ ok: true } & IssueBatchResult) | { ok: false; error: string };
+export type ReissueBatchResponse = ({ ok: true } & ReissueBatchResult) | { ok: false; error: string };
+export type GroupResult = { ok: true; groupId: string } | { ok: false; error: string };
+export type SheetUploadResult =
+  | { ok: true; rows: number; dropped: number; invalidEmails: number; columns: string[] }
+  | { ok: false; error: string };
+export type ReissueResult =
+  | { ok: true; serial: string; emailed: boolean; superseded: boolean }
+  | { ok: false; error: string };
+export type CopyDesignResult =
+  | { ok: true; design: Design; assetUrls: Record<string, string> }
+  | { ok: false; error: string };
 
-const ConfigSchema = z.object({
-  nameXPct: z.coerce.number(),
-  nameYPct: z.coerce.number(),
-  fontPct: z.coerce.number(),
-  align: z.string(),
-  color: z.string(),
-});
+type Authorized =
+  | { ok: false; error: string }
+  | { ok: true; session: AdminSession; ev: AttendanceEvent };
 
-/** Guard + own-club scope for a certificate action on an event. */
-async function authorize(eventId: string) {
+/** Session + own-club scope for a certificate action on an event. */
+async function authorize(eventId: string): Promise<Authorized> {
   const session = await getAdminSession();
-  if (!session) return { error: "Your session expired. Sign in again." as const };
-  if (!z.string().uuid().safeParse(eventId).success) return { error: "Missing event." as const };
+  if (!session) return { ok: false, error: "Your session expired. Sign in again." };
+  if (!uuid.safeParse(eventId).success) return { ok: false, error: "Missing event." };
   const ev = await getEventForAttendance(eventId);
-  if (!ev) return { error: "That event no longer exists." as const };
-  if (!canManage(session, CAP, ev.clubId)) return { error: "You can't issue certificates for that event." as const };
-  return { session, ev };
+  if (!ev) return { ok: false, error: "That event no longer exists." };
+  if (!canManage(session, CAP, ev.clubId)) {
+    return { ok: false, error: "You can't manage certificates for that event." };
+  }
+  return { ok: true, session, ev };
 }
 
-/** Upload/replace the template image and save the name-placement config. */
-export async function saveCertificateSetupAction(
-  _prev: CertificateSetupState,
-  formData: FormData,
-): Promise<CertificateSetupState> {
-  const eventId = String(formData.get("eventId") ?? "");
-  const auth = await authorize(eventId);
-  if ("error" in auth) return { error: auth.error };
-  const { session } = auth;
+/** Validate and store a group's working design (spec §2.4, §6.4). */
+export async function saveCertificateDesignAction(input: {
+  eventId: string;
+  groupId: string;
+  design: unknown;
+}): Promise<ActionResult> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  if (!uuid.safeParse(input.groupId).success) return { ok: false, error: "Missing certificate group." };
 
-  const parsed = ConfigSchema.safeParse({
-    nameXPct: formData.get("nameXPct"),
-    nameYPct: formData.get("nameYPct"),
-    fontPct: formData.get("fontPct"),
-    align: formData.get("align"),
-    color: formData.get("color"),
-  });
-  if (!parsed.success) return { error: "Placement values look off." };
-  const config = validateCertificateConfig(parsed.data);
+  const [event, group] = await Promise.all([getCertEvent(input.eventId), getGroup(input.eventId, input.groupId)]);
+  if (!event || !group) return { ok: false, error: "That certificate group no longer exists." };
 
-  const admin = createAdminClient();
+  const checked = validateDesign(input.design, designContextFor(event.schema, group.sheetColumns));
+  if (!checked.ok) return { ok: false, error: checked.error };
+  const assetProblem = await verifyNewAssets(input.eventId, checked.design, group.design);
+  if (assetProblem) return { ok: false, error: assetProblem };
 
-  // Optional new template. pdf-lib embeds PNG/JPEG only, so reject others up front.
-  const file = formData.get("template");
-  let newPath: string | undefined;
-  if (file instanceof File && file.size > 0) {
-    if (file.type !== "image/png" && file.type !== "image/jpeg") {
-      return { error: "Template must be a PNG or JPEG image." };
-    }
-    if (file.size > 8 * 1024 * 1024) return { error: "Template must be 8 MB or smaller." };
-    const ext = file.type === "image/png" ? "png" : "jpg";
-    const path = `${crypto.randomUUID()}.${ext}`;
-    const up = await admin.storage
-      .from(CERTIFICATE_TEMPLATE_BUCKET)
-      .upload(path, file, { contentType: file.type, upsert: false });
-    if (up.error) return { error: "Could not upload the template. Try again." };
-    newPath = path;
-  }
-
-  // Fetch the old path so we can (a) require a template exists and (b) clean up a replacement.
-  const { data: current } = await admin
-    .from("events")
-    .select("certificate_template")
-    .eq("id", eventId)
-    .maybeSingle();
-  const oldPath = current?.certificate_template ?? null;
-
-  const update: { certificate_config: Json; certificate_template?: string } = {
-    certificate_config: config as unknown as Json,
-  };
-  if (newPath) update.certificate_template = newPath;
-
-  const { error } = await admin.from("events").update(update).eq("id", eventId);
-  if (error) {
-    if (newPath) await admin.storage.from(CERTIFICATE_TEMPLATE_BUCKET).remove([newPath]);
-    return { error: "Could not save the certificate setup. Try again." };
-  }
-  if (newPath && oldPath) {
-    await admin.storage.from(CERTIFICATE_TEMPLATE_BUCKET).remove([oldPath]);
-  }
+  const { error } = await createAdminClient()
+    .from("certificate_groups")
+    .update({ design: checked.design as unknown as Json, updated_at: new Date().toISOString() })
+    .eq("id", group.id)
+    .eq("event_id", input.eventId);
+  if (error) return { ok: false, error: "Could not save the design. Try again." };
 
   await writeAudit({
-    actorId: session.id,
+    actorId: auth.session.id,
     action: "update",
-    entity: "event",
-    entityId: eventId,
-    after: { certificateSetup: true, templateReplaced: !!newPath, config: config as unknown as Json },
+    entity: "certificate_design",
+    entityId: group.id,
+    after: {
+      eventId: input.eventId,
+      elements: checked.design.elements.length,
+      templateChanged: group.design.page.template?.path !== checked.design.page.template?.path,
+    },
   });
-
-  revalidatePath(`/admin/events/${eventId}/certificates`);
+  revalidatePath(`/admin/events/${input.eventId}/certificates`);
   return { ok: true };
 }
 
-/** Render + email participation certificates to attendees not yet issued.
- *  Reserve-then-send gives at-most-once: a failed email leaves no ledger row. */
-export async function issueCertificatesAction(
-  _prev: CertificateIssueState,
-  formData: FormData,
-): Promise<CertificateIssueState> {
-  const eventId = String(formData.get("eventId") ?? "");
-  const auth = await authorize(eventId);
-  if ("error" in auth) return { error: auth.error };
-  const { session, ev } = auth;
-
-  const setup = await getCertificateSetup(eventId);
-  if (!setup.templatePath) return { error: "Upload a certificate template first." };
-  const ext = setup.templatePath.toLowerCase().endsWith(".png") ? "png" : "jpg";
-
-  const admin = createAdminClient();
-  const dl = await admin.storage.from(CERTIFICATE_TEMPLATE_BUCKET).download(setup.templatePath);
-  if (dl.error || !dl.data) return { error: "Could not load the template image." };
-  const templateBytes = new Uint8Array(await dl.data.arrayBuffer());
-
-  const pending = setup.attendees.filter((a) => a.email && !a.issued).slice(0, BATCH);
-  if (pending.length === 0) {
-    return { message: "Nothing to send — every attendee with an email already has a certificate." };
+/** A one-path signed upload URL for a design asset — the browser uploads straight to Storage. */
+export async function createCertificateUploadAction(input: {
+  eventId: string;
+  contentType: string;
+  size: number;
+}): Promise<UploadTicket> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  if (input.contentType !== "image/png" && input.contentType !== "image/jpeg") {
+    return { ok: false, error: "Images must be PNG or JPEG." };
   }
+  if (!(input.size > 0 && input.size <= MAX_ASSET_BYTES)) return { ok: false, error: "Images must be 8 MB or smaller." };
 
-  let sent = 0;
-  let failed = 0;
-  for (const a of pending) {
-    // 1) Reserve a ledger row (retry the rare serial clash).
-    let certId: string | null = null;
-    for (let attempt = 0; attempt < 3 && !certId; attempt++) {
-      const serial = newCertificateSerial();
-      const { data, error } = await admin
-        .from("certificates")
-        .insert({
-          event_id: eventId,
-          registration_id: a.registrationId,
-          type: "participation",
-          serial,
-          hmac: certificateHmac(serial),
-          issued_by: session.id,
-        })
-        .select("id")
-        .single();
-      if (!error && data) certId = data.id;
-      else if (error?.code !== "23505") break; // non-clash error → give up on this one
-    }
-    if (!certId) {
-      failed++;
-      continue;
-    }
+  const path = `${input.eventId}/${crypto.randomUUID()}.${input.contentType === "image/png" ? "png" : "jpg"}`;
+  const { data, error } = await createAdminClient().storage.from(CERT_ASSET_BUCKET).createSignedUploadUrl(path);
+  if (error || !data) return { ok: false, error: "Could not start the upload. Try again." };
+  return { ok: true, path: data.path, token: data.token };
+}
 
-    // 2) Render + email. On failure, roll the reservation back so it retries next run.
-    try {
-      const pdf = await renderCertificatePdf({
-        templateBytes,
-        templateType: ext,
-        name: a.name,
-        config: setup.config,
-      });
-      const subject = `Your certificate — ${ev.title}`;
-      const { html, text } = renderEmail("participation_certificate", subject, a.name, null);
-      const res = await sendEmail({
-        to: a.email,
-        subject,
-        html,
-        text,
-        attachments: [
-          {
-            filename: `Certificate - ${ev.title}.pdf`.replace(/[\\/:*?"<>|]+/g, " ").slice(0, 120),
-            content: Buffer.from(pdf),
-            contentType: "application/pdf",
-          },
-        ],
-      });
-      if (!res.ok) throw new Error(res.error);
-      sent++;
-    } catch {
-      await admin.from("certificates").delete().eq("id", certId);
-      failed++;
-    }
+/** Issue the next batch; the Issue tab calls this in a loop (spec §5.2). */
+export async function issueCertificatesBatchAction(input: {
+  eventId: string;
+  groupIds: string[];
+  mode: IssueMode;
+}): Promise<IssueBatchResponse> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  if (input.mode !== "email" && input.mode !== "record") return { ok: false, error: "Unknown issue mode." };
+  const groupIds = (input.groupIds ?? []).filter((id) => uuid.safeParse(id).success);
+  if (groupIds.length === 0) return { ok: false, error: "Choose at least one group to issue." };
+
+  const result = await issueBatch({ eventId: input.eventId, groupIds, mode: input.mode, actorId: auth.session.id });
+  if ("error" in result) return { ok: false, error: result.error };
+  revalidatePath(`/admin/events/${input.eventId}/certificates`);
+  return { ok: true, ...result };
+}
+
+/**
+ * Replace the certificates that no longer match the design or their owner's
+ * details (spec §5.3). The Issue tab calls this in a loop, like issuing.
+ */
+export async function reissueOutdatedBatchAction(input: {
+  eventId: string;
+  groupIds: string[];
+}): Promise<ReissueBatchResponse> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const groupIds = (input.groupIds ?? []).filter((id) => uuid.safeParse(id).success);
+  if (groupIds.length === 0) return { ok: false, error: "Choose at least one group." };
+
+  const result = await reissueOutdatedBatch({ eventId: input.eventId, groupIds, actorId: auth.session.id });
+  if ("error" in result) return { ok: false, error: result.error };
+  revalidatePath(`/admin/events/${input.eventId}/certificates`);
+  return { ok: true, ...result };
+}
+
+// ── groups ───────────────────────────────────────────────────────────────────
+
+const groupName = z.string().trim().min(1).max(60);
+
+/** Add an uploaded-list group (volunteers, judges…), starting from the Participants design. */
+export async function createCertificateGroupAction(input: {
+  eventId: string;
+  name: string;
+}): Promise<GroupResult> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const name = groupName.safeParse(input.name);
+  if (!name.success) return { ok: false, error: "Give the group a name (up to 60 characters)." };
+
+  const created = await createSheetGroup({ eventId: input.eventId, name: name.data, actorId: auth.session.id });
+  if ("error" in created) return { ok: false, error: created.error };
+  await writeAudit({
+    actorId: auth.session.id,
+    action: "create",
+    entity: "certificate_group",
+    entityId: created.id,
+    after: { eventId: input.eventId, name: name.data },
+  });
+  revalidatePath(`/admin/events/${input.eventId}/certificates`);
+  return { ok: true, groupId: created.id };
+}
+
+export async function renameCertificateGroupAction(input: {
+  eventId: string;
+  groupId: string;
+  name: string;
+}): Promise<ActionResult> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const name = groupName.safeParse(input.name);
+  if (!name.success) return { ok: false, error: "Give the group a name (up to 60 characters)." };
+  if (!(await renameGroup(input.eventId, input.groupId, name.data))) {
+    return { ok: false, error: "Could not rename that group." };
   }
+  await writeAudit({
+    actorId: auth.session.id,
+    action: "update",
+    entity: "certificate_group",
+    entityId: input.groupId,
+    after: { name: name.data },
+  });
+  revalidatePath(`/admin/events/${input.eventId}/certificates`);
+  return { ok: true };
+}
+
+/** Delete an uploaded group. Certificates already issued from it keep their own snapshot. */
+export async function deleteCertificateGroupAction(input: { eventId: string; groupId: string }): Promise<ActionResult> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const group = await getGroup(input.eventId, input.groupId);
+  if (!group) return { ok: false, error: "That group no longer exists." };
+  if (group.kind !== "sheet") return { ok: false, error: "The participants group can't be deleted." };
+  if (!(await deleteSheetGroup(input.eventId, input.groupId))) {
+    return { ok: false, error: "Could not delete that group." };
+  }
+  await writeAudit({
+    actorId: auth.session.id,
+    action: "delete",
+    entity: "certificate_group",
+    entityId: input.groupId,
+    before: { name: group.name },
+  });
+  revalidatePath(`/admin/events/${input.eventId}/certificates`);
+  return { ok: true };
+}
+
+/**
+ * Replace an uploaded group's people. The browser parses the file (CSV here,
+ * XLSX via read-excel-file) and sends rows; the caps are re-checked server-side.
+ */
+export async function uploadCertificateSheetAction(input: {
+  eventId: string;
+  groupId: string;
+  table: string[][];
+  choice: ColumnChoice;
+}): Promise<SheetUploadResult> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const group = await getGroup(input.eventId, input.groupId);
+  if (!group || group.kind !== "sheet") return { ok: false, error: "Upload into one of your own groups." };
+  if (!Array.isArray(input.table)) return { ok: false, error: "That file could not be read." };
+
+  const built = buildSheetRows(input.table, input.choice);
+  if (!built.ok) return { ok: false, error: built.error };
+
+  const saved = await replaceSheetRows(input.eventId, input.groupId, built.columns, built.rows);
+  if ("error" in saved) return { ok: false, error: saved.error };
 
   await writeAudit({
-    actorId: session.id,
-    action: "issue",
-    entity: "certificate",
-    entityId: eventId,
-    after: { sent, failed, type: "participation" },
+    actorId: auth.session.id,
+    action: "upload",
+    entity: "certificate_sheet",
+    entityId: input.groupId,
+    after: {
+      eventId: input.eventId,
+      group: group.name,
+      rows: built.rows.length,
+      dropped: built.dropped,
+      invalidEmails: built.invalidEmails,
+      columns: built.columns,
+    },
   });
+  revalidatePath(`/admin/events/${input.eventId}/certificates`);
+  return { ok: true, rows: built.rows.length, dropped: built.dropped, invalidEmails: built.invalidEmails, columns: built.columns };
+}
 
-  revalidatePath(`/admin/events/${eventId}/certificates`);
-  const remaining = Math.max(0, setup.pendingCount - sent);
-  const parts = [`Emailed ${sent} certificate${sent === 1 ? "" : "s"}.`];
-  if (failed) parts.push(`${failed} failed (will retry on the next run).`);
-  if (remaining) parts.push(`${remaining} still to go — click again to continue.`);
-  return { message: parts.join(" ") };
+// ── one certificate at a time ────────────────────────────────────────────────
+
+/**
+ * Issue this person's certificate again with today's data and design: a live
+ * one is superseded, a revoked or never-issued one is written fresh (spec §5.3).
+ */
+export async function reissueCertificateAction(input: {
+  eventId: string;
+  recipientKey: string;
+}): Promise<ReissueResult> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const key = z.string().trim().min(1).max(200).safeParse(input.recipientKey);
+  if (!key.success) return { ok: false, error: "Missing recipient." };
+
+  const result = await reissueForRecipient({
+    eventId: input.eventId,
+    recipientKey: key.data,
+    actorId: auth.session.id,
+  });
+  if ("error" in result) return { ok: false, error: result.error };
+  revalidatePath(`/admin/events/${input.eventId}/certificates`);
+  return { ok: true, ...result };
+}
+
+/**
+ * Revoke — the one certificate action that needs more than issuing rights
+ * (spec D8): Faculty Advisor, Vice President or Tech Head.
+ */
+export async function revokeCertificateAction(input: {
+  eventId: string;
+  certificateId: string;
+  reason: string;
+}): Promise<ActionResult> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  if (!canManage(auth.session, "revoke:certificate", auth.ev.clubId)) {
+    return { ok: false, error: "Only the Faculty Advisor, Vice President or Tech Head can revoke. You can re-issue instead." };
+  }
+  if (!uuid.safeParse(input.certificateId).success) return { ok: false, error: "Missing certificate." };
+
+  const result = await revokeCertificate({
+    eventId: input.eventId,
+    certificateId: input.certificateId,
+    reason: String(input.reason ?? ""),
+    actorId: auth.session.id,
+  });
+  if ("error" in result) return { ok: false, error: result.error };
+  revalidatePath(`/admin/events/${input.eventId}/certificates`);
+  return { ok: true };
+}
+
+/**
+ * "Start from another event's design": copy its design and images into this
+ * event. Not saved — the editor shows it as unsaved changes.
+ */
+export async function copyCertificateDesignAction(input: {
+  eventId: string;
+  sourceEventId: string;
+}): Promise<CopyDesignResult> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  if (!uuid.safeParse(input.sourceEventId).success) return { ok: false, error: "Choose an event to copy from." };
+  const source = await getEventForAttendance(input.sourceEventId);
+  if (!source || !canManage(auth.session, CAP, source.clubId)) return { ok: false, error: "You can't copy from that event." };
+
+  const [target, sourceEvent, sourceGroup] = await Promise.all([
+    getCertEvent(input.eventId),
+    getCertEvent(input.sourceEventId),
+    getParticipantsGroup(input.sourceEventId),
+  ]);
+  if (!target || !sourceEvent || !sourceGroup?.design.page.template) {
+    return { ok: false, error: "That event has no design to copy." };
+  }
+
+  const admin = createAdminClient();
+  const load = assetLoader();
+  const moved = new Map<string, AssetRef>();
+  try {
+    for (const ref of assetRefsOf(sourceGroup.design)) {
+      if (moved.has(assetKey(ref))) continue;
+      const path = `${input.eventId}/${crypto.randomUUID()}.${ref.type}`;
+      const { error } = await admin.storage
+        .from(CERT_ASSET_BUCKET)
+        .upload(path, await load(ref), { contentType: ref.type === "png" ? "image/png" : "image/jpeg", upsert: false });
+      if (error) throw new Error(error.message);
+      moved.set(assetKey(ref), { ...ref, bucket: CERT_ASSET_BUCKET, path });
+    }
+  } catch {
+    return { ok: false, error: "Could not copy that design's images. Try again." };
+  }
+
+  const swap = (ref: AssetRef) => moved.get(assetKey(ref)) ?? ref;
+  const copied: Design = {
+    ...sourceGroup.design,
+    page: { ...sourceGroup.design.page, template: swap(sourceGroup.design.page.template) },
+    elements: sourceGroup.design.elements.map((el) => (el.type === "image" ? { ...el, asset: swap(el.asset) } : el)),
+  };
+  // Form questions differ between events: fields this event lacks become visible text.
+  const ctx = designContextFor(target.schema);
+  const sourceCatalogue = buildFieldCatalogue({ formSchema: sourceEvent.schema });
+  const design = designWithUnknownFieldsAsText(copied, (k) => isKnownField(k, ctx), (k) => fieldLabel(sourceCatalogue, k));
+
+  await writeAudit({
+    actorId: auth.session.id,
+    action: "copy",
+    entity: "certificate_design",
+    entityId: input.eventId,
+    after: { fromEvent: input.sourceEventId, assets: moved.size },
+  });
+  return { ok: true, design, assetUrls: await signAssetUrls([...moved.values()]) };
 }

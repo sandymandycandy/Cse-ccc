@@ -45,6 +45,13 @@ const nextConfig: NextConfig = {
   // Pin the workspace root — a stray package-lock.json in the parent (home) dir
   // otherwise makes Turbopack infer the wrong root.
   turbopack: { root: import.meta.dirname },
+  // The certificate renderer reads the bundled TTFs from disk (font-files.ts).
+  // They live in public/, which is not part of a function's trace by default.
+  outputFileTracingIncludes: {
+    "/admin/**/certificates": ["./public/fonts/cert/*.ttf"],
+    "/api/admin/events/**": ["./public/fonts/cert/*.ttf"],
+    "/api/admin/certificates/**": ["./public/fonts/cert/*.ttf"],
+  },
   images: {
     // AVIF first, WebP second: both are far smaller than the source JPEG/WebP
     // originals, and Next falls back automatically for browsers that lack them.

@@ -15,14 +15,15 @@ export default async function CertificatesPage() {
       <div className="eyebrow">Certificates</div>
       <h1 style={{ margin: "6px 0 0" }}>Participation certificates</h1>
       <p className="body-text" style={{ marginTop: 8, maxWidth: 620 }}>
-        Pick an event to upload its certificate template, position the name and email
-        every attendee their PDF. Only people marked <strong>present</strong> appear.
+        Pick an event to design its certificate — template, logos, wording and fields — then issue
+        everyone their PDF. People counts cover everyone marked <strong>present</strong>, each member of a
+        team that attended, and anyone on a list you uploaded.
       </p>
 
       {events.length === 0 ? (
         <div className="note" style={{ marginTop: 18, maxWidth: 620 }}>
-          No events have attendees yet. Mark people present on an event&rsquo;s
-          registrations page, then issue certificates from there.
+          Nobody to certify yet. Mark people present on an event&rsquo;s registrations page — or upload a
+          list of volunteers or judges — then issue certificates from there.
         </div>
       ) : (
         <div className="tablewrap" style={{ marginTop: 20 }}>
@@ -31,7 +32,7 @@ export default async function CertificatesPage() {
               <tr>
                 <th>Event</th>
                 <th>Date</th>
-                <th>Attended</th>
+                <th>People</th>
                 <th>Issued</th>
                 <th aria-label="Action" />
               </tr>
@@ -41,12 +42,12 @@ export default async function CertificatesPage() {
                 <tr key={e.id}>
                   <td style={{ fontWeight: 500 }}>{e.title}</td>
                   <td>{istFullDate(e.startsAt)}</td>
-                  <td>{e.attended}</td>
+                  <td>{e.people}</td>
                   <td>
-                    {e.issued >= e.attended && e.attended > 0 ? (
-                      <span className="abadge abadge-approved">{e.issued} / {e.attended}</span>
+                    {e.issued >= e.people && e.people > 0 ? (
+                      <span className="abadge abadge-approved">{e.issued} / {e.people}</span>
                     ) : (
-                      `${e.issued} / ${e.attended}`
+                      `${e.issued} / ${e.people}`
                     )}
                   </td>
                   <td>
@@ -54,7 +55,7 @@ export default async function CertificatesPage() {
                       href={`/admin/events/${e.id}/certificates`}
                       className="btn btn-accent btn-sm"
                     >
-                      Issue
+                      Open
                     </Link>
                   </td>
                 </tr>

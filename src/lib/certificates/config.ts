@@ -1,11 +1,11 @@
 /**
- * Certificate name-placement config — pure, shared by the admin positioner
- * preview and the server-side PDF renderer so the two agree pixel-for-pixel.
+ * The v1 certificate setup (2026-09-01): one uploaded image plus one name
+ * anchor, stored in `events.certificate_config`. Kept only so a v1 setup can be
+ * converted into a design (`designFromLegacyConfig` in design.ts).
  *
- * All positions are PERCENTAGES of the template image (not pixels), so a preview
- * rendered at any display size maps to the full-resolution PDF unchanged. The
- * anchor (nameXPct, nameYPct) is the VISUAL CENTRE of the name; `align` says
- * which edge of the text sits on the anchor horizontally.
+ * Positions are PERCENTAGES of the template image. The anchor
+ * (nameXPct, nameYPct) is the visual centre of the name; `align` says which
+ * edge of the text sits on the anchor horizontally.
  */
 import { z } from "zod";
 
@@ -45,30 +45,4 @@ const Schema = z.object({
 export function validateCertificateConfig(raw: unknown): CertificateConfig {
   const parsed = Schema.safeParse(raw);
   return parsed.success ? parsed.data : { ...DEFAULT_CERTIFICATE_CONFIG };
-}
-
-/**
- * Map the config + the measured drawn-text width to pdf-lib draw coordinates.
- * pdf-lib's origin is the BOTTOM-left and `drawText` positions the baseline, so
- * we convert the top-anchored visual centre to a bottom-left baseline. The 0.35
- * factor lifts the baseline to put the cap-height's midpoint on the anchor.
- */
-export function computeNamePlacement(
-  imgW: number,
-  imgH: number,
-  cfg: CertificateConfig,
-  textWidth: number,
-): { x: number; y: number; size: number } {
-  const size = (cfg.fontPct / 100) * imgH;
-  const anchorX = (cfg.nameXPct / 100) * imgW;
-  const centerYFromTop = (cfg.nameYPct / 100) * imgH;
-  const baselineFromTop = centerYFromTop + size * 0.35;
-  const y = imgH - baselineFromTop;
-  const x =
-    cfg.align === "center"
-      ? anchorX - textWidth / 2
-      : cfg.align === "right"
-        ? anchorX - textWidth
-        : anchorX;
-  return { x, y, size };
 }

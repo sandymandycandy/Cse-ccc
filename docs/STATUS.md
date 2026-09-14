@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-13.**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-14.**
 
 ## What this is
 
@@ -336,6 +336,169 @@ end-to-end**, not a checklist of components.
 > `feat/registration-queue` and `feat/manual-attendance` are fully contained in `main` (verified with
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
+
+> ### 🟡 BUILT ON BRANCH `feat/certificate-designer` — phase 3, NOT merged (2026-09-14)
+> **Anyone holding a certificate can prove it is real.** The certificate designer is now **complete —
+> all three phases are on this branch**, waiting only on the human walkthroughs below before it merges.
+> Gate: typecheck ✓ / lint ✓ / **943 tests** ✓ / build ✓. **No migration.**
+> Plan: `docs/superpowers/plans/2026-09-14-certificate-designer-phase3.md`.
+> - **Verification QR.** `+ QR` in the designer adds a square code (colour prop; the panel shows its
+>   printed size on A4 and warns under 20 mm). Every certificate's QR encodes
+>   `${NEXT_PUBLIC_SITE_URL}/verify/<its serial>`. `src/lib/certificates/qr.ts` turns the symbol into
+>   ONE path; the editor SVG and the PDF (`drawSvgPath`) draw that same path under the same placement,
+>   pinned by `qr-fidelity.test.tsx` — the same promise `layout-fidelity` makes for text.
+> - **Serials are now 128 random bits** (SECURITY_SPEC §9), Crockford base32:
+>   `CSE-2026-XXXXX-XXXXX-XXXXX-XXXXX-XXXXXX`, year in IST. That is what makes a public lookup by serial
+>   safe. The older 32-bit `CSE-2026-XXXXXXXX` shape is still accepted. Production held no certificates on 2026-09-14, **but it keeps minting that guessable shape until this branch merges** — another reason not to issue in prod before then.
+> - **`/verify/<serial>`** (public, `noindex`): **Valid** (name · event · club · event date · group ·
+>   issued · serial) / **Replaced by a newer certificate** (event · issued, no name) / **Revoked** (event ·
+>   revoked date, no name, no reason) / **Not a valid certificate**. **`/verify`** is a typed lookup that
+>   forgives case, spaces and O/0 I/1 mix-ups and redirects to the same page. 20 checks/min per IP;
+>   every answer padded to 450 ms so timing reveals nothing. The lookup selects only displayable columns
+>   and reads `snapshot` by its `groupLabel` key alone (the snapshot also holds email and roll).
+> - **⚠️ `NEXT_PUBLIC_SITE_URL` is set in Vercel for PRODUCTION ONLY** (checked with `vercel env ls`), and
+>   **not in `.env.local`**. Rendering an issued certificate that has a QR **refuses** without it
+>   (fail closed — a dead QR is worse than a failed send, which rolls back and retries). So on a preview
+>   deployment or locally, issuing/downloading a QR design fails with that error; add the var to
+>   `.env.local` (and Vercel Preview) to exercise it there. The watermarked **Preview PDF** falls back to
+>   the request origin, so designing works everywhere.
+> - **Verified, not just tested:**
+>   - **Real PDF → scan:** a certificate rendered by the real renderer with a fresh serial, rasterised
+>     with pdf.js in headless Chrome, **decodes to `https://cse-ccc.vercel.app/verify/<that serial>`**, and
+>     its printed serial text matches.
+>   - **Editor over CDP (9 checks):** the canvas QR decodes from a screenshot, uneven corner drags keep it
+>     square, <20 mm warns, colour follows, `+ QR`/undo, layer icon, no page errors.
+>   - **Live DB, read path:** the live `certificates` table is **empty** (nothing issued in prod yet), so
+>     three throwaway rows (valid / revoked / replaced) carrying **canary** email, roll and revoke-reason
+>     strings were inserted, checked and **deleted — table back to 0 rows**. Every state rendered; **no
+>     canary reached the HTML**; hit/miss/revoked timings sat together at 0.58–0.82 s; the 21st check from
+>     one IP was refused; desktop, 400 px and dark mode had no horizontal overflow.
+> - **⚠️ OWED — the human bits** (need a real issue + a phone):
+>   1. Issue & email one certificate from a design with a QR; **scan the QR on the received PDF with a
+>      phone** → "Valid certificate" with the right name.
+>   2. **Revoke** it, scan again → "Revoked", no name.
+>   3. Re-issue someone, scan the **old** PDF → "Replaced by a newer certificate"; the new one → Valid.
+>   4. Look at `/verify` on a real phone.
+> - **A phase-2 bug found here has since been fixed:** the print booklet was drawing every page with
+>   the group's current design rather than each certificate's own version. See the phase 2 block below.
+
+> ### 🟡 BUILT ON BRANCH `feat/certificate-designer` — phase 2 (complete), NOT merged (2026-09-14)
+> **Everyone who earned a certificate can get one, and a wrong one can be put right.** Sits on top of
+> phase 1 (below) on the same branch. Gate when first built: typecheck ✓ / lint ✓ / **910 tests** ✓ / build ✓
+> (see the completion note at the end of this block for the current numbers).
+> **No migration** — phase 1 already applied the tables and RPCs this needed.
+> Plan: `docs/superpowers/plans/2026-09-14-certificate-designer-phase2.md`.
+> - **Team members get their own certificate.** A present team yields one per person, each with their
+>   own name and their team's shared details. Members who gave no email of their own are delivered
+>   **via their team leader**, who receives **one message carrying every certificate for their team**
+>   (split only if the attachments would pass 20 MB). A batch takes whole destinations, so a team is
+>   never split across two runs.
+> - **Uploaded lists.** An event can have any number of groups besides Participants — Volunteers,
+>   Judges — each with **its own design and wording**, starting as a copy of the participants one.
+>   CSV is parsed in the browser; `.xlsx` goes through `read-excel-file`, loaded only when an Excel
+>   file is actually picked. Columns are confirmed against a preview before anything is saved, and a
+>   re-upload replaces the list while certificates already issued stay valid.
+> - **Recipients tab:** everyone across every group, with search (name, email, team, serial), group and
+>   status filters, and **per-person warnings computed with that group's own design** — a field their
+>   record leaves empty, text that will not fit its box, characters the chosen font cannot print.
+> - **Downloads:** one certificate; a **ZIP built in the browser** (one fetch per certificate, so no
+>   response is ever large); and a **print booklet** that embeds the template once for the whole run.
+> - **Re-issue is keyed by the person, not the certificate**, so the same button supersedes a live one
+>   and brings back a revoked one. Either way a failed email is rolled back — a superseded row is
+>   restored, a fresh row deleted — so the ledger never claims a certificate that did not go out.
+> - **Revoke** needs `revoke:certificate` (Faculty Advisor / VP / Tech Head) and a written reason;
+>   bulk issuing then leaves that person alone until someone re-issues. Everyone with issuing rights
+>   can re-issue. Every group create/rename/delete, sheet upload, issue run, re-issue and revoke is audited.
+> - **Browser-verified** through the extended harness at **`/dev/certificate-designer?panel=recipients`**
+>   (12 CDP checks: recipient kinds, leader routing, revoked-row actions, search on team, both filters,
+>   the ZIP/print controls following them, revoke demanding a reason, phone width).
+> - **⚠️ OWED — still the human bits** (an admin login + TOTP): upload a real volunteer list and issue
+>   it; send to a team whose members have no addresses and confirm the leader gets one mail with all
+>   of them; re-issue someone and confirm the replacement arrives; revoke and confirm a later bulk run
+>   skips them.
+> - **✅ COMPLETED 2026-09-14 (later the same day).** An audit against the spec found phase 2 was short
+>   of it in five places; all five are now closed, so phase 2 matches §1, §3.2, §5.3 and §5.5.
+>   Gate: typecheck ✓ / lint ✓ / **952 tests** ✓ / build ✓. No migration.
+>   Plan: `docs/superpowers/plans/2026-09-14-certificate-designer-phase2-completion.md`.
+>   - **"Re-issue N with the latest design"** on the Issue tab (spec §5.3) — was per-row only. It
+>     replaces the **outdated** certificates, not every live one: outdated means issued with a different
+>     design version, or a field the design prints has changed for that person since (the serial and
+>     issue date never count). **That is what makes it resumable** — a replaced certificate stops being
+>     outdated, so Stop-then-run continues where it left off and nobody gets two replacements.
+>     Replacements go out **by destination** like first issues, so a leader gets ONE mail with their
+>     team's; a failed render or send calls `undo_supersede` and the old certificate is live again;
+>     people with no address are replaced for download. One audit row per batch lists every old → new serial.
+>   - **Row Preview** on the Recipients tab (spec §3.2) — a watermarked PDF built from the group's
+>     **saved** design, via a new `GET …/certificates/preview?group=&recipient=` guarded like the rest.
+>   - **The print booklet was drawing every page with the group's CURRENT design** instead of each
+>     certificate's own version (spec §5.1 says a later download renders from its stored version). The
+>     renderer now takes a design per page, so a booklet printed after a design edit matches what was
+>     emailed. Single downloads and the ZIP were already correct.
+>   - **The hub counted registrations, not people** — a 4-person team read as one, and an event whose
+>     only recipients were an uploaded list was not listed at all. It now shows the same count the
+>     Recipients tab does. **Checked live: the one event with attendees reads 72 people (24 attendees +
+>     48 team members); it used to say 24.** Viewing the hub no longer creates a Participants group.
+>   - **Recipients rows are honest now:** search covers roll numbers, an issued row shows its serial and
+>     date instead of hiding them in a tooltip, and a button says "Issue & email" only when there is
+>     somewhere to send — otherwise "Issue now".
+>   - **Browser-verified** over CDP through the harness, which gained an **Issue** panel
+>     (`/dev/certificate-designer?panel=issue`): 8 checks there (the outdated count, the confirm's
+>     email/download split and its "replaced by a newer certificate" warning, Cancel, a clean refusal
+>     without a session, phone width) and 10 on Recipients (roll search, the Preview link's target and
+>     href, every button label, the serial/date line, phone width).
+>   - **⚠️ Also owed, human:** edit a design after issuing, then run **Re-issue N** and confirm the
+>     replacement arrives and the old serial reads "replaced" on `/verify`; open a **row Preview**;
+>     print the **booklet** after a design change and confirm it matches the emailed PDFs.
+> - Phase 3 (QR + public `/verify/<serial>`) is now built too — see the block above.
+
+> ### 🟡 BUILT ON BRANCH `feat/certificate-designer` — phase 1 (2026-09-14)
+> **Certificate designer, phase 1.** Replaces the v1 one-name positioner on
+> **`/admin/events/[id]/certificates`** with **Design / Issue** tabs. Gate: typecheck ✓ / lint ✓ /
+> **876 tests** ✓ / build ✓. Spec `docs/superpowers/specs/2026-09-14-certificate-designer-design.md`,
+> plan `docs/superpowers/plans/2026-09-14-certificate-designer-phase1.md`.
+> - **Design tab:** upload the base template, place logos/signatures, type rich text (per-word font,
+>   size, B/I/U, colour) with inline **fields** — name, roll, department, year, team name/members/size,
+>   event title/date/venue/club, every custom registration question, serial, issue date — each with
+>   As typed / Title Case / UPPERCASE. Shrink-to-fit or wrapping boxes, snap guides, layers
+>   (hide/lock/reorder), undo/redo, arrow-key nudge, **preview as any attendee**, watermarked
+>   **Preview PDF**, and **start from another event's design** (copies its images too).
+> - **Issue tab:** batched *Issue & email* / *Issue only* behind a progress bar with Stop; closing the
+>   tab is safe and the next run continues. Reserve-then-send keeps it at-most-once, as v1 did.
+> - **Engine:** one layout engine (`src/lib/certificates/layout.ts`) serves both the editor's SVG and
+>   the `pdf-lib` renderer, with pre-computed metrics from the bundled fonts.
+>   `layout-fidelity.test.tsx` pins the SVG attributes and the PDF's text operators to the same
+>   numbers, so **preview-equals-PDF is enforced, not assumed**. PDFs are A4-sized with vector text.
+> - **⚠️ Fonts — one family had to change.** `pdf-lib`'s subsetter writes an undecodable `glyf` table
+>   for some fonts (plain letters, not just accents). **Cormorant Garamond is unusable** — pdf-lib
+>   cannot embed it whole either — and was replaced by **Crimson Text**; **Poppins Italic, Poppins
+>   Bold Italic and Great Vibes** are embedded whole (`FULL_EMBED_FACES` in `fonts.ts`).
+>   `font-embedding.test.ts` renders every face, reads the font back out of the PDF and decodes every
+>   glyph drawn, so a new or updated font is checked automatically.
+> - **Migration — APPLIED + VERIFIED LIVE (additive):** `certificate_designer` adds
+>   `certificate_groups`, `certificate_design_versions`, `certificate_sheet_rows` (phase 2), the
+>   recipient/snapshot columns + `certificates_one_live_per_recipient` index on `certificates`, three
+>   service-role-only RPCs (`replace_certificate_sheet_rows`, `supersede_certificate`,
+>   `undo_supersede` — phase 2 callers), and the **private** `certificate-assets` bucket (8 MB,
+>   PNG/JPEG). The ledger was empty, so the v1 backfill was a no-op. Advisors: no new findings.
+>   `database.types.ts` regenerated from the live schema.
+> - **v1 setups convert automatically** on first open (template + name box, Playfair Bold standing in
+>   for Times-Bold); v1-issued certificates attach to the new Participants group.
+> - **Uploads no longer go through a server action** (signed upload URL straight to Storage), which
+>   also fixes a latent v1 bug: the old page accepted "up to 8 MB" templates through a server action
+>   whose Next default body limit is **1 MB**.
+> - **Browser-verified** with the dev-only harness **`/dev/certificate-designer`** (404 in production,
+>   confirmed against `next start`): 17 checks driven through real Chrome — mount, bundled fonts,
+>   preview-as, in-place typing, undo/redo, nudge, restyle, italic disabled on a family without one,
+>   layers, add/delete field, zoom, and the narrow-screen note. It caught two real bugs, both fixed:
+>   arrow-key nudges lost presses when they repeated faster than React re-rendered, and Title Case
+>   turned `{Name}` into `{name}`.
+> - **⚠️ OWED — the one thing that needs a human** (an admin login + TOTP, which no automated path
+>   has): on a test event, Design → upload a real template → Save → Preview PDF → mark yourself
+>   present → Issue & email → confirm the PDF arrives and matches the preview. Also open an event
+>   that had a **v1** setup and confirm its name box converted.
+> - **Not in phase 1** (each gets its own plan): team-member recipients, uploaded volunteer/judge
+>   lists, the Recipients tab, downloads (single/ZIP/print), re-issue & revoke, then the QR code and
+>   the public `/verify/<serial>` page.
 
 > ### 🟡 BUILT ON BRANCH `feat/hero-announcement` — NOT merged (2026-09-14)
 > The **latest announcement in the home hero**, an **admin-set expiry**, and **Announcements
