@@ -8,6 +8,7 @@ import { validateDesign } from "@/lib/certificates/design";
 import { designContextFor, fieldNameValue, formatIstDate } from "@/lib/certificates/fields";
 import { loadFontFile } from "@/lib/certificates/font-files";
 import { renderCertificatesPdf } from "@/lib/certificates/render";
+import { siteOrigin } from "@/lib/site-origin";
 
 const Body = z.object({
   groupId: z.string().uuid(),
@@ -59,6 +60,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       loadAsset,
       loadFont: loadFontFile,
       watermark: "PREVIEW",
+      // A preview QR encodes the placeholder serial, so it is a dead link by design;
+      // the request origin lets it render where the env var is unset (local dev,
+      // preview deployments). Issued certificates still require the configured origin.
+      verifyOrigin: siteOrigin() ?? new URL(request.url).origin,
       title: `Preview — ${ws.event.title}`,
     });
   } catch (err) {
