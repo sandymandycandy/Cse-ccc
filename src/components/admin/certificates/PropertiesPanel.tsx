@@ -6,15 +6,17 @@ import {
   DEFAULT_STYLE,
   type DesignElement,
   type FieldTransform,
+  type QrElement,
   type Style,
   type TextElement,
 } from "@/lib/certificates/design";
 import { cssFamily, familyFromCss, FONT_FAMILIES, hasVariant, type FontFamilyId } from "@/lib/certificates/fonts";
 import { layoutText } from "@/lib/certificates/layout";
 import { METRICS } from "@/lib/certificates/metrics";
+import { MIN_QR_MM, qrPrintedMm, qrSquare } from "@/lib/certificates/qr";
 import { applyStyleToAll, listFieldRuns, primaryStyle, setFieldTransform } from "@/lib/certificates/rich-text";
 import type { EditorAction, EditorState } from "./designer-state";
-import { pctToPt, ptToPct } from "./geometry";
+import { pctToPt, pctToPx, ptToPct } from "./geometry";
 
 interface Props {
   state: EditorState;
@@ -51,7 +53,7 @@ export function PropertiesPanel({ state, dispatch, editor, valueFor, fieldLabel 
 
   return (
     <aside className="cd-panel" aria-label="Properties">
-      <div className="label">{el.type === "image" ? "Image" : "Text"}</div>
+      <div className="label">{el.type === "image" ? "Image" : el.type === "qr" ? "Verification QR" : "Text"}</div>
 
       <label className="cd-row">
         <span>Name</span>
@@ -79,6 +81,8 @@ export function PropertiesPanel({ state, dispatch, editor, valueFor, fieldLabel 
             onChange={(e) => set({ opacity: Number(e.target.value) }, "opacity")}
           />
         </label>
+      ) : el.type === "qr" ? (
+        <QrProperties el={el} page={state.design.page} set={set} />
       ) : (
         <TextProperties el={el} state={state} dispatch={dispatch} editor={editor} valueFor={valueFor} fieldLabel={fieldLabel} />
       )}
@@ -103,6 +107,35 @@ export function PropertiesPanel({ state, dispatch, editor, valueFor, fieldLabel 
         </button>
       </div>
     </aside>
+  );
+}
+
+function QrProperties({
+  el,
+  page,
+  set,
+}: {
+  el: QrElement;
+  page: { widthPx: number; heightPx: number };
+  set: (patch: Partial<DesignElement>, key: string) => void;
+}) {
+  const mm = qrPrintedMm(qrSquare(pctToPx(el, page)).side, page);
+  const tooSmall = mm < MIN_QR_MM;
+  return (
+    <>
+      <label className="cd-row">
+        <span>Colour</span>
+        <input type="color" value={el.color} onChange={(e) => set({ color: e.target.value.toLowerCase() }, "color")} />
+      </label>
+      <p className="hint">
+        Every certificate gets its own code, linking to a public page that confirms it is genuine. Keep it dark on a
+        light background so phones can read it.
+      </p>
+      <p className={`hint${tooSmall ? " cd-warn" : ""}`}>
+        About {Math.round(mm)} mm across when printed on A4
+        {tooSmall ? " — too small for most phone cameras. Make it bigger." : "."}
+      </p>
+    </>
   );
 }
 

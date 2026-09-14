@@ -181,6 +181,27 @@ export function CertificateDesigner(props: CertificateDesignerProps) {
     dispatch({ type: "startEdit", id });
   }
 
+  function addQr() {
+    // Square on the page: the same pixel width and height, each as a % of its own side.
+    const w = 12;
+    const h = Math.min(200, ((w / 100) * page.widthPx * 100) / page.heightPx);
+    dispatch({
+      type: "add",
+      element: {
+        id: newElementId(),
+        name: "Verification QR",
+        type: "qr",
+        x: 100 - w - 6,
+        y: Math.max(0, 100 - h - 8),
+        w,
+        h,
+        locked: false,
+        hidden: false,
+        color: "#1a1a1a",
+      },
+    });
+  }
+
   function pickField(field: string, transform: FieldTransform, label: string) {
     if (editor && state.editingId) {
       editor.chain().focus().insertContent({ type: FIELD_NODE, attrs: { field, transform } }).run();
@@ -319,6 +340,9 @@ export function CertificateDesigner(props: CertificateDesignerProps) {
             </button>
             <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null} onClick={() => imageInput.current?.click()}>
               + Image
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={addQr}>
+              + QR
             </button>
             <FieldMenu catalogue={catalogue} onPick={pickField} />
           </div>

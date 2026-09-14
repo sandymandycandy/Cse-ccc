@@ -5,6 +5,7 @@ import { EditorContent, type Editor } from "@tiptap/react";
 import { assetKey, type DesignElement, type TextElement } from "@/lib/certificates/design";
 import { layoutText, type TextLayout } from "@/lib/certificates/layout";
 import { METRICS } from "@/lib/certificates/metrics";
+import { SAMPLE_SERIAL, verifyUrl } from "@/lib/certificates/qr";
 import type { EditorAction, EditorState } from "./designer-state";
 import {
   clampPct,
@@ -17,6 +18,7 @@ import {
   type Handle,
   type Rect,
 } from "./geometry";
+import { QrSvg } from "./QrSvg";
 import { TextSvg } from "./TextSvg";
 
 type Drag =
@@ -27,6 +29,15 @@ const ALL_HANDLES: Handle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
 const SIDE_HANDLES: Handle[] = ["e", "w"];
 /** Snap distance in screen pixels. */
 const SNAP_PX = 6;
+/**
+ * What a QR encodes on a real certificate, with a placeholder serial of the real
+ * length, so the preview has the printed density. The editor only runs in the
+ * browser, so the page's own origin stands in when the env var isn't set (local dev).
+ */
+const SAMPLE_QR_TEXT = verifyUrl(
+  process.env.NEXT_PUBLIC_SITE_URL || (typeof window === "undefined" ? "" : window.location.origin),
+  SAMPLE_SERIAL,
+);
 
 export interface CanvasProps {
   state: EditorState;
@@ -119,7 +130,7 @@ export function Canvas({ state, dispatch, zoom, assetUrls, valueFor, editor }: C
 
     const el = design.elements.find((x) => x.id === d.id);
     if (!el) return;
-    const keepAspect = el.type === "image" && !e.shiftKey;
+    const keepAspect = el.type === "qr" || (el.type === "image" && !e.shiftKey);
     const pct = clampPct(pxToPct(resizeRect(d.origin, d.handle, dx, dy, keepAspect), page));
     const wrap = el.type === "text" && el.fit === "wrap";
     dispatch({
@@ -170,6 +181,9 @@ export function Canvas({ state, dispatch, zoom, assetUrls, valueFor, editor }: C
             ) : (
               <rect key={el.id} x={r.x} y={r.y} width={r.w} height={r.h} fill="#eeeeee" />
             );
+          }
+          if (el.type === "qr") {
+            return <QrSvg key={el.id} box={pctToPx(el, page)} color={el.color} text={SAMPLE_QR_TEXT} />;
           }
           const layout = layouts.get(el.id);
           return layout ? <TextSvg key={el.id} layout={layout} /> : null;

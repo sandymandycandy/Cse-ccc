@@ -33,6 +33,7 @@ const design: Design = {
   page: { template: TEMPLATE, widthPx: 3508, heightPx: 2480 },
   elements: [
     { id: "logo", name: "Club logo", type: "image", x: 45, y: 8, w: 10, h: 14.15, locked: false, hidden: false, opacity: 1, asset: LOGO },
+    { id: "qr", name: "Verification QR", type: "qr", x: 84, y: 72, w: 10, h: 14.15, locked: false, hidden: false, color: "#1a1a1a" },
     {
       id: "title",
       name: "Title",

@@ -20,7 +20,7 @@ export function LayersPanel({ state, dispatch }: { state: EditorState; dispatch:
                 dispatch(e.shiftKey ? { type: "toggleSelect", id: el.id } : { type: "select", ids: [el.id] })
               }
             >
-              <span aria-hidden>{el.type === "image" ? "▣" : "T"}</span> {el.name}
+              <span aria-hidden>{el.type === "image" ? "▣" : el.type === "qr" ? "▦" : "T"}</span> {el.name}
             </button>
             <button
               type="button"
