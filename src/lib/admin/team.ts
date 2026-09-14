@@ -21,12 +21,18 @@ export interface TeamAdminRow {
    *  member who is inactive will not appear on /team even when set public, and
    *  that would otherwise look like a broken toggle. */
   isActive: boolean;
+  /** Which club they lead — drives the grouping on /team. Null is valid and
+   *  permanent: council officers are council-wide, and a self-registered member
+   *  has none until someone picks one here. */
+  clubId: string | null;
+  clubName: string | null;
+  clubSlug: string | null;
 }
 
 // One string literal on purpose: supabase-js infers the row type from the select
 // literal, and a concatenation degrades it to GenericStringError.
 // prettier-ignore
-const COLS = "id, full_name, roll_no, designation, linkedin_url, instagram_url, bio, photo_path, is_public, is_active";
+const COLS = "id, full_name, roll_no, designation, linkedin_url, instagram_url, bio, photo_path, is_public, is_active, club_id, clubs(id, name, slug)";
 
 export const COUNCIL_PHOTO_BUCKET = "council-photos";
 
@@ -77,6 +83,9 @@ export async function listTeamMembers(): Promise<TeamAdminRow[]> {
       : null,
     isPublic: m.is_public,
     isActive: m.is_active,
+    clubId: m.clubs?.id ?? m.club_id ?? null,
+    clubName: m.clubs?.name ?? null,
+    clubSlug: m.clubs?.slug ?? null,
   }));
 
   // TeamAdminRow is a superset of RosterMember, so the public ordering applies
@@ -89,4 +98,28 @@ export async function listTeamMembers(): Promise<TeamAdminRow[]> {
 export async function getTeamMember(id: string): Promise<TeamAdminRow | null> {
   const all = await listTeamMembers();
   return all.find((m) => m.id === id) ?? null;
+}
+
+/** One club, for the picker on /admin/team. */
+export interface ClubOption {
+  id: string;
+  name: string;
+}
+
+/**
+ * Active clubs, A→Z, for the club dropdown.
+ *
+ * Inactive clubs are omitted so nobody is newly assigned to a retired club — but
+ * a member already pointing at one keeps that link, because the row stores the
+ * id, not this list.
+ */
+export async function listClubOptions(): Promise<ClubOption[]> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("clubs")
+    .select("id, name")
+    .eq("is_active", true)
+    .order("name");
+  if (error) throw error;
+  return data ?? [];
 }

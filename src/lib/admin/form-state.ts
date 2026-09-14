@@ -104,3 +104,10 @@ export interface TeamLinksState {
    *  page flashing — /admin/team saves one member at a time. */
   saved?: boolean;
 }
+
+/** The "Add someone" form on /admin/team. Separate from TeamLinksState because a
+ *  successful add clears the form, where a successful save keeps its values. */
+export interface TeamAddState {
+  error?: string;
+  addedName?: string;
+}

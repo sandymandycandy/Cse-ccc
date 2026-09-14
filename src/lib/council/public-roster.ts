@@ -2,8 +2,14 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mapRosterRows, sortRoster, type RosterMember, type RosterRow } from "./roster";
 
+// ONE string literal — splitting a .select() degrades the inferred row type to
+// GenericStringError and every field access then fails to compile.
+// `clubs(...)` is an embedded FK read, not a second query; it names only the
+// three club fields the page renders, for the same reason the member fields are
+// enumerated rather than selected with `*`.
+// prettier-ignore
 const PUBLIC_COLS =
-  "id, full_name, roll_no, designation, linkedin_url, instagram_url, bio, photo_path";
+  "id, full_name, roll_no, designation, linkedin_url, instagram_url, bio, photo_path, club_id, clubs(id, name, slug)";
 
 const PHOTO_BUCKET = "council-photos";
 
@@ -64,9 +70,10 @@ export async function getCouncilRoster(): Promise<RosterMember[] | null> {
     // is the truthful state, and it renders the "being put together" copy.
     if (error.code === "42703") {
       console.warn(
-        "getCouncilRoster: council_members is missing is_public/linkedin_url/" +
-          "instagram_url — apply migration 20260913000000_council_member_link.sql. " +
-          "Publishing NOBODY until then.",
+        "getCouncilRoster: council_members is missing a column this read needs " +
+          "(is_public/linkedin_url/instagram_url, or club_id) — apply migrations " +
+          "20260913000000_council_member_link.sql and " +
+          "20260914010000_council_member_club.sql. Publishing NOBODY until then.",
       );
       return [];
     }
@@ -117,9 +124,10 @@ export async function getCouncilMember(id: string): Promise<RosterMember | null>
   if (error) {
     if (error.code === "42703") {
       console.warn(
-        "getCouncilMember: council_members is missing is_public/linkedin_url/" +
-          "instagram_url — apply migration 20260913000000_council_member_link.sql. " +
-          "Serving 404 until then.",
+        "getCouncilMember: council_members is missing a column this read needs " +
+          "(is_public/linkedin_url/instagram_url, or club_id) — apply migrations " +
+          "20260913000000_council_member_link.sql and " +
+          "20260914010000_council_member_club.sql. Serving 404 until then.",
       );
       return null;
     }

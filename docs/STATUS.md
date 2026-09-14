@@ -416,6 +416,66 @@ end-to-end**, not a checklist of components.
 >   `admin/(app)/announcements/{page.tsx,actions.ts,[id]/edit/page.tsx}`,
 >   `components/admin/AnnouncementForm.tsx`, `database.types.ts`.
 
+> ### 🟡 BUILT ON BRANCH `feat/team-by-club` — NOT merged (2026-09-14)
+> `/team` is now **grouped by club**, the roster has a **real `club_id`**, `/admin/team` gained
+> **bulk publish/hide** and **manual editing + add**, and the **six council officers finally
+> exist**. **MIGRATION APPLIED LIVE** (`council_member_club`). Gate: typecheck ✓ / lint ✓ /
+> **731 tests** ✓ / build ✓.
+>
+> - **🔥 THE OFFICERS WERE IN THE DATABASE ALL ALONG — in `admin_users`, not `council_members`.**
+>   Two parallel people-tables: `council_members` (attendance roster, free-text designation,
+>   photo/bio/socials/`is_public`) and `admin_users` (login accounts, **structured `role` AND
+>   `club_id`**). `/team` reads the first, so the officers were invisible to it. They were COPIED
+>   IN as `council_members` rows rather than read live from `admin_users`, because that table has
+>   no photo, bio, links or `is_public` — an officer read from there would be unhideable and
+>   photo-less, breaking the hidden-by-default rule. ⚠️ **The copies now DRIFT**: changing
+>   someone's role in `admin_users` does not update `/team`. Edit them in `/admin/team`.
+> - **`admin_users.club_id` resolved 3 of the 4 club ambiguities that the designation text could
+>   not.** `Club Head` (Prathesh Kumar V) → **Innovation Club**; `Animatrix Head` and
+>   `Animatrix Club - Vice Head` → **Animatrix Club (Animation)**, out of three Animatrix clubs.
+>   It also settled that `Cybersentinal club` (Abhinav Rajesh, no role named) is the **Head**.
+>   ⚠️ **K.Shashidhar Rao is still unmapped** — `Vice head`, no club, and **not in `admin_users`
+>   at all**. He renders under the trailing "Also on the council" group until someone picks a club.
+> - **Designations were rewritten to just `Head` / `Vice Head`** (26 rows) now the club is the
+>   section heading. The old text was unusable for grouping: `Cybersentinal club` and `Vice Head
+>   Cyber Sentinel Club` are one club; `Fashion & Fusion Club - Vice Head` and `Fusion and fashion
+>   club Head` sorted under Fa and Fu; `Head yoga club` and `Yoga Club - Vice Head` under H and Y.
+>   ⚠️ **This REVERSES the 2026-09-13 "print them verbatim" call** — the owner asked for the
+>   cleanup on 2026-09-14.
+> - **⚠️ NEVER group or rank by the designation text.** `groupByClub` keys on `club_id` only.
+>   `/council/join/[token]` still lets a new member type any free text, so a null club is a
+>   PERMANENT valid state, not a migration leftover — hence the trailing group.
+> - **`roleRankOf` matches the WORD "vice"** (`/vice/i`), not a substring, so "Services Head"
+>   is not a vice head. Head-before-vice is an explicit rank, not luck of the alphabet.
+> - **🔥 A `` written through a Python heredoc became a literal BACKSPACE byte (0x08).** The
+>   regex compiled fine, matched nothing, and `roleRankOf("Vice Head")` silently returned 0 —
+>   caught only because a test asserted `0 < 0`. If a regex mysteriously never matches, `od -c`
+>   the line.
+> - **The bulk checkboxes use `form="team-bulk"`, not nesting.** Each row already contains two
+>   `<form>`s and **HTML forbids nested forms**; the `form=` attribute is exactly how an input
+>   outside a form joins one. The bulk action posts the state it WANTS ("public"/"hidden"), never
+>   a flip, and writes **one** audit row for the batch with `entityId: null`.
+> - **Manual add inserts `is_public = false` and `approved_at = now()`.** Hidden because adding
+>   somebody must never publish them; approved because `listTeamMembers` filters on it and a row
+>   without it would be added and then be invisible on the very page that added it.
+> - **`/admin/team` no longer says name/role are edited elsewhere** — they are edited there now,
+>   and it is the SAME row as Council → Members. Email, phone and attendance stay on that page.
+> - **State of the data now: 33 rows, 1 published (R. Jayasurya), 0 photos, 0 bios.** The six
+>   officers are in and HIDDEN. ⚠️ **Nothing was auto-published** — publishing 30 real students'
+>   names is the owner's call, and there is now a one-click "Publish selected" for it.
+>   **Events Head is still nobody** — the owner is adding them by hand.
+> - **Verified against live data:** `/team` renders the "Ai Forge Club" group with a working
+>   `/clubs/ai-forge` link and the card reading just `Head`; the leadership tier is correctly
+>   absent while the officers are hidden; `/team/<published>` 200, `/team/<hidden>` **404**,
+>   `/team/not-a-uuid` **404 not 500**; zero emails and zero phone numbers in the HTML.
+> - **⏳ OWED — still never opened in a browser.** Chrome has not connected in three sessions.
+>   The multi-club layout, the leadership row, the bulk bar and the add form are all unseen, and
+>   every admin write here is a server-action POST that cannot be curled.
+> - **Files:** new `src/components/admin/AddTeamMember.tsx`, one migration; edited
+>   `roster.ts` (+`.test.ts`, now 59 cases), `public-roster.ts`, `lib/admin/team.ts`,
+>   `form-state.ts`, `src/app/team/page.tsx`, `admin/(app)/team/{page.tsx,actions.ts}`,
+>   `components/admin/TeamRow.tsx`, `database.types.ts`.
+
 > ### ✅ MERGED + DEPLOYED — the public `/team` roster + `/admin/team` (2026-09-14)
 > Merged to `main` as `a4f70ae` on 2026-09-14 at the owner's explicit call, with the browser
 > check still owed (Chrome was disconnected again). Gate re-run before merging: typecheck ✓ /

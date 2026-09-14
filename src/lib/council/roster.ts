@@ -25,6 +25,12 @@ export interface RosterMember {
   /** Resolved public Storage URL, or null when there is no photo (the card and
    *  profile then fall back to the initials monogram). */
   photoUrl: string | null;
+  /** The club this person leads. Null is a permanent, valid state — council
+   *  leadership is council-wide, and a self-registered member may have no club
+   *  set yet. Never infer it from `designation`; that text is free-form. */
+  clubId: string | null;
+  clubName: string | null;
+  clubSlug: string | null;
 }
 
 /** Words for the monogram. Splits on whitespace AND dots, because the roster
@@ -133,6 +139,10 @@ export interface RosterRow {
   bio?: string | null;
   /** Object name in the `council-photos` bucket — never a URL. */
   photo_path?: string | null;
+  club_id?: string | null;
+  /** The embedded club from a PostgREST join. Optional so a row shape from
+   *  before migration 20260914010000 still typechecks. */
+  clubs?: { id: string; name: string; slug: string } | null;
 }
 
 /**
@@ -158,6 +168,9 @@ export function mapRosterRows(
     instagramUrl: safeUrlOrNull(r.instagram_url),
     bio: r.bio && r.bio.trim() !== "" ? r.bio.trim() : null,
     photoUrl: r.photo_path && photoUrlFor ? photoUrlFor(r.photo_path) : null,
+    clubId: r.clubs?.id ?? r.club_id ?? null,
+    clubName: r.clubs?.name ?? null,
+    clubSlug: r.clubs?.slug ?? null,
   }));
 }
 
@@ -181,4 +194,78 @@ export function socialsOf(member: RosterMember): RosterSocial[] {
   if (member.linkedinUrl) out.push({ label: "LinkedIn", url: member.linkedinUrl });
   if (member.instagramUrl) out.push({ label: "Instagram", url: member.instagramUrl });
   return out;
+}
+
+
+/**
+ * Order within one club's group: heads (0) before vice heads (1).
+ *
+ * Matched on the WORD "vice", not a substring — "Services Head" is not a vice
+ * head. Kept tolerant of free text on purpose: `/council/join/[token]` lets a
+ * member type their own designation, so this still has to rank
+ * "Vice Head Cyber Sentinel Club" correctly, not just a tidy "Vice Head".
+ */
+export function roleRankOf(designation: string): number {
+  return /\bvice\b/i.test(designation) ? 1 : 0;
+}
+
+/** One club's section on `/team`. A null club is the trailing catch-all. */
+export interface ClubGroup<T> {
+  clubId: string | null;
+  clubName: string | null;
+  clubSlug: string | null;
+  members: T[];
+}
+
+/**
+ * The roster split into one section per club, A→Z by club name, with members
+ * who have no club in a single trailing group.
+ *
+ * Grouping keys off `clubId`, never the designation text — that text is
+ * free-form and genuinely inconsistent ("Cybersentinal club" vs "Vice Head
+ * Cyber Sentinel Club" are the same club), which is exactly why `club_id`
+ * exists. Pass the LEADERSHIP tier in separately; `splitRoster` removes it
+ * first, so council officers never land in the no-club group.
+ */
+export function groupByClub<T extends RosterMember>(members: readonly T[]): ClubGroup<T>[] {
+  const byClub = new Map<string, ClubGroup<T>>();
+  const noClub: T[] = [];
+
+  for (const member of members) {
+    if (member.clubId == null) {
+      noClub.push(member);
+      continue;
+    }
+    let group = byClub.get(member.clubId);
+    if (!group) {
+      group = {
+        clubId: member.clubId,
+        clubName: member.clubName,
+        clubSlug: member.clubSlug,
+        members: [],
+      };
+      byClub.set(member.clubId, group);
+    }
+    group.members.push(member);
+  }
+
+  const cmp = (a: string, b: string) =>
+    a.localeCompare(b, "en", { sensitivity: "base", numeric: true });
+
+  const groups = [...byClub.values()].sort((a, b) => cmp(a.clubName ?? "", b.clubName ?? ""));
+  for (const group of groups) {
+    group.members.sort(
+      (a, b) =>
+        roleRankOf(a.designation) - roleRankOf(b.designation) ||
+        cmp(a.name, b.name) ||
+        cmp(a.id, b.id),
+    );
+  }
+
+  // Always last, whatever it would sort as — it is a catch-all, not a club.
+  if (noClub.length > 0) {
+    noClub.sort((a, b) => roleRankOf(a.designation) - roleRankOf(b.designation) || cmp(a.name, b.name) || cmp(a.id, b.id));
+    groups.push({ clubId: null, clubName: null, clubSlug: null, members: noClub });
+  }
+  return groups;
 }
