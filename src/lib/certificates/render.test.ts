@@ -88,3 +88,31 @@ describe("renderCertificatesPdf", () => {
     expect(loads).toEqual(["template"]);
   });
 });
+
+describe("renderCertificatesPdf — verification QR", () => {
+  const qrDesign = (): Design => {
+    const d = emptyDesign();
+    d.elements = [{ id: "qr", name: "QR", type: "qr", x: 80, y: 70, w: 12, h: 17, locked: false, hidden: false, color: "#000000" }];
+    return d;
+  };
+  const serialOnly = (key: string) => (key === "cert.serial" ? "CSE-2026-9F3AC1B2" : "");
+
+  // These pass no origin, so an attempt to draw would throw: resolving proves the QR was skipped.
+  it("draws nothing for a QR without a serial", async () => {
+    const bytes = await renderCertificatesPdf({ design: qrDesign(), pages: [{ valueFor: () => "" }], loadAsset: async () => PNG, loadFont, verifyOrigin: "" });
+    expect(isPdf(bytes)).toBe(true);
+  });
+
+  it("refuses to print a QR that would point nowhere", async () => {
+    await expect(
+      renderCertificatesPdf({ design: qrDesign(), pages: [{ valueFor: serialOnly }], loadAsset: async () => PNG, loadFont, verifyOrigin: "" }),
+    ).rejects.toThrow(/NEXT_PUBLIC_SITE_URL/);
+  });
+
+  it("skips a hidden QR", async () => {
+    const d = qrDesign();
+    d.elements[0].hidden = true;
+    const bytes = await renderCertificatesPdf({ design: d, pages: [{ valueFor: serialOnly }], loadAsset: async () => PNG, loadFont, verifyOrigin: "" });
+    expect(isPdf(bytes)).toBe(true);
+  });
+});

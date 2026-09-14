@@ -69,7 +69,13 @@ export interface TextElement extends ElementBase {
   paragraphs: Paragraph[];
 }
 
-export type DesignElement = ImageElement | TextElement;
+/** The verification QR. Always drawn square, centred in its box (spec §2.2). */
+export interface QrElement extends ElementBase {
+  type: "qr";
+  color: Hex;
+}
+
+export type DesignElement = ImageElement | TextElement | QrElement;
 
 export interface Design {
   v: 1;
@@ -172,6 +178,7 @@ const element = z.discriminatedUnion("type", [
     fit: z.enum(["wrap", "shrink"]),
     paragraphs: z.array(z.object({ runs: z.array(run) })).min(1).max(LIMITS.runs),
   }),
+  z.object({ ...base, type: z.literal("qr"), color: hex }),
 ]);
 
 const designSchema = z.object({

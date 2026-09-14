@@ -197,3 +197,21 @@ describe("helpers", () => {
     expect(newElementId()).toMatch(/^[a-z0-9]{10}$/);
   });
 });
+
+describe("qr elements", () => {
+  const qr = { id: "qr1", name: "Verification QR", type: "qr", x: 82, y: 70, w: 12, h: 17, locked: false, hidden: false, color: "#1A1A1A" };
+
+  it("accepts a qr element and lowercases its colour", () => {
+    const res = validateDesign({ ...emptyDesign(), elements: [qr] }, ctx);
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.design.elements[0]).toMatchObject({ type: "qr", color: "#1a1a1a" });
+  });
+
+  it("rejects a bad colour", () => {
+    expect(validateDesign({ ...emptyDesign(), elements: [{ ...qr, color: "red" }] }, ctx).ok).toBe(false);
+  });
+
+  it("carries no asset", () => {
+    expect(assetRefsOf({ ...emptyDesign(), elements: [qr] } as Design)).toEqual([]);
+  });
+});

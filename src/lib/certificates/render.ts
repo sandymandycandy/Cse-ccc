@@ -6,6 +6,8 @@ import { needsFullEmbed, type FaceId } from "./fonts";
 import { layoutText } from "./layout";
 import { METRICS } from "./metrics";
 import { NO_FEATURES } from "./pdf-features";
+import { qrMatrix, qrPath, qrRuns, qrSpan, qrSquare, verifyUrl } from "./qr";
+import { siteOrigin } from "@/lib/site-origin";
 
 /**
  * Draw certificates as a PDF (spec §6.5): one page per entry in `pages`, each
@@ -25,6 +27,8 @@ export interface RenderInput {
   pages: { valueFor: (field: string) => string }[];
   loadAsset: (ref: AssetRef) => Promise<Uint8Array>;
   loadFont: (face: FaceId) => Promise<Uint8Array>;
+  /** Origin the verification QR points at. Defaults to NEXT_PUBLIC_SITE_URL; tests pass their own. */
+  verifyOrigin?: string;
   /** Diagonal watermark text, e.g. "PREVIEW". */
   watermark?: string;
   title?: string;
@@ -40,6 +44,8 @@ export async function renderCertificatesPdf(input: RenderInput): Promise<Uint8Ar
   const k = PAGE_LONG_EDGE_PT / Math.max(W, H); // page px → pt
   const pageW = W * k;
   const pageH = H * k;
+
+  const origin = input.verifyOrigin ?? siteOrigin() ?? "";
 
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(fontkit);
@@ -85,6 +91,22 @@ export async function renderCertificatesPdf(input: RenderInput): Promise<Uint8Ar
           width: w,
           height: h,
           opacity: el.opacity,
+        });
+        continue;
+      }
+      if (el.type === "qr") {
+        // The QR is per certificate: it encodes this page's own serial.
+        const serial = valueFor("cert.serial");
+        if (!serial) continue;
+        if (!origin) throw new Error("NEXT_PUBLIC_SITE_URL is not set — the verification QR would point nowhere.");
+        const matrix = qrMatrix(verifyUrl(origin, serial));
+        const square = qrSquare({ x: (el.x / 100) * W, y: (el.y / 100) * H, w: (el.w / 100) * W, h: (el.h / 100) * H });
+        // drawSvgPath flips y itself: path units go down from (x, y) as in the editor's SVG.
+        page.drawSvgPath(qrPath(qrRuns(matrix)), {
+          x: square.x * k,
+          y: pageH - square.y * k,
+          scale: (square.side / qrSpan(matrix)) * k,
+          color: rgbHex(el.color),
         });
         continue;
       }
