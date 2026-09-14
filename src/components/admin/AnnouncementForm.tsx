@@ -57,14 +57,16 @@ export function AnnouncementForm({
         </span>
       </div>
 
-      {/* Defaults to 3:2 because that is the shape the announcements list
-          thumbnail (120x80) and the detail hero both render — cropping to it
-          here means the admin picks what shows, instead of a blind centre-crop. */}
+      {/* "Original" by default, like the gallery: neither the list thumbnail nor
+          the detail page crops any more, so both show whatever shape is uploaded
+          — a portrait poster included. Pre-cropping to 3:2 here used to throw
+          away the top and bottom of exactly those posters before they were ever
+          stored. Every preset is still one tap away for anyone who wants one. */}
       <ImageEditor
         label="Cover image (optional)"
         initialUrl={init?.imageUrl ?? null}
-        defaultAspect={3 / 2}
-        hint="Crop and rotate before uploading. 3:2 matches how covers are shown."
+        defaultAspect={null}
+        hint="Crop, rotate and resize before uploading — the announcement shows the shape you choose."
       />
 
       <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>

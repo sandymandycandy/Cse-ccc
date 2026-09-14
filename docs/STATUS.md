@@ -395,6 +395,17 @@ end-to-end**, not a checklist of components.
 >      these two** — posters here are routinely portrait and a tall image rendering tall is the
 >      intended result. Note the `ImageEditor` upload side was already fine: it offers an
 >      "Original" preset, which is how a 4:5 file got in.
+>   1b. **The announcement image editor now matches the GALLERY** (owner: *"or maybe have it
+>      like the gallery for editing purpose"*): `defaultAspect={null}` instead of `3/2`, so a
+>      picked file is **not pre-cropped** — the old default threw away the top and bottom of a
+>      portrait poster *before it was ever stored*, which is the upstream half of the crop bug
+>      above. Every preset is still one tap away. `withDimensions` was deliberately NOT copied
+>      across: it emits `imageW`/`imageH` hidden fields and **only the gallery table stores
+>      them**, so on announcements they would be dead inputs. The old hint claimed "3:2 matches
+>      how covers are shown", which stopped being true the moment the display crop was removed.
+>      ⚠️ **`AchievementForm` still uses `3/2` on purpose** — its thumbnail is `160x110` (~3:2),
+>      so editor and display agree there and the admin sees the crop they chose. Announcements
+>      were the only place the two disagreed.
 >   2. **`encType="multipart/form-data"` removed from FIVE forms** (Achievement, Announcement,
 >      Event, Gallery, TeamRow). React supplies the encoding itself when a form's `action` is a
 >      function and logs a console error when you also pass it, then overrides it. Harmless but
