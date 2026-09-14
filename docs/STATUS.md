@@ -337,6 +337,55 @@ end-to-end**, not a checklist of components.
 > `git branch --merged main`) and are safe to delete. What is actually outstanding is the **owed
 > human-only browser walkthroughs** flagged in each block, plus the TODO backlog further down.
 
+> ### 🟡 BUILT ON BRANCH `feat/certificate-designer` — NOT merged (2026-09-14)
+> **Certificate designer, phase 1.** Replaces the v1 one-name positioner on
+> **`/admin/events/[id]/certificates`** with **Design / Issue** tabs. Gate: typecheck ✓ / lint ✓ /
+> **876 tests** ✓ / build ✓. Spec `docs/superpowers/specs/2026-09-14-certificate-designer-design.md`,
+> plan `docs/superpowers/plans/2026-09-14-certificate-designer-phase1.md`.
+> - **Design tab:** upload the base template, place logos/signatures, type rich text (per-word font,
+>   size, B/I/U, colour) with inline **fields** — name, roll, department, year, team name/members/size,
+>   event title/date/venue/club, every custom registration question, serial, issue date — each with
+>   As typed / Title Case / UPPERCASE. Shrink-to-fit or wrapping boxes, snap guides, layers
+>   (hide/lock/reorder), undo/redo, arrow-key nudge, **preview as any attendee**, watermarked
+>   **Preview PDF**, and **start from another event's design** (copies its images too).
+> - **Issue tab:** batched *Issue & email* / *Issue only* behind a progress bar with Stop; closing the
+>   tab is safe and the next run continues. Reserve-then-send keeps it at-most-once, as v1 did.
+> - **Engine:** one layout engine (`src/lib/certificates/layout.ts`) serves both the editor's SVG and
+>   the `pdf-lib` renderer, with pre-computed metrics from the bundled fonts.
+>   `layout-fidelity.test.tsx` pins the SVG attributes and the PDF's text operators to the same
+>   numbers, so **preview-equals-PDF is enforced, not assumed**. PDFs are A4-sized with vector text.
+> - **⚠️ Fonts — one family had to change.** `pdf-lib`'s subsetter writes an undecodable `glyf` table
+>   for some fonts (plain letters, not just accents). **Cormorant Garamond is unusable** — pdf-lib
+>   cannot embed it whole either — and was replaced by **Crimson Text**; **Poppins Italic, Poppins
+>   Bold Italic and Great Vibes** are embedded whole (`FULL_EMBED_FACES` in `fonts.ts`).
+>   `font-embedding.test.ts` renders every face, reads the font back out of the PDF and decodes every
+>   glyph drawn, so a new or updated font is checked automatically.
+> - **Migration — APPLIED + VERIFIED LIVE (additive):** `certificate_designer` adds
+>   `certificate_groups`, `certificate_design_versions`, `certificate_sheet_rows` (phase 2), the
+>   recipient/snapshot columns + `certificates_one_live_per_recipient` index on `certificates`, three
+>   service-role-only RPCs (`replace_certificate_sheet_rows`, `supersede_certificate`,
+>   `undo_supersede` — phase 2 callers), and the **private** `certificate-assets` bucket (8 MB,
+>   PNG/JPEG). The ledger was empty, so the v1 backfill was a no-op. Advisors: no new findings.
+>   `database.types.ts` regenerated from the live schema.
+> - **v1 setups convert automatically** on first open (template + name box, Playfair Bold standing in
+>   for Times-Bold); v1-issued certificates attach to the new Participants group.
+> - **Uploads no longer go through a server action** (signed upload URL straight to Storage), which
+>   also fixes a latent v1 bug: the old page accepted "up to 8 MB" templates through a server action
+>   whose Next default body limit is **1 MB**.
+> - **Browser-verified** with the dev-only harness **`/dev/certificate-designer`** (404 in production,
+>   confirmed against `next start`): 17 checks driven through real Chrome — mount, bundled fonts,
+>   preview-as, in-place typing, undo/redo, nudge, restyle, italic disabled on a family without one,
+>   layers, add/delete field, zoom, and the narrow-screen note. It caught two real bugs, both fixed:
+>   arrow-key nudges lost presses when they repeated faster than React re-rendered, and Title Case
+>   turned `{Name}` into `{name}`.
+> - **⚠️ OWED — the one thing that needs a human** (an admin login + TOTP, which no automated path
+>   has): on a test event, Design → upload a real template → Save → Preview PDF → mark yourself
+>   present → Issue & email → confirm the PDF arrives and matches the preview. Also open an event
+>   that had a **v1** setup and confirm its name box converted.
+> - **Not in phase 1** (each gets its own plan): team-member recipients, uploaded volunteer/judge
+>   lists, the Recipients tab, downloads (single/ZIP/print), re-issue & revoke, then the QR code and
+>   the public `/verify/<serial>` page.
+
 > ### 🟡 BUILT ON BRANCH `feat/hero-announcement` — NOT merged (2026-09-14)
 > The **latest announcement in the home hero**, an **admin-set expiry**, and **Announcements
 > removed from the header nav**. **MIGRATION ALREADY APPLIED LIVE** (`announcement_expiry` —
