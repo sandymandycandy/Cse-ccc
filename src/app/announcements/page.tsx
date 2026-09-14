@@ -27,20 +27,14 @@ export default async function AnnouncementsPage() {
           Nothing to announce just yet — check back soon.
         </p>
       ) : (
-        <div style={{ marginTop: 28, display: "grid", gap: 20, maxWidth: 720 }}>
+        <div className="notice-list">
           {items.map((a) => (
             <Link
               key={a.slug}
               href={`/announcements/${a.slug}`}
-              className="rule"
-              style={{
-                display: "grid",
-                gridTemplateColumns: a.imageUrl ? "120px 1fr" : "1fr",
-                gap: 16,
-                paddingBottom: 20,
-                color: "var(--ink)",
-                alignItems: "start",
-              }}
+              // Layout lives in globals.css, not inline: an inline style cannot
+              // carry the media query that makes this work on a phone.
+              className={`rule notice-row${a.imageUrl ? "" : " no-thumb"}`}
             >
               {a.imageUrl ? (
                 <Image
@@ -48,19 +42,17 @@ export default async function AnnouncementsPage() {
                   alt=""
                   loading="lazy"
                   width={120}
-                  height={80}
-                  sizes="120px"
-                  // Height follows the image so a portrait poster is not
-                  // reduced to a thin cropped band. Same reason the detail
-                  // page dropped its maxHeight + cover.
-                  style={{ width: 120, height: "auto", borderRadius: 6 }}
+                  height={120}
+                  // 2x the 120px box, so the thumbnail stays sharp on a phone.
+                  sizes="(max-width: 599px) 92px, 120px"
+                  className="notice-thumb"
                 />
               ) : null}
               <div>
                 <div className="label" style={{ color: "var(--ink-3)" }}>
                   {istFullDate(a.publishedAt)}
                 </div>
-                <h2 style={{ font: "400 20px var(--serif)", margin: "4px 0 6px" }}>{a.title}</h2>
+                <h2 className="notice-title">{a.title}</h2>
                 <p className="body-text" style={{ color: "var(--ink-2)" }}>
                   {a.excerpt}
                 </p>

@@ -29,7 +29,7 @@ export default async function AnnouncementPage({
   if (!a) notFound();
 
   return (
-    <article className="section" style={{ paddingTop: 56, maxWidth: 680 }}>
+    <article className="section reading" style={{ paddingTop: 56 }}>
       <Link href="/announcements" className="label" style={{ color: "var(--forest)" }}>
         ← Announcements
       </Link>
