@@ -1,3 +1,4 @@
+import type { Design } from "./design";
 import type { FieldValues } from "./fields";
 
 /**
@@ -102,6 +103,60 @@ export function statusByKey(rows: CertificateLedgerRow[]): Map<string, Recipient
     }
   }
   return out;
+}
+
+/** Values that are different on every certificate by construction — never a reason to re-issue. */
+const PER_CERTIFICATE = new Set(["cert.serial", "cert.issueDate"]);
+
+/** The field keys a design actually prints: visible text only, once each. */
+export function printedFields(design: Design): string[] {
+  const out = new Set<string>();
+  for (const element of design.elements) {
+    if (element.type !== "text" || element.hidden) continue;
+    for (const paragraph of element.paragraphs) {
+      for (const run of paragraph.runs) {
+        if (run.kind === "field" && !PER_CERTIFICATE.has(run.field)) out.add(run.field);
+      }
+    }
+  }
+  return [...out];
+}
+
+/** What an issued certificate was made from: its design version and the values it printed. */
+export interface LiveCertificate {
+  designVersionId: string | null;
+  values: FieldValues;
+}
+
+/**
+ * A certificate needs replacing when it was issued with a different design
+ * than the group has now, or when something it prints has changed for that
+ * person since (a corrected name, say). Re-issuing makes it current again,
+ * which is what lets a "re-issue all" run stop and resume safely.
+ */
+export function isOutdated(input: {
+  live: LiveCertificate;
+  currentVersionId: string | null;
+  printed: string[];
+  current: FieldValues;
+}): boolean {
+  if (!input.currentVersionId || input.live.designVersionId !== input.currentVersionId) return true;
+  return input.printed.some((field) => (input.live.values[field] ?? "") !== (input.current[field] ?? ""));
+}
+
+/** Issued recipients whose certificate is outdated, in list order. */
+export function outdatedRecipients(
+  recipients: Recipient[],
+  live: Map<string, LiveCertificate>,
+  groups: Map<string, { versionId: string | null; printed: string[] }>,
+): Recipient[] {
+  return recipients.filter((recipient) => {
+    if (recipient.status.state !== "issued") return false;
+    const certificate = live.get(recipient.status.certificateId);
+    const group = groups.get(recipient.groupId);
+    if (!certificate || !group) return false;
+    return isOutdated({ live: certificate, currentVersionId: group.versionId, printed: group.printed, current: recipient.values });
+  });
 }
 
 export type IssueMode = "email" | "record";
