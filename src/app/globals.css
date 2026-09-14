@@ -2480,9 +2480,9 @@
     .cd-narrow { display: block; }
     .cd-wide { display: none; }
   }
-  /* The canvas wants every pixel it can get, so this page opts out of the
-     960px admin column and spreads to the shell's own width. */
-  .admin-page:has(.cd) { max-width: 1500px; }
+  /* The canvas and the recipients table both want every pixel they can get, so
+     this page opts out of the 960px admin column. */
+  .cd-page { max-width: 1500px; }
   .cd-toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -2669,6 +2669,9 @@
     background: var(--sand);
   }
   .cd-upload { display: grid; gap: 10px; }
+  /* Keep a row's actions on one line — three buttons stacked make every row tall. */
+  .cd-actions-cell { white-space: nowrap; }
+  .cd-actions-cell .stack { flex-wrap: nowrap; gap: 6px; }
   @media (max-width: 599px) {
     /* 16px stops iOS Safari zooming the page when a control takes focus. */
     .cd-filters input,

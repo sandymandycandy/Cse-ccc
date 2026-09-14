@@ -79,7 +79,7 @@ export default async function EventCertificatesPage({
       : [];
 
   return (
-    <div className="admin-page">
+    <div className="admin-page cd-page">
       <Link href={`/admin/events/${id}/registrations`} className="label" style={{ color: "var(--forest)" }}>
         ← Registrations
       </Link>

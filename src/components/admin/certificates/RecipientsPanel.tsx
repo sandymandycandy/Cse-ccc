@@ -278,7 +278,7 @@ export function RecipientsPanel({ eventId, rows, groups, canRevoke }: Props) {
                       <span style={{ color: "var(--clay)" }}>{row.warnings.join("; ")}</span>
                     )}
                   </td>
-                  <td>
+                  <td className="cd-actions-cell">
                     <div className="stack">
                       {row.status.state === "issued" ? (
                         <>

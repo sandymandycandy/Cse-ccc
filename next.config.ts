@@ -50,6 +50,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/admin/**/certificates": ["./public/fonts/cert/*.ttf"],
     "/api/admin/events/**": ["./public/fonts/cert/*.ttf"],
+    "/api/admin/certificates/**": ["./public/fonts/cert/*.ttf"],
   },
   images: {
     // AVIF first, WebP second: both are far smaller than the source JPEG/WebP
