@@ -127,8 +127,9 @@ describe("embedded fonts", () => {
       }
       try {
         const glyph = embedded.getGlyph(gid);
-        // A glyph with no outline is only legitimate for the space.
-        if (glyph.path.commands.length === 0 && glyph.advanceWidth > 0 && glyph.codePoints?.[0] !== 32) broken.push(gid);
+        // fontkit's bundled types don't describe Path.commands, but it is there.
+        const outline = (glyph.path as unknown as { commands: unknown[] }).commands;
+        if (outline.length === 0 && glyph.advanceWidth > 0) broken.push(gid);
       } catch {
         broken.push(gid);
       }
