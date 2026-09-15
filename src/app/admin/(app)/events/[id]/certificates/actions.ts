@@ -89,7 +89,8 @@ type Authorized =
  * one (spec 2026-09-15 §4.4). The two grants are identical today, but the check
  * must name the right capability so changing one grant actually changes access.
  */
-export const groupCapability = (group: { baseKind: BaseKind | null }): Capability =>
+// Not exported: a "use server" module may only export async functions.
+const groupCapability = (group: { baseKind: BaseKind | null }): Capability =>
   group.baseKind === "winners" ? "issue:winner_certificate" : CAP;
 
 /** Refuse the run when any chosen group needs a capability this admin lacks. */

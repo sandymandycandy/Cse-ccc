@@ -7,6 +7,7 @@ import { defaultFormFor, type FormField } from "@/lib/registration-form/schema";
 import { DesignerLoader } from "./DesignerLoader";
 import { DesignTab } from "./DesignTab";
 import { ListEditor } from "./ListEditor";
+import { WinnersPanel } from "./WinnersPanel";
 
 // Sample data only — never a real person.
 const svgUrl = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
@@ -160,6 +161,79 @@ export function BaseHarness() {
       baseImpact={{ participants: { following: 9, withLive: 2 } }}
       offline
     />
+  );
+}
+
+const winnerDesign: Design = {
+  ...design,
+  elements: design.elements.map((el) =>
+    el.id === "body" && el.type === "text"
+      ? {
+          ...el,
+          paragraphs: [
+            {
+              runs: [
+                { kind: "text" as const, text: "was awarded ", style: { ...DEFAULT_STYLE, font: "lora" as const, sizePct: 2.6 } },
+                { kind: "field" as const, field: "winner.place", transform: "none" as const, style: { ...DEFAULT_STYLE, font: "lora" as const, sizePct: 2.6, bold: true } },
+                { kind: "text" as const, text: " place in ", style: { ...DEFAULT_STYLE, font: "lora" as const, sizePct: 2.6 } },
+                { kind: "field" as const, field: "event.title", transform: "none" as const, style: { ...DEFAULT_STYLE, font: "lora" as const, sizePct: 2.6, italic: true } },
+                { kind: "text" as const, text: ".", style: { ...DEFAULT_STYLE, font: "lora" as const, sizePct: 2.6 } },
+              ],
+            },
+          ],
+        }
+      : el,
+  ),
+};
+
+// Two students sharing third, as the live PITCH DESK standings do.
+const winners = [
+  { key: "win:1", name: "asha r", place: "1st", words: "First" },
+  { key: "win:2", name: "Karthik S", place: "2nd", words: "Second" },
+  { key: "win:3", name: "Meena P", place: "3rd", words: "Third" },
+  { key: "win:4", name: "Ravi K", place: "3rd", words: "Third" },
+].map((w) => ({
+  key: w.key,
+  name: w.name,
+  values: { "person.name": w.name, "winner.place": w.place, "winner.placeWords": w.words, "event.title": "PITCH DESK" },
+}));
+
+/** The Winners group: podium source, and its certificate previewed for a tied third place. */
+export function WinnersHarness() {
+  return (
+    <div style={{ display: "grid", gap: 16 }}>
+      <div className="cd-groups">
+        <WinnersPanel
+          eventId="00000000-0000-4000-8000-000000000000"
+          groupId="00000000-0000-4000-8000-00000000000d"
+          groupName="Winners"
+          source="results"
+          people={winners.length}
+          rows={[]}
+          offline
+        />
+      </div>
+      <DesignTab
+        eventId="00000000-0000-4000-8000-000000000000"
+        groupId="00000000-0000-4000-8000-00000000000d"
+        initialDesign={winnerDesign}
+        initialAssetUrls={{ [assetKey(TEMPLATE)]: svgUrl(TEMPLATE_SVG), [assetKey(LOGO)]: svgUrl(LOGO_SVG) }}
+        catalogue={buildFieldCatalogue({ formSchema: defaultFormFor(), winnerFields: true })}
+        previewRecipients={winners}
+        issuedCount={0}
+        designSources={[]}
+        baseKind="winners"
+        followsBase
+        bases={summarizeBases(
+          new Map<BaseKind, BaseDesign>([
+            ["winners", { kind: "winners", design: winnerDesign, sourceEventTitle: "PITCH DESK", updatedAt: "2026-09-12T10:00:00Z" }],
+          ]),
+        )}
+        savableBases={["participants", "volunteers", "winners"]}
+        baseImpact={{ winners: { following: 4, withLive: 0 } }}
+        offline
+      />
+    </div>
   );
 }
 
