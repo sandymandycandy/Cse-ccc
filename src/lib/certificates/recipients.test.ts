@@ -13,6 +13,9 @@ import {
   registrationKey,
   sheetIdentity,
   sheetKey,
+  winnerKey,
+  winnerMemberKey,
+  winnerRollKey,
   statusByKey,
   type CertificateLedgerRow,
   type Recipient,
@@ -78,6 +81,21 @@ describe("recipient keys", () => {
     expect(sheetKey("g1", { name: "Asha", email: "A@X.COM" }, taken)).toBe("sheet:g1:a@x.com");
     expect(sheetKey("g1", { name: "No Mail", email: null }, taken)).toBe("sheet:g1:no mail");
     expect(sheetKey("g1", { name: "No Mail", email: null }, taken)).toBe("sheet:g1:no mail#2");
+  });
+});
+
+describe("winner keys", () => {
+  it("keys a winning registration, its members, and a roll-only standing", () => {
+    const taken = new Set<string>();
+    expect(winnerKey("abc")).toBe("win:abc");
+    expect(winnerMemberKey("abc", { name: "Ravi", roll: "VTU1" }, taken)).toBe("win:abc:m:vtu1");
+    expect(winnerMemberKey("abc", { name: "Ravi", roll: "VTU1" }, taken)).toBe("win:abc:m:vtu1#2");
+    expect(winnerRollKey({ name: "Asha R", roll: " VTU9 " }, taken)).toBe("win:roll:vtu9");
+    expect(winnerRollKey({ name: "Asha R", roll: "" }, taken)).toBe("win:roll:asha r");
+  });
+
+  it("never collides with the participation key for the same registration", () => {
+    expect(winnerKey("abc")).not.toBe(registrationKey("abc"));
   });
 });
 

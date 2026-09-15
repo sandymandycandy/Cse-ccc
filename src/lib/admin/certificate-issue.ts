@@ -4,7 +4,7 @@ import type { Json } from "@/lib/database.types";
 import { writeAudit } from "./audit";
 import { assetLoader } from "@/lib/certificates/assets";
 import { isKnownField, parseStoredDesign, type Design } from "@/lib/certificates/design";
-import { designContextFor, formatIstDate, type FieldValues } from "@/lib/certificates/fields";
+import { formatIstDate, type FieldValues } from "@/lib/certificates/fields";
 import { loadFontFile } from "@/lib/certificates/font-files";
 import {
   certificateFileName,
@@ -24,6 +24,7 @@ import {
   ensureDesignVersion,
   getCertEvent,
   getCertificateWorkspace,
+  groupContext,
   listAllRecipients,
   listGroups,
   listOutdatedRecipients,
@@ -64,7 +65,7 @@ type Prepared = { recipient: Recipient; certificateId: string; pdf: Uint8Array; 
 /** A design is issuable when it has a template and every field it prints still exists. */
 export function designProblem(group: CertificateGroup, event: CertEvent): string | null {
   if (!group.design.page.template) return `"${group.name}" has no template yet — add one in the Design tab.`;
-  const ctx = designContextFor(event.schema, group.sheetColumns);
+  const ctx = groupContext(event, group);
   for (const element of group.design.elements) {
     if (element.type !== "text") continue;
     const stale = element.paragraphs

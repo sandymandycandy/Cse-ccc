@@ -19,7 +19,7 @@ import { ListEditor } from "./ListEditor";
 export interface GroupSummary {
   id: string;
   name: string;
-  kind: "participants" | "sheet";
+  kind: "participants" | "sheet" | "results";
   people: number;
   /** The council base slot this group fills; null for an extra group. */
   baseKind: BaseKind | null;

@@ -79,6 +79,24 @@ export function memberKey(
   return unique(`reg:${registrationId}:m:${who}`, taken);
 }
 
+/**
+ * Winner keys (spec 2026-09-15 §4.2). The `win:` prefix is what lets one person
+ * hold a participation AND a winner certificate: the one-live-per-recipient
+ * index is on (event, recipient_key), so the two never collide.
+ */
+export const winnerKey = (registrationId: string) => `win:${registrationId}`;
+
+export function winnerMemberKey(registrationId: string, member: { name: string; roll: string }, taken: Set<string>): string {
+  const who = norm(member.roll) || norm(member.name) || "member";
+  return unique(`win:${registrationId}:m:${who}`, taken);
+}
+
+/** A standing with no registration behind it — keyed by roll, else name. */
+export function winnerRollKey(person: { name: string; roll: string }, taken: Set<string>): string {
+  const who = norm(person.roll) || norm(person.name) || "winner";
+  return unique(`win:roll:${who}`, taken);
+}
+
 /** Who a list row is, for matching certificates: email where there is one, else name (spec 2026-09-15 §1.4). */
 export function sheetIdentity(row: { name: string; email: string | null }): string {
   return norm(row.email ?? "") || norm(row.name) || "row";

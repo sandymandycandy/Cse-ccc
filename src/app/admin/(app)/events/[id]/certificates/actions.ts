@@ -14,6 +14,8 @@ import {
   getCertEvent,
   getGroup,
   getParticipantsGroup,
+  groupCatalogue,
+  groupContext,
   renameGroup,
   replaceSheetRows,
 } from "@/lib/admin/certificates";
@@ -106,7 +108,7 @@ export async function saveCertificateDesignAction(input: {
   const [event, group] = await Promise.all([getCertEvent(input.eventId), getGroup(input.eventId, input.groupId)]);
   if (!event || !group) return { ok: false, error: "That certificate group no longer exists." };
 
-  const checked = validateDesign(input.design, designContextFor(event.schema, group.sheetColumns));
+  const checked = validateDesign(input.design, groupContext(event, group));
   if (!checked.ok) return { ok: false, error: checked.error };
   const assetProblem = await verifyNewAssets(input.eventId, checked.design, group.design);
   if (assetProblem) return { ok: false, error: assetProblem };
@@ -162,9 +164,9 @@ export async function saveCertificateBaseAction(input: {
   const [event, group] = await Promise.all([getCertEvent(input.eventId), getGroup(input.eventId, input.groupId)]);
   if (!event || !group) return { ok: false, error: "That certificate group no longer exists." };
 
-  const checked = validateDesign(input.design, designContextFor(event.schema, group.sheetColumns));
+  const checked = validateDesign(input.design, groupContext(event, group));
   if (!checked.ok) return { ok: false, error: checked.error };
-  const catalogue = buildFieldCatalogue({ formSchema: event.schema, sheetColumns: group.sheetColumns });
+  const catalogue = groupCatalogue(event, group);
   const fieldProblem = baseFieldProblem(checked.design, targets, (key) => fieldLabel(catalogue, key));
   if (fieldProblem) return { ok: false, error: fieldProblem };
   if (!checked.design.page.template) return { ok: false, error: "Add a template before saving it as a base." };
