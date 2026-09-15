@@ -2696,6 +2696,23 @@
     background: var(--sand);
   }
   .cd-upload { display: grid; gap: 10px; }
+  .cd-list { display: grid; gap: 10px; }
+  .cd-list-add { display: grid; grid-template-columns: 2fr 2fr 1fr auto; gap: 8px; align-items: center; }
+  .cd-list input {
+    width: 100%;
+    min-width: 0;
+    padding: 7px 10px;
+    border: 1px solid var(--line-3);
+    border-radius: 8px;
+    background: var(--paper-2);
+    color: var(--ink);
+    font: 400 13px var(--sans);
+  }
+  @media (max-width: 720px) {
+    .cd-list-add { grid-template-columns: 1fr; }
+    /* 16px stops iOS Safari zooming the page when an input takes focus. */
+    .cd-list input { font-size: 16px; min-height: 44px; }
+  }
   /* The serial and date under an Issued badge: small, monospaced, wrappable. */
   .cd-serial {
     font: 400 10.5px / 1.45 var(--mono);

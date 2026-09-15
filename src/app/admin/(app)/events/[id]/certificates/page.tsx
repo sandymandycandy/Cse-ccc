@@ -110,7 +110,7 @@ export default async function EventCertificatesPage({
       </nav>
 
       {tab !== "recipients" ? (
-        <GroupBar eventId={id} groups={groupSummaries} activeId={ws.group.id} tab={tab} />
+        <GroupBar eventId={id} groups={groupSummaries} activeId={ws.group.id} tab={tab} listRows={ws.listRows} />
       ) : null}
 
       {tab === "design" ? (

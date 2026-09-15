@@ -8,7 +8,8 @@ import {
   renameCertificateGroupAction,
 } from "@/app/admin/(app)/events/[id]/certificates/actions";
 import type { BaseKind } from "@/lib/certificates/bases";
-import { SheetUpload } from "./SheetUpload";
+import type { ListRow } from "@/lib/certificates/sheet";
+import { ListEditor } from "./ListEditor";
 
 /**
  * The groups an event issues certificates for (spec D6): Participants, plus any
@@ -30,11 +31,14 @@ export function GroupBar({
   groups,
   activeId,
   tab,
+  listRows,
 }: {
   eventId: string;
   groups: GroupSummary[];
   activeId: string;
   tab: string;
+  /** The active group's people, when it is a list group. */
+  listRows: ListRow[];
 }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
@@ -164,7 +168,7 @@ export function GroupBar({
       ) : null}
 
       {active?.kind === "sheet" ? (
-        <SheetUpload eventId={eventId} groupId={active.id} groupName={active.name} />
+        <ListEditor key={active.id} eventId={eventId} groupId={active.id} groupName={active.name} rows={listRows} />
       ) : null}
 
       {error ? (

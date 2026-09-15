@@ -10,7 +10,18 @@ import { buildSheetRows, detectColumns, parseDelimited, SHEET_LIMITS, type Colum
  * is read in the browser — an .xlsx through `read-excel-file`, loaded only when
  * one is picked — and the columns are confirmed before anything is saved.
  */
-export function SheetUpload({ eventId, groupId, groupName }: { eventId: string; groupId: string; groupName: string }) {
+export function SheetUpload({
+  eventId,
+  groupId,
+  groupName,
+  replaceCount,
+}: {
+  eventId: string;
+  groupId: string;
+  groupName: string;
+  /** People already in the list — an upload replaces them. */
+  replaceCount: number;
+}) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [table, setTable] = useState<string[][] | null>(null);
@@ -74,10 +85,10 @@ export function SheetUpload({ eventId, groupId, groupName }: { eventId: string; 
     <div className="cd-upload">
       <div className="stack">
         <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => input.current?.click()}>
-          {busy ? "Reading…" : "Upload list"}
+          {busy ? "Reading…" : "Upload a list"}
         </button>
         <span className="hint">
-          CSV or Excel, up to {SHEET_LIMITS.rows} people. A re-upload replaces the list; certificates already issued stay.
+          CSV or Excel, up to {SHEET_LIMITS.rows} people. Uploading replaces the list; certificates already issued stay.
         </span>
       </div>
       <input
@@ -118,6 +129,20 @@ export function SheetUpload({ eventId, groupId, groupName }: { eventId: string; 
                 ))}
               </select>
             </label>
+            <label className="cd-row">
+              <span>Roll no. column</span>
+              <select
+                value={choice.roll ?? ""}
+                onChange={(e) => setChoice((c) => ({ ...c, roll: e.target.value === "" ? null : Number(e.target.value) }))}
+              >
+                <option value="">None</option>
+                {headings.map((h, i) => (
+                  <option key={i} value={i}>
+                    {h || `Column ${i + 1}`}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
           <div className="tablewrap" style={{ marginTop: 10 }}>
@@ -129,6 +154,7 @@ export function SheetUpload({ eventId, groupId, groupName }: { eventId: string; 
                       {h || `Column ${i + 1}`}
                       {i === choice.name ? " · name" : ""}
                       {i === choice.email ? " · email" : ""}
+                      {i === choice.roll ? " · roll" : ""}
                     </th>
                   ))}
                 </tr>
@@ -149,6 +175,11 @@ export function SheetUpload({ eventId, groupId, groupName }: { eventId: string; 
             {table.length - 1} row{table.length - 1 === 1 ? "" : "s"} in the file
             {built && !built.ok ? ` — ${built.error}` : built && built.ok ? `, ${built.rows.length} with a name.` : ""}
           </p>
+          {replaceCount > 0 ? (
+            <p className="note">
+              This replaces the {replaceCount} {replaceCount === 1 ? "person" : "people"} already in {groupName}.
+            </p>
+          ) : null}
           <div className="stack">
             <button type="button" className="btn btn-primary btn-sm" disabled={busy || !built?.ok} onClick={save}>
               {busy ? "Saving…" : "Use this list"}
