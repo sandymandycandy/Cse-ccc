@@ -5,7 +5,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/database.types";
 import { getAdminSession, type AdminSession } from "@/lib/auth/guards";
-import { canManage } from "@/lib/auth/capabilities";
+import { canManage, type Capability } from "@/lib/auth/capabilities";
 import { writeAudit } from "@/lib/admin/audit";
 import { getEventForAttendance, type AttendanceEvent } from "@/lib/admin/attendance";
 import {
@@ -81,6 +81,28 @@ export type CopyDesignResult =
 type Authorized =
   | { ok: false; error: string }
   | { ok: true; session: AdminSession; ev: AttendanceEvent };
+
+/**
+ * Winners need `issue:winner_certificate`; every other group the participation
+ * one (spec 2026-09-15 §4.4). The two grants are identical today, but the check
+ * must name the right capability so changing one grant actually changes access.
+ */
+export const groupCapability = (group: { baseKind: BaseKind | null }): Capability =>
+  group.baseKind === "winners" ? "issue:winner_certificate" : CAP;
+
+/** Refuse the run when any chosen group needs a capability this admin lacks. */
+async function refuseUnpermittedGroups(
+  auth: { session: AdminSession; ev: AttendanceEvent },
+  groupIds: string[],
+): Promise<{ ok: false; error: string } | null> {
+  const groups = await Promise.all(groupIds.map((id) => getGroup(auth.ev.id, id)));
+  for (const group of groups) {
+    if (group && !canManage(auth.session, groupCapability(group), auth.ev.clubId)) {
+      return { ok: false, error: `You can't issue ${group.name} certificates for this event.` };
+    }
+  }
+  return null;
+}
 
 /** Session + own-club scope for a certificate action on an event. */
 async function authorize(eventId: string): Promise<Authorized> {
@@ -267,6 +289,8 @@ export async function issueCertificatesBatchAction(input: {
   if (input.mode !== "email" && input.mode !== "record") return { ok: false, error: "Unknown issue mode." };
   const groupIds = (input.groupIds ?? []).filter((id) => uuid.safeParse(id).success);
   if (groupIds.length === 0) return { ok: false, error: "Choose at least one group to issue." };
+  const refusal = await refuseUnpermittedGroups(auth, groupIds);
+  if (refusal) return refusal;
 
   const result = await issueBatch({ eventId: input.eventId, groupIds, mode: input.mode, actorId: auth.session.id });
   if ("error" in result) return { ok: false, error: result.error };
@@ -286,6 +310,8 @@ export async function reissueOutdatedBatchAction(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   const groupIds = (input.groupIds ?? []).filter((id) => uuid.safeParse(id).success);
   if (groupIds.length === 0) return { ok: false, error: "Choose at least one group." };
+  const refusal = await refuseUnpermittedGroups(auth, groupIds);
+  if (refusal) return refusal;
 
   const result = await reissueOutdatedBatch({ eventId: input.eventId, groupIds, actorId: auth.session.id });
   if ("error" in result) return { ok: false, error: result.error };
@@ -528,6 +554,11 @@ export async function reissueCertificateAction(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   const key = z.string().trim().min(1).max(200).safeParse(input.recipientKey);
   if (!key.success) return { ok: false, error: "Missing recipient." };
+  // Winner keys are only ever minted for a Winners group, so the prefix is an
+  // exact test for which capability this re-issue needs.
+  if (key.data.startsWith("win:") && !canManage(auth.session, "issue:winner_certificate", auth.ev.clubId)) {
+    return { ok: false, error: "You can't issue winner certificates for this event." };
+  }
 
   const result = await reissueForRecipient({
     eventId: input.eventId,

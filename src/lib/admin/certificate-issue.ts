@@ -76,11 +76,20 @@ export function designProblem(group: CertificateGroup, event: CertEvent): string
   return null;
 }
 
+/**
+ * Which ledger type a group writes. Winners are `winner`, everyone else
+ * `participation` — the public verify page reads it, and so does the capability
+ * check in the actions (spec 2026-09-15 §4.4).
+ */
+export const certificateTypeOf = (group: CertificateGroup): "participation" | "winner" =>
+  group.baseKind === "winners" ? "winner" : "participation";
+
 /** Insert the ledger row first (at-most-once): a failed send deletes it again. */
 async function reserveCertificate(input: {
   eventId: string;
   groupId: string;
   groupLabel: string;
+  type: "participation" | "winner";
   versionId: string;
   recipient: Recipient;
   actorId: string;
@@ -99,7 +108,7 @@ async function reserveCertificate(input: {
       .insert({
         event_id: input.eventId,
         registration_id: input.recipient.registrationId,
-        type: "participation",
+        type: input.type,
         serial,
         hmac: certificateHmac(serial),
         issued_by: input.actorId,
@@ -124,12 +133,18 @@ const deleteRows = async (ids: string[]) => {
   if (ids.length > 0) await createAdminClient().from("certificates").delete().in("id", ids);
 };
 
-/** The email one destination receives, carrying every certificate bound for it. */
-function destinationEmail(input: { eventTitle: string; toName: string; prepared: Prepared[] }) {
+/**
+ * The email one destination receives, carrying every certificate bound for it.
+ * A single winner gets congratulated by name; a bundle keeps the neutral wording,
+ * since it may mix a winner's certificate with their team-mates' (spec §4.4).
+ */
+function destinationEmail(input: { eventTitle: string; toName: string; prepared: Prepared[]; winner?: boolean }) {
   const many = input.prepared.length > 1;
   const subject = many
     ? `Certificates — ${input.eventTitle} (${input.prepared.length})`
-    : `Your certificate — ${input.eventTitle}`;
+    : input.winner
+      ? `Congratulations — your certificate for ${input.eventTitle}`
+      : `Your certificate — ${input.eventTitle}`;
   const payload = many
     ? {
         body: `Attached: ${input.prepared.map((p) => p.recipient.name).join(", ")}.`,
@@ -196,6 +211,7 @@ export async function issueBatch(args: {
         eventId: args.eventId,
         groupId: group.id,
         groupLabel: recipient.groupLabel,
+        type: certificateTypeOf(group),
         versionId: await versionFor(group),
         recipient,
         actorId: args.actorId,
@@ -220,6 +236,7 @@ export async function issueBatch(args: {
         eventId: args.eventId,
         groupId: group.id,
         groupLabel: recipient.groupLabel,
+        type: certificateTypeOf(group),
         versionId: await versionFor(group),
         recipient,
         actorId: args.actorId,
@@ -263,7 +280,12 @@ export async function issueBatch(args: {
         contentType: "application/pdf",
       }));
       const toName = chunk[0].recipient.name;
-      const { subject, html, text } = destinationEmail({ eventTitle: event.title, toName, prepared: chunk });
+      const { subject, html, text } = destinationEmail({
+        eventTitle: event.title,
+        toName,
+        prepared: chunk,
+        winner: chunk.every((p) => certificateTypeOf(byGroup.get(p.recipient.groupId)!) === "winner"),
+      });
       const sent = await sendEmail({ to: destination.email, subject, html, text, attachments });
       if (sent.ok) {
         result.sent += chunk.length;
@@ -293,10 +315,14 @@ async function auditRun(
     entity: "certificate",
     entityId: args.eventId,
     after: {
-      type: "participation",
+      type: [...new Set(groups.map(certificateTypeOf))].join("+"),
       mode,
       groups: groups.map((g) => g.name),
-      source: groups.some((g) => g.kind === "sheet") ? "sheet" : "attendance",
+      source: groups.some((g) => g.kind === "results")
+        ? "results"
+        : groups.some((g) => g.kind === "sheet")
+          ? "sheet"
+          : "attendance",
       sent: result.sent,
       recorded: result.recorded,
       failed: result.failed,
@@ -640,6 +666,7 @@ export async function reissueForRecipient(args: {
       eventId: args.eventId,
       groupId: group.id,
       groupLabel: recipient.groupLabel,
+      type: certificateTypeOf(group),
       versionId,
       recipient,
       actorId: args.actorId,
