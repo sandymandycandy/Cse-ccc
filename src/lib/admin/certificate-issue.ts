@@ -84,6 +84,17 @@ export function designProblem(group: CertificateGroup, event: CertEvent): string
 export const certificateTypeOf = (group: CertificateGroup): "participation" | "winner" =>
   group.baseKind === "winners" ? "winner" : "participation";
 
+/**
+ * What a certificate stores about itself. `place` is lifted out of `values` so
+ * the public verify page can read just it: the rest of `values` holds the
+ * recipient's email and roll and must never be selected whole.
+ */
+const snapshotOf = (values: FieldValues, groupLabel: string) => ({
+  values,
+  groupLabel,
+  place: values["winner.place"] || null,
+});
+
 /** Insert the ledger row first (at-most-once): a failed send deletes it again. */
 async function reserveCertificate(input: {
   eventId: string;
@@ -117,7 +128,7 @@ async function reserveCertificate(input: {
         recipient_key: input.recipient.key,
         recipient_name: input.recipient.name,
         recipient_email: input.recipient.deliverTo,
-        snapshot: { values, groupLabel: input.groupLabel } as unknown as Json,
+        snapshot: snapshotOf(values, input.groupLabel) as unknown as Json,
       })
       .select("id")
       .single();
@@ -432,7 +443,7 @@ async function supersedeCertificate(input: {
       design_version_id: input.versionId,
       recipient_name: input.recipient.name,
       recipient_email: input.recipient.deliverTo,
-      snapshot: { values, groupLabel: input.recipient.groupLabel },
+      snapshot: snapshotOf(values, input.recipient.groupLabel),
     } as unknown as Json,
   });
   if (error || !data) return null;
