@@ -22,7 +22,17 @@ export async function deliverEmail(row: EmailRow): Promise<"sent" | "failed"> {
       : null;
 
   const { html, text } = renderEmail(row.template, row.subject, row.to_name, payload);
-  const result = await sendEmail({ to: row.to_email, subject: row.subject, html, text });
+
+  // Bulk mail carries an unsubscribe affordance. 908 students never opted into
+  // a mailing list; per-recipient preferences are a separate feature, but an
+  // address they can actually write to costs nothing and is the decent minimum.
+  const from = process.env.EMAIL_FROM ?? process.env.GMAIL_USER ?? "";
+  const headers =
+    payload?.bulk === true && from
+      ? { "List-Unsubscribe": `<mailto:${from}?subject=unsubscribe>` }
+      : undefined;
+
+  const result = await sendEmail({ to: row.to_email, subject: row.subject, html, text, headers });
 
   if (result.ok) {
     await admin

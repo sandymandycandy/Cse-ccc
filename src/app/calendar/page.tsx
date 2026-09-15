@@ -26,6 +26,15 @@ export default async function CalendarPage({ searchParams }: SearchParams) {
   return (
     <section className="section" style={{ paddingTop: 48 }}>
       <div className="eyebrow">The council, in time</div>
+      {/* Subscribe once and every future event arrives on its own — the feed is
+          re-polled by the calendar app, so edits and cancellations follow. */}
+      <a
+        href="/calendar.ics"
+        className="btn btn-ghost btn-sm"
+        style={{ marginTop: 12 }}
+      >
+        Subscribe in your calendar
+      </a>
       <Calendar
         view={view}
         anchor={anchor}

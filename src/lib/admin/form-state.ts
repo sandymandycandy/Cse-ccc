@@ -94,6 +94,17 @@ export interface BroadcastState {
   sent?: number;
 }
 
+/** The council-wide composer (`/admin/email`), which can also queue. */
+export interface ComposerState {
+  error?: string;
+  /** Addresses mailed inline. */
+  sent?: number;
+  /** Rows queued for the Outbox to drain. */
+  queued?: number;
+  /** Returned INSTEAD of sending when the audience is large enough to confirm. */
+  confirm?: { count: number; label: string };
+}
+
 export interface FeedbackToggleState {
   error?: string;
 }

@@ -169,6 +169,79 @@ end-to-end**, not a checklist of components.
 > designer (all three phases) merged and deployed** — see the SHIPPED block below. The owed
 > work is the live human walkthrough listed there, not code.
 
+> ### ✅ BUILT, NOT MERGED — Broadcast email + reminder button + `.ics` feeds (2026-09-15)
+>
+> Branch `feat/broadcast-email-ics`. Spec:
+> `docs/superpowers/specs/2026-09-15-broadcast-email-and-ics-design.md`, plan:
+> `docs/superpowers/plans/2026-09-15-broadcast-email-and-ics.md`. **No migration** — every
+> audience reads a table that already existed.
+>
+> **1. The reminder is a BUTTON, and there is deliberately NO reminder cron.** The backlog listed
+> "reminder cron"; the owner asked for it as a button they press. `/admin/events/<id>/email` gains
+> a **"Remind them it's coming up"** preset that fills the existing subject and message from the
+> event (IST date, time, venue) and selects *Confirmed* — the head reads it, edits, presses the
+> normal Send. It goes through `broadcastAction` **unchanged**. `events.reminder_sent` still exists
+> in the schema from the older cron design: **do not use it, do not remove it.**
+> A **"Last emailed …"** line reads `audit_log` (indexed `(entity, entity_id)`), not `email_log` —
+> matching an event title inside a payload would break the moment someone renames an event.
+>
+> **2. `.ics` calendar feeds.** `src/lib/ics.ts` is a pure RFC 5545 renderer (CRLF, **75-octet**
+> folding — octets, not characters, so an em dash can't split a codepoint — escaping, all-day as
+> exclusive `VALUE=DATE`, stable `UID` of `<eventId>@<host>` so a re-poll updates instead of
+> duplicating). Three public routes: `/events/<id>/event.ics` (download), `/calendar.ics` and
+> `/clubs/<slug>/events.ics` (subscribable, upcoming + last 60 days, `max-age=300`). Cancelled
+> events are emitted as `STATUS:CANCELLED` rather than dropped — `events_public_read` already keeps
+> a cancelled event readable for 7 days, which is exactly that window. Links live on the event
+> page, `/calendar` and each club page.
+>
+> **3. Broadcast composer at `/admin/email` + Outbox at `/admin/outbox`.** New capability
+> **`manage:broadcast`**: `all` for faculty/president/VP/tech_head, `own` for club_head/vice_head.
+> Five audiences — club heads + vice heads (26) · council members (**26 of 32**, the gap is shown
+> on screen) · one club's members (8–236) · all club members (**909**) · an event's registrants
+> (confirmed or including waitlist). An `own` holder sees only their own club and their own club's
+> events, and **the action re-reads an event's club from the database — never from the form**.
+>
+> ### ⚠️ The constraint that shaped all of this: production sends over GMAIL SMTP
+>
+> `transport.ts` prefers `GMAIL_USER`/`GMAIL_APP_PASSWORD` and only falls back to Resend, and both
+> are set — **so Gmail always wins**, and `sendViaGmail` opens a **fresh SMTP connection per
+> message**, sequentially awaited. Three consequences, all now handled:
+> - **≤ 50 addresses sends inline** as before. **Above 50 it queues** (`enqueueEmailBatch`, one
+>   insert per 500 rows) at **priority 8** — below transactional mail, so a password reset never
+>   waits behind 900 newsletters. Over 50 also requires a **confirm step naming the exact count**;
+>   nothing is written until the form comes back confirmed.
+> - **A free Gmail app password caps near 500 recipients/day.** An all-members send therefore takes
+>   **more than one day** to clear. The Outbox shows "sent today" against that ceiling rather than
+>   letting a send mysteriously stop. **The real fix, when this starts hurting, is a verified
+>   domain on Resend** — not a bigger batch.
+> - Cron drain raised **25 → 100** (`/api/cron/send-email`, schedule unchanged at `0 3 * * *`).
+> - Bulk mail carries `List-Unsubscribe`; per-recipient email prefs remain a separate backlog item.
+>
+> **The Outbox access split is deliberate:** readable by any `manage:broadcast` holder, drainable
+> only at `all`. A club head with `own` can queue a 236-person send to their own club, which is
+> over the threshold — if the Outbox were council-only they'd press Send, see "queued", and have no
+> way to learn what happened to it. They can watch it; only the council spends the shared daily quota.
+>
+> **Verified without a browser:** the live recipient path was exercised against Mumbai directly —
+> heads 26, council 26 of 32, all members **909 rows deduping to 909 unique addresses**. Four gates
+> green. Both admin pages 307 to the login when signed out.
+>
+> ⚠️ **OWED — the signed-in walkthrough, none of it done** (every admin has TOTP, so this needs a
+> human with the authenticator; use `sandy` / `vtu27884@veltech.edu.in`, tech_head):
+> - [ ] Event email page: press the reminder preset, check the prefilled date/time/venue read
+>       correctly, send to yourself, confirm the mail arrives and the "Last emailed" line appears.
+> - [ ] `/admin/email` → heads (26) → Send → 26 arrive **inline** (no queue).
+> - [ ] `/admin/email` → all members (909) → the **confirm panel must name 909** before anything is
+>       sent → confirm → `/admin/outbox` shows 909 pending → **"Send next batch"** drains 40 and 40
+>       mails actually arrive. **This is the step no test can prove** and the likeliest place for a
+>       surprise in Gmail's behaviour at volume.
+> - [ ] Sign in as a club head: `/admin/email` offers only their own club; `/admin/outbox` opens
+>       read-only with no Send button.
+> - [ ] Download `/events/<id>/event.ics` on a phone → lands in the calendar at the right IST time.
+>       Subscribe to `/calendar.ics`, add an event, confirm it appears; cancel it, confirm the entry
+>       goes cancelled rather than vanishing.
+> - [ ] Both new admin pages at phone width, and in dark mode.
+
 > ### ⚠️ NEVER RUN `supabase db push` ON THIS PROJECT
 >
 > The migration ledger and the migration filenames **share no version numbers**.
@@ -3120,10 +3193,14 @@ flow as always.
    are done. Remaining, roughly by size:
    - ~~**`/contact` inbox**~~ — ✅ **DONE** (see What's DONE below).
    - ~~**Clubs editor**~~ (name/tagline/description self-edit) — ✅ **DONE** (below).
+   - ~~**reminder cron**~~ — ✅ **BUILT as a BUTTON, not a cron** (2026-09-15, see the
+     block at the top). Do not build the cron; the owner asked for the timing to
+     stay in a human's hands.
+   - ~~**`.ics` feeds**~~ — ✅ **BUILT** (2026-09-15, three routes; see the block at the top).
    - **recruitment drives + `/join` form** (`recruitment_drives`, `join_requests`
      tables exist), **`/my-events`** (needs a student-lookup model — no student
-     login today), **waitlist auto-promote** (server/cron), **reminder cron**,
-     **`.ics` feeds**, **venue booking**, **co-hosted events**, **email prefs**,
+     login today), **waitlist auto-promote** (server/cron),
+     **venue booking**, **co-hosted events**, **email prefs**,
      **`/about`**, **schedules**. (`/team` is now BUILT on `feat/team-page` —
      see the block above; the org-chart *hierarchy lines* were not built, and the six
      officer rows still need entering.)
