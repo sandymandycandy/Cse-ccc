@@ -55,7 +55,43 @@ end-to-end**, not a checklist of components.
 >   4. Reset Volunteers to base.
 >   5. Type three volunteers (one without an email), issue, then try to change the issued one's email →
 >      refused; change their roll no. → shows as outdated.
-> - **Next:** phase 2 — Winners from published results or an uploaded list (spec §4).
+> ### 🏆 BUILT, NOT MERGED — winner certificates, phase 2 (same branch, 2026-09-15)
+>
+> **Every event now has a Winners group too.** Plan `docs/superpowers/plans/2026-09-15-certificate-bases-phase2-winners.md`.
+> Gate: typecheck ✓ lint ✓ **1011 tests** ✓ build ✓. **No migration** — phase 1 already added everything.
+>
+> - **Where winners come from:** by default the **published results** — ranks 1–3 of the highest-`sort`
+>   round with published standings, **ties kept** (`1, 2, 3, 3`), every team member getting their own
+>   certificate. Or **a list you enter** (typed, or uploaded with a Position column). The rule for "which
+>   round" now lives once, in `podiumRound` (`src/lib/certificates/winners.ts`), and `/achievements` uses
+>   it too — a certificate can never disagree with the board or the results page.
+>   ⚠️ **Only PUBLISHED results count.** A certificate must never announce a placing the winner can't see.
+> - **Verified against live data (read-only):** the one event with published results returns ranks
+>   `1,2,3,3`, all four tied to registrations, with team members.
+> - **Fields:** `{Position}` → "1st", `{Position in words}` → "First". Offered only on the Winners group
+>   and the Winners base. A typed Position of `1`/`1st`/`First` normalises to "1st"; anything else
+>   ("Best UI") prints exactly as typed.
+> - **Ledger:** winners are `type: 'winner'` with `win:` recipient keys, so one person can hold a
+>   participation **and** a winner certificate. Issuing a Winners group checks `issue:winner_certificate`.
+>   `/verify` reads **"Winners · 1st place"** — from a top-level `snapshot.place`, never the whole snapshot
+>   (it holds email and roll).
+> - **Switching a Winners group's source is refused** while it has live certificates — the two sources key
+>   people differently, so a switch would give someone two.
+> - **A rank corrected after issuing:** still on the podium → shows outdated, re-issue as usual. **Dropped
+>   off** → the certificate stays live and appears in Recipients as **"Issued · no longer on the list"**,
+>   with Download and Revoke. **Nothing is revoked automatically.** The same applies to anyone removed from
+>   any list.
+> - **⚠️ A build-only bug existed between `5f2ac1c` and `36dd8c8`:** a sync helper was exported from the
+>   `"use server"` actions file. Typecheck, lint and tests all passed; only `npm run build` failed. Fixed.
+>   **Always run the build**, not just the tests, before calling a certificates change done.
+> - **⚠️ NEVER OPENED IN A BROWSER** (Chrome extension not connected): `/dev/certificate-designer?panel=winners`
+>   verified by render tests and a 200 only.
+> - **Owed human walkthrough, winners:**
+>   1. Open an event with published results → Winners → the podium count matches Results, ties included.
+>   2. Customise the Winners design with `{Position}`; preview the tied 3rd place.
+>   3. Issue to yourself; the email subject reads "Congratulations — your certificate for …".
+>   4. Scan the QR → "Winners · 3rd place".
+>   5. Try switching Winners to "A list I enter" → refused, naming the issued count.
 >
 > ---
 >
