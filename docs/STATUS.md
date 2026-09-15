@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-14 (certificate designer shipped).**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-15 (handover — two branches in flight).**
 
 ## What this is
 
@@ -18,10 +18,63 @@ end-to-end**, not a checklist of components.
 
 ---
 
-## 🚦 START HERE — current git/deploy state (2026-09-14)
+## 🚦 START HERE — current git/deploy state (2026-09-15)
 
-> **2026-09-14:** `main == origin/main @ c7cdb1c`, clean, nothing in flight. The **certificate
-> designer (all three phases) merged and deployed** today — see the SHIPPED block below. The owed
+> ## 📦 HANDOVER, 2026-09-15 — read this section, then do things in this order
+>
+> **`main` is clean and deployed. TWO branches are in flight, both pushed to GitHub, neither
+> merged.** Everything below is real, tested code — what it lacks is a signed-in human.
+>
+> | Branch | What it is | State |
+> |---|---|---|
+> | `feat/broadcast-email-ics` | Broadcast email + event-reminder button + `.ics` calendar feeds | **Code complete.** typecheck ✓ lint ✓ 1000 tests ✓ build ✓. Browser walkthrough **not done**. |
+> | `feat/co-hosted-events` | Co-hosted events | **Spec only, no code.** Design approved; implementation plan not yet written. |
+>
+> Both have a design doc in `docs/superpowers/specs/2026-09-15-*.md`;
+> the email branch also carries a task-by-task plan in `docs/superpowers/plans/`.
+>
+> ### The order to do things
+>
+> 1. **🔴 Walk through `feat/broadcast-email-ics` signed in, THEN merge it.** The checklist is
+>    in that branch's own STATUS.md block (`git checkout feat/broadcast-email-ics`, read the top).
+>    The one step no test can prove: queue the 909-recipient send and drain one batch of 40.
+>    ⚠️ **`.env.local` points at the LIVE database and carries REAL Gmail credentials — a send
+>    from localhost mails real students and spends the real daily quota.** Test with the 26-person
+>    heads audience or the 8-person Social Media Team first, never all-members.
+> 2. **🔴 The attendance-autosave walkthrough, owed since 2026-09-05** (`dd9f084`, already merged
+>    and LIVE). It rewrote the save path a club head uses on a 200-person roster and **has never
+>    run in a browser.** This is arguably ahead of item 1: it is live in production right now.
+>    See the checklist further down this file.
+> 3. **Then `feat/co-hosted-events`**: the spec is approved, so the next step is an implementation
+>    plan, then TDD. Read the spec's §1 first — the feature is 80% an authorisation change.
+>
+> ### What only a human can do
+>
+> **Every admin account has TOTP enrolled, so no agent can sign in.** Every remaining
+> verification item on this project needs a person with the authenticator app. Use `sandy`
+> (`vtu27884@veltech.edu.in`, tech_head) for council-wide screens. There are **no `@cse.test`
+> accounts left** — they were hard-deleted 2026-09-05. `scripts/seed-admin.mjs` can recreate a
+> test login if you want one.
+>
+> ### Two facts that will save you a day
+>
+> - **Production email goes through GMAIL SMTP, not Resend.** `transport.ts` prefers `GMAIL_*`
+>   and only falls back to Resend, and both are configured — so Gmail always wins. One SMTP
+>   connection per message, **~500 recipients/day**. This is why bulk sending queues instead of
+>   sending inline. The real fix, when it starts hurting, is a verified domain on Resend.
+> - **Never run `supabase db push`** — see the block below. Migrations go through the Supabase
+>   MCP `apply_migration` tool only.
+>
+> ### Repo housekeeping
+>
+> 13 old feature branches are **already merged into `main`** and safe to delete:
+> `git branch --merged main | grep -v main | xargs git branch -d`. The only two that are NOT
+> merged are the two in the table above.
+>
+> ---
+>
+> **2026-09-14:** `main == origin/main @ c7cdb1c`, clean. The **certificate
+> designer (all three phases) merged and deployed** — see the SHIPPED block below. The owed
 > work is the live human walkthrough listed there, not code.
 
 > ### ⚠️ NEVER RUN `supabase db push` ON THIS PROJECT
