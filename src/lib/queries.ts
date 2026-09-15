@@ -10,6 +10,7 @@ import {
   parseWinners,
   winnersFromResults,
 } from "@/lib/achievements-board";
+import { podiumRound } from "@/lib/certificates/winners";
 import type { Database } from "@/lib/database.types";
 import type {
   CalendarEvent,
@@ -738,10 +739,9 @@ export async function getAchievementsBoard(): Promise<BoardEntry[]> {
 
   const auto: BoardEntry[] = [];
   for (const e of (autoRes.data ?? []) as unknown as AutoRow[]) {
-    // Highest-sort round that has at least one published result.
-    const round = [...(e.event_rounds ?? [])]
-      .sort((a, b) => b.sort - a.sort)
-      .find((r) => (r.results ?? []).some((x) => x.published_at != null));
+    // Highest-sort round that has at least one published result — the same rule
+    // winner certificates use, so the board and a certificate can never disagree.
+    const round = podiumRound(e.event_rounds ?? []);
     if (!round) continue;
 
     const published = round.results.filter((r) => r.published_at != null);
