@@ -597,7 +597,7 @@ export async function listCertificateEvents(): Promise<CertificateEventRow[]> {
     selectAll<{ event_id: string | null }>((from, to) =>
       admin.from("registrations").select("event_id").eq("attended", true).range(from, to),
     ),
-    selectAll<{ id: string; event_id: string; kind: "participants" | "sheet" }>((from, to) =>
+    selectAll<{ id: string; event_id: string; kind: "participants" | "sheet" | "results" }>((from, to) =>
       admin.from("certificate_groups").select("id, event_id, kind").range(from, to),
     ),
     selectAll<{ event_id: string; revoked_at: string | null }>((from, to) =>
