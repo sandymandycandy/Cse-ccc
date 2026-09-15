@@ -63,7 +63,7 @@ describe("effectiveDesign", () => {
 
 describe("savableBases", () => {
   it("lets a council-wide admin save the enabled bases", () => {
-    expect(savableBases({ role: "tech_head", clubId: null })).toEqual(["participants", "volunteers"]);
+    expect(savableBases({ role: "tech_head", clubId: null })).toEqual(["participants", "volunteers", "winners"]);
   });
   it("gives a club head nothing — they customise on their own event instead", () => {
     expect(savableBases({ role: "club_head", clubId: "c1" })).toEqual([]);

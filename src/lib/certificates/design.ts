@@ -107,8 +107,11 @@ export const LIMITS = {
   assetPx: 20000,
 };
 
-/** Field keys the catalogue can produce (spec §2.3). `form.*` / `sheet.*` are checked against context. */
+/** Field keys the catalogue can produce (spec §2.3). `form.*` / `sheet.*` / `winner.*` are checked against context. */
 const FIXED_FIELD = /^(person\.(name|roll|department|year|email|phone|role)|team\.(name|members|size)|event\.(title|date|venue|club)|cert\.(serial|issueDate|group))$/;
+
+/** Only a winners group (and the Winners base) prints a placing. */
+const WINNER_FIELD = /^winner\.(place|placeWords)$/;
 
 export function emptyDesign(): Design {
   return { v: 1, page: { template: null, ...DEFAULT_PAGE }, elements: [] };
@@ -196,10 +199,13 @@ export interface DesignContext {
   formFieldIds: ReadonlySet<string>;
   /** The group's sheet columns (valid `sheet.<column>` keys). */
   sheetColumns: ReadonlySet<string>;
+  /** True on a winners group, where `winner.*` may be printed. */
+  winnerFields?: boolean;
 }
 
 export function isKnownField(key: string, ctx: DesignContext): boolean {
   if (FIXED_FIELD.test(key)) return true;
+  if (WINNER_FIELD.test(key)) return ctx.winnerFields === true;
   if (key.startsWith("form.")) return ctx.formFieldIds.has(key.slice(5));
   if (key.startsWith("sheet.")) return ctx.sheetColumns.has(key.slice(6));
   return false;

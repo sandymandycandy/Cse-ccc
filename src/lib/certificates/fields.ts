@@ -1,6 +1,7 @@
 import { LAYOUT_KINDS, type FormField } from "@/lib/registration-form/schema";
 import { listParticipants, type RosterEntry } from "@/lib/registration-form/participants";
 import type { DesignContext, FieldTransform } from "./design";
+import { placeText, placeWords, type WinnerStanding } from "./winners";
 
 /**
  * Fields a design can print (spec §2.3): what the + Field menu offers, and how
@@ -15,7 +16,7 @@ export interface FieldOption {
 }
 
 export interface FieldGroup {
-  id: "person" | "team" | "event" | "form" | "sheet" | "cert";
+  id: "person" | "team" | "event" | "form" | "sheet" | "cert" | "winner";
   label: string;
   fields: FieldOption[];
 }
@@ -26,10 +27,15 @@ export function answerFields(schema: FormField[]): FormField[] {
 }
 
 /** What a design for this event (and group) may reference — the input to validateDesign. */
-export function designContextFor(schema: FormField[], sheetColumns: string[] = []): DesignContext {
+export function designContextFor(
+  schema: FormField[],
+  sheetColumns: string[] = [],
+  winnerFields = false,
+): DesignContext {
   return {
     formFieldIds: new Set(answerFields(schema).map((f) => f.id)),
     sheetColumns: new Set(sheetColumns),
+    winnerFields,
   };
 }
 
@@ -37,7 +43,12 @@ export function hasTeamBlock(schema: FormField[]): boolean {
   return schema.some((f) => f.kind === "team");
 }
 
-export function buildFieldCatalogue(input: { formSchema: FormField[]; sheetColumns?: string[] }): FieldGroup[] {
+export function buildFieldCatalogue(input: {
+  formSchema: FormField[];
+  sheetColumns?: string[];
+  /** Winners groups (and the Winners base) can print the placing. */
+  winnerFields?: boolean;
+}): FieldGroup[] {
   const groups: FieldGroup[] = [
     {
       id: "person",
@@ -82,6 +93,16 @@ export function buildFieldCatalogue(input: { formSchema: FormField[]; sheetColum
       id: "form",
       label: "Form answers",
       fields: answers.map((f) => ({ key: `form.${f.id}`, label: f.label })),
+    });
+  }
+  if (input.winnerFields) {
+    groups.push({
+      id: "winner",
+      label: "Winner",
+      fields: [
+        { key: "winner.place", label: "Position" },
+        { key: "winner.placeWords", label: "Position in words" },
+      ],
     });
   }
   if (input.sheetColumns?.length) {
@@ -333,6 +354,41 @@ export function sheetValues(input: {
     "team.size": "",
     ...eventValues(input.event),
     ...columns,
+    "cert.serial": "",
+    "cert.issueDate": "",
+    "cert.group": input.groupLabel,
+  };
+}
+
+/**
+ * Values for one winner (spec 2026-09-15 §4.3). `standing` is the whole podium
+ * entry — the team and its placing — and `person` is whoever this certificate
+ * is for: the registrant, or one of their team members.
+ */
+export function winnerValues(input: {
+  event: CertEventInfo;
+  standing: WinnerStanding;
+  person: { name: string; roll: string; email: string | null; department?: string | null; year?: string | null };
+  groupLabel: string;
+}): FieldValues {
+  const { standing, person } = input;
+  // The registrant leads the list, as on the public standings.
+  const everyone = [standing.displayName ?? standing.rollNo, ...standing.teamMembers.map((m) => m.name)].filter(Boolean);
+  const isTeam = standing.teamMembers.length > 0 || !!standing.teamName;
+  return {
+    "person.name": person.name.trim(),
+    "person.roll": person.roll.trim(),
+    "person.department": person.department?.trim() ?? "",
+    "person.year": person.year?.trim() ?? "",
+    "person.email": person.email?.trim() ?? "",
+    "person.phone": "",
+    "person.role": input.groupLabel,
+    "team.name": standing.teamName?.trim() ?? "",
+    "team.members": isTeam ? everyone.join(", ") : "",
+    "team.size": isTeam ? String(everyone.length) : "",
+    ...eventValues(input.event),
+    "winner.place": placeText(standing.place),
+    "winner.placeWords": placeWords(standing.place),
     "cert.serial": "",
     "cert.issueDate": "",
     "cert.group": input.groupLabel,

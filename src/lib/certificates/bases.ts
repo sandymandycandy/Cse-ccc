@@ -10,8 +10,8 @@ import { CERT_ASSET_BUCKET, emptyDesign, type AssetRef, type Design } from "./de
 export const BASE_KINDS = ["participants", "volunteers", "winners"] as const;
 export type BaseKind = (typeof BASE_KINDS)[number];
 
-/** Bases this build offers. Phase 2 (winner certificates) adds "winners". */
-export const ENABLED_BASE_KINDS: readonly BaseKind[] = ["participants", "volunteers"];
+/** Bases this build offers. */
+export const ENABLED_BASE_KINDS: readonly BaseKind[] = ["participants", "volunteers", "winners"];
 
 export const BASE_LABEL: Record<BaseKind, string> = {
   participants: "Participants",
