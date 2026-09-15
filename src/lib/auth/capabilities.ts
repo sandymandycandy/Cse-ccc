@@ -71,6 +71,7 @@ export type Capability =
   | "manage:gallery" // the public photo gallery, split out of manage:content
   | "manage:clubs" // a club's own name / tagline / description
   | "manage:contact" // the public contact-form inbox (council-wide)
+  | "manage:broadcast" // compose-and-send mail to admins, council or club members
   | "manage:members"
   | "manage:council" // the council / leadership attendance roster + sessions (org-wide)
   | "manage:resources"
@@ -158,6 +159,14 @@ const MATRIX: Record<Capability, Partial<Record<AdminRole, Grant>>> = {
   "manage:contact": {
     faculty_advisor: "all", president: "all", vice_president: "all",
     tech_head: "all", social_media_head: "all",
+  },
+  // Mailing every club member is the largest outward-facing action in the panel
+  // (908 students as of 2026-09-15), so the council-wide lists are council-only.
+  // A club head gets `own`: their own club's members and their own club's
+  // events, nothing else.
+  "manage:broadcast": {
+    faculty_advisor: "all", president: "all", vice_president: "all",
+    tech_head: "all", club_head: "own", vice_head: "own",
   },
   "manage:members": {
     faculty_advisor: "all", president: "all", vice_president: "all",
