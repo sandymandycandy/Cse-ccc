@@ -20,6 +20,45 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-15)
 
+> ### 🧩 BUILT, NOT MERGED — certificate base templates, phase 1 (`feat/certificate-bases`, 2026-09-15)
+>
+> **Every event's Participants and Volunteers certificates follow a council base until customised.**
+> Spec `docs/superpowers/specs/2026-09-15-certificate-base-templates-design.md`, plan
+> `docs/superpowers/plans/2026-09-15-certificate-bases-phase1.md`. Gate: typecheck ✓ lint ✓ **988 tests** ✓ build ✓.
+>
+> - **Migration `certificate_bases` — APPLIED LIVE + VERIFIED** via the MCP (never `db push`):
+>   `certificate_bases` (RLS on; `anon`/`authenticated` hold nothing — all 6 privilege assertions false),
+>   `certificate_groups.base_kind` + **nullable `design`** (null = follows its base) + `position_column`
+>   (phase 2), `certificate_sheet_rows.roll`, `certificate_group_kind` gains `results` (phase 2), and
+>   `replace_certificate_sheet_rows` rewritten to carry `roll` (grants re-asserted: service_role only).
+>   The one live Participants group now follows.
+> - **How it works:** `CertificateGroup.design` is the *effective* design (`effectiveDesign` in
+>   `src/lib/certificates/bases.ts`), so issuing, previews, print and the outdated check follow a base
+>   without knowing bases exist. ⚠️ **Never read `certificate_groups.design` directly** — null means
+>   "use the base"; read `customDesign` when you specifically want the event's own.
+> - **UI:** a following group opens as the certificate itself (`CertificatePreview`, responsive) with
+>   **Customise**; the editor now has **Save for this event**, **Save as base ▾** (council-wide admins
+>   only, images copied into `certificate-assets/00000000-0000-0000-0000-000000000000/`, impact shown
+>   before overwriting), and **Reset to base**. Group chips read **● Base** / **◆ Custom**.
+> - **Volunteers exist on every event and are typed in by hand** — name, email, roll no. — with the
+>   CSV/Excel upload alongside (it now detects a roll column and warns that it replaces the list).
+>   ⚠️ Once someone holds a live certificate, their **name and email are locked** in that table:
+>   the key is derived from them, so an edit would orphan the certificate and queue a second one.
+> - **⚠️ NEVER OPENED IN A BROWSER.** The Chrome extension was not connected in the session that built
+>   this, so the harness panels (`/dev/certificate-designer?panel=base`, `?panel=list`) were verified
+>   only by their render tests and the pages' 200s. Check both at 1280 px and 400 px.
+> - **Owed human walkthrough** (as `sandy`, tech_head — TOTP blocks agents):
+>   1. On an event, design a certificate → **Save as base** → Participants + Volunteers.
+>   2. Open a second event: both groups show the certificate immediately, marked ● Base.
+>   3. Customise Volunteers there → Save for this event; edit the base from the first event →
+>      Participants changes on the second event, Volunteers does not.
+>   4. Reset Volunteers to base.
+>   5. Type three volunteers (one without an email), issue, then try to change the issued one's email →
+>      refused; change their roll no. → shows as outdated.
+> - **Next:** phase 2 — Winners from published results or an uploaded list (spec §4).
+>
+> ---
+>
 > ## 📦 HANDOVER, 2026-09-15 — read this section, then do things in this order
 >
 > **`main` is clean and deployed. TWO branches are in flight, both pushed to GitHub, neither
