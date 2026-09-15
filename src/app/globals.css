@@ -2639,6 +2639,29 @@
   }
   .cd-menu-item:hover { background: var(--sand); }
   .cd-copy { margin-top: 14px; }
+  /* Base preview (a group following its council base) — responsive, unlike the editor. */
+  .cd-preview { display: grid; gap: 12px; }
+  .cd-base-banner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border: 1px solid var(--line-3);
+    border-radius: var(--r-md);
+    background: var(--sand);
+  }
+  .cd-base-banner p { margin: 0; flex: 1 1 18rem; min-width: 0; }
+  .cd-preview-page {
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-md);
+    background: var(--card);
+    padding: 8px;
+  }
+  .cd-preview-page .cd-svg { width: 100%; height: auto; }
+  .cd-preview-actions { align-items: center; }
+  .cd-badge { font: 500 11px var(--sans); color: var(--ink-3); }
   /* Recipients tab + group bar */
   .cd-groups { display: grid; gap: 8px; margin-top: 14px; }
   .cd-groups input[type="text"],

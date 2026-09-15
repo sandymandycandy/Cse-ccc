@@ -2,10 +2,9 @@
 
 import { useMemo, useRef, useState, type Dispatch, type PointerEvent as ReactPointerEvent } from "react";
 import { EditorContent, type Editor } from "@tiptap/react";
-import { assetKey, type DesignElement, type TextElement } from "@/lib/certificates/design";
+import type { DesignElement, TextElement } from "@/lib/certificates/design";
 import { layoutText, type TextLayout } from "@/lib/certificates/layout";
 import { METRICS } from "@/lib/certificates/metrics";
-import { SAMPLE_SERIAL, verifyUrl } from "@/lib/certificates/qr";
 import type { EditorAction, EditorState } from "./designer-state";
 import {
   clampPct,
@@ -18,8 +17,7 @@ import {
   type Handle,
   type Rect,
 } from "./geometry";
-import { QrSvg } from "./QrSvg";
-import { TextSvg } from "./TextSvg";
+import { PageSvg } from "./PageSvg";
 
 type Drag =
   | { kind: "move"; startX: number; startY: number; key: string; primary: string; origins: Map<string, Rect> }
@@ -29,15 +27,6 @@ const ALL_HANDLES: Handle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
 const SIDE_HANDLES: Handle[] = ["e", "w"];
 /** Snap distance in screen pixels. */
 const SNAP_PX = 6;
-/**
- * What a QR encodes on a real certificate, with a placeholder serial of the real
- * length, so the preview has the printed density. The editor only runs in the
- * browser, so the page's own origin stands in when the env var isn't set (local dev).
- */
-const SAMPLE_QR_TEXT = verifyUrl(
-  process.env.NEXT_PUBLIC_SITE_URL || (typeof window === "undefined" ? "" : window.location.origin),
-  SAMPLE_SERIAL,
-);
 
 export interface CanvasProps {
   state: EditorState;
@@ -148,7 +137,6 @@ export function Canvas({ state, dispatch, zoom, assetUrls, valueFor, editor }: C
   const selected = design.elements.filter((el) => selection.includes(el.id) && !el.hidden);
   const single = selected.length === 1 ? selected[0] : null;
   const editing = design.elements.find((el): el is TextElement => el.id === editingId && el.type === "text") ?? null;
-  const templateUrl = page.template ? assetUrls[assetKey(page.template)] : undefined;
 
   return (
     <div
@@ -161,33 +149,14 @@ export function Canvas({ state, dispatch, zoom, assetUrls, valueFor, editor }: C
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
     >
-      <svg
-        className="cd-svg"
-        viewBox={`0 0 ${page.widthPx} ${page.heightPx}`}
+      <PageSvg
+        design={design}
+        layouts={layouts}
+        assetUrls={assetUrls}
+        skipId={editingId}
         width={page.widthPx * zoom}
         height={page.heightPx * zoom}
       >
-        <rect width={page.widthPx} height={page.heightPx} fill="#ffffff" />
-        {templateUrl ? (
-          <image href={templateUrl} x={0} y={0} width={page.widthPx} height={page.heightPx} preserveAspectRatio="none" />
-        ) : null}
-        {design.elements.map((el) => {
-          if (el.hidden || el.id === editingId) return null;
-          if (el.type === "image") {
-            const r = pctToPx(el, page);
-            const url = assetUrls[assetKey(el.asset)];
-            return url ? (
-              <image key={el.id} href={url} x={r.x} y={r.y} width={r.w} height={r.h} opacity={el.opacity} preserveAspectRatio="none" />
-            ) : (
-              <rect key={el.id} x={r.x} y={r.y} width={r.w} height={r.h} fill="#eeeeee" />
-            );
-          }
-          if (el.type === "qr") {
-            return <QrSvg key={el.id} box={pctToPx(el, page)} color={el.color} text={SAMPLE_QR_TEXT} />;
-          }
-          const layout = layouts.get(el.id);
-          return layout ? <TextSvg key={el.id} layout={layout} /> : null;
-        })}
         {guides.map((g, i) =>
           g.axis === "x" ? (
             <line key={i} className="cd-guide" x1={g.at} x2={g.at} y1={0} y2={page.heightPx} vectorEffect="non-scaling-stroke" />
@@ -195,7 +164,7 @@ export function Canvas({ state, dispatch, zoom, assetUrls, valueFor, editor }: C
             <line key={i} className="cd-guide" x1={0} x2={page.widthPx} y1={g.at} y2={g.at} vectorEffect="non-scaling-stroke" />
           ),
         )}
-      </svg>
+      </PageSvg>
 
       {design.elements.map((el) => {
         if (el.hidden || el.id === editingId) return null;
