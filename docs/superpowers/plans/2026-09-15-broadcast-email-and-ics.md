@@ -90,7 +90,7 @@
   - `foldLine(line: string): string`
   - `renderCalendar(events: IcsEvent[], opts: { host: string; name: string }): string`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `src/lib/ics.test.ts`:
 
@@ -214,12 +214,12 @@ describe("renderCalendar", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and watch them fail**
+- [x] **Step 2: Run the tests and watch them fail**
 
 Run: `npm test -- src/lib/ics.test.ts`
 Expected: FAIL — `Failed to resolve import "./ics"`.
 
-- [ ] **Step 3: Write the renderer**
+- [x] **Step 3: Write the renderer**
 
 Create `src/lib/ics.ts`:
 
@@ -342,12 +342,12 @@ export function renderCalendar(
 }
 ```
 
-- [ ] **Step 4: Run the tests and verify they pass**
+- [x] **Step 4: Run the tests and verify they pass**
 
 Run: `npm test -- src/lib/ics.test.ts`
 Expected: PASS, 12 tests.
 
-- [ ] **Step 5: Typecheck and commit**
+- [x] **Step 5: Typecheck and commit**
 
 ```bash
 npm run typecheck
@@ -373,7 +373,7 @@ git commit -m "feat(ics): RFC 5545 renderer with octet folding and exclusive all
 
 **Why no RLS worry:** these read through `createPublicClient()`, and `events_public_read` already restricts to `approval_status = 'approved'` and non-cancelled-or-cancelled-within-7-days. A pending or rejected event cannot reach a feed.
 
-- [ ] **Step 1: Add the query**
+- [x] **Step 1: Add the query**
 
 Append to `src/lib/queries.ts` (it already imports `createPublicClient` and `"server-only"`), and add `import type { IcsEvent } from "@/lib/ics";` plus `import { siteOrigin } from "@/lib/site-origin";` to the import block:
 
@@ -435,7 +435,7 @@ export async function getIcsEvents(
 }
 ```
 
-- [ ] **Step 2: Add the single-event download route**
+- [x] **Step 2: Add the single-event download route**
 
 Create `src/app/events/[id]/event.ics/route.ts`:
 
@@ -469,7 +469,7 @@ export async function GET(
 }
 ```
 
-- [ ] **Step 3: Add the two subscribable feeds**
+- [x] **Step 3: Add the two subscribable feeds**
 
 Create `src/app/calendar.ics/route.ts`:
 
@@ -515,7 +515,7 @@ export async function GET(
 }
 ```
 
-- [ ] **Step 4: Verify the routes build and answer**
+- [x] **Step 4: Verify the routes build and answer**
 
 ```bash
 npm run typecheck
@@ -531,7 +531,7 @@ curl -si http://localhost:3000/calendar.ics | head -20
 ```
 Expected: `200`, `Content-Type: text/calendar; charset=utf-8`, body starting `BEGIN:VCALENDAR`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/queries.ts "src/app/events/[id]/event.ics" src/app/calendar.ics "src/app/clubs/[slug]/events.ics"
@@ -552,7 +552,7 @@ git commit -m "feat(ics): event download plus council and per-club subscribable 
 
 A feed nobody can find is a feed nobody uses. Read each page first and match its existing link/button markup rather than inventing a new style — these are public pages with an established visual language.
 
-- [ ] **Step 1: Add "Add to calendar" to the event page**
+- [x] **Step 1: Add "Add to calendar" to the event page**
 
 In `src/app/events/[id]/page.tsx`, beside the existing register/share affordances:
 
@@ -562,7 +562,7 @@ In `src/app/events/[id]/page.tsx`, beside the existing register/share affordance
 </a>
 ```
 
-- [ ] **Step 2: Add "Subscribe" to the calendar page**
+- [x] **Step 2: Add "Subscribe" to the calendar page**
 
 In `src/app/calendar/page.tsx`, near the heading:
 
@@ -572,7 +572,7 @@ In `src/app/calendar/page.tsx`, near the heading:
 </a>
 ```
 
-- [ ] **Step 3: Add "Subscribe" to the club page**
+- [x] **Step 3: Add "Subscribe" to the club page**
 
 In `src/app/clubs/[slug]/page.tsx`, near the club's events list:
 
@@ -582,11 +582,11 @@ In `src/app/clubs/[slug]/page.tsx`, near the club's events list:
 </a>
 ```
 
-- [ ] **Step 4: Check it at phone width**
+- [x] **Step 4: Check it at phone width**
 
 Run `npm run dev`, open `/calendar` and an event page at 390px wide. The new link must not overflow its row or push the heading off-screen.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 npm run lint && npm run typecheck
@@ -608,7 +608,7 @@ git commit -m "feat(ics): add-to-calendar and subscribe links on the public page
   - `interface ReminderEvent { title: string; startsAt: string; endsAt: string; isAllDay: boolean; venue: string | null }`
   - `reminderText(ev: ReminderEvent): { subject: string; body: string }`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `src/lib/admin/reminder-text.test.ts`:
 
@@ -654,12 +654,12 @@ describe("reminderText", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and watch them fail**
+- [x] **Step 2: Run the tests and watch them fail**
 
 Run: `npm test -- src/lib/admin/reminder-text.test.ts`
 Expected: FAIL — cannot resolve `./reminder-text`.
 
-- [ ] **Step 3: Write the module**
+- [x] **Step 3: Write the module**
 
 Create `src/lib/admin/reminder-text.ts`:
 
@@ -702,12 +702,12 @@ export function reminderText(ev: ReminderEvent): { subject: string; body: string
 }
 ```
 
-- [ ] **Step 4: Run the tests and verify they pass**
+- [x] **Step 4: Run the tests and verify they pass**
 
 Run: `npm test -- src/lib/admin/reminder-text.test.ts`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 npm run typecheck
@@ -730,7 +730,7 @@ git commit -m "feat(email): reminder subject and body from an event"
 
 **`broadcastAction` is not touched.** The button fills the form; Send is the existing path.
 
-- [ ] **Step 1: Widen `getEventForAttendance`**
+- [x] **Step 1: Widen `getEventForAttendance`**
 
 In `src/lib/admin/attendance.ts`, extend the interface and select:
 
@@ -760,12 +760,12 @@ isAllDay: row.is_all_day,
 venue: row.venue_text ?? row.venues?.name ?? null,
 ```
 
-- [ ] **Step 2: Run the existing suite to catch every caller**
+- [x] **Step 2: Run the existing suite to catch every caller**
 
 Run: `npm test && npm run typecheck`
 Expected: PASS. `getEventForAttendance` has several callers; widening a return type is additive, so nothing should break. If a test constructs an `AttendanceEvent` literal, add the three fields there.
 
-- [ ] **Step 3: Pass the reminder text and last-sent into the form**
+- [x] **Step 3: Pass the reminder text and last-sent into the form**
 
 In `src/app/admin/(app)/events/[id]/email/page.tsx`, after `const ev = await getEventForAttendance(id)`:
 
@@ -816,7 +816,7 @@ And pass the new props:
 />
 ```
 
-- [ ] **Step 4: Add the prefill button to the form**
+- [x] **Step 4: Add the prefill button to the form**
 
 In `src/components/admin/BroadcastForm.tsx`, accept the new prop, make the two fields controlled, and add the button above the Subject field:
 
@@ -875,11 +875,11 @@ Wire the two fields to that state:
   placeholder="Write what participants need to know." />
 ```
 
-- [ ] **Step 5: Verify in the browser**
+- [x] **Step 5: Verify in the browser**
 
 `npm run dev`, sign in as `sandy` (tech_head — have the authenticator to hand), open `/admin/events/<id>/email`. Press the reminder button: subject and message must fill with the event's real date, time and venue, and both must still be editable. Do not press Send yet.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 npm test && npm run typecheck && npm run lint
@@ -898,7 +898,7 @@ git commit -m "feat(email): one-press reminder prefill and a last-emailed line"
 **Interfaces:**
 - Produces: `"manage:broadcast"` as a member of the `Capability` union, with grants `all` for `faculty_advisor` / `president` / `vice_president` / `tech_head` and `own` for `club_head` / `vice_head`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `src/lib/auth/capabilities.test.ts`:
 
@@ -931,12 +931,12 @@ describe("manage:broadcast", () => {
 
 Note: the existing test file at line ~241 enumerates every capability. Add `"manage:broadcast"` to that list too, or that test will fail.
 
-- [ ] **Step 2: Run the tests and watch them fail**
+- [x] **Step 2: Run the tests and watch them fail**
 
 Run: `npm test -- src/lib/auth/capabilities.test.ts`
 Expected: FAIL — `manage:broadcast` is not assignable to `Capability`.
 
-- [ ] **Step 3: Add the capability**
+- [x] **Step 3: Add the capability**
 
 In `src/lib/auth/capabilities.ts`, add to the `Capability` union after `"manage:contact"`:
 
@@ -956,12 +956,12 @@ And to `MATRIX`:
   },
 ```
 
-- [ ] **Step 4: Run the tests and verify they pass**
+- [x] **Step 4: Run the tests and verify they pass**
 
 Run: `npm test -- src/lib/auth/capabilities.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 npm run typecheck
@@ -988,7 +988,7 @@ git commit -m "feat(auth): manage:broadcast capability"
   - `isAudienceAllowed(id: AdminIdentity, a: Audience, resourceClubId: string | null): boolean`
   - `dedupeRecipients(list: { email: string; name: string | null }[]): { email: string; name: string | null }[]`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `src/lib/admin/broadcast-audience.test.ts`:
 
@@ -1125,12 +1125,12 @@ describe("dedupeRecipients", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and watch them fail**
+- [x] **Step 2: Run the tests and watch them fail**
 
 Run: `npm test -- src/lib/admin/broadcast-audience.test.ts`
 Expected: FAIL — cannot resolve `./broadcast-audience`.
 
-- [ ] **Step 3: Write the module**
+- [x] **Step 3: Write the module**
 
 Create `src/lib/admin/broadcast-audience.ts`:
 
@@ -1245,12 +1245,12 @@ export function dedupeRecipients(
 }
 ```
 
-- [ ] **Step 4: Run the tests and verify they pass**
+- [x] **Step 4: Run the tests and verify they pass**
 
 Run: `npm test -- src/lib/admin/broadcast-audience.test.ts`
 Expected: PASS, 17 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 npm run typecheck
@@ -1279,7 +1279,7 @@ git commit -m "feat(email): audience model, scope rules and recipient dedupe"
   - `enqueueEmail(args)` gains `deferred?: boolean`
   - `enqueueEmailBatch(rows: EnqueueEmailArgs[]): Promise<number>`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `src/lib/email/bulk.test.ts`:
 
@@ -1321,12 +1321,12 @@ describe("BULK_PRIORITY", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and watch them fail**
+- [x] **Step 2: Run the tests and watch them fail**
 
 Run: `npm test -- src/lib/email/bulk.test.ts`
 Expected: FAIL — cannot resolve `./bulk`.
 
-- [ ] **Step 3: Write the pure module**
+- [x] **Step 3: Write the pure module**
 
 Create `src/lib/email/bulk.ts`:
 
@@ -1353,12 +1353,12 @@ export function chunk<T>(items: T[], size: number): T[][] {
 }
 ```
 
-- [ ] **Step 4: Run the tests and verify they pass**
+- [x] **Step 4: Run the tests and verify they pass**
 
 Run: `npm test -- src/lib/email/bulk.test.ts`
 Expected: PASS, 6 tests.
 
-- [ ] **Step 5: Add `deferred` and `enqueueEmailBatch`**
+- [x] **Step 5: Add `deferred` and `enqueueEmailBatch`**
 
 In `src/lib/email.ts`, extend the args interface:
 
@@ -1429,7 +1429,7 @@ Add the import at the top of `src/lib/email.ts`:
 import { BULK_PRIORITY, INSERT_CHUNK, chunk } from "./email/bulk";
 ```
 
-- [ ] **Step 6: Thread a `headers` option through the transports**
+- [x] **Step 6: Thread a `headers` option through the transports**
 
 In `src/lib/email/resend.ts`, add to `SendArgs`:
 
@@ -1450,7 +1450,7 @@ In `src/lib/email/gmail.ts`, pass it to nodemailer inside `sendMail`:
       ...(args.headers ? { headers: args.headers } : {}),
 ```
 
-- [ ] **Step 7: Set `List-Unsubscribe` on bulk rows**
+- [x] **Step 7: Set `List-Unsubscribe` on bulk rows**
 
 In `src/lib/email/send.ts`, inside `deliverEmail`, after `renderEmail`:
 
@@ -1467,7 +1467,7 @@ In `src/lib/email/send.ts`, inside `deliverEmail`, after `renderEmail`:
   const result = await sendEmail({ to: row.to_email, subject: row.subject, html, text, headers });
 ```
 
-- [ ] **Step 8: Raise the cron drain**
+- [x] **Step 8: Raise the cron drain**
 
 In `src/app/api/cron/send-email/route.ts`:
 
@@ -1477,7 +1477,7 @@ In `src/app/api/cron/send-email/route.ts`:
   const summary = await deliverPending(100);
 ```
 
-- [ ] **Step 9: Verify and commit**
+- [x] **Step 9: Verify and commit**
 
 ```bash
 npm test && npm run typecheck && npm run lint
@@ -1501,7 +1501,7 @@ git commit -m "feat(email): deferred + batch enqueue, bulk priority, List-Unsubs
 
 Service-role reads throughout: `anon` has no SELECT on `club_members`.
 
-- [ ] **Step 1: Write the module**
+- [x] **Step 1: Write the module**
 
 Create `src/lib/admin/broadcast-recipients.ts`:
 
@@ -1616,12 +1616,12 @@ export async function audienceCounts(ownClubId: string | null): Promise<{
 }
 ```
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `npm run typecheck`
 Expected: clean. If PostgREST degrades a row type to `GenericStringError`, the select string is being built dynamically — keep it literal or cast through `as unknown as` with an explicit row type (this repo hits that trap often; see STATUS.md).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 npm run lint
@@ -1645,7 +1645,7 @@ git commit -m "feat(email): resolve an audience to deduped addresses"
 - Consumes: everything from Tasks 6–9, plus `listClubsBrief` from `@/lib/admin/clubs` and `listEventsForAdmin` from `@/lib/admin/queries` (already club-scoped, so the event picker inherits scope)
 - Produces: `sendBroadcastAction(prev: ComposerState, formData: FormData): Promise<ComposerState>`; `interface ComposerState { error?: string; sent?: number; queued?: number; confirm?: { count: number; label: string } }`
 
-- [ ] **Step 1: Add the state type**
+- [x] **Step 1: Add the state type**
 
 In `src/lib/admin/form-state.ts`, beside `BroadcastState`:
 
@@ -1661,7 +1661,7 @@ export interface ComposerState {
 }
 ```
 
-- [ ] **Step 2: Write the action**
+- [x] **Step 2: Write the action**
 
 Create `src/app/admin/(app)/email/actions.ts`:
 
@@ -1804,7 +1804,7 @@ export async function sendBroadcastAction(
 }
 ```
 
-- [ ] **Step 3: Write the page**
+- [x] **Step 3: Write the page**
 
 Create `src/app/admin/(app)/email/page.tsx`:
 
@@ -1860,7 +1860,7 @@ export default async function BroadcastPage() {
 }
 ```
 
-- [ ] **Step 4: Write the composer component**
+- [x] **Step 4: Write the composer component**
 
 Create `src/components/admin/BroadcastComposer.tsx`. Mirror the field markup in `BroadcastForm.tsx` (same `.field`, `.hint`, `.note` classes) so the two pages look like one product:
 
@@ -2023,7 +2023,7 @@ export function BroadcastComposer({
 }
 ```
 
-- [ ] **Step 5: Add the nav link**
+- [x] **Step 5: Add the nav link**
 
 In `src/app/admin/(app)/layout.tsx`, alongside the other entries:
 
@@ -2033,18 +2033,18 @@ In `src/app/admin/(app)/layout.tsx`, alongside the other entries:
       : []),
 ```
 
-- [ ] **Step 6: Fix the nav tests**
+- [x] **Step 6: Fix the nav tests**
 
 Run: `npm test -- src/lib/admin/nav.test.ts`
 Expected: FAIL — the label lists at roughly lines 40 and 59 are exhaustive. Add `"Email"` in the right position (the `inbox` group, after Contact and Feedback) and re-run until green.
 
-- [ ] **Step 7: Verify in the browser**
+- [x] **Step 7: Verify in the browser**
 
 `npm run dev`, sign in as `sandy`. Open `/admin/email`:
 - Pick "Club heads and vice heads" (26) → Send → the success note should say 26, and 26 mails should arrive.
 - Pick "All club members" (908) → Send → the **confirm panel** must appear naming 908 before anything is sent. Do not confirm yet; Task 11 builds the Outbox that drains it.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 npm test && npm run typecheck && npm run lint
@@ -2071,7 +2071,7 @@ git commit -m "feat(email): broadcast composer with audience picker and a confir
 
 **The access split, from the spec:** readable by any `manage:broadcast` holder so a club head can see their queued send; **draining requires `all`**, because the ~500/day Gmail quota is shared org-wide.
 
-- [ ] **Step 1: Write the actions**
+- [x] **Step 1: Write the actions**
 
 Create `src/app/admin/(app)/outbox/actions.ts`:
 
@@ -2147,7 +2147,7 @@ export async function retryFailedAction(): Promise<OutboxResult> {
 }
 ```
 
-- [ ] **Step 2: Write the page**
+- [x] **Step 2: Write the page**
 
 Create `src/app/admin/(app)/outbox/page.tsx`:
 
@@ -2217,7 +2217,7 @@ export default async function OutboxPage() {
 }
 ```
 
-- [ ] **Step 3: Write the panel component**
+- [x] **Step 3: Write the panel component**
 
 Create `src/components/admin/OutboxPanel.tsx`:
 
@@ -2319,7 +2319,7 @@ export function OutboxPanel({
 
 Check `src/app/globals.css` for the real class names before committing — `.admin-stat` is shared with `AttendanceAnalytics` and `FeedbackAnalytics`, and STATUS.md warns that every new rule there affects all three. Reuse, do not add.
 
-- [ ] **Step 4: Add the nav link and fix the tests**
+- [x] **Step 4: Add the nav link and fix the tests**
 
 In `src/app/admin/(app)/layout.tsx`:
 
@@ -2331,7 +2331,7 @@ In `src/app/admin/(app)/layout.tsx`:
 
 Run: `npm test -- src/lib/admin/nav.test.ts` and add `"Outbox"` to the exhaustive label lists.
 
-- [ ] **Step 5: Drain the real queue end to end**
+- [x] **Step 5: Drain the real queue end to end**
 
 `npm run dev`, as `sandy`:
 1. `/admin/email` → All club members → Send → confirm → note says 908 queued.
@@ -2339,7 +2339,7 @@ Run: `npm test -- src/lib/admin/nav.test.ts` and add `"Outbox"` to the exhaustiv
 3. Press **Send next batch** → pending drops by 40, sent-today rises by 40, and 40 mails actually arrive.
 4. Sign in as a club head: `/admin/outbox` opens read-only, with no Send button.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 npm test && npm run typecheck && npm run lint
@@ -2354,25 +2354,25 @@ git commit -m "feat(email): outbox with batch drain, retry and the daily ceiling
 **Files:**
 - Modify: `docs/STATUS.md`
 
-- [ ] **Step 1: Run the whole gate**
+- [x] **Step 1: Run the whole gate**
 
 ```bash
 npm run typecheck && npm run lint && npm test && npm run build
 ```
 Expected: all four clean. Record the test count — STATUS.md quotes it for every shipped feature.
 
-- [ ] **Step 2: Update STATUS.md**
+- [x] **Step 2: Update STATUS.md**
 
 Add a block in the same style as the existing shipped entries, covering: the reminder is a button and there is deliberately **no reminder cron**; the three `.ics` routes; `manage:broadcast` and who holds it; the 50-address inline threshold; the Outbox and that draining is council-only; the cron drain change 25 → 100; and the standing limit that Gmail caps near 500/day so an all-members send takes more than one day. Move "reminder cron" and "`.ics` feeds" out of the Phase 2 remaining list.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/STATUS.md
 git commit -m "docs(status): broadcast email, reminders and .ics feeds shipped"
 ```
 
-- [ ] **Step 4: Hand back**
+- [x] **Step 4: Hand back**
 
 Report the branch, the gate output, and the walkthrough items that still need a human in a browser — in particular the 908-row queue drain, which no test can prove.
 
