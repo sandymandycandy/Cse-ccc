@@ -22,12 +22,15 @@ export function ListEditor({
   groupId,
   groupName,
   rows,
+  winners,
   offline,
 }: {
   eventId: string;
   groupId: string;
   groupName: string;
   rows: ListRow[];
+  /** A Winners list: the upload also asks which column holds the placing. */
+  winners?: boolean;
   offline?: boolean;
 }) {
   const [draft, setDraft] = useState<Draft>(EMPTY);
@@ -207,7 +210,15 @@ export function ListEditor({
         </p>
       ) : null}
 
-      {offline ? null : <SheetUpload eventId={eventId} groupId={groupId} groupName={groupName} replaceCount={rows.length} />}
+      {offline ? null : (
+        <SheetUpload
+          eventId={eventId}
+          groupId={groupId}
+          groupName={groupName}
+          replaceCount={rows.length}
+          winners={winners}
+        />
+      )}
     </div>
   );
 }

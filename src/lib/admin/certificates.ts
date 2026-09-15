@@ -451,6 +451,75 @@ export async function deleteSheetGroup(eventId: string, groupId: string): Promis
   return !error && (data?.length ?? 0) > 0;
 }
 
+/** A live certificate whose recipient is no longer on any list (spec §4.4). */
+export interface OrphanCertificate {
+  certificateId: string;
+  key: string;
+  groupId: string | null;
+  name: string;
+  serial: string;
+  issuedAt: string;
+}
+
+/**
+ * Certificates that are still live but whose person no longer appears — a
+ * winner whose rank was corrected off the podium, someone deleted from a list,
+ * an attendance mark undone. Nothing is revoked automatically: the ledger is
+ * the record of what was actually sent, so a human decides.
+ */
+export async function listOrphanCertificates(eventId: string, recipients: Recipient[]): Promise<OrphanCertificate[]> {
+  const { data } = await createAdminClient()
+    .from("certificates")
+    .select("id, recipient_key, recipient_name, serial, issued_at, group_id")
+    .eq("event_id", eventId)
+    .is("revoked_at", null);
+  const known = new Set(recipients.map((r) => r.key));
+  return ((data ?? []) as {
+    id: string;
+    recipient_key: string | null;
+    recipient_name: string | null;
+    serial: string;
+    issued_at: string;
+    group_id: string | null;
+  }[])
+    .filter((row) => row.recipient_key && !known.has(row.recipient_key))
+    .map((row) => ({
+      certificateId: row.id,
+      key: row.recipient_key!,
+      groupId: row.group_id,
+      name: row.recipient_name?.trim() || row.recipient_key!,
+      serial: row.serial,
+      issuedAt: row.issued_at,
+    }));
+}
+
+/** Live certificates a group has issued — what blocks changing where its people come from. */
+export async function countLiveCertificates(eventId: string, groupId: string): Promise<number> {
+  const { count } = await createAdminClient()
+    .from("certificates")
+    .select("id", { count: "exact", head: true })
+    .eq("event_id", eventId)
+    .eq("group_id", groupId)
+    .is("revoked_at", null);
+  return count ?? 0;
+}
+
+/** Change where a group's people come from (Winners: published results, or an uploaded list). */
+export async function setGroupKind(
+  eventId: string,
+  groupId: string,
+  kind: "sheet" | "results",
+): Promise<boolean> {
+  const { data, error } = await createAdminClient()
+    .from("certificate_groups")
+    .update({ kind, updated_at: new Date().toISOString() })
+    .eq("id", groupId)
+    .eq("event_id", eventId)
+    .eq("base_kind", "winners")
+    .select("id");
+  return !error && (data?.length ?? 0) > 0;
+}
+
 export async function listSheetRows(groupId: string): Promise<ListRow[]> {
   const { data } = await createAdminClient()
     .from("certificate_sheet_rows")
@@ -473,6 +542,7 @@ export async function replaceSheetRows(
   groupId: string,
   columns: string[],
   rows: SheetRow[],
+  positionColumn: string | null = null,
 ): Promise<{ error: string } | { count: number }> {
   const admin = createAdminClient();
   const { data, error } = await admin.rpc("replace_certificate_sheet_rows", {
@@ -482,7 +552,7 @@ export async function replaceSheetRows(
   if (error) return { error: "Could not save those rows. Try again." };
   const updated = await admin
     .from("certificate_groups")
-    .update({ sheet_columns: columns, updated_at: new Date().toISOString() })
+    .update({ sheet_columns: columns, position_column: positionColumn, updated_at: new Date().toISOString() })
     .eq("id", groupId)
     .eq("event_id", eventId);
   if (updated.error) return { error: "Saved the rows but not the columns. Try the upload again." };
@@ -736,6 +806,8 @@ export interface CertificateWorkspace {
   bases: Record<BaseKind, BaseSummary>;
   /** The active group's people, when it is a list group (typed or uploaded). */
   listRows: ListRow[];
+  /** Live certificates whose person is no longer on any list. */
+  orphans: OrphanCertificate[];
 }
 
 export async function getCertificateWorkspace(
@@ -762,7 +834,10 @@ export async function getCertificateWorkspace(
     group.kind === "sheet" ? listSheetRows(group.id) : Promise.resolve([] as ListRow[]),
   ]);
   const inGroup = recipients.filter((r) => r.groupId === group.id);
-  const stale = await listOutdatedRecipients(eventId, [group], inGroup);
+  const [stale, orphans] = await Promise.all([
+    listOutdatedRecipients(eventId, [group], inGroup),
+    listOrphanCertificates(eventId, recipients),
+  ]);
   return {
     event,
     groups,
@@ -775,6 +850,7 @@ export async function getCertificateWorkspace(
     assetUrls,
     bases: summarizeBases(bases),
     listRows,
+    orphans,
   };
 }
 

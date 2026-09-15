@@ -10,6 +10,7 @@ import {
 import type { BaseKind } from "@/lib/certificates/bases";
 import type { ListRow } from "@/lib/certificates/sheet";
 import { ListEditor } from "./ListEditor";
+import { WinnersPanel } from "./WinnersPanel";
 
 /**
  * The groups an event issues certificates for (spec D6): Participants, plus any
@@ -167,7 +168,17 @@ export function GroupBar({
         </div>
       ) : null}
 
-      {active?.kind === "sheet" ? (
+      {active?.baseKind === "winners" ? (
+        <WinnersPanel
+          key={active.id}
+          eventId={eventId}
+          groupId={active.id}
+          groupName={active.name}
+          source={active.kind === "results" ? "results" : "sheet"}
+          people={active.people}
+          rows={listRows}
+        />
+      ) : active?.kind === "sheet" ? (
         <ListEditor key={active.id} eventId={eventId} groupId={active.id} groupName={active.name} rows={listRows} />
       ) : null}
 

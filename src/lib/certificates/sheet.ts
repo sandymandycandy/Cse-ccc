@@ -33,6 +33,8 @@ export interface ColumnChoice {
   name: number;
   email: number | null;
   roll: number | null;
+  /** Winners from an uploaded list: which column holds the placing (spec §4.1). */
+  position?: number | null;
 }
 
 export type SheetBuild =

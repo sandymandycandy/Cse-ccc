@@ -86,6 +86,29 @@ export default async function EventCertificatesPage({
         })
       : [];
 
+  // Live certificates whose person is no longer on any list still belong on this
+  // page: they exist, they were sent, and someone may need to revoke them.
+  if (tab === "recipients") {
+    for (const orphan of ws.orphans) {
+      rows.push({
+        key: orphan.key,
+        groupId: orphan.groupId ?? "",
+        groupName: ws.groups.find((g) => g.id === orphan.groupId)?.name ?? "—",
+        kind: "sheet",
+        name: orphan.name,
+        roll: "",
+        teamLabel: null,
+        email: null,
+        deliverTo: null,
+        viaLeader: false,
+        warnings: [],
+        orphan: true,
+        status: { state: "issued", certificateId: orphan.certificateId, serial: orphan.serial, issuedAt: orphan.issuedAt },
+        filename: certificateFileName(orphan.name, ws.event.title),
+      });
+    }
+  }
+
   return (
     <div className="admin-page cd-page">
       <Link href={`/admin/events/${id}/registrations`} className="label" style={{ color: "var(--forest)" }}>

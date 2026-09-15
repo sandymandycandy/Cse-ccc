@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { uploadCertificateSheetAction } from "@/app/admin/(app)/events/[id]/certificates/actions";
 import { buildSheetRows, detectColumns, parseDelimited, SHEET_LIMITS, type ColumnChoice } from "@/lib/certificates/sheet";
+import { detectPositionColumn } from "@/lib/certificates/winners";
 
 /**
  * Upload the people in a group from a CSV or Excel file (spec §3.3). The file
@@ -15,12 +16,15 @@ export function SheetUpload({
   groupId,
   groupName,
   replaceCount,
+  winners,
 }: {
   eventId: string;
   groupId: string;
   groupName: string;
   /** People already in the list — an upload replaces them. */
   replaceCount: number;
+  /** A Winners list also asks which column holds the placing. */
+  winners?: boolean;
 }) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
@@ -49,7 +53,7 @@ export function SheetUpload({
         return;
       }
       setTable(rows);
-      setChoice(detectColumns(rows[0]));
+      setChoice({ ...detectColumns(rows[0]), position: winners ? detectPositionColumn(rows[0]) : null });
     } catch {
       setMessage({ tone: "error", text: "Could not read that file. Save it as CSV or .xlsx and try again." });
     } finally {
@@ -129,6 +133,24 @@ export function SheetUpload({
                 ))}
               </select>
             </label>
+            {winners ? (
+              <label className="cd-row">
+                <span>Position column</span>
+                <select
+                  value={choice.position ?? ""}
+                  onChange={(e) =>
+                    setChoice((c) => ({ ...c, position: e.target.value === "" ? null : Number(e.target.value) }))
+                  }
+                >
+                  <option value="">None</option>
+                  {headings.map((h, i) => (
+                    <option key={i} value={i}>
+                      {h || `Column ${i + 1}`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             <label className="cd-row">
               <span>Roll no. column</span>
               <select
@@ -155,6 +177,7 @@ export function SheetUpload({
                       {i === choice.name ? " · name" : ""}
                       {i === choice.email ? " · email" : ""}
                       {i === choice.roll ? " · roll" : ""}
+                      {winners && i === choice.position ? " · position" : ""}
                     </th>
                   ))}
                 </tr>

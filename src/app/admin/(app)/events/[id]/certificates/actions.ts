@@ -9,6 +9,7 @@ import { canManage, type Capability } from "@/lib/auth/capabilities";
 import { writeAudit } from "@/lib/admin/audit";
 import { getEventForAttendance, type AttendanceEvent } from "@/lib/admin/attendance";
 import {
+  countLiveCertificates,
   createSheetGroup,
   deleteSheetGroup,
   getCertEvent,
@@ -18,6 +19,7 @@ import {
   groupContext,
   renameGroup,
   replaceSheetRows,
+  setGroupKind,
 } from "@/lib/admin/certificates";
 import {
   issueBatch,
@@ -409,7 +411,12 @@ export async function uploadCertificateSheetAction(input: {
   const built = buildSheetRows(input.table, input.choice);
   if (!built.ok) return { ok: false, error: built.error };
 
-  const saved = await replaceSheetRows(input.eventId, input.groupId, built.columns, built.rows);
+  // A Winners list prints the placing from the column the admin confirmed.
+  const positionColumn =
+    group.baseKind === "winners" && input.choice.position != null
+      ? (built.columns[input.choice.position] ?? null)
+      : null;
+  const saved = await replaceSheetRows(input.eventId, input.groupId, built.columns, built.rows, positionColumn);
   if ("error" in saved) return { ok: false, error: saved.error };
 
   await writeAudit({
@@ -428,6 +435,52 @@ export async function uploadCertificateSheetAction(input: {
   });
   revalidatePath(`/admin/events/${input.eventId}/certificates`);
   return { ok: true, rows: built.rows.length, dropped: built.dropped, invalidEmails: built.invalidEmails, columns: built.columns };
+}
+
+/**
+ * Switch where a Winners group's people come from (spec §4.1). Refused while it
+ * holds a live certificate: the two sources key people differently, so
+ * switching would let one person end up with two live winner certificates.
+ */
+export async function setWinnerSourceAction(input: {
+  eventId: string;
+  groupId: string;
+  source: "results" | "sheet";
+}): Promise<ActionResult> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  if (input.source !== "results" && input.source !== "sheet") return { ok: false, error: "Unknown source." };
+  if (!uuid.safeParse(input.groupId).success) return { ok: false, error: "Missing certificate group." };
+
+  const group = await getGroup(input.eventId, input.groupId);
+  if (!group || group.baseKind !== "winners") return { ok: false, error: "Only the Winners group has a source." };
+  if (!canManage(auth.session, groupCapability(group), auth.ev.clubId)) {
+    return { ok: false, error: "You can't issue winner certificates for this event." };
+  }
+  if (group.kind === input.source) return { ok: true };
+
+  const live = await countLiveCertificates(input.eventId, group.id);
+  if (live > 0) {
+    const from = group.kind === "results" ? "results" : "an uploaded list";
+    return {
+      ok: false,
+      error: `${live} winner certificate${live === 1 ? " was" : "s were"} issued from ${from}. Revoke ${live === 1 ? "it" : "them"} before switching.`,
+    };
+  }
+
+  if (!(await setGroupKind(input.eventId, group.id, input.source))) {
+    return { ok: false, error: "Could not change the source. Try again." };
+  }
+  await writeAudit({
+    actorId: auth.session.id,
+    action: "update",
+    entity: "certificate_group",
+    entityId: group.id,
+    before: { source: group.kind },
+    after: { eventId: input.eventId, source: input.source },
+  });
+  revalidatePath(`/admin/events/${input.eventId}/certificates`);
+  return { ok: true };
 }
 
 // ── typed list rows (spec 2026-09-15 §1.4) ───────────────────────────────────
