@@ -113,6 +113,16 @@ export default async function EventDetailPage({ params }: Params) {
           ) : null}
         </div>
 
+        {/* Puts the event in their own calendar with its own reminder — no
+            account, no app, and it works on every phone. */}
+        <a
+          href={`/events/${event.id}/event.ics`}
+          className="btn btn-ghost btn-sm"
+          style={{ marginTop: 14 }}
+        >
+          Add to calendar
+        </a>
+
         <div className="evd-grid">
           {/* main */}
           <div>
