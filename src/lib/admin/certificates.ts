@@ -43,7 +43,15 @@ import {
   type RecipientCounts,
 } from "@/lib/certificates/recipients";
 import { designWithUnknownFieldsAsText } from "@/lib/certificates/rich-text";
-import type { SheetRow } from "@/lib/certificates/sheet";
+import type { ListRow, SheetRow } from "@/lib/certificates/sheet";
+import {
+  effectiveDesign,
+  summarizeBases,
+  type BaseDesign,
+  type BaseKind,
+  type BaseSummary,
+} from "@/lib/certificates/bases";
+import { loadBases } from "./certificate-bases";
 import { getEventFormSchema, listRegistrations } from "./registrations";
 
 /**
@@ -52,7 +60,7 @@ import { getEventFormSchema, listRegistrations } from "./registrations";
  */
 
 export const PARTICIPATION_LABEL = "Participation";
-const GROUP_COLUMNS = "id, event_id, kind, name, design, sheet_columns";
+const GROUP_COLUMNS = "id, event_id, kind, name, design, base_kind, sheet_columns";
 
 export interface CertEvent {
   id: string;
@@ -100,7 +108,17 @@ export interface CertificateGroup {
   eventId: string;
   kind: "participants" | "sheet";
   name: string;
+  /**
+   * The design this group prints with — its own once customised, otherwise its
+   * council base's (spec 2026-09-15 §3). Issuing, previews, print and outdated
+   * checks all read this, so they follow the base without knowing it exists.
+   */
   design: Design;
+  /** The group's own saved design; null while it follows its base. */
+  customDesign: Design | null;
+  /** The base slot this group fills; null for an extra group (Judges…), which is always custom. */
+  baseKind: BaseKind | null;
+  followsBase: boolean;
   sheetColumns: string[];
 }
 
@@ -109,37 +127,50 @@ type GroupRow = {
   event_id: string;
   kind: "participants" | "sheet";
   name: string;
-  design: Json;
+  design: Json | null;
+  base_kind: BaseKind | null;
   sheet_columns: string[] | null;
 };
 
-const toGroup = (row: GroupRow): CertificateGroup => ({
-  id: row.id,
-  eventId: row.event_id,
-  kind: row.kind,
-  name: row.name,
-  design: parseStoredDesign(row.design) ?? emptyDesign(),
-  sheetColumns: row.sheet_columns ?? [],
-});
+const toGroup = (row: GroupRow, bases: ReadonlyMap<BaseKind, BaseDesign>): CertificateGroup => {
+  const customDesign = row.design === null ? null : (parseStoredDesign(row.design) ?? emptyDesign());
+  return {
+    id: row.id,
+    eventId: row.event_id,
+    kind: row.kind,
+    name: row.name,
+    design: effectiveDesign({ customDesign, baseKind: row.base_kind }, bases),
+    customDesign,
+    baseKind: row.base_kind,
+    followsBase: customDesign === null,
+    sheetColumns: row.sheet_columns ?? [],
+  };
+};
 
 export async function getGroup(eventId: string, groupId: string): Promise<CertificateGroup | null> {
-  const { data } = await createAdminClient()
-    .from("certificate_groups")
-    .select(GROUP_COLUMNS)
-    .eq("event_id", eventId)
-    .eq("id", groupId)
-    .maybeSingle();
-  return data ? toGroup(data as GroupRow) : null;
+  const [{ data }, bases] = await Promise.all([
+    createAdminClient()
+      .from("certificate_groups")
+      .select(GROUP_COLUMNS)
+      .eq("event_id", eventId)
+      .eq("id", groupId)
+      .maybeSingle(),
+    loadBases(),
+  ]);
+  return data ? toGroup(data as GroupRow, bases) : null;
 }
 
 export async function getParticipantsGroup(eventId: string): Promise<CertificateGroup | null> {
-  const { data } = await createAdminClient()
-    .from("certificate_groups")
-    .select(GROUP_COLUMNS)
-    .eq("event_id", eventId)
-    .eq("kind", "participants")
-    .maybeSingle();
-  return data ? toGroup(data as GroupRow) : null;
+  const [{ data }, bases] = await Promise.all([
+    createAdminClient()
+      .from("certificate_groups")
+      .select(GROUP_COLUMNS)
+      .eq("event_id", eventId)
+      .eq("kind", "participants")
+      .maybeSingle(),
+    loadBases(),
+  ]);
+  return data ? toGroup(data as GroupRow, bases) : null;
 }
 
 /** The identity of a design: the hash its version row is keyed by. */
@@ -222,39 +253,48 @@ export async function ensureDesignVersion(groupId: string, design: Design): Prom
   throw new Error("Could not record the design version.");
 }
 
-/** v1's uploaded image + name anchor as a design, or an empty design. */
-async function designFromV1(eventId: string): Promise<Design> {
+/** v1's uploaded image + name anchor as a design, or null when the event never had one. */
+async function designFromV1(eventId: string): Promise<Design | null> {
   const admin = createAdminClient();
   const { data: ev } = await admin
     .from("events")
     .select("certificate_template, certificate_config")
     .eq("id", eventId)
     .maybeSingle();
-  if (!ev?.certificate_template) return emptyDesign();
+  if (!ev?.certificate_template) return null;
   const dl = await admin.storage.from(LEGACY_TEMPLATE_BUCKET).download(ev.certificate_template);
-  if (dl.error || !dl.data) return emptyDesign();
+  if (dl.error || !dl.data) return null;
   const image = sniffImage(new Uint8Array(await dl.data.arrayBuffer()));
-  if (!image) return emptyDesign();
+  if (!image) return null;
   const design = designFromLegacyConfig(
     { path: ev.certificate_template, type: image.type, widthPx: image.width, heightPx: image.height },
     validateCertificateConfig(ev.certificate_config),
   );
-  return validateDesign(design, { formFieldIds: new Set(), sheetColumns: new Set() }).ok ? design : emptyDesign();
+  return validateDesign(design, { formFieldIds: new Set(), sheetColumns: new Set() }).ok ? design : null;
 }
 
 /**
  * The event's Participants group, created on first visit — converting a v1
  * setup if there is one and attaching v1-issued certificates to it (spec §9).
+ * Without a v1 setup it follows the council's Participants base.
  */
 export async function ensureParticipantsGroup(eventId: string, actorId: string | null): Promise<CertificateGroup> {
   const existing = await getParticipantsGroup(eventId);
   if (existing) return existing;
 
   const admin = createAdminClient();
-  const design = await designFromV1(eventId);
+  const legacyDesign = await designFromV1(eventId);
   const { data, error } = await admin
     .from("certificate_groups")
-    .insert({ event_id: eventId, kind: "participants", name: "Participants", design: design as unknown as Json, created_by: actorId })
+    .insert({
+      event_id: eventId,
+      kind: "participants",
+      base_kind: "participants",
+      name: "Participants",
+      // A v1 setup is this event's own design; otherwise it follows the council base.
+      design: legacyDesign as unknown as Json | null,
+      created_by: actorId,
+    })
     .select(GROUP_COLUMNS)
     .single();
   if (error || !data) {
@@ -262,7 +302,7 @@ export async function ensureParticipantsGroup(eventId: string, actorId: string |
     if (raced) return raced;
     throw new Error("Could not set up certificates for this event.");
   }
-  const group = toGroup(data as GroupRow);
+  const group = toGroup(data as GroupRow, await loadBases());
 
   const { data: legacy } = await admin
     .from("certificates")
@@ -283,21 +323,47 @@ export async function ensureParticipantsGroup(eventId: string, actorId: string |
   return group;
 }
 
-/** Every group on the event, Participants first. */
-export async function listGroups(eventId: string, actorId: string | null): Promise<CertificateGroup[]> {
-  await ensureParticipantsGroup(eventId, actorId);
-  const { data } = await createAdminClient()
+/** The fixed list groups every event has besides Participants (spec 2026-09-15 §1.1). Phase 2 adds Winners. */
+const LIST_SLOTS: { baseKind: BaseKind; name: string }[] = [{ baseKind: "volunteers", name: "Volunteers" }];
+
+const SLOT_RANK: Record<BaseKind, number> = { participants: 0, volunteers: 1, winners: 2 };
+const slotRank = (group: CertificateGroup) => (group.baseKind ? SLOT_RANK[group.baseKind] : 3);
+
+async function ensureListSlots(eventId: string, actorId: string | null): Promise<void> {
+  const admin = createAdminClient();
+  const { data } = await admin
     .from("certificate_groups")
-    .select(GROUP_COLUMNS)
+    .select("base_kind")
     .eq("event_id", eventId)
-    .order("kind", { ascending: true })
-    .order("sort", { ascending: true })
-    .order("created_at", { ascending: true });
-  const groups = (data ?? []).map((row) => toGroup(row as GroupRow));
-  return [...groups].sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "participants" ? -1 : 1));
+    .not("base_kind", "is", null);
+  const have = new Set((data ?? []).map((row) => row.base_kind));
+  for (const slot of LIST_SLOTS) {
+    if (have.has(slot.baseKind)) continue;
+    // Another tab racing this insert loses on certificate_groups_one_per_base. Harmless: the group exists.
+    await admin
+      .from("certificate_groups")
+      .insert({ event_id: eventId, kind: "sheet", base_kind: slot.baseKind, name: slot.name, design: null, created_by: actorId });
+  }
 }
 
-/** A new uploaded-list group, starting from the Participants design so it looks the same. */
+/** Every group on the event: Participants, Volunteers, then extra groups in the order they were added. */
+export async function listGroups(eventId: string, actorId: string | null): Promise<CertificateGroup[]> {
+  await ensureParticipantsGroup(eventId, actorId);
+  await ensureListSlots(eventId, actorId);
+  const [{ data }, bases] = await Promise.all([
+    createAdminClient()
+      .from("certificate_groups")
+      .select(GROUP_COLUMNS)
+      .eq("event_id", eventId)
+      .order("sort", { ascending: true })
+      .order("created_at", { ascending: true }),
+    loadBases(),
+  ]);
+  const groups = (data ?? []).map((row) => toGroup(row as GroupRow, bases));
+  return [...groups].sort((a, b) => slotRank(a) - slotRank(b));
+}
+
+/** A new extra list group (Judges…), starting from whatever Participants currently prints with. Always custom. */
 export async function createSheetGroup(input: {
   eventId: string;
   name: string;
@@ -317,37 +383,41 @@ export async function createSheetGroup(input: {
     .select(GROUP_COLUMNS)
     .single();
   if (error || !data) return { error: "Could not add that group. Try again." };
-  return toGroup(data as GroupRow);
+  // Its design is its own, so no base is needed to resolve it.
+  return toGroup(data as GroupRow, new Map());
 }
 
 export async function renameGroup(eventId: string, groupId: string, name: string): Promise<boolean> {
-  const { error } = await createAdminClient()
+  const { data, error } = await createAdminClient()
     .from("certificate_groups")
     .update({ name, updated_at: new Date().toISOString() })
     .eq("id", groupId)
     .eq("event_id", eventId)
-    .eq("kind", "sheet");
-  return !error;
+    .is("base_kind", null)
+    .select("id");
+  return !error && (data?.length ?? 0) > 0;
 }
 
-/** Delete an uploaded group. Certificates already issued from it keep their snapshot. */
+/** Delete an extra group. Base slots (Participants, Volunteers) can't be. Issued certificates keep their snapshot. */
 export async function deleteSheetGroup(eventId: string, groupId: string): Promise<boolean> {
-  const { error } = await createAdminClient()
+  const { data, error } = await createAdminClient()
     .from("certificate_groups")
     .delete()
     .eq("id", groupId)
     .eq("event_id", eventId)
-    .eq("kind", "sheet");
-  return !error;
+    .is("base_kind", null)
+    .select("id");
+  return !error && (data?.length ?? 0) > 0;
 }
 
-export async function listSheetRows(groupId: string): Promise<SheetRow[]> {
+export async function listSheetRows(groupId: string): Promise<ListRow[]> {
   const { data } = await createAdminClient()
     .from("certificate_sheet_rows")
-    .select("row_no, name, email, roll, data")
+    .select("id, row_no, name, email, roll, data")
     .eq("group_id", groupId)
     .order("row_no", { ascending: true });
   return (data ?? []).map((r) => ({
+    id: r.id,
     row_no: r.row_no,
     name: r.name,
     email: r.email,
@@ -497,6 +567,10 @@ export interface CertificateWorkspace {
   /** Issued certificates in the active group that no longer match the design or their details. */
   outdated: { total: number; withEmail: number };
   assetUrls: Record<string, string>;
+  /** Every base's status — the preview banner and the Save-as-base confirm read it. */
+  bases: Record<BaseKind, BaseSummary>;
+  /** The active group's people, when it is a list group (typed or uploaded). */
+  listRows: ListRow[];
 }
 
 export async function getCertificateWorkspace(
@@ -506,7 +580,7 @@ export async function getCertificateWorkspace(
 ): Promise<CertificateWorkspace | null> {
   const event = await getCertEvent(eventId);
   if (!event) return null;
-  const groups = await listGroups(eventId, actorId);
+  const [groups, bases] = await Promise.all([listGroups(eventId, actorId), loadBases()]);
   const group = groups.find((g) => g.id === activeGroupId) ?? groups[0];
   if (!group) return null;
 
@@ -517,9 +591,10 @@ export async function getCertificateWorkspace(
     (key) => isKnownField(key, ctx),
     (key) => fieldLabel(catalogue, key),
   );
-  const [recipients, assetUrls] = await Promise.all([
+  const [recipients, assetUrls, listRows] = await Promise.all([
     listAllRecipients(event, groups),
     signAssetUrls(assetRefsOf(editableDesign)),
+    group.kind === "sheet" ? listSheetRows(group.id) : Promise.resolve([] as ListRow[]),
   ]);
   const inGroup = recipients.filter((r) => r.groupId === group.id);
   const stale = await listOutdatedRecipients(eventId, [group], inGroup);
@@ -533,10 +608,15 @@ export async function getCertificateWorkspace(
     counts: countRecipients(inGroup),
     outdated: { total: stale.length, withEmail: stale.filter((r) => r.deliverTo).length },
     assetUrls,
+    bases: summarizeBases(bases),
+    listRows,
   };
 }
 
-/** Other events whose design this admin may copy: they manage the event and it has a template. */
+/**
+ * Other events whose design this admin may copy: they manage the event and it has a template.
+ * A group following the base isn't listed: copying it would just copy the base.
+ */
 export async function listDesignSources(
   identity: AdminIdentity,
   eventId: string,
@@ -545,6 +625,7 @@ export async function listDesignSources(
     .from("certificate_groups")
     .select("event_id, design, events ( title, starts_at, event_clubs ( is_primary, club_id ) )")
     .eq("kind", "participants")
+    .not("design", "is", null)
     .neq("event_id", eventId);
   const rows = (data ?? []) as unknown as {
     event_id: string;
