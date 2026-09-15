@@ -6,6 +6,7 @@ import { buildFieldCatalogue } from "@/lib/certificates/fields";
 import { defaultFormFor, type FormField } from "@/lib/registration-form/schema";
 import { DesignerLoader } from "./DesignerLoader";
 import { DesignTab } from "./DesignTab";
+import { ListEditor } from "./ListEditor";
 
 // Sample data only — never a real person.
 const svgUrl = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
@@ -159,5 +160,23 @@ export function BaseHarness() {
       baseImpact={{ participants: { following: 9, withLive: 2 } }}
       offline
     />
+  );
+}
+
+/** A Volunteers list with typed people. */
+export function ListHarness() {
+  return (
+    <div className="cd-groups">
+      <ListEditor
+        eventId="00000000-0000-4000-8000-000000000000"
+        groupId="00000000-0000-4000-8000-00000000000c"
+        groupName="Volunteers"
+        rows={[
+          { id: "r1", row_no: 1, name: "Asha R", email: "asha@example.test", roll: "VTU27001", data: {} },
+          { id: "r2", row_no: 2, name: "Karthik S", email: null, roll: "VTU27044", data: {} },
+        ]}
+        offline
+      />
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DesignerHarness } from "@/components/admin/certificates/DesignerHarness";
+import { BaseHarness, DesignerHarness, ListHarness } from "@/components/admin/certificates/DesignerHarness";
 import { IssueHarness } from "@/components/admin/certificates/IssueHarness";
 import { RecipientsHarness } from "@/components/admin/certificates/RecipientsHarness";
 
@@ -12,6 +12,8 @@ import { RecipientsHarness } from "@/components/admin/certificates/RecipientsHar
  */
 const PANELS = [
   { id: "design", label: "Designer" },
+  { id: "base", label: "Base preview" },
+  { id: "list", label: "Volunteers list" },
   { id: "recipients", label: "Recipients" },
   { id: "issue", label: "Issue" },
 ] as const;
@@ -41,7 +43,17 @@ export default async function CertificateDesignerHarnessPage({
           </Link>
         ))}
       </nav>
-      {active === "recipients" ? <RecipientsHarness /> : active === "issue" ? <IssueHarness /> : <DesignerHarness />}
+      {active === "recipients" ? (
+        <RecipientsHarness />
+      ) : active === "issue" ? (
+        <IssueHarness />
+      ) : active === "base" ? (
+        <BaseHarness />
+      ) : active === "list" ? (
+        <ListHarness />
+      ) : (
+        <DesignerHarness />
+      )}
     </div>
   );
 }
