@@ -4,11 +4,13 @@ import { requireViewPage } from "@/lib/auth/guards";
 import { canManage } from "@/lib/auth/capabilities";
 import { getEventForAttendance } from "@/lib/admin/attendance";
 import { getCertificateWorkspace, listDesignSources } from "@/lib/admin/certificates";
+import { baseImpact } from "@/lib/admin/certificate-bases";
+import { savableBases } from "@/lib/certificates/bases";
 import { certificateFileName } from "@/lib/certificates/recipients";
 import { fieldLabel } from "@/lib/certificates/fields";
 import { METRICS } from "@/lib/certificates/metrics";
 import { recipientWarnings, warningLines } from "@/lib/certificates/warnings";
-import { DesignerLoader } from "@/components/admin/certificates/DesignerLoader";
+import { DesignTab } from "@/components/admin/certificates/DesignTab";
 import { GroupBar } from "@/components/admin/certificates/GroupBar";
 import { IssuePanel } from "@/components/admin/certificates/IssuePanel";
 import { RecipientsPanel, type RecipientRow } from "@/components/admin/certificates/RecipientsPanel";
@@ -42,12 +44,16 @@ export default async function EventCertificatesPage({
   const ws = await getCertificateWorkspace(id, session.id, requestedGroup);
   if (!ws) notFound();
   const sources = tab === "design" ? await listDesignSources(session, id) : [];
+  const savable = savableBases(session);
+  const impact = tab === "design" && savable.length > 0 ? await baseImpact(savable, id) : {};
 
   const groupSummaries = ws.groups.map((group) => ({
     id: group.id,
     name: group.name,
     kind: group.kind,
     people: ws.recipients.filter((r) => r.groupId === group.id).length,
+    baseKind: group.baseKind,
+    followsBase: group.followsBase,
   }));
 
   // Warnings are computed with each person's own group design, so a volunteer
@@ -80,6 +86,29 @@ export default async function EventCertificatesPage({
         })
       : [];
 
+  // Live certificates whose person is no longer on any list still belong on this
+  // page: they exist, they were sent, and someone may need to revoke them.
+  if (tab === "recipients") {
+    for (const orphan of ws.orphans) {
+      rows.push({
+        key: orphan.key,
+        groupId: orphan.groupId ?? "",
+        groupName: ws.groups.find((g) => g.id === orphan.groupId)?.name ?? "—",
+        kind: "sheet",
+        name: orphan.name,
+        roll: "",
+        teamLabel: null,
+        email: null,
+        deliverTo: null,
+        viaLeader: false,
+        warnings: [],
+        orphan: true,
+        status: { state: "issued", certificateId: orphan.certificateId, serial: orphan.serial, issuedAt: orphan.issuedAt },
+        filename: certificateFileName(orphan.name, ws.event.title),
+      });
+    }
+  }
+
   return (
     <div className="admin-page cd-page">
       <Link href={`/admin/events/${id}/registrations`} className="label" style={{ color: "var(--forest)" }}>
@@ -104,13 +133,17 @@ export default async function EventCertificatesPage({
       </nav>
 
       {tab !== "recipients" ? (
-        <GroupBar eventId={id} groups={groupSummaries} activeId={ws.group.id} tab={tab} />
+        <GroupBar eventId={id} groups={groupSummaries} activeId={ws.group.id} tab={tab} listRows={ws.listRows} />
       ) : null}
 
       {tab === "design" ? (
         <div style={{ marginTop: 16 }}>
-          <DesignerLoader
-            key={ws.group.id}
+          <DesignTab
+            // Remount when the group switches between following and custom, or its base changes,
+            // so it opens in the right mode with the right design.
+            key={`${ws.group.id}:${ws.group.followsBase ? "base" : "custom"}:${
+              ws.group.baseKind ? ws.bases[ws.group.baseKind].updatedAt ?? "" : ""
+            }`}
             eventId={id}
             groupId={ws.group.id}
             initialDesign={ws.editableDesign}
@@ -121,6 +154,11 @@ export default async function EventCertificatesPage({
               .map((r) => ({ key: r.key, name: r.name, values: r.values }))}
             issuedCount={ws.counts.issued}
             designSources={sources}
+            baseKind={ws.group.baseKind}
+            followsBase={ws.group.followsBase}
+            bases={ws.bases}
+            savableBases={savable}
+            baseImpact={impact}
           />
         </div>
       ) : tab === "recipients" ? (

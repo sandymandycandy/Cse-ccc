@@ -463,6 +463,45 @@ export type Database = {
           },
         ]
       }
+      certificate_bases: {
+        Row: {
+          design: Json
+          kind: Database["public"]["Enums"]["certificate_base_kind"]
+          source_event_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          design: Json
+          kind: Database["public"]["Enums"]["certificate_base_kind"]
+          source_event_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          design?: Json
+          kind?: Database["public"]["Enums"]["certificate_base_kind"]
+          source_event_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "certificate_bases_source_event_id_fkey"
+            columns: ["source_event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "certificate_bases_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       certificate_design_versions: {
         Row: {
           created_at: string
@@ -497,37 +536,43 @@ export type Database = {
       }
       certificate_groups: {
         Row: {
+          base_kind: Database["public"]["Enums"]["certificate_base_kind"] | null
           created_at: string
           created_by: string | null
-          design: Json
+          design: Json | null
           event_id: string
           id: string
           kind: Database["public"]["Enums"]["certificate_group_kind"]
           name: string
+          position_column: string | null
           sheet_columns: string[]
           sort: number
           updated_at: string
         }
         Insert: {
+          base_kind?: Database["public"]["Enums"]["certificate_base_kind"] | null
           created_at?: string
           created_by?: string | null
-          design: Json
+          design?: Json | null
           event_id: string
           id?: string
           kind: Database["public"]["Enums"]["certificate_group_kind"]
           name: string
+          position_column?: string | null
           sheet_columns?: string[]
           sort?: number
           updated_at?: string
         }
         Update: {
+          base_kind?: Database["public"]["Enums"]["certificate_base_kind"] | null
           created_at?: string
           created_by?: string | null
-          design?: Json
+          design?: Json | null
           event_id?: string
           id?: string
           kind?: Database["public"]["Enums"]["certificate_group_kind"]
           name?: string
+          position_column?: string | null
           sheet_columns?: string[]
           sort?: number
           updated_at?: string
@@ -556,6 +601,7 @@ export type Database = {
           group_id: string
           id: string
           name: string
+          roll: string | null
           row_no: number
         }
         Insert: {
@@ -564,6 +610,7 @@ export type Database = {
           group_id: string
           id?: string
           name: string
+          roll?: string | null
           row_no: number
         }
         Update: {
@@ -572,6 +619,7 @@ export type Database = {
           group_id?: string
           id?: string
           name?: string
+          roll?: string | null
           row_no?: number
         }
         Relationships: [
@@ -2331,7 +2379,8 @@ export type Database = {
         | "gallery_manager"
       approval_status: "pending" | "approved" | "rejected"
       attendance_status: "open" | "closed"
-      certificate_group_kind: "participants" | "sheet"
+      certificate_base_kind: "participants" | "volunteers" | "winners"
+      certificate_group_kind: "participants" | "sheet" | "results"
       certificate_type: "participation" | "winner"
       checkin_method: "door" | "self" | "manual"
       club_category: "tech" | "media" | "cultural" | "wellness" | "career"
@@ -2485,7 +2534,8 @@ export const Constants = {
       ],
       approval_status: ["pending", "approved", "rejected"],
       attendance_status: ["open", "closed"],
-      certificate_group_kind: ["participants", "sheet"],
+      certificate_base_kind: ["participants", "volunteers", "winners"],
+      certificate_group_kind: ["participants", "sheet", "results"],
       certificate_type: ["participation", "winner"],
       checkin_method: ["door", "self", "manual"],
       club_category: ["tech", "media", "cultural", "wellness", "career"],

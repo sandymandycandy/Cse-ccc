@@ -20,6 +20,81 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-15)
 
+> ### 🧩 BUILT, NOT MERGED — certificate base templates, phase 1 (`feat/certificate-bases`, 2026-09-15)
+>
+> **Every event's Participants and Volunteers certificates follow a council base until customised.**
+> Spec `docs/superpowers/specs/2026-09-15-certificate-base-templates-design.md`, plan
+> `docs/superpowers/plans/2026-09-15-certificate-bases-phase1.md`. Gate: typecheck ✓ lint ✓ **988 tests** ✓ build ✓.
+>
+> - **Migration `certificate_bases` — APPLIED LIVE + VERIFIED** via the MCP (never `db push`):
+>   `certificate_bases` (RLS on; `anon`/`authenticated` hold nothing — all 6 privilege assertions false),
+>   `certificate_groups.base_kind` + **nullable `design`** (null = follows its base) + `position_column`
+>   (phase 2), `certificate_sheet_rows.roll`, `certificate_group_kind` gains `results` (phase 2), and
+>   `replace_certificate_sheet_rows` rewritten to carry `roll` (grants re-asserted: service_role only).
+>   The one live Participants group now follows.
+> - **How it works:** `CertificateGroup.design` is the *effective* design (`effectiveDesign` in
+>   `src/lib/certificates/bases.ts`), so issuing, previews, print and the outdated check follow a base
+>   without knowing bases exist. ⚠️ **Never read `certificate_groups.design` directly** — null means
+>   "use the base"; read `customDesign` when you specifically want the event's own.
+> - **UI:** a following group opens as the certificate itself (`CertificatePreview`, responsive) with
+>   **Customise**; the editor now has **Save for this event**, **Save as base ▾** (council-wide admins
+>   only, images copied into `certificate-assets/00000000-0000-0000-0000-000000000000/`, impact shown
+>   before overwriting), and **Reset to base**. Group chips read **● Base** / **◆ Custom**.
+> - **Volunteers exist on every event and are typed in by hand** — name, email, roll no. — with the
+>   CSV/Excel upload alongside (it now detects a roll column and warns that it replaces the list).
+>   ⚠️ Once someone holds a live certificate, their **name and email are locked** in that table:
+>   the key is derived from them, so an edit would orphan the certificate and queue a second one.
+> - **⚠️ NEVER OPENED IN A BROWSER.** The Chrome extension was not connected in the session that built
+>   this, so the harness panels (`/dev/certificate-designer?panel=base`, `?panel=list`) were verified
+>   only by their render tests and the pages' 200s. Check both at 1280 px and 400 px.
+> - **Owed human walkthrough** (as `sandy`, tech_head — TOTP blocks agents):
+>   1. On an event, design a certificate → **Save as base** → Participants + Volunteers.
+>   2. Open a second event: both groups show the certificate immediately, marked ● Base.
+>   3. Customise Volunteers there → Save for this event; edit the base from the first event →
+>      Participants changes on the second event, Volunteers does not.
+>   4. Reset Volunteers to base.
+>   5. Type three volunteers (one without an email), issue, then try to change the issued one's email →
+>      refused; change their roll no. → shows as outdated.
+> ### 🏆 BUILT, NOT MERGED — winner certificates, phase 2 (same branch, 2026-09-15)
+>
+> **Every event now has a Winners group too.** Plan `docs/superpowers/plans/2026-09-15-certificate-bases-phase2-winners.md`.
+> Gate: typecheck ✓ lint ✓ **1011 tests** ✓ build ✓. **No migration** — phase 1 already added everything.
+>
+> - **Where winners come from:** by default the **published results** — ranks 1–3 of the highest-`sort`
+>   round with published standings, **ties kept** (`1, 2, 3, 3`), every team member getting their own
+>   certificate. Or **a list you enter** (typed, or uploaded with a Position column). The rule for "which
+>   round" now lives once, in `podiumRound` (`src/lib/certificates/winners.ts`), and `/achievements` uses
+>   it too — a certificate can never disagree with the board or the results page.
+>   ⚠️ **Only PUBLISHED results count.** A certificate must never announce a placing the winner can't see.
+> - **Verified against live data (read-only):** the one event with published results returns ranks
+>   `1,2,3,3`, all four tied to registrations, with team members.
+> - **Fields:** `{Position}` → "1st", `{Position in words}` → "First". Offered only on the Winners group
+>   and the Winners base. A typed Position of `1`/`1st`/`First` normalises to "1st"; anything else
+>   ("Best UI") prints exactly as typed.
+> - **Ledger:** winners are `type: 'winner'` with `win:` recipient keys, so one person can hold a
+>   participation **and** a winner certificate. Issuing a Winners group checks `issue:winner_certificate`.
+>   `/verify` reads **"Winners · 1st place"** — from a top-level `snapshot.place`, never the whole snapshot
+>   (it holds email and roll).
+> - **Switching a Winners group's source is refused** while it has live certificates — the two sources key
+>   people differently, so a switch would give someone two.
+> - **A rank corrected after issuing:** still on the podium → shows outdated, re-issue as usual. **Dropped
+>   off** → the certificate stays live and appears in Recipients as **"Issued · no longer on the list"**,
+>   with Download and Revoke. **Nothing is revoked automatically.** The same applies to anyone removed from
+>   any list.
+> - **⚠️ A build-only bug existed between `5f2ac1c` and `36dd8c8`:** a sync helper was exported from the
+>   `"use server"` actions file. Typecheck, lint and tests all passed; only `npm run build` failed. Fixed.
+>   **Always run the build**, not just the tests, before calling a certificates change done.
+> - **⚠️ NEVER OPENED IN A BROWSER** (Chrome extension not connected): `/dev/certificate-designer?panel=winners`
+>   verified by render tests and a 200 only.
+> - **Owed human walkthrough, winners:**
+>   1. Open an event with published results → Winners → the podium count matches Results, ties included.
+>   2. Customise the Winners design with `{Position}`; preview the tied 3rd place.
+>   3. Issue to yourself; the email subject reads "Congratulations — your certificate for …".
+>   4. Scan the QR → "Winners · 3rd place".
+>   5. Try switching Winners to "A list I enter" → refused, naming the issued count.
+>
+> ---
+>
 > ## 📦 HANDOVER, 2026-09-15 — read this section, then do things in this order
 >
 > **`main` is clean and deployed. TWO branches are in flight, both pushed to GitHub, neither

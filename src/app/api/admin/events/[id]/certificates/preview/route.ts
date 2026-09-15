@@ -2,10 +2,10 @@ import { z } from "zod";
 import { requireSameOrigin, requireSession } from "@/lib/auth/guards";
 import { canManage } from "@/lib/auth/capabilities";
 import { getEventForAttendance } from "@/lib/admin/attendance";
-import { getGroup, getCertificateWorkspace } from "@/lib/admin/certificates";
+import { getGroup, getCertificateWorkspace, groupContext } from "@/lib/admin/certificates";
 import { assetLoader, verifyNewAssets } from "@/lib/certificates/assets";
 import { validateDesign } from "@/lib/certificates/design";
-import { designContextFor, fieldNameValue, formatIstDate } from "@/lib/certificates/fields";
+import { fieldNameValue, formatIstDate } from "@/lib/certificates/fields";
 import { loadFontFile } from "@/lib/certificates/font-files";
 import { renderCertificatesPdf } from "@/lib/certificates/render";
 import { siteOrigin } from "@/lib/site-origin";
@@ -98,7 +98,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const [ws, group] = await Promise.all([getCertificateWorkspace(id, guard.session.id), getGroup(id, body.data.groupId)]);
   if (!ws || !group) return Response.json({ error: "That certificate group no longer exists." }, { status: 404 });
 
-  const checked = validateDesign(body.data.design, designContextFor(ws.event.schema, group.sheetColumns));
+  const checked = validateDesign(body.data.design, groupContext(ws.event, group));
   if (!checked.ok) return Response.json({ error: checked.error }, { status: 400 });
   const loadAsset = assetLoader();
   const assetProblem = await verifyNewAssets(id, checked.design, group.design, loadAsset);

@@ -6,6 +6,7 @@ import {
   CERT_ASSET_BUCKET,
   LEGACY_TEMPLATE_BUCKET,
   MAX_ASSET_BYTES,
+  rewriteAssetRefs,
   type AssetRef,
   type Design,
 } from "./design";
@@ -80,4 +81,30 @@ export async function verifyNewAssets(
     known.add(assetKey(ref));
   }
   return null;
+}
+
+/**
+ * Copy the stored images a design points at into `folder` of the asset bucket,
+ * and return the design pointing at the copies. `keep` leaves an asset where it
+ * is — a base's own images are already in the council folder. Throws when an
+ * upload fails; nothing has been saved by then, so the caller just reports it.
+ */
+export async function copyDesignAssets(
+  design: Design,
+  folder: string,
+  keep: (ref: AssetRef) => boolean = () => false,
+  load: (ref: AssetRef) => Promise<Uint8Array> = assetLoader(),
+): Promise<{ design: Design; copied: AssetRef[] }> {
+  const admin = createAdminClient();
+  const moved = new Map<string, AssetRef>();
+  for (const ref of assetRefsOf(design)) {
+    if (keep(ref) || moved.has(assetKey(ref))) continue;
+    const path = `${folder}/${crypto.randomUUID()}.${ref.type}`;
+    const { error } = await admin.storage
+      .from(CERT_ASSET_BUCKET)
+      .upload(path, await load(ref), { contentType: ref.type === "png" ? "image/png" : "image/jpeg", upsert: false });
+    if (error) throw new Error(error.message);
+    moved.set(assetKey(ref), { ...ref, bucket: CERT_ASSET_BUCKET, path });
+  }
+  return { design: rewriteAssetRefs(design, (ref) => moved.get(assetKey(ref)) ?? ref), copied: [...moved.values()] };
 }

@@ -4,7 +4,7 @@ import type { Json } from "@/lib/database.types";
 import { writeAudit } from "./audit";
 import { assetLoader } from "@/lib/certificates/assets";
 import { isKnownField, parseStoredDesign, type Design } from "@/lib/certificates/design";
-import { designContextFor, formatIstDate, type FieldValues } from "@/lib/certificates/fields";
+import { formatIstDate, type FieldValues } from "@/lib/certificates/fields";
 import { loadFontFile } from "@/lib/certificates/font-files";
 import {
   certificateFileName,
@@ -24,6 +24,7 @@ import {
   ensureDesignVersion,
   getCertEvent,
   getCertificateWorkspace,
+  groupContext,
   listAllRecipients,
   listGroups,
   listOutdatedRecipients,
@@ -64,7 +65,7 @@ type Prepared = { recipient: Recipient; certificateId: string; pdf: Uint8Array; 
 /** A design is issuable when it has a template and every field it prints still exists. */
 export function designProblem(group: CertificateGroup, event: CertEvent): string | null {
   if (!group.design.page.template) return `"${group.name}" has no template yet — add one in the Design tab.`;
-  const ctx = designContextFor(event.schema, group.sheetColumns);
+  const ctx = groupContext(event, group);
   for (const element of group.design.elements) {
     if (element.type !== "text") continue;
     const stale = element.paragraphs
@@ -75,11 +76,31 @@ export function designProblem(group: CertificateGroup, event: CertEvent): string
   return null;
 }
 
+/**
+ * Which ledger type a group writes. Winners are `winner`, everyone else
+ * `participation` — the public verify page reads it, and so does the capability
+ * check in the actions (spec 2026-09-15 §4.4).
+ */
+export const certificateTypeOf = (group: CertificateGroup): "participation" | "winner" =>
+  group.baseKind === "winners" ? "winner" : "participation";
+
+/**
+ * What a certificate stores about itself. `place` is lifted out of `values` so
+ * the public verify page can read just it: the rest of `values` holds the
+ * recipient's email and roll and must never be selected whole.
+ */
+const snapshotOf = (values: FieldValues, groupLabel: string) => ({
+  values,
+  groupLabel,
+  place: values["winner.place"] || null,
+});
+
 /** Insert the ledger row first (at-most-once): a failed send deletes it again. */
 async function reserveCertificate(input: {
   eventId: string;
   groupId: string;
   groupLabel: string;
+  type: "participation" | "winner";
   versionId: string;
   recipient: Recipient;
   actorId: string;
@@ -98,7 +119,7 @@ async function reserveCertificate(input: {
       .insert({
         event_id: input.eventId,
         registration_id: input.recipient.registrationId,
-        type: "participation",
+        type: input.type,
         serial,
         hmac: certificateHmac(serial),
         issued_by: input.actorId,
@@ -107,7 +128,7 @@ async function reserveCertificate(input: {
         recipient_key: input.recipient.key,
         recipient_name: input.recipient.name,
         recipient_email: input.recipient.deliverTo,
-        snapshot: { values, groupLabel: input.groupLabel } as unknown as Json,
+        snapshot: snapshotOf(values, input.groupLabel) as unknown as Json,
       })
       .select("id")
       .single();
@@ -123,12 +144,18 @@ const deleteRows = async (ids: string[]) => {
   if (ids.length > 0) await createAdminClient().from("certificates").delete().in("id", ids);
 };
 
-/** The email one destination receives, carrying every certificate bound for it. */
-function destinationEmail(input: { eventTitle: string; toName: string; prepared: Prepared[] }) {
+/**
+ * The email one destination receives, carrying every certificate bound for it.
+ * A single winner gets congratulated by name; a bundle keeps the neutral wording,
+ * since it may mix a winner's certificate with their team-mates' (spec §4.4).
+ */
+function destinationEmail(input: { eventTitle: string; toName: string; prepared: Prepared[]; winner?: boolean }) {
   const many = input.prepared.length > 1;
   const subject = many
     ? `Certificates — ${input.eventTitle} (${input.prepared.length})`
-    : `Your certificate — ${input.eventTitle}`;
+    : input.winner
+      ? `Congratulations — your certificate for ${input.eventTitle}`
+      : `Your certificate — ${input.eventTitle}`;
   const payload = many
     ? {
         body: `Attached: ${input.prepared.map((p) => p.recipient.name).join(", ")}.`,
@@ -195,6 +222,7 @@ export async function issueBatch(args: {
         eventId: args.eventId,
         groupId: group.id,
         groupLabel: recipient.groupLabel,
+        type: certificateTypeOf(group),
         versionId: await versionFor(group),
         recipient,
         actorId: args.actorId,
@@ -219,6 +247,7 @@ export async function issueBatch(args: {
         eventId: args.eventId,
         groupId: group.id,
         groupLabel: recipient.groupLabel,
+        type: certificateTypeOf(group),
         versionId: await versionFor(group),
         recipient,
         actorId: args.actorId,
@@ -262,7 +291,12 @@ export async function issueBatch(args: {
         contentType: "application/pdf",
       }));
       const toName = chunk[0].recipient.name;
-      const { subject, html, text } = destinationEmail({ eventTitle: event.title, toName, prepared: chunk });
+      const { subject, html, text } = destinationEmail({
+        eventTitle: event.title,
+        toName,
+        prepared: chunk,
+        winner: chunk.every((p) => certificateTypeOf(byGroup.get(p.recipient.groupId)!) === "winner"),
+      });
       const sent = await sendEmail({ to: destination.email, subject, html, text, attachments });
       if (sent.ok) {
         result.sent += chunk.length;
@@ -292,10 +326,14 @@ async function auditRun(
     entity: "certificate",
     entityId: args.eventId,
     after: {
-      type: "participation",
+      type: [...new Set(groups.map(certificateTypeOf))].join("+"),
       mode,
       groups: groups.map((g) => g.name),
-      source: groups.some((g) => g.kind === "sheet") ? "sheet" : "attendance",
+      source: groups.some((g) => g.kind === "results")
+        ? "results"
+        : groups.some((g) => g.kind === "sheet")
+          ? "sheet"
+          : "attendance",
       sent: result.sent,
       recorded: result.recorded,
       failed: result.failed,
@@ -405,7 +443,7 @@ async function supersedeCertificate(input: {
       design_version_id: input.versionId,
       recipient_name: input.recipient.name,
       recipient_email: input.recipient.deliverTo,
-      snapshot: { values, groupLabel: input.recipient.groupLabel },
+      snapshot: snapshotOf(values, input.recipient.groupLabel),
     } as unknown as Json,
   });
   if (error || !data) return null;
@@ -639,6 +677,7 @@ export async function reissueForRecipient(args: {
       eventId: args.eventId,
       groupId: group.id,
       groupLabel: recipient.groupLabel,
+      type: certificateTypeOf(group),
       versionId,
       recipient,
       actorId: args.actorId,

@@ -1,9 +1,13 @@
 "use client";
 
+import { summarizeBases, type BaseDesign, type BaseKind } from "@/lib/certificates/bases";
 import { DEFAULT_STYLE, assetKey, type AssetRef, type Design } from "@/lib/certificates/design";
 import { buildFieldCatalogue } from "@/lib/certificates/fields";
 import { defaultFormFor, type FormField } from "@/lib/registration-form/schema";
 import { DesignerLoader } from "./DesignerLoader";
+import { DesignTab } from "./DesignTab";
+import { ListEditor } from "./ListEditor";
+import { WinnersPanel } from "./WinnersPanel";
 
 // Sample data only — never a real person.
 const svgUrl = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
@@ -120,7 +124,133 @@ export function DesignerHarness() {
       previewRecipients={people}
       issuedCount={0}
       designSources={[]}
+      baseKind={null}
+      followsBase={false}
+      bases={NO_BASES}
+      savableBases={[]}
+      baseImpact={{}}
       offline
     />
+  );
+}
+
+const NO_BASES = summarizeBases(new Map());
+
+const SAVED_BASES = summarizeBases(
+  new Map<BaseKind, BaseDesign>([
+    ["participants", { kind: "participants", design, sourceEventTitle: "Hack Night 2026", updatedAt: "2026-09-12T10:00:00Z" }],
+  ]),
+);
+
+/** A Participants group following a saved council base, as a council admin sees it. */
+export function BaseHarness() {
+  return (
+    <DesignTab
+      eventId="00000000-0000-4000-8000-000000000000"
+      groupId="00000000-0000-4000-8000-00000000000b"
+      initialDesign={design}
+      initialAssetUrls={{ [assetKey(TEMPLATE)]: svgUrl(TEMPLATE_SVG), [assetKey(LOGO)]: svgUrl(LOGO_SVG) }}
+      catalogue={catalogue}
+      previewRecipients={people}
+      issuedCount={0}
+      designSources={[]}
+      baseKind="participants"
+      followsBase
+      bases={SAVED_BASES}
+      savableBases={["participants", "volunteers"]}
+      baseImpact={{ participants: { following: 9, withLive: 2 } }}
+      offline
+    />
+  );
+}
+
+const winnerDesign: Design = {
+  ...design,
+  elements: design.elements.map((el) =>
+    el.id === "body" && el.type === "text"
+      ? {
+          ...el,
+          paragraphs: [
+            {
+              runs: [
+                { kind: "text" as const, text: "was awarded ", style: { ...DEFAULT_STYLE, font: "lora" as const, sizePct: 2.6 } },
+                { kind: "field" as const, field: "winner.place", transform: "none" as const, style: { ...DEFAULT_STYLE, font: "lora" as const, sizePct: 2.6, bold: true } },
+                { kind: "text" as const, text: " place in ", style: { ...DEFAULT_STYLE, font: "lora" as const, sizePct: 2.6 } },
+                { kind: "field" as const, field: "event.title", transform: "none" as const, style: { ...DEFAULT_STYLE, font: "lora" as const, sizePct: 2.6, italic: true } },
+                { kind: "text" as const, text: ".", style: { ...DEFAULT_STYLE, font: "lora" as const, sizePct: 2.6 } },
+              ],
+            },
+          ],
+        }
+      : el,
+  ),
+};
+
+// Two students sharing third, as the live PITCH DESK standings do.
+const winners = [
+  { key: "win:1", name: "asha r", place: "1st", words: "First" },
+  { key: "win:2", name: "Karthik S", place: "2nd", words: "Second" },
+  { key: "win:3", name: "Meena P", place: "3rd", words: "Third" },
+  { key: "win:4", name: "Ravi K", place: "3rd", words: "Third" },
+].map((w) => ({
+  key: w.key,
+  name: w.name,
+  values: { "person.name": w.name, "winner.place": w.place, "winner.placeWords": w.words, "event.title": "PITCH DESK" },
+}));
+
+/** The Winners group: podium source, and its certificate previewed for a tied third place. */
+export function WinnersHarness() {
+  return (
+    <div style={{ display: "grid", gap: 16 }}>
+      <div className="cd-groups">
+        <WinnersPanel
+          eventId="00000000-0000-4000-8000-000000000000"
+          groupId="00000000-0000-4000-8000-00000000000d"
+          groupName="Winners"
+          source="results"
+          people={winners.length}
+          rows={[]}
+          offline
+        />
+      </div>
+      <DesignTab
+        eventId="00000000-0000-4000-8000-000000000000"
+        groupId="00000000-0000-4000-8000-00000000000d"
+        initialDesign={winnerDesign}
+        initialAssetUrls={{ [assetKey(TEMPLATE)]: svgUrl(TEMPLATE_SVG), [assetKey(LOGO)]: svgUrl(LOGO_SVG) }}
+        catalogue={buildFieldCatalogue({ formSchema: defaultFormFor(), winnerFields: true })}
+        previewRecipients={winners}
+        issuedCount={0}
+        designSources={[]}
+        baseKind="winners"
+        followsBase
+        bases={summarizeBases(
+          new Map<BaseKind, BaseDesign>([
+            ["winners", { kind: "winners", design: winnerDesign, sourceEventTitle: "PITCH DESK", updatedAt: "2026-09-12T10:00:00Z" }],
+          ]),
+        )}
+        savableBases={["participants", "volunteers", "winners"]}
+        baseImpact={{ winners: { following: 4, withLive: 0 } }}
+        offline
+      />
+    </div>
+  );
+}
+
+/** A Volunteers list with typed people. */
+export function ListHarness() {
+  return (
+    <div className="cd-groups">
+      <ListEditor
+        eventId="00000000-0000-4000-8000-000000000000"
+        groupId="00000000-0000-4000-8000-00000000000c"
+        groupName="Volunteers"
+        rows={[
+          { id: "r1", row_no: 1, name: "Asha R", email: "asha@example.test", roll: "VTU27001", data: {} },
+          { id: "r2", row_no: 2, name: "Karthik S", email: null, roll: "VTU27044", data: {} },
+        ]}
+        offline
+      />
+    </div>
   );
 }

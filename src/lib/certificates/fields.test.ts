@@ -12,6 +12,7 @@ import {
   teamOf,
   registrantValues,
   titleCase,
+  winnerValues,
   type CertEventInfo,
   type RegistrationForFields,
 } from "./fields";
@@ -68,6 +69,16 @@ describe("buildFieldCatalogue", () => {
     expect(groups.find((g) => g.id === "sheet")!.fields).toEqual([{ key: "sheet.Role", label: "Role" }]);
   });
 
+  it("offers the winner fields only to a winners group", () => {
+    const plain = buildFieldCatalogue({ formSchema: [] });
+    expect(plain.map((g) => g.id)).not.toContain("winner");
+    const winners = buildFieldCatalogue({ formSchema: [], winnerFields: true });
+    expect(winners.find((g) => g.id === "winner")!.fields).toEqual([
+      { key: "winner.place", label: "Position" },
+      { key: "winner.placeWords", label: "Position in words" },
+    ]);
+  });
+
   it("labels keys, falling back to the raw key", () => {
     const groups = buildFieldCatalogue({ formSchema: [projectQ] });
     expect(fieldLabel(groups, "form.project")).toBe("Project title");
@@ -81,6 +92,61 @@ describe("designContextFor", () => {
     const ctx = designContextFor([...defaultFormFor(), section, projectQ, teamBlock], ["Role"]);
     expect([...ctx.formFieldIds]).toEqual(["project"]);
     expect([...ctx.sheetColumns]).toEqual(["Role"]);
+  });
+
+  it("allows winner fields only when the group is a winners group", () => {
+    expect(designContextFor([]).winnerFields).toBe(false);
+    expect(designContextFor([], [], true).winnerFields).toBe(true);
+  });
+});
+
+describe("winnerValues", () => {
+  it("prints the placing, the person and their team", () => {
+    const v = winnerValues({
+      event,
+      standing: {
+        place: 2,
+        rollNo: "VTU27001",
+        displayName: "Asha R",
+        teamName: "Byte Me",
+        teamMembers: [{ name: "Ravi K", roll: "VTU27099" }],
+        registrationId: null,
+      },
+      person: { name: "Asha R", roll: "VTU27001", email: null },
+      groupLabel: "Winner",
+    });
+    expect(v).toMatchObject({
+      "person.name": "Asha R",
+      "person.roll": "VTU27001",
+      "person.role": "Winner",
+      "team.name": "Byte Me",
+      "team.members": "Asha R, Ravi K",
+      "team.size": "2",
+      "winner.place": "2nd",
+      "winner.placeWords": "Second",
+      "event.title": "Hack Night",
+      "cert.group": "Winner",
+    });
+  });
+
+  it("leaves team fields empty for a solo winner", () => {
+    const v = winnerValues({
+      event,
+      standing: {
+        place: 1,
+        rollNo: "VTU27001",
+        displayName: "Asha R",
+        teamName: null,
+        teamMembers: [],
+        registrationId: null,
+      },
+      person: { name: "Asha R", roll: "VTU27001", email: "a@x.com" },
+      groupLabel: "Winner",
+    });
+    expect(v["team.name"]).toBe("");
+    expect(v["team.size"]).toBe("");
+    expect(v["person.email"]).toBe("a@x.com");
+    expect(v["winner.place"]).toBe("1st");
   });
 });
 
@@ -165,7 +231,7 @@ describe("registrantValues", () => {
     const v = sheetValues({
       event,
       columns: ["Role", "Shift"],
-      row: { name: " Kim ", email: "kim@x.com", data: { Role: "Judge", Shift: 2 } },
+      row: { name: " Kim ", email: "kim@x.com", roll: null, data: { Role: "Judge", Shift: 2 } },
       groupLabel: "Judges",
     });
     expect(v).toMatchObject({
@@ -179,6 +245,16 @@ describe("registrantValues", () => {
       "event.date": "14 September 2026",
       "cert.group": "Judges",
     });
+  });
+
+  it("prints a typed or uploaded roll no. as the person's roll", () => {
+    const v = sheetValues({
+      event,
+      columns: [],
+      row: { name: "Asha", email: null, roll: " VTU27001 ", data: {} },
+      groupLabel: "Volunteers",
+    });
+    expect(v["person.roll"]).toBe("VTU27001");
   });
 
   it("resolves a team leader with the whole team, skipping blank member rows", () => {

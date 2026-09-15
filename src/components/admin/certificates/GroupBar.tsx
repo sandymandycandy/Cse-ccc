@@ -7,7 +7,10 @@ import {
   deleteCertificateGroupAction,
   renameCertificateGroupAction,
 } from "@/app/admin/(app)/events/[id]/certificates/actions";
-import { SheetUpload } from "./SheetUpload";
+import type { BaseKind } from "@/lib/certificates/bases";
+import type { ListRow } from "@/lib/certificates/sheet";
+import { ListEditor } from "./ListEditor";
+import { WinnersPanel } from "./WinnersPanel";
 
 /**
  * The groups an event issues certificates for (spec D6): Participants, plus any
@@ -17,8 +20,11 @@ import { SheetUpload } from "./SheetUpload";
 export interface GroupSummary {
   id: string;
   name: string;
-  kind: "participants" | "sheet";
+  kind: "participants" | "sheet" | "results";
   people: number;
+  /** The council base slot this group fills; null for an extra group. */
+  baseKind: BaseKind | null;
+  followsBase: boolean;
 }
 
 export function GroupBar({
@@ -26,11 +32,14 @@ export function GroupBar({
   groups,
   activeId,
   tab,
+  listRows,
 }: {
   eventId: string;
   groups: GroupSummary[];
   activeId: string;
   tab: string;
+  /** The active group's people, when it is a list group. */
+  listRows: ListRow[];
 }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
@@ -80,7 +89,7 @@ export function GroupBar({
       return;
     }
     setConfirmDelete(false);
-    go(groups.find((g) => g.kind === "participants")?.id ?? groups[0].id);
+    go(groups.find((g) => g.baseKind === "participants")?.id ?? groups[0].id);
   }
 
   return (
@@ -95,7 +104,8 @@ export function GroupBar({
             aria-pressed={group.id === activeId}
             onClick={() => go(group.id)}
           >
-            {group.name} · {group.people}
+            {group.name} · {group.people}{" "}
+            <span className="cd-badge">{group.followsBase ? "● Base" : "◆ Custom"}</span>
           </button>
         ))}
         {adding ? null : (
@@ -103,7 +113,7 @@ export function GroupBar({
             + Group
           </button>
         )}
-        {active?.kind === "sheet" && !renaming ? (
+        {active && active.baseKind === null && !renaming ? (
           <>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setRenaming(true); setName(active.name); }}>
               Rename
@@ -158,8 +168,18 @@ export function GroupBar({
         </div>
       ) : null}
 
-      {active?.kind === "sheet" ? (
-        <SheetUpload eventId={eventId} groupId={active.id} groupName={active.name} />
+      {active?.baseKind === "winners" ? (
+        <WinnersPanel
+          key={active.id}
+          eventId={eventId}
+          groupId={active.id}
+          groupName={active.name}
+          source={active.kind === "results" ? "results" : "sheet"}
+          people={active.people}
+          rows={listRows}
+        />
+      ) : active?.kind === "sheet" ? (
+        <ListEditor key={active.id} eventId={eventId} groupId={active.id} groupName={active.name} rows={listRows} />
       ) : null}
 
       {error ? (

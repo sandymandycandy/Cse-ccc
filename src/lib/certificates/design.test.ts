@@ -10,6 +10,8 @@ import {
   newElementId,
   parseStoredDesign,
   assetKey,
+  rewriteAssetRefs,
+  type AssetRef,
   type Design,
   type DesignContext,
   type TextElement,
@@ -213,5 +215,29 @@ describe("qr elements", () => {
 
   it("carries no asset", () => {
     expect(assetRefsOf({ ...emptyDesign(), elements: [qr] } as Design)).toEqual([]);
+  });
+});
+
+describe("rewriteAssetRefs", () => {
+  it("swaps the template and every image, leaving other elements alone", () => {
+    const t: AssetRef = { bucket: "certificate-assets", path: "a/t.png", type: "png", widthPx: 10, heightPx: 10 };
+    const logo: AssetRef = { ...t, path: "a/logo.png" };
+    const design: Design = {
+      v: 1,
+      page: { template: t, widthPx: 10, heightPx: 10 },
+      elements: [
+        { id: "logo", name: "Logo", type: "image", x: 0, y: 0, w: 5, h: 5, locked: false, hidden: false, opacity: 1, asset: logo },
+        { id: "qr", name: "QR", type: "qr", x: 0, y: 0, w: 5, h: 5, locked: false, hidden: false, color: "#000000" },
+      ],
+    };
+    const out = rewriteAssetRefs(design, (ref) => ({ ...ref, path: ref.path.replace("a/", "b/") }));
+    expect(out.page.template?.path).toBe("b/t.png");
+    expect(out.elements[0].type === "image" && out.elements[0].asset.path).toBe("b/logo.png");
+    expect(out.elements[1]).toBe(design.elements[1]);
+    expect(design.page.template?.path).toBe("a/t.png");
+  });
+
+  it("keeps a missing template missing", () => {
+    expect(rewriteAssetRefs(emptyDesign(), (r) => r).page.template).toBeNull();
   });
 });

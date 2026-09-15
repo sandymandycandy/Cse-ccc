@@ -26,9 +26,13 @@ import {
   registrantValues,
   sheetValues,
   teamOf,
+  winnerValues,
   type CertEventInfo,
   type FieldGroup,
+  type FieldValues,
 } from "@/lib/certificates/fields";
+import { parsePosition } from "@/lib/certificates/winners";
+import { listWinnerStandings } from "./certificate-winners";
 import { sniffImage } from "@/lib/certificates/image-type";
 import {
   countRecipients,
@@ -38,13 +42,25 @@ import {
   registrationKey,
   sheetKey,
   statusByKey,
+  winnerKey,
+  winnerMemberKey,
+  winnerRollKey,
   type LiveCertificate,
   type Recipient,
   type RecipientCounts,
+  type RecipientStatus,
 } from "@/lib/certificates/recipients";
 import { designWithUnknownFieldsAsText } from "@/lib/certificates/rich-text";
-import type { SheetRow } from "@/lib/certificates/sheet";
-import { getEventFormSchema, listRegistrations } from "./registrations";
+import type { ListRow, SheetRow } from "@/lib/certificates/sheet";
+import {
+  effectiveDesign,
+  summarizeBases,
+  type BaseDesign,
+  type BaseKind,
+  type BaseSummary,
+} from "@/lib/certificates/bases";
+import { loadBases } from "./certificate-bases";
+import { getEventFormSchema, listRegistrations, type RegistrationRow } from "./registrations";
 
 /**
  * Data layer for the certificate designer (spec §4). Service-role reads and
@@ -52,7 +68,14 @@ import { getEventFormSchema, listRegistrations } from "./registrations";
  */
 
 export const PARTICIPATION_LABEL = "Participation";
-const GROUP_COLUMNS = "id, event_id, kind, name, design, sheet_columns";
+export const WINNER_LABEL = "Winner";
+const GROUP_COLUMNS = "id, event_id, kind, name, design, base_kind, sheet_columns, position_column";
+
+/**
+ * Where a group's people come from: the event's attendees, an uploaded/typed
+ * list, or its published podium (spec 2026-09-15 §4.1).
+ */
+export type CertificateGroupKind = "participants" | "sheet" | "results";
 
 export interface CertEvent {
   id: string;
@@ -98,49 +121,91 @@ export async function getCertEvent(eventId: string): Promise<CertEvent | null> {
 export interface CertificateGroup {
   id: string;
   eventId: string;
-  kind: "participants" | "sheet";
+  kind: CertificateGroupKind;
   name: string;
+  /**
+   * The design this group prints with — its own once customised, otherwise its
+   * council base's (spec 2026-09-15 §3). Issuing, previews, print and outdated
+   * checks all read this, so they follow the base without knowing it exists.
+   */
   design: Design;
+  /** The group's own saved design; null while it follows its base. */
+  customDesign: Design | null;
+  /** The base slot this group fills; null for an extra group (Judges…), which is always custom. */
+  baseKind: BaseKind | null;
+  followsBase: boolean;
   sheetColumns: string[];
+  /** Winners from an uploaded list: which column holds the placing. */
+  positionColumn: string | null;
 }
 
 type GroupRow = {
   id: string;
   event_id: string;
-  kind: "participants" | "sheet";
+  kind: CertificateGroupKind;
   name: string;
-  design: Json;
+  design: Json | null;
+  base_kind: BaseKind | null;
   sheet_columns: string[] | null;
+  position_column: string | null;
 };
 
-const toGroup = (row: GroupRow): CertificateGroup => ({
-  id: row.id,
-  eventId: row.event_id,
-  kind: row.kind,
-  name: row.name,
-  design: parseStoredDesign(row.design) ?? emptyDesign(),
-  sheetColumns: row.sheet_columns ?? [],
-});
+const toGroup = (row: GroupRow, bases: ReadonlyMap<BaseKind, BaseDesign>): CertificateGroup => {
+  const customDesign = row.design === null ? null : (parseStoredDesign(row.design) ?? emptyDesign());
+  return {
+    id: row.id,
+    eventId: row.event_id,
+    kind: row.kind,
+    name: row.name,
+    design: effectiveDesign({ customDesign, baseKind: row.base_kind }, bases),
+    customDesign,
+    baseKind: row.base_kind,
+    followsBase: customDesign === null,
+    sheetColumns: row.sheet_columns ?? [],
+    positionColumn: row.position_column,
+  };
+};
 
 export async function getGroup(eventId: string, groupId: string): Promise<CertificateGroup | null> {
-  const { data } = await createAdminClient()
-    .from("certificate_groups")
-    .select(GROUP_COLUMNS)
-    .eq("event_id", eventId)
-    .eq("id", groupId)
-    .maybeSingle();
-  return data ? toGroup(data as GroupRow) : null;
+  const [{ data }, bases] = await Promise.all([
+    createAdminClient()
+      .from("certificate_groups")
+      .select(GROUP_COLUMNS)
+      .eq("event_id", eventId)
+      .eq("id", groupId)
+      .maybeSingle(),
+    loadBases(),
+  ]);
+  return data ? toGroup(data as GroupRow, bases) : null;
 }
 
 export async function getParticipantsGroup(eventId: string): Promise<CertificateGroup | null> {
-  const { data } = await createAdminClient()
-    .from("certificate_groups")
-    .select(GROUP_COLUMNS)
-    .eq("event_id", eventId)
-    .eq("kind", "participants")
-    .maybeSingle();
-  return data ? toGroup(data as GroupRow) : null;
+  const [{ data }, bases] = await Promise.all([
+    createAdminClient()
+      .from("certificate_groups")
+      .select(GROUP_COLUMNS)
+      .eq("event_id", eventId)
+      .eq("kind", "participants")
+      .maybeSingle(),
+    loadBases(),
+  ]);
+  return data ? toGroup(data as GroupRow, bases) : null;
 }
+
+/**
+ * What a group's design may reference: this event's form answers, the group's
+ * own list columns, and — on a Winners group — the placing (spec §4.3).
+ */
+export const groupContext = (event: CertEvent, group: CertificateGroup) =>
+  designContextFor(event.schema, group.sheetColumns, group.baseKind === "winners");
+
+/** The + Field menu for a group, with the same winner rule as `groupContext`. */
+export const groupCatalogue = (event: CertEvent, group: CertificateGroup) =>
+  buildFieldCatalogue({
+    formSchema: event.schema,
+    sheetColumns: group.sheetColumns,
+    winnerFields: group.baseKind === "winners",
+  });
 
 /** The identity of a design: the hash its version row is keyed by. */
 export const designHash = (design: Design): string =>
@@ -171,7 +236,7 @@ export async function liveCertificateDetails(eventId: string): Promise<Map<strin
     .from("certificates")
     .select("id, design_version_id, snapshot")
     .eq("event_id", eventId)
-    .eq("type", "participation")
+    // Both types: a Winners group's certificates go stale the same way.
     .is("revoked_at", null);
   const out = new Map<string, LiveCertificate>();
   for (const row of (data ?? []) as { id: string; design_version_id: string | null; snapshot: Json | null }[]) {
@@ -222,39 +287,48 @@ export async function ensureDesignVersion(groupId: string, design: Design): Prom
   throw new Error("Could not record the design version.");
 }
 
-/** v1's uploaded image + name anchor as a design, or an empty design. */
-async function designFromV1(eventId: string): Promise<Design> {
+/** v1's uploaded image + name anchor as a design, or null when the event never had one. */
+async function designFromV1(eventId: string): Promise<Design | null> {
   const admin = createAdminClient();
   const { data: ev } = await admin
     .from("events")
     .select("certificate_template, certificate_config")
     .eq("id", eventId)
     .maybeSingle();
-  if (!ev?.certificate_template) return emptyDesign();
+  if (!ev?.certificate_template) return null;
   const dl = await admin.storage.from(LEGACY_TEMPLATE_BUCKET).download(ev.certificate_template);
-  if (dl.error || !dl.data) return emptyDesign();
+  if (dl.error || !dl.data) return null;
   const image = sniffImage(new Uint8Array(await dl.data.arrayBuffer()));
-  if (!image) return emptyDesign();
+  if (!image) return null;
   const design = designFromLegacyConfig(
     { path: ev.certificate_template, type: image.type, widthPx: image.width, heightPx: image.height },
     validateCertificateConfig(ev.certificate_config),
   );
-  return validateDesign(design, { formFieldIds: new Set(), sheetColumns: new Set() }).ok ? design : emptyDesign();
+  return validateDesign(design, { formFieldIds: new Set(), sheetColumns: new Set() }).ok ? design : null;
 }
 
 /**
  * The event's Participants group, created on first visit — converting a v1
  * setup if there is one and attaching v1-issued certificates to it (spec §9).
+ * Without a v1 setup it follows the council's Participants base.
  */
 export async function ensureParticipantsGroup(eventId: string, actorId: string | null): Promise<CertificateGroup> {
   const existing = await getParticipantsGroup(eventId);
   if (existing) return existing;
 
   const admin = createAdminClient();
-  const design = await designFromV1(eventId);
+  const legacyDesign = await designFromV1(eventId);
   const { data, error } = await admin
     .from("certificate_groups")
-    .insert({ event_id: eventId, kind: "participants", name: "Participants", design: design as unknown as Json, created_by: actorId })
+    .insert({
+      event_id: eventId,
+      kind: "participants",
+      base_kind: "participants",
+      name: "Participants",
+      // A v1 setup is this event's own design; otherwise it follows the council base.
+      design: legacyDesign as unknown as Json | null,
+      created_by: actorId,
+    })
     .select(GROUP_COLUMNS)
     .single();
   if (error || !data) {
@@ -262,7 +336,7 @@ export async function ensureParticipantsGroup(eventId: string, actorId: string |
     if (raced) return raced;
     throw new Error("Could not set up certificates for this event.");
   }
-  const group = toGroup(data as GroupRow);
+  const group = toGroup(data as GroupRow, await loadBases());
 
   const { data: legacy } = await admin
     .from("certificates")
@@ -283,21 +357,54 @@ export async function ensureParticipantsGroup(eventId: string, actorId: string |
   return group;
 }
 
-/** Every group on the event, Participants first. */
-export async function listGroups(eventId: string, actorId: string | null): Promise<CertificateGroup[]> {
-  await ensureParticipantsGroup(eventId, actorId);
-  const { data } = await createAdminClient()
+/**
+ * The fixed groups every event has besides Participants (spec 2026-09-15 §1.1).
+ * Winners default to `results` — their people come from the published podium —
+ * and can be switched to an uploaded list.
+ */
+const LIST_SLOTS: { baseKind: BaseKind; name: string; kind: "sheet" | "results" }[] = [
+  { baseKind: "volunteers", name: "Volunteers", kind: "sheet" },
+  { baseKind: "winners", name: "Winners", kind: "results" },
+];
+
+const SLOT_RANK: Record<BaseKind, number> = { participants: 0, volunteers: 1, winners: 2 };
+const slotRank = (group: CertificateGroup) => (group.baseKind ? SLOT_RANK[group.baseKind] : 3);
+
+async function ensureListSlots(eventId: string, actorId: string | null): Promise<void> {
+  const admin = createAdminClient();
+  const { data } = await admin
     .from("certificate_groups")
-    .select(GROUP_COLUMNS)
+    .select("base_kind")
     .eq("event_id", eventId)
-    .order("kind", { ascending: true })
-    .order("sort", { ascending: true })
-    .order("created_at", { ascending: true });
-  const groups = (data ?? []).map((row) => toGroup(row as GroupRow));
-  return [...groups].sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "participants" ? -1 : 1));
+    .not("base_kind", "is", null);
+  const have = new Set((data ?? []).map((row) => row.base_kind));
+  for (const slot of LIST_SLOTS) {
+    if (have.has(slot.baseKind)) continue;
+    // Another tab racing this insert loses on certificate_groups_one_per_base. Harmless: the group exists.
+    await admin
+      .from("certificate_groups")
+      .insert({ event_id: eventId, kind: slot.kind, base_kind: slot.baseKind, name: slot.name, design: null, created_by: actorId });
+  }
 }
 
-/** A new uploaded-list group, starting from the Participants design so it looks the same. */
+/** Every group on the event: Participants, Volunteers, then extra groups in the order they were added. */
+export async function listGroups(eventId: string, actorId: string | null): Promise<CertificateGroup[]> {
+  await ensureParticipantsGroup(eventId, actorId);
+  await ensureListSlots(eventId, actorId);
+  const [{ data }, bases] = await Promise.all([
+    createAdminClient()
+      .from("certificate_groups")
+      .select(GROUP_COLUMNS)
+      .eq("event_id", eventId)
+      .order("sort", { ascending: true })
+      .order("created_at", { ascending: true }),
+    loadBases(),
+  ]);
+  const groups = (data ?? []).map((row) => toGroup(row as GroupRow, bases));
+  return [...groups].sort((a, b) => slotRank(a) - slotRank(b));
+}
+
+/** A new extra list group (Judges…), starting from whatever Participants currently prints with. Always custom. */
 export async function createSheetGroup(input: {
   eventId: string;
   name: string;
@@ -317,40 +424,114 @@ export async function createSheetGroup(input: {
     .select(GROUP_COLUMNS)
     .single();
   if (error || !data) return { error: "Could not add that group. Try again." };
-  return toGroup(data as GroupRow);
+  // Its design is its own, so no base is needed to resolve it.
+  return toGroup(data as GroupRow, new Map());
 }
 
 export async function renameGroup(eventId: string, groupId: string, name: string): Promise<boolean> {
-  const { error } = await createAdminClient()
+  const { data, error } = await createAdminClient()
     .from("certificate_groups")
     .update({ name, updated_at: new Date().toISOString() })
     .eq("id", groupId)
     .eq("event_id", eventId)
-    .eq("kind", "sheet");
-  return !error;
+    .is("base_kind", null)
+    .select("id");
+  return !error && (data?.length ?? 0) > 0;
 }
 
-/** Delete an uploaded group. Certificates already issued from it keep their snapshot. */
+/** Delete an extra group. Base slots (Participants, Volunteers) can't be. Issued certificates keep their snapshot. */
 export async function deleteSheetGroup(eventId: string, groupId: string): Promise<boolean> {
-  const { error } = await createAdminClient()
+  const { data, error } = await createAdminClient()
     .from("certificate_groups")
     .delete()
     .eq("id", groupId)
     .eq("event_id", eventId)
-    .eq("kind", "sheet");
-  return !error;
+    .is("base_kind", null)
+    .select("id");
+  return !error && (data?.length ?? 0) > 0;
 }
 
-export async function listSheetRows(groupId: string): Promise<SheetRow[]> {
+/** A live certificate whose recipient is no longer on any list (spec §4.4). */
+export interface OrphanCertificate {
+  certificateId: string;
+  key: string;
+  groupId: string | null;
+  name: string;
+  serial: string;
+  issuedAt: string;
+}
+
+/**
+ * Certificates that are still live but whose person no longer appears — a
+ * winner whose rank was corrected off the podium, someone deleted from a list,
+ * an attendance mark undone. Nothing is revoked automatically: the ledger is
+ * the record of what was actually sent, so a human decides.
+ */
+export async function listOrphanCertificates(eventId: string, recipients: Recipient[]): Promise<OrphanCertificate[]> {
+  const { data } = await createAdminClient()
+    .from("certificates")
+    .select("id, recipient_key, recipient_name, serial, issued_at, group_id")
+    .eq("event_id", eventId)
+    .is("revoked_at", null);
+  const known = new Set(recipients.map((r) => r.key));
+  return ((data ?? []) as {
+    id: string;
+    recipient_key: string | null;
+    recipient_name: string | null;
+    serial: string;
+    issued_at: string;
+    group_id: string | null;
+  }[])
+    .filter((row) => row.recipient_key && !known.has(row.recipient_key))
+    .map((row) => ({
+      certificateId: row.id,
+      key: row.recipient_key!,
+      groupId: row.group_id,
+      name: row.recipient_name?.trim() || row.recipient_key!,
+      serial: row.serial,
+      issuedAt: row.issued_at,
+    }));
+}
+
+/** Live certificates a group has issued — what blocks changing where its people come from. */
+export async function countLiveCertificates(eventId: string, groupId: string): Promise<number> {
+  const { count } = await createAdminClient()
+    .from("certificates")
+    .select("id", { count: "exact", head: true })
+    .eq("event_id", eventId)
+    .eq("group_id", groupId)
+    .is("revoked_at", null);
+  return count ?? 0;
+}
+
+/** Change where a group's people come from (Winners: published results, or an uploaded list). */
+export async function setGroupKind(
+  eventId: string,
+  groupId: string,
+  kind: "sheet" | "results",
+): Promise<boolean> {
+  const { data, error } = await createAdminClient()
+    .from("certificate_groups")
+    .update({ kind, updated_at: new Date().toISOString() })
+    .eq("id", groupId)
+    .eq("event_id", eventId)
+    .eq("base_kind", "winners")
+    .select("id");
+  return !error && (data?.length ?? 0) > 0;
+}
+
+export async function listSheetRows(groupId: string): Promise<ListRow[]> {
   const { data } = await createAdminClient()
     .from("certificate_sheet_rows")
-    .select("row_no, name, email, data")
+    .select("id, row_no, name, email, roll, data")
     .eq("group_id", groupId)
     .order("row_no", { ascending: true });
   return (data ?? []).map((r) => ({
+    id: r.id,
     row_no: r.row_no,
     name: r.name,
     email: r.email,
+    roll: r.roll,
     data: (r.data ?? {}) as Record<string, string>,
   }));
 }
@@ -361,6 +542,7 @@ export async function replaceSheetRows(
   groupId: string,
   columns: string[],
   rows: SheetRow[],
+  positionColumn: string | null = null,
 ): Promise<{ error: string } | { count: number }> {
   const admin = createAdminClient();
   const { data, error } = await admin.rpc("replace_certificate_sheet_rows", {
@@ -370,7 +552,7 @@ export async function replaceSheetRows(
   if (error) return { error: "Could not save those rows. Try again." };
   const updated = await admin
     .from("certificate_groups")
-    .update({ sheet_columns: columns, updated_at: new Date().toISOString() })
+    .update({ sheet_columns: columns, position_column: positionColumn, updated_at: new Date().toISOString() })
     .eq("id", groupId)
     .eq("event_id", eventId);
   if (updated.error) return { error: "Saved the rows but not the columns. Try the upload again." };
@@ -382,8 +564,9 @@ async function ledgerStatus(eventId: string) {
   const { data, error } = await createAdminClient()
     .from("certificates")
     .select("id, recipient_key, serial, issued_at, revoked_at, revoked_reason")
-    .eq("event_id", eventId)
-    .eq("type", "participation");
+    // Both types — winner keys are `win:…`, participation `reg:`/`sheet:`, so
+    // one person can hold both and each is matched to its own recipient.
+    .eq("event_id", eventId);
   if (error) throw error;
   return statusByKey(data ?? []);
 }
@@ -458,6 +641,12 @@ export async function listAllRecipients(event: CertEvent, groups: CertificateGro
     }
   }
 
+  for (const group of groups.filter((g) => g.kind === "results")) {
+    for (const recipient of await winnerRecipients(event, group, registrations, status, taken)) {
+      out.push(recipient);
+    }
+  }
+
   for (const { group, rows } of sheetRows) {
     for (const row of rows) {
       const key = sheetKey(group.id, row, taken);
@@ -472,12 +661,129 @@ export async function listAllRecipients(event: CertEvent, groups: CertificateGro
         email: row.email,
         deliverTo: row.email,
         viaLeader: false,
-        values: sheetValues({ event: event.info, columns: group.sheetColumns, row, groupLabel: group.name }),
+        values: listRowValues(event, group, row),
         status: status.get(key) ?? { state: "pending" },
       });
     }
   }
 
+  return out;
+}
+
+/**
+ * A list row's values. A Winners group fed by an uploaded list also prints the
+ * placing from its Position column: "1"/"1st"/"First" all become "1st", and
+ * anything else — "Best UI" — prints as typed (spec §4.3).
+ */
+function listRowValues(event: CertEvent, group: CertificateGroup, row: SheetRow): FieldValues {
+  const values = sheetValues({ event: event.info, columns: group.sheetColumns, row, groupLabel: group.name });
+  if (group.baseKind !== "winners") return values;
+  const typed = group.positionColumn ? (row.data[group.positionColumn] ?? "") : "";
+  const place = parsePosition(typed);
+  return { ...values, "winner.place": place, "winner.placeWords": placeWordsFor(place) };
+}
+
+/** "1st" → "First". An award we don't recognise has no long form — it prints as itself. */
+const placeWordsFor = (place: string): string =>
+  place === "1st" ? "First" : place === "2nd" ? "Second" : place === "3rd" ? "Third" : place;
+
+/**
+ * Everyone on the event's published podium (spec §4.2). A standing that came
+ * from a registration is expanded through that registration, so team members
+ * keep their own email addresses; one that did not (a roll typed straight into
+ * the results) is expanded from the standing's own member list and has no
+ * address, so it is download-only.
+ */
+async function winnerRecipients(
+  event: CertEvent,
+  group: CertificateGroup,
+  registrations: RegistrationRow[],
+  status: Map<string, RecipientStatus>,
+  taken: Set<string>,
+): Promise<Recipient[]> {
+  const standings = await listWinnerStandings(event.id);
+  const byId = new Map(registrations.map((r) => [r.id, r]));
+  const out: Recipient[] = [];
+
+  for (const standing of standings) {
+    const label = standing.teamName?.trim() || null;
+    const base = { groupId: group.id, groupLabel: group.name, teamLabel: label, viaLeader: false };
+    const registration = standing.registrationId ? byId.get(standing.registrationId) : undefined;
+
+    if (registration) {
+      const leaderEmail = registration.email.trim() || null;
+      const key = winnerKey(registration.id);
+      taken.add(key);
+      out.push({
+        ...base,
+        key,
+        kind: "registration",
+        registrationId: registration.id,
+        name: registration.name.trim(),
+        email: leaderEmail,
+        deliverTo: leaderEmail,
+        values: winnerValues({
+          event: event.info,
+          standing,
+          person: {
+            name: registration.name,
+            roll: registration.roll,
+            email: leaderEmail,
+            department: registration.department,
+            year: registration.year == null ? null : String(registration.year),
+          },
+          groupLabel: group.name,
+        }),
+        status: status.get(key) ?? { state: "pending" },
+      });
+
+      for (const member of teamOf(registration, event.schema).filter((p) => !p.isLeader)) {
+        const memberK = winnerMemberKey(registration.id, member, taken);
+        out.push({
+          ...base,
+          key: memberK,
+          kind: "member",
+          registrationId: registration.id,
+          name: member.name || member.roll,
+          email: member.email,
+          deliverTo: member.email ?? leaderEmail,
+          viaLeader: !member.email && !!leaderEmail,
+          values: winnerValues({
+            event: event.info,
+            standing,
+            person: { name: member.name || member.roll, roll: member.roll, email: member.email, department: member.department, year: member.year },
+            groupLabel: group.name,
+          }),
+          status: status.get(memberK) ?? { state: "pending" },
+        });
+      }
+      continue;
+    }
+
+    const people = [
+      { name: standing.displayName?.trim() || standing.rollNo, roll: standing.rollNo },
+      ...standing.teamMembers,
+    ];
+    for (const person of people) {
+      const key = winnerRollKey(person, taken);
+      out.push({
+        ...base,
+        key,
+        kind: "sheet",
+        registrationId: null,
+        name: person.name || person.roll,
+        email: null,
+        deliverTo: null,
+        values: winnerValues({
+          event: event.info,
+          standing,
+          person: { name: person.name || person.roll, roll: person.roll, email: null },
+          groupLabel: group.name,
+        }),
+        status: status.get(key) ?? { state: "pending" },
+      });
+    }
+  }
   return out;
 }
 
@@ -496,6 +802,12 @@ export interface CertificateWorkspace {
   /** Issued certificates in the active group that no longer match the design or their details. */
   outdated: { total: number; withEmail: number };
   assetUrls: Record<string, string>;
+  /** Every base's status — the preview banner and the Save-as-base confirm read it. */
+  bases: Record<BaseKind, BaseSummary>;
+  /** The active group's people, when it is a list group (typed or uploaded). */
+  listRows: ListRow[];
+  /** Live certificates whose person is no longer on any list. */
+  orphans: OrphanCertificate[];
 }
 
 export async function getCertificateWorkspace(
@@ -505,23 +817,27 @@ export async function getCertificateWorkspace(
 ): Promise<CertificateWorkspace | null> {
   const event = await getCertEvent(eventId);
   if (!event) return null;
-  const groups = await listGroups(eventId, actorId);
+  const [groups, bases] = await Promise.all([listGroups(eventId, actorId), loadBases()]);
   const group = groups.find((g) => g.id === activeGroupId) ?? groups[0];
   if (!group) return null;
 
-  const catalogue = buildFieldCatalogue({ formSchema: event.schema, sheetColumns: group.sheetColumns });
-  const ctx = designContextFor(event.schema, group.sheetColumns);
+  const catalogue = groupCatalogue(event, group);
+  const ctx = groupContext(event, group);
   const editableDesign = designWithUnknownFieldsAsText(
     group.design,
     (key) => isKnownField(key, ctx),
     (key) => fieldLabel(catalogue, key),
   );
-  const [recipients, assetUrls] = await Promise.all([
+  const [recipients, assetUrls, listRows] = await Promise.all([
     listAllRecipients(event, groups),
     signAssetUrls(assetRefsOf(editableDesign)),
+    group.kind === "sheet" ? listSheetRows(group.id) : Promise.resolve([] as ListRow[]),
   ]);
   const inGroup = recipients.filter((r) => r.groupId === group.id);
-  const stale = await listOutdatedRecipients(eventId, [group], inGroup);
+  const [stale, orphans] = await Promise.all([
+    listOutdatedRecipients(eventId, [group], inGroup),
+    listOrphanCertificates(eventId, recipients),
+  ]);
   return {
     event,
     groups,
@@ -532,10 +848,16 @@ export async function getCertificateWorkspace(
     counts: countRecipients(inGroup),
     outdated: { total: stale.length, withEmail: stale.filter((r) => r.deliverTo).length },
     assetUrls,
+    bases: summarizeBases(bases),
+    listRows,
+    orphans,
   };
 }
 
-/** Other events whose design this admin may copy: they manage the event and it has a template. */
+/**
+ * Other events whose design this admin may copy: they manage the event and it has a template.
+ * A group following the base isn't listed: copying it would just copy the base.
+ */
 export async function listDesignSources(
   identity: AdminIdentity,
   eventId: string,
@@ -544,6 +866,7 @@ export async function listDesignSources(
     .from("certificate_groups")
     .select("event_id, design, events ( title, starts_at, event_clubs ( is_primary, club_id ) )")
     .eq("kind", "participants")
+    .not("design", "is", null)
     .neq("event_id", eventId);
   const rows = (data ?? []) as unknown as {
     event_id: string;
@@ -597,24 +920,36 @@ export async function listCertificateEvents(): Promise<CertificateEventRow[]> {
     selectAll<{ event_id: string | null }>((from, to) =>
       admin.from("registrations").select("event_id").eq("attended", true).range(from, to),
     ),
-    selectAll<{ id: string; event_id: string; kind: "participants" | "sheet" }>((from, to) =>
+    selectAll<{ id: string; event_id: string; kind: "participants" | "sheet" | "results" }>((from, to) =>
       admin.from("certificate_groups").select("id, event_id, kind").range(from, to),
     ),
     selectAll<{ event_id: string; revoked_at: string | null }>((from, to) =>
-      admin.from("certificates").select("event_id, revoked_at").eq("type", "participation").range(from, to),
+      admin.from("certificates").select("event_id, revoked_at").range(from, to),
     ),
   ]);
 
   const sheetGroups = groupRows.filter((g) => g.kind === "sheet");
-  const sheetCounts = await Promise.all(
-    sheetGroups.map(async (group) => {
-      const { count } = await admin
-        .from("certificate_sheet_rows")
-        .select("id", { count: "exact", head: true })
-        .eq("group_id", group.id);
-      return { eventId: group.event_id, count: count ?? 0 };
-    }),
-  );
+  const [sheetCounts, winnerCounts] = await Promise.all([
+    Promise.all(
+      sheetGroups.map(async (group) => {
+        const { count } = await admin
+          .from("certificate_sheet_rows")
+          .select("id", { count: "exact", head: true })
+          .eq("group_id", group.id);
+        return { eventId: group.event_id, count: count ?? 0 };
+      }),
+    ),
+    // Winners fed by results: everyone on the podium, each team member counted,
+    // as the Recipients tab lists them (spec 2026-09-15 §4.4).
+    Promise.all(
+      groupRows
+        .filter((g) => g.kind === "results")
+        .map(async (group) => ({
+          eventId: group.event_id,
+          count: (await listWinnerStandings(group.event_id)).reduce((n, s) => n + 1 + s.teamMembers.length, 0),
+        })),
+    ),
+  ]);
 
   const eventIds = new Set<string>();
   const attendedPerEvent = new Map<string, number>();
@@ -624,7 +959,7 @@ export async function listCertificateEvents(): Promise<CertificateEventRow[]> {
     attendedPerEvent.set(row.event_id, (attendedPerEvent.get(row.event_id) ?? 0) + 1);
   }
   const sheetPerEvent = new Map<string, number>();
-  for (const { eventId, count } of sheetCounts) {
+  for (const { eventId, count } of [...sheetCounts, ...winnerCounts]) {
     if (count === 0) continue;
     eventIds.add(eventId);
     sheetPerEvent.set(eventId, (sheetPerEvent.get(eventId) ?? 0) + count);
