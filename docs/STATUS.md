@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-15 (handover — two branches in flight).**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-15 (certificate base templates + winners shipped; two other branches still in flight).**
 
 ## What this is
 
@@ -20,7 +20,24 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-15)
 
-> ### 🧩 BUILT, NOT MERGED — certificate base templates, phase 1 (`feat/certificate-bases`, 2026-09-15)
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-15 — certificate base templates + winner certificates
+>
+> `feat/certificate-bases` (25 commits) merged to `main` as **`4be68e4`** and pushed. The whole gate was
+> re-run on the merged tree first: typecheck ✓ lint ✓ **1011 tests** ✓ build ✓ `npm ci` lockfile in sync.
+> Vercel reported the deploy of that commit **success**. Verified live on https://cse-ccc.vercel.app:
+> `/`, `/achievements`, `/verify` 200 · an unknown serial says "Not a valid certificate" with `noindex` ·
+> `/admin/certificates` 307s to login · **`/dev/certificate-designer` 404s in production** · served from
+> `bom1` · `/achievements` still renders the PITCH DESK podium, now through the shared `podiumRound`.
+>
+> ⚠️ **Deployed WITHOUT a signed-in walkthrough, at the owner's instruction.** Nothing below has been
+> clicked in a browser. The first admin to open an event's Certificates page will create its
+> **Volunteers** and **Winners** groups — expected. The two owed walkthroughs in the blocks below are now
+> checks against production, not a merge gate.
+>
+> ⚠️ **The Vercel MCP returned 403 for this team's scope** in the session that shipped this (account
+> switch) — the deploy was confirmed through GitHub's commit status for `4be68e4` instead.
+>
+> ### 🧩 Certificate base templates, phase 1 (`feat/certificate-bases`, 2026-09-15) — now LIVE
 >
 > **Every event's Participants and Volunteers certificates follow a council base until customised.**
 > Spec `docs/superpowers/specs/2026-09-15-certificate-base-templates-design.md`, plan
@@ -55,7 +72,7 @@ end-to-end**, not a checklist of components.
 >   4. Reset Volunteers to base.
 >   5. Type three volunteers (one without an email), issue, then try to change the issued one's email →
 >      refused; change their roll no. → shows as outdated.
-> ### 🏆 BUILT, NOT MERGED — winner certificates, phase 2 (same branch, 2026-09-15)
+> ### 🏆 Winner certificates, phase 2 (same branch, 2026-09-15) — now LIVE
 >
 > **Every event now has a Winners group too.** Plan `docs/superpowers/plans/2026-09-15-certificate-bases-phase2-winners.md`.
 > Gate: typecheck ✓ lint ✓ **1011 tests** ✓ build ✓. **No migration** — phase 1 already added everything.
