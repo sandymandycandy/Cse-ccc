@@ -19,12 +19,20 @@ export interface SheetRow {
   row_no: number;
   name: string;
   email: string | null;
+  /** Roll / VTU no. — typed in, or read from the upload's roll column. Prints as {Roll / VTU no.}. */
+  roll: string | null;
   data: Record<string, string>;
+}
+
+/** A stored row with its id — what the typed list edits (spec 2026-09-15 §1.4). */
+export interface ListRow extends SheetRow {
+  id: string;
 }
 
 export interface ColumnChoice {
   name: number;
   email: number | null;
+  roll: number | null;
 }
 
 export type SheetBuild =
@@ -83,16 +91,19 @@ export function parseDelimited(text: string): string[][] {
 const NAME_RE = /name|participant|student|person|recipient/i;
 const NOT_A_PERSON_RE = /team|club|event|college|school|file/i;
 const EMAIL_RE = /e-?mail/i;
+const ROLL_RE = /roll|vtu|usn|reg(istration|ister)?\.?\s*(no|num)/i;
 
-/** Guess which column holds the person's name and which their address. */
+/** Guess which columns hold the person's name, address and roll no. */
 export function detectColumns(header: string[]): ColumnChoice {
   const clean = header.map((h) => h.trim());
   const email = clean.findIndex((h) => EMAIL_RE.test(h));
-  const name = clean.findIndex((h) => NAME_RE.test(h) && !NOT_A_PERSON_RE.test(h));
-  const fallback = clean.findIndex((h, i) => i !== email && h !== "");
+  const roll = clean.findIndex((h, i) => i !== email && ROLL_RE.test(h));
+  const name = clean.findIndex((h) => NAME_RE.test(h) && !NOT_A_PERSON_RE.test(h) && !ROLL_RE.test(h));
+  const fallback = clean.findIndex((h, i) => i !== email && i !== roll && h !== "");
   return {
     name: name >= 0 ? name : fallback >= 0 ? fallback : 0,
     email: email >= 0 ? email : null,
+    roll: roll >= 0 ? roll : null,
   };
 }
 
@@ -138,12 +149,13 @@ export function buildSheetRows(table: string[][], choice: ColumnChoice): SheetBu
     const rawEmail = choice.email === null ? "" : (raw[choice.email] ?? "").trim();
     const email = looksLikeEmail(rawEmail) ? rawEmail.slice(0, SHEET_LIMITS.cell) : null;
     if (rawEmail && !email) invalidEmails++;
+    const roll = choice.roll == null ? "" : (raw[choice.roll] ?? "").trim().slice(0, SHEET_LIMITS.cell);
 
     const data: Record<string, string> = {};
     columns.forEach((column, i) => {
       data[column] = (raw[i] ?? "").trim().slice(0, SHEET_LIMITS.cell);
     });
-    rows.push({ row_no: rows.length + 1, name, email, data });
+    rows.push({ row_no: rows.length + 1, name, email, roll: roll || null, data });
   }
 
   if (rows.length === 0) return { ok: false, error: "No rows with a name — check which column holds the name." };
@@ -152,4 +164,26 @@ export function buildSheetRows(table: string[][], choice: ColumnChoice): SheetBu
     return { ok: false, error: "That sheet is too large. Remove columns you don't need, or split it." };
   }
   return { ok: true, columns, rows, dropped, invalidEmails };
+}
+
+export type ListRowCheck =
+  | { ok: true; row: { name: string; email: string | null; roll: string | null } }
+  | { ok: false; error: string };
+
+/**
+ * One person typed into a list (spec 2026-09-15 §1.4). Stricter than an upload:
+ * a typo'd email is refused, not silently dropped, because the person typing can
+ * fix it. The browser and the server action both run this.
+ */
+export function validateListRow(input: { name?: unknown; email?: unknown; roll?: unknown }): ListRowCheck {
+  const text = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+  const name = text(input.name);
+  const email = text(input.email);
+  const roll = text(input.roll);
+  if (!name) return { ok: false, error: "Enter a name." };
+  if (name.length > SHEET_LIMITS.cell) return { ok: false, error: "That name is too long." };
+  if (email && !looksLikeEmail(email)) return { ok: false, error: "That email doesn't look right." };
+  if (email.length > SHEET_LIMITS.cell) return { ok: false, error: "That email is too long." };
+  if (roll.length > SHEET_LIMITS.cell) return { ok: false, error: "That roll no. is too long." };
+  return { ok: true, row: { name, email: email || null, roll: roll || null } };
 }

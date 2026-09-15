@@ -14,7 +14,7 @@ export function SheetUpload({ eventId, groupId, groupName }: { eventId: string; 
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [table, setTable] = useState<string[][] | null>(null);
-  const [choice, setChoice] = useState<ColumnChoice>({ name: 0, email: null });
+  const [choice, setChoice] = useState<ColumnChoice>({ name: 0, email: null, roll: null });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 

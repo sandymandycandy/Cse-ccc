@@ -165,7 +165,7 @@ describe("registrantValues", () => {
     const v = sheetValues({
       event,
       columns: ["Role", "Shift"],
-      row: { name: " Kim ", email: "kim@x.com", data: { Role: "Judge", Shift: 2 } },
+      row: { name: " Kim ", email: "kim@x.com", roll: null, data: { Role: "Judge", Shift: 2 } },
       groupLabel: "Judges",
     });
     expect(v).toMatchObject({
@@ -179,6 +179,16 @@ describe("registrantValues", () => {
       "event.date": "14 September 2026",
       "cert.group": "Judges",
     });
+  });
+
+  it("prints a typed or uploaded roll no. as the person's roll", () => {
+    const v = sheetValues({
+      event,
+      columns: [],
+      row: { name: "Asha", email: null, roll: " VTU27001 ", data: {} },
+      groupLabel: "Volunteers",
+    });
+    expect(v["person.roll"]).toBe("VTU27001");
   });
 
   it("resolves a team leader with the whole team, skipping blank member rows", () => {

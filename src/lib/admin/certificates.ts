@@ -344,13 +344,14 @@ export async function deleteSheetGroup(eventId: string, groupId: string): Promis
 export async function listSheetRows(groupId: string): Promise<SheetRow[]> {
   const { data } = await createAdminClient()
     .from("certificate_sheet_rows")
-    .select("row_no, name, email, data")
+    .select("row_no, name, email, roll, data")
     .eq("group_id", groupId)
     .order("row_no", { ascending: true });
   return (data ?? []).map((r) => ({
     row_no: r.row_no,
     name: r.name,
     email: r.email,
+    roll: r.roll,
     data: (r.data ?? {}) as Record<string, string>,
   }));
 }

@@ -11,6 +11,7 @@ import {
   pendingRecipients,
   printedFields,
   registrationKey,
+  sheetIdentity,
   sheetKey,
   statusByKey,
   type CertificateLedgerRow,
@@ -77,6 +78,22 @@ describe("recipient keys", () => {
     expect(sheetKey("g1", { name: "Asha", email: "A@X.COM" }, taken)).toBe("sheet:g1:a@x.com");
     expect(sheetKey("g1", { name: "No Mail", email: null }, taken)).toBe("sheet:g1:no mail");
     expect(sheetKey("g1", { name: "No Mail", email: null }, taken)).toBe("sheet:g1:no mail#2");
+  });
+});
+
+describe("sheetIdentity", () => {
+  it("is the identity sheetKey is built from: email first, else name", () => {
+    expect(sheetIdentity({ name: "Asha", email: " A@X.COM " })).toBe("a@x.com");
+    expect(sheetIdentity({ name: "  Asha   R ", email: null })).toBe("asha r");
+    expect(sheetKey("g1", { name: "Asha", email: "A@X.COM" }, new Set())).toBe(
+      `sheet:g1:${sheetIdentity({ name: "Asha", email: "A@X.COM" })}`,
+    );
+  });
+  it("changes when the email or (without email) the name changes — not otherwise", () => {
+    const before = sheetIdentity({ name: "Asha", email: "a@x.com" });
+    expect(sheetIdentity({ name: "Asha R", email: "a@x.com" })).toBe(before);
+    expect(sheetIdentity({ name: "Asha", email: "asha@x.com" })).not.toBe(before);
+    expect(sheetIdentity({ name: "Asha R", email: null })).not.toBe(sheetIdentity({ name: "Asha", email: null }));
   });
 });
 

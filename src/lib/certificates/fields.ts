@@ -305,14 +305,14 @@ export function memberValues(input: {
 }
 
 /**
- * Values for a row of an uploaded list (volunteers, judges). Its own columns
- * are addressable as `sheet.<column>`; the person fields the sheet has no
- * column for print empty.
+ * Values for a row of a list (volunteers, judges), typed or uploaded. An
+ * upload's own columns are addressable as `sheet.<column>`. Name, email and roll
+ * come from the row; the person fields a list has no value for print empty.
  */
 export function sheetValues(input: {
   event: CertEventInfo;
   columns: string[];
-  row: { name: string; email: string | null; data: Record<string, unknown> | null };
+  row: { name: string; email: string | null; roll?: string | null; data: Record<string, unknown> | null };
   groupLabel: string;
 }): FieldValues {
   const columns: FieldValues = {};
@@ -322,7 +322,7 @@ export function sheetValues(input: {
   }
   return {
     "person.name": input.row.name.trim(),
-    "person.roll": "",
+    "person.roll": input.row.roll?.trim() ?? "",
     "person.department": "",
     "person.year": "",
     "person.email": input.row.email?.trim() ?? "",
