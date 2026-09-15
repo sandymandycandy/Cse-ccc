@@ -61,6 +61,13 @@ Nothing to migrate or protect.
   always custom.
 - **D11 — Two phases.** Phase 1: bases (Participants + Volunteers). Phase 2: Winners.
   The one migration ships in phase 1.
+- **D12 — Volunteers are typed in by hand** (owner, 2026-09-15: "name email rollno
+  and it will add its event as usually"). Any list group (Volunteers, Judges…) gets
+  an inline table to add, edit and remove people: **name** (required), **email** and
+  **roll no.** (optional). Event fields fill in as for everyone else. The CSV/Excel
+  upload stays for long lists and fills the same rows. Roll no. becomes a real row
+  column so `{Roll / VTU no.}` prints on list groups. A base can't use sheet columns
+  (D6), so without this a Volunteers base could never print a roll number.
 
 ## 1. The event's Design tab
 
@@ -135,6 +142,42 @@ A new extra group starts from the Participants group's **effective** design (§3
 - Existing behaviours stay: unsaved-changes indicator, `beforeunload`, and the "N
   certificates were issued with an earlier version" note on save.
 
+### 1.4 Typing a list (Volunteers and any other list group) — D12
+
+Shown under the group bar on every `sheet` group, on the Design tab as today's upload is:
+
+```
+Volunteers · 3                                              [ Upload list ]
+┌───┬──────────────┬───────────────────────┬──────────┬────────────────┐
+│ # │ Name         │ Email                 │ Roll no. │                │
+├───┼──────────────┼───────────────────────┼──────────┼────────────────┤
+│ 1 │ Asha R       │ asha@veltech.edu.in   │ VTU27001 │ Edit · Remove  │
+│ 2 │ Karthik S    │ —                     │ VTU27044 │ Edit · Remove  │
+└───┴──────────────┴───────────────────────┴──────────┴────────────────┘
+[ Name*        ] [ Email        ] [ Roll no.   ]  [ + Add ]
+```
+
+- Uses the `.tablewrap.cards` pattern, so it reads as cards on a phone.
+- **Add** appends a row (`row_no` = max + 1). **Edit** turns the row into inputs,
+  with Save and Cancel. **Remove** asks for confirmation; certificates already
+  issued to that person stay valid.
+- Validation is shared by the browser and the action (`validateListRow` in
+  `sheet.ts`): name 1–500 chars, required. Email is optional, but if given it must
+  look like an email, so a typo is **rejected** with "That email doesn't look
+  right", not silently dropped as an upload does. Roll is optional, ≤ 500 chars.
+  The group is capped at 1,000 rows (`SHEET_LIMITS.rows`).
+- **Once issued, identity is locked.** A person is keyed by email, or by name when
+  there is no email (`sheetKey`). An edit that would change that identity is refused
+  when a live certificate exists for the old one: *"Asha R already has a certificate,
+  so their name and email can't change here. Ask a Faculty Advisor, VP or Tech Head
+  to revoke it first."* Without this, fixing a typo would quietly give one person two
+  live certificates. Other edits (roll no.) are allowed and show up as outdated.
+- The upload's column confirm gains a **Roll no. column** (auto-detected by
+  `/roll|vtu|usn|reg(istration)?\.?\s*no/i`). The upload still **replaces** the whole
+  list, and the confirm now says so with the count: *"This replaces the 3 people
+  already in Volunteers."*
+- Every add, edit and remove is audited (`entity: "certificate_sheet_row"`).
+
 ## 2. Data model
 
 One additive migration, `20260915000000_certificate_bases.sql`, **applied through the
@@ -178,6 +221,26 @@ update public.certificate_groups g
    and coalesce(g.design->'page'->'template', 'null'::jsonb) = 'null'::jsonb
    and not exists (select 1 from public.certificates c where c.group_id = g.id);
 ```
+
+-- Typed volunteers (D12): roll no. as a real column, and the upload RPC writes it.
+alter table public.certificate_sheet_rows add column roll text;
+
+create or replace function public.replace_certificate_sheet_rows(p_group_id uuid, p_rows jsonb)
+returns int language plpgsql security definer set search_path = '' as $$
+declare v_count int;
+begin
+  delete from public.certificate_sheet_rows where group_id = p_group_id;
+  insert into public.certificate_sheet_rows (group_id, row_no, name, email, roll, data)
+  select p_group_id, (r->>'row_no')::int, r->>'name', nullif(r->>'email', ''),
+         nullif(r->>'roll', ''), coalesce(r->'data', '{}'::jsonb)
+    from jsonb_array_elements(p_rows) as r;
+  get diagnostics v_count = row_count;
+  return v_count;
+end;
+$$;
+-- create or replace keeps the existing grants; re-assert them anyway.
+revoke execute on function public.replace_certificate_sheet_rows(uuid, jsonb) from public, anon, authenticated;
+grant  execute on function public.replace_certificate_sheet_rows(uuid, jsonb) to service_role;
 
 Before applying, re-run the live check above. The fresh-project security trap
 (STATUS.md) applies: confirm afterwards that `anon` and `authenticated` hold **no**
@@ -375,7 +438,12 @@ Unit (vitest, pure):
 - `recipients.test.ts`: "no longer on the list" rows from live certificates with no
   recipient; `win:` and `reg:` coexisting for one registration.
 - `verification.test.ts`: `Winner · 1st place`; no place → `Winner`.
-- `fields.test.ts`: Winner fields offered only on Winners groups.
+- `fields.test.ts`: Winner fields offered only on Winners groups; `sheetValues` prints
+  `person.roll` from the row.
+- `sheet.test.ts`: `validateListRow` (name required, bad email rejected, caps);
+  roll column detection; `buildSheetRows` carries roll.
+- `recipients.test.ts`: `sheetIdentity` matches `sheetKey`'s identity; an
+  identity change is detected, a roll-only change is not.
 
 Browser: extend the dev harness (`/dev/certificate-designer`) with `?panel=base`
 (read-only preview + Customise) and the Save-as-base menu + confirm. Check both at
@@ -389,14 +457,16 @@ Gate per phase: `npm run typecheck`, `lint`, `test`, `build` green.
 3. Customise Volunteers on the second event, Save for this event; edit the base from
    the first event: Participants changes on the second event, Volunteers does not.
 4. Reset Volunteers to base.
-5. (Phase 2) Publish results, open Winners, preview a tied 3rd place, issue to yourself,
+5. Type three volunteers (one without email), issue, then try to change the
+   issued one's email → refused; change their roll no. → shows outdated.
+6. (Phase 2) Publish results, open Winners, preview a tied 3rd place, issue to yourself,
    scan the QR → "Winner · 3rd place".
 
 ## 9. Phases
 
 | Phase | Ships | Migration |
 | --- | --- | --- |
-| **1. Bases** | Migration; `certificate_bases`; `base_kind` + effective design; Participants + Volunteers slots; preview-first view; Customise; Save for this event; Save as base (Participants, Volunteers); Reset to base; impact confirm; audit | §2, applied once |
+| **1. Bases** | Migration; `certificate_bases`; `base_kind` + effective design; Participants + Volunteers slots; preview-first view; Customise; Save for this event; Save as base (Participants, Volunteers); Reset to base; impact confirm; typed list rows + roll no. (§1.4); audit | §2, applied once |
 | **2. Winners** | Winners slot; results / uploaded source + switch rule; Winner fields; `type: 'winner'` + capability; winner email; verify place; "no longer on the list" rows; Winners base in Save as base | none |
 
 Each phase merges to `main` on its own with the gate green, and STATUS.md is updated
