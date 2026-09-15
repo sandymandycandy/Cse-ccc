@@ -134,8 +134,9 @@ A new extra group starts from the Participants group's **effective** design (§3
   current group's own base was ticked, the group now follows it (D8). If not, the
   group's edits are still unsaved and the indicator stays until Save for this event.
 - While customising a following group that has not been saved yet, the button in
-  **Reset to base**'s place reads **Cancel** and returns to the preview. No confirm
-  is needed, because nothing was written.
+  **Reset to base**'s place reads **Cancel** and returns to the preview. Nothing was
+  written, so it only asks first ("Discard your changes?") when there are unsaved
+  edits. **Reset to base** appears only when that base exists.
 - **Reset to base:** shown on a custom group that has a `base_kind`. The confirm says:
   "This group's custom design will be discarded. Certificates already issued keep the
   design they were issued with." It sets `design = null`.
@@ -367,7 +368,10 @@ An empty cell raises the usual `Position empty` warning. Transforms still apply
 2. **Base validation** (pure, `bases.ts`): walk the design's field runs. Any `form.*`
    or `sheet.*` run, or a `winner.*` run when `winners` isn't the only target, fails
    with the field's label: *"Remove {T-shirt size} — a base can only use fields every
-   event has."* Then `validateDesign` with an empty form/sheet context.
+   event has."* This runs after `validateDesign` with the event's own context, so the
+   refusal names the field instead of calling it unknown. A design with **no template**
+   is refused ("Add a template before saving it as a base"), because every following
+   event would otherwise be unable to issue.
 3. `verifyNewAssets(eventId, design, effectiveDesignOfGroup)`, as in §3.
 4. **Copy assets into the council folder.** Every asset ref not already under
    `certificate-assets/00000000-0000-0000-0000-000000000000/` (`BASE_ASSET_FOLDER`; the
