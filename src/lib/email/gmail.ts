@@ -33,6 +33,7 @@ export async function sendViaGmail(args: SendArgs): Promise<SendResult> {
         content: a.content,
         contentType: a.contentType,
       })),
+      ...(args.headers ? { headers: args.headers } : {}),
     });
     return { ok: true, id: info.messageId ?? "" };
   } catch (e) {
