@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { broadcastAction } from "@/app/admin/(app)/events/[id]/email/actions";
 import type { BroadcastState } from "@/lib/admin/form-state";
 
@@ -17,12 +17,17 @@ export function BroadcastForm({
   eventId,
   confirmedCount,
   allCount,
+  reminder,
 }: {
   eventId: string;
   confirmedCount: number;
   allCount: number;
+  /** Prefill for the reminder button; the text stays editable afterwards. */
+  reminder?: { subject: string; body: string };
 }) {
   const [state, action, pending] = useActionState(broadcastAction, initial);
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
 
   if (state.sent != null) {
     return (
@@ -37,6 +42,22 @@ export function BroadcastForm({
     <form action={action} style={{ marginTop: 18, maxWidth: 640 }}>
       <input type="hidden" name="eventId" value={eventId} />
 
+      {/* Fills the two fields and stops. A send that cannot be recalled gets a
+          human's eyes on the wording first — one press to compose, one to send. */}
+      {reminder ? (
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          style={{ marginBottom: 16 }}
+          onClick={() => {
+            setSubject(reminder.subject);
+            setMessage(reminder.body);
+          }}
+        >
+          Remind them it&rsquo;s coming up
+        </button>
+      ) : null}
+
       {state.error ? (
         <div role="alert" className="note" style={{ borderLeftColor: "var(--rust)", marginBottom: 16 }}>
           {state.error}
@@ -45,13 +66,29 @@ export function BroadcastForm({
 
       <div className="field">
         <label htmlFor="subject">Subject</label>
-        <input id="subject" name="subject" required maxLength={120} placeholder="Venue has changed" />
+        <input
+          id="subject"
+          name="subject"
+          required
+          maxLength={120}
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          placeholder="Venue has changed"
+        />
       </div>
 
       <div className="field">
         <label htmlFor="message">Message</label>
-        <textarea id="message" name="message" rows={7} required maxLength={4000}
-          placeholder="Write what participants need to know." />
+        <textarea
+          id="message"
+          name="message"
+          rows={7}
+          required
+          maxLength={4000}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Write what participants need to know."
+        />
         <span className="hint">Plain text. Everyone gets the same message.</span>
       </div>
 
