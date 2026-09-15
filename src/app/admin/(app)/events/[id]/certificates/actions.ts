@@ -45,8 +45,16 @@ import {
   type Design,
 } from "@/lib/certificates/design";
 import { buildFieldCatalogue, designContextFor, fieldLabel } from "@/lib/certificates/fields";
-import type { IssueMode } from "@/lib/certificates/recipients";
-import { buildSheetRows, type ColumnChoice } from "@/lib/certificates/sheet";
+import { sheetIdentity, type IssueMode } from "@/lib/certificates/recipients";
+import { buildSheetRows, SHEET_LIMITS, validateListRow, type ColumnChoice } from "@/lib/certificates/sheet";
+import {
+  addListRow,
+  countListRows,
+  getListRow,
+  hasLiveListCertificate,
+  removeListRow,
+  updateListRow,
+} from "@/lib/admin/certificate-list-rows";
 import { designWithUnknownFieldsAsText } from "@/lib/certificates/rich-text";
 
 const CAP = "issue:participation_certificate";
@@ -392,6 +400,116 @@ export async function uploadCertificateSheetAction(input: {
   });
   revalidatePath(`/admin/events/${input.eventId}/certificates`);
   return { ok: true, rows: built.rows.length, dropped: built.dropped, invalidEmails: built.invalidEmails, columns: built.columns };
+}
+
+// ── typed list rows (spec 2026-09-15 §1.4) ───────────────────────────────────
+
+/** The event's list group, or null — typed rows only go into list groups. */
+async function listGroupOf(eventId: string, groupId: string) {
+  if (!uuid.safeParse(groupId).success) return null;
+  const group = await getGroup(eventId, groupId);
+  return group?.kind === "sheet" ? group : null;
+}
+
+export async function addCertificateListRowAction(input: {
+  eventId: string;
+  groupId: string;
+  name: string;
+  email: string;
+  roll: string;
+}): Promise<ActionResult> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const group = await listGroupOf(input.eventId, input.groupId);
+  if (!group) return { ok: false, error: "Add people to one of this event's lists." };
+  const checked = validateListRow(input);
+  if (!checked.ok) return { ok: false, error: checked.error };
+  if ((await countListRows(group.id)) >= SHEET_LIMITS.rows) {
+    return { ok: false, error: `${group.name} already has ${SHEET_LIMITS.rows} people.` };
+  }
+  const added = await addListRow(group.id, checked.row);
+  if ("error" in added) return { ok: false, error: added.error };
+  await writeAudit({
+    actorId: auth.session.id,
+    action: "create",
+    entity: "certificate_sheet_row",
+    entityId: added.id,
+    after: { eventId: input.eventId, groupId: group.id },
+  });
+  revalidatePath(`/admin/events/${input.eventId}/certificates`);
+  return { ok: true };
+}
+
+export async function updateCertificateListRowAction(input: {
+  eventId: string;
+  groupId: string;
+  rowId: string;
+  name: string;
+  email: string;
+  roll: string;
+}): Promise<ActionResult> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const group = await listGroupOf(input.eventId, input.groupId);
+  const row = group && uuid.safeParse(input.rowId).success ? await getListRow(group.id, input.rowId) : null;
+  if (!group || !row) return { ok: false, error: "That person is no longer on the list." };
+  const checked = validateListRow(input);
+  if (!checked.ok) return { ok: false, error: checked.error };
+
+  // Identity (email, else name) is what an issued certificate is keyed by. Changing it
+  // would orphan that certificate and queue a second one for the same person.
+  if (sheetIdentity(row) !== sheetIdentity(checked.row)) {
+    let held: boolean;
+    try {
+      held = await hasLiveListCertificate(input.eventId, group.id, sheetIdentity(row));
+    } catch {
+      return { ok: false, error: "Could not check this person's certificates. Try again." };
+    }
+    if (held) {
+      return {
+        ok: false,
+        error: `${row.name} already has a certificate, so their name and email can't change here. Ask a Faculty Advisor, VP or Tech Head to revoke it first.`,
+      };
+    }
+  }
+
+  if (!(await updateListRow(group.id, row.id, checked.row))) {
+    return { ok: false, error: "Could not save that change. Try again." };
+  }
+  await writeAudit({
+    actorId: auth.session.id,
+    action: "update",
+    entity: "certificate_sheet_row",
+    entityId: row.id,
+    after: { eventId: input.eventId, groupId: group.id },
+  });
+  revalidatePath(`/admin/events/${input.eventId}/certificates`);
+  return { ok: true };
+}
+
+export async function removeCertificateListRowAction(input: {
+  eventId: string;
+  groupId: string;
+  rowId: string;
+}): Promise<ActionResult> {
+  const auth = await authorize(input.eventId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const group = await listGroupOf(input.eventId, input.groupId);
+  if (!group || !uuid.safeParse(input.rowId).success) {
+    return { ok: false, error: "That person is no longer on the list." };
+  }
+  if (!(await removeListRow(group.id, input.rowId))) {
+    return { ok: false, error: "That person is no longer on the list." };
+  }
+  await writeAudit({
+    actorId: auth.session.id,
+    action: "delete",
+    entity: "certificate_sheet_row",
+    entityId: input.rowId,
+    after: { eventId: input.eventId, groupId: group.id },
+  });
+  revalidatePath(`/admin/events/${input.eventId}/certificates`);
+  return { ok: true };
 }
 
 // ── one certificate at a time ────────────────────────────────────────────────
