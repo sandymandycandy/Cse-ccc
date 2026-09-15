@@ -929,15 +929,27 @@ export async function listCertificateEvents(): Promise<CertificateEventRow[]> {
   ]);
 
   const sheetGroups = groupRows.filter((g) => g.kind === "sheet");
-  const sheetCounts = await Promise.all(
-    sheetGroups.map(async (group) => {
-      const { count } = await admin
-        .from("certificate_sheet_rows")
-        .select("id", { count: "exact", head: true })
-        .eq("group_id", group.id);
-      return { eventId: group.event_id, count: count ?? 0 };
-    }),
-  );
+  const [sheetCounts, winnerCounts] = await Promise.all([
+    Promise.all(
+      sheetGroups.map(async (group) => {
+        const { count } = await admin
+          .from("certificate_sheet_rows")
+          .select("id", { count: "exact", head: true })
+          .eq("group_id", group.id);
+        return { eventId: group.event_id, count: count ?? 0 };
+      }),
+    ),
+    // Winners fed by results: everyone on the podium, each team member counted,
+    // as the Recipients tab lists them (spec 2026-09-15 §4.4).
+    Promise.all(
+      groupRows
+        .filter((g) => g.kind === "results")
+        .map(async (group) => ({
+          eventId: group.event_id,
+          count: (await listWinnerStandings(group.event_id)).reduce((n, s) => n + 1 + s.teamMembers.length, 0),
+        })),
+    ),
+  ]);
 
   const eventIds = new Set<string>();
   const attendedPerEvent = new Map<string, number>();
@@ -947,7 +959,7 @@ export async function listCertificateEvents(): Promise<CertificateEventRow[]> {
     attendedPerEvent.set(row.event_id, (attendedPerEvent.get(row.event_id) ?? 0) + 1);
   }
   const sheetPerEvent = new Map<string, number>();
-  for (const { eventId, count } of sheetCounts) {
+  for (const { eventId, count } of [...sheetCounts, ...winnerCounts]) {
     if (count === 0) continue;
     eventIds.add(eventId);
     sheetPerEvent.set(eventId, (sheetPerEvent.get(eventId) ?? 0) + count);
