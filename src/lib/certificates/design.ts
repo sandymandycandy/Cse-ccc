@@ -267,6 +267,15 @@ export function assetRefsOf(design: Design): AssetRef[] {
   return refs;
 }
 
+/** The same design with every stored asset reference (template and images) passed through `swap`. */
+export function rewriteAssetRefs(design: Design, swap: (ref: AssetRef) => AssetRef): Design {
+  return {
+    ...design,
+    page: { ...design.page, template: design.page.template ? swap(design.page.template) : null },
+    elements: design.elements.map((el) => (el.type === "image" ? { ...el, asset: swap(el.asset) } : el)),
+  };
+}
+
 /** Deterministic JSON (sorted keys) — the input to a design version's hash. */
 export function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
