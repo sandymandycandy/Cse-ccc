@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-15 (certificate base templates + winners shipped; two other branches still in flight).**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-15 (broadcast email + certificate bases/winners shipped; co-hosted events still in flight).**
 
 ## What this is
 
@@ -20,6 +20,28 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-15)
 
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-15 — broadcast email, reminder button, `.ics` feeds
+>
+> `feat/broadcast-email-ics` merged to `main` as **`812cdb4`** and pushed, on the owner's instruction
+> **without the signed-in walkthrough**. It was 29 commits behind `main`; the code merged cleanly and
+> only `docs/STATUS.md` conflicted. The whole gate was re-run on the merged tree first: typecheck ✓
+> lint ✓ **1059 tests** ✓ build ✓ `npm ci` lockfile in sync. Vercel reported the deploy **success**.
+>
+> **Checked before deploying:** no change to `vercel.json`, dependencies or the database; the env vars
+> it reads already existed; and the live `email_log` had **0 pending rows** (84 sent, 8 failed from
+> 2026-08-25, which the drain does not retry) — so raising the nightly drain 25 → 100 sent nothing.
+>
+> **Verified live on https://cse-ccc.vercel.app:** `/admin/email` and `/admin/outbox` 307 to the login
+> (they 404'd before this deploy — proof the new build is serving) · `/api/cron/send-email` 401 without
+> the secret · `/calendar.ics`, `/clubs/ai-forge/events.ics` and `/events/<id>/event.ics` all 200
+> `text/calendar`, each one `VCALENDAR`, **every line CRLF, none over 75 octets**, `UID` of
+> `<eventId>@cse-ccc.vercel.app` (AI Forge's feed is a valid empty calendar — no events in its window).
+> `/`, `/achievements`, `/verify` still 200.
+>
+> ⚠️ **The owed walkthrough in the Broadcast block below is now a check against PRODUCTION.** The first
+> bulk send is the real test of Gmail at volume. **Start with the 26 heads, never all members.** The
+> 909-person send takes more than a day to clear under the ~500/day Gmail ceiling — by design.
+>
 > ### 🚀 SHIPPED TO PRODUCTION 2026-09-15 — certificate base templates + winner certificates
 >
 > `feat/certificate-bases` (25 commits) merged to `main` as **`4be68e4`** and pushed. The whole gate was
@@ -114,25 +136,20 @@ end-to-end**, not a checklist of components.
 >
 > ## 📦 HANDOVER, 2026-09-15 — read this section, then do things in this order
 >
-> **`main` is clean and deployed. TWO branches are in flight, both pushed to GitHub, neither
-> merged.** Everything below is real, tested code — what it lacks is a signed-in human.
+> **`main` is clean and deployed. ONE branch is in flight.** Broadcast email and certificate
+> bases have both shipped (blocks above) — what they still lack is a signed-in human.
 >
 > | Branch | What it is | State |
 > |---|---|---|
-> | `feat/broadcast-email-ics` | Broadcast email + event-reminder button + `.ics` calendar feeds | **Code complete.** typecheck ✓ lint ✓ 1000 tests ✓ build ✓. Browser walkthrough **not done**. |
 > | `feat/co-hosted-events` | Co-hosted events | **Spec only, no code.** Design approved; implementation plan not yet written. |
->
-> Both have a design doc in `docs/superpowers/specs/2026-09-15-*.md`;
-> the email branch also carries a task-by-task plan in `docs/superpowers/plans/`.
 >
 > ### The order to do things
 >
-> 1. **🔴 Walk through `feat/broadcast-email-ics` signed in, THEN merge it.** The checklist is
->    in that branch's own STATUS.md block (`git checkout feat/broadcast-email-ics`, read the top).
+> 1. **🔴 Walk through broadcast email ON PRODUCTION** — the checklist is in the Broadcast block below.
 >    The one step no test can prove: queue the 909-recipient send and drain one batch of 40.
+>    Test with the 26-person heads audience or the 8-person Social Media Team first, never all-members.
 >    ⚠️ **`.env.local` points at the LIVE database and carries REAL Gmail credentials — a send
->    from localhost mails real students and spends the real daily quota.** Test with the 26-person
->    heads audience or the 8-person Social Media Team first, never all-members.
+>    from localhost mails real students and spends the real daily quota, exactly like production.**
 > 2. **🔴 The attendance-autosave walkthrough, owed since 2026-09-05** (`dd9f084`, already merged
 >    and LIVE). It rewrote the save path a club head uses on a 200-person roster and **has never
 >    run in a browser.** This is arguably ahead of item 1: it is live in production right now.
@@ -159,9 +176,10 @@ end-to-end**, not a checklist of components.
 >
 > ### Repo housekeeping
 >
-> 13 old feature branches are **already merged into `main`** and safe to delete:
-> `git branch --merged main | grep -v main | xargs git branch -d`. The only two that are NOT
-> merged are the two in the table above.
+> The old feature branches — now including `feat/certificate-bases` and `feat/broadcast-email-ics` —
+> are **already merged into `main`** and safe to delete:
+> `git branch --merged main | grep -v main | xargs git branch -d`. The only one NOT merged is
+> `feat/co-hosted-events`.
 >
 > ---
 >
@@ -169,7 +187,7 @@ end-to-end**, not a checklist of components.
 > designer (all three phases) merged and deployed** — see the SHIPPED block below. The owed
 > work is the live human walkthrough listed there, not code.
 
-> ### ✅ BUILT, NOT MERGED — Broadcast email + reminder button + `.ics` feeds (2026-09-15)
+> ### ✅ Broadcast email + reminder button + `.ics` feeds (2026-09-15) — now LIVE (`812cdb4`)
 >
 > Branch `feat/broadcast-email-ics`. Spec:
 > `docs/superpowers/specs/2026-09-15-broadcast-email-and-ics-design.md`, plan:
