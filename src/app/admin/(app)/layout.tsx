@@ -69,6 +69,14 @@ export default async function AdminAppLayout({
     ...(canView(session, "view:feedback")
       ? [{ href: "/admin/feedback", label: "Feedback", group: "inbox" as const }]
       : []),
+    // Both are `manage:broadcast`, but they differ in what they let you do: a
+    // club head composes and sees their queued mail, only the council drains it.
+    ...(canView(session, "manage:broadcast")
+      ? [{ href: "/admin/email", label: "Email", group: "inbox" as const }]
+      : []),
+    ...(canView(session, "manage:broadcast")
+      ? [{ href: "/admin/outbox", label: "Outbox", group: "inbox" as const }]
+      : []),
     ...(canView(session, "manage:admins")
       ? [{ href: "/admin/users", label: "Admins", group: "system" as const }]
       : []),

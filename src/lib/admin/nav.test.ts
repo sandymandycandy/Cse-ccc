@@ -28,6 +28,8 @@ const FULL: NavLink[] = [
   link("/admin/clubs", "Clubs", "people"),
   link("/admin/contact", "Contact", "inbox"),
   link("/admin/feedback", "Feedback", "inbox"),
+  link("/admin/email", "Email", "inbox"),
+  link("/admin/outbox", "Outbox", "inbox"),
   link("/admin/users", "Admins", "system"),
   link("/admin/audit", "Audit", "system"),
 ];
