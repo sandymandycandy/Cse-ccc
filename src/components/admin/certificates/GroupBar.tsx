@@ -7,6 +7,7 @@ import {
   deleteCertificateGroupAction,
   renameCertificateGroupAction,
 } from "@/app/admin/(app)/events/[id]/certificates/actions";
+import type { BaseKind } from "@/lib/certificates/bases";
 import { SheetUpload } from "./SheetUpload";
 
 /**
@@ -19,6 +20,9 @@ export interface GroupSummary {
   name: string;
   kind: "participants" | "sheet";
   people: number;
+  /** The council base slot this group fills; null for an extra group. */
+  baseKind: BaseKind | null;
+  followsBase: boolean;
 }
 
 export function GroupBar({
@@ -80,7 +84,7 @@ export function GroupBar({
       return;
     }
     setConfirmDelete(false);
-    go(groups.find((g) => g.kind === "participants")?.id ?? groups[0].id);
+    go(groups.find((g) => g.baseKind === "participants")?.id ?? groups[0].id);
   }
 
   return (
@@ -95,7 +99,8 @@ export function GroupBar({
             aria-pressed={group.id === activeId}
             onClick={() => go(group.id)}
           >
-            {group.name} · {group.people}
+            {group.name} · {group.people}{" "}
+            <span className="cd-badge">{group.followsBase ? "● Base" : "◆ Custom"}</span>
           </button>
         ))}
         {adding ? null : (
@@ -103,7 +108,7 @@ export function GroupBar({
             + Group
           </button>
         )}
-        {active?.kind === "sheet" && !renaming ? (
+        {active && active.baseKind === null && !renaming ? (
           <>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setRenaming(true); setName(active.name); }}>
               Rename

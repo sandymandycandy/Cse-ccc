@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, useTransition } from "react";
 import {
   copyCertificateDesignAction,
+  resetCertificateGroupToBaseAction,
+  saveCertificateBaseAction,
   saveCertificateDesignAction,
 } from "@/app/admin/(app)/events/[id]/certificates/actions";
+import { BASE_LABEL, type BaseImpact, type BaseKind, type BaseSummary } from "@/lib/certificates/bases";
 import {
   DEFAULT_STYLE,
   assetKey,
@@ -22,6 +25,7 @@ import { FieldMenu } from "./FieldMenu";
 import type { AssetKind } from "./image-prep";
 import { LayersPanel } from "./LayersPanel";
 import { PropertiesPanel } from "./PropertiesPanel";
+import { SaveAsBasePanel } from "./SaveAsBasePanel";
 import { uploadCertificateAsset } from "./upload";
 import { useTextEditor } from "./useTextEditor";
 
@@ -49,11 +53,21 @@ export interface CertificateDesignerProps {
   previewRecipients: PreviewRecipient[];
   issuedCount: number;
   designSources: DesignSource[];
+  /** The council base slot this group fills; null for an extra group. */
+  baseKind: BaseKind | null;
+  /** True while the group has no design of its own (spec 2026-09-15 D2). */
+  followsBase: boolean;
+  bases: Record<BaseKind, BaseSummary>;
+  /** Bases this admin may overwrite — empty for anyone but council-wide admins. */
+  savableBases: BaseKind[];
+  baseImpact: Partial<Record<BaseKind, BaseImpact>>;
+  /** Back to the base preview without saving (a following group being customised). */
+  onCancel?: () => void;
   /** Dev harness only: no uploads, saves or previews. */
   offline?: boolean;
 }
 
-type Busy = "upload" | "preview" | "copy" | null;
+type Busy = "upload" | "preview" | "copy" | "base" | "reset" | null;
 
 export function CertificateDesigner(props: CertificateDesignerProps) {
   const { eventId, groupId, catalogue } = props;
@@ -67,6 +81,10 @@ export function CertificateDesigner(props: CertificateDesignerProps) {
   const [saving, startSaving] = useTransition();
   const [copyFrom, setCopyFrom] = useState("");
   const [confirmCopy, setConfirmCopy] = useState(false);
+  const [baseOpen, setBaseOpen] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const baseExists = props.baseKind ? props.bases[props.baseKind].exists : false;
   const viewport = useRef<HTMLDivElement>(null);
   const templateInput = useRef<HTMLInputElement>(null);
   const imageInput = useRef<HTMLInputElement>(null);
@@ -282,6 +300,47 @@ export function CertificateDesigner(props: CertificateDesignerProps) {
     });
   }
 
+  async function saveAsBase(targets: BaseKind[]) {
+    if (props.offline) {
+      setMessage({ tone: "error", text: "Saving only works on the real admin page." });
+      return;
+    }
+    const sent = state.design;
+    setBusy("base");
+    setMessage(null);
+    const res = await saveCertificateBaseAction({ eventId, groupId, design: sent, targets });
+    setBusy(null);
+    if (!res.ok) {
+      setMessage({ tone: "error", text: res.error });
+      return;
+    }
+    setBaseOpen(false);
+    // The group now follows the base it was saved as, so there is nothing left unsaved for it.
+    if (res.groupFollows && latestDesign.current === sent) dispatch({ type: "markSaved" });
+    setMessage({ tone: "ok", text: `Saved as the ${targets.map((k) => BASE_LABEL[k]).join(" and ")} base.` });
+  }
+
+  async function resetToBase() {
+    setConfirmReset(false);
+    setBusy("reset");
+    setMessage(null);
+    const res = await resetCertificateGroupToBaseAction({ eventId, groupId });
+    setBusy(null);
+    if (!res.ok) {
+      setMessage({ tone: "error", text: res.error });
+      return;
+    }
+    dispatch({ type: "markSaved" });
+  }
+
+  function cancelCustomise() {
+    if (state.dirty) {
+      setConfirmDiscard(true);
+      return;
+    }
+    props.onCancel?.();
+  }
+
   async function previewPdf() {
     const win = window.open("", "_blank");
     setBusy("preview");
@@ -398,10 +457,92 @@ export function CertificateDesigner(props: CertificateDesignerProps) {
               {busy === "preview" ? "Building…" : "Preview PDF"}
             </button>
             <button type="button" className="btn btn-primary btn-sm" disabled={!state.dirty || saving || props.offline} onClick={save}>
-              {saving ? "Saving…" : state.dirty ? "Save" : "Saved"}
+              {saving ? "Saving…" : state.dirty ? "Save for this event" : "Saved"}
             </button>
+            {props.savableBases.length > 0 ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                aria-expanded={baseOpen}
+                // Not disabled offline: the dev harness needs to open the panel. saveAsBase refuses instead.
+                disabled={busy !== null}
+                onClick={() => setBaseOpen((open) => !open)}
+              >
+                Save as base ▾
+              </button>
+            ) : null}
+            {props.followsBase && props.onCancel ? (
+              <button type="button" className="btn btn-ghost btn-sm" disabled={busy !== null} onClick={cancelCustomise}>
+                Cancel
+              </button>
+            ) : props.baseKind && !props.followsBase && baseExists ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={busy !== null || props.offline}
+                onClick={() => setConfirmReset(true)}
+              >
+                Reset to base
+              </button>
+            ) : null}
           </div>
         </div>
+
+        {baseOpen ? (
+          <SaveAsBasePanel
+            savable={props.savableBases}
+            defaultKind={props.baseKind}
+            bases={props.bases}
+            impact={props.baseImpact}
+            busy={busy === "base"}
+            onSave={saveAsBase}
+            onClose={() => setBaseOpen(false)}
+          />
+        ) : null}
+        {confirmReset ? (
+          <div className="cd-confirm" style={{ marginTop: 10 }}>
+            <p className="body-text">
+              This group&rsquo;s custom design will be discarded. Certificates already issued keep the design they were
+              issued with.
+            </p>
+            <div className="stack">
+              <button type="button" className="btn btn-accent btn-sm" onClick={resetToBase}>
+                Reset to base
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmReset(false)}>
+                Keep my design
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {confirmDiscard ? (
+          <div className="cd-confirm" style={{ marginTop: 10 }}>
+            <p className="body-text">Discard your changes? This group keeps following the council base.</p>
+            <div className="stack">
+              <button
+                type="button"
+                className="btn btn-accent btn-sm"
+                onClick={() => {
+                  setConfirmDiscard(false);
+                  props.onCancel?.();
+                }}
+              >
+                Discard
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmDiscard(false)}>
+                Keep editing
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {props.baseKind && props.followsBase && !baseExists ? (
+          <p className="note" style={{ marginTop: 10 }}>
+            No council base yet for {props.bases[props.baseKind].label}. Design it here
+            {props.savableBases.includes(props.baseKind)
+              ? ", then Save as base so every event can use it."
+              : " and save it for this event."}
+          </p>
+        ) : null}
 
         <input ref={templateInput} type="file" hidden accept="image/png,image/jpeg,image/svg+xml,image/webp"
           onChange={(e) => { void onFile("template", e.target.files?.[0]); e.target.value = ""; }} />
@@ -416,7 +557,7 @@ export function CertificateDesigner(props: CertificateDesignerProps) {
         {busy === "upload" ? <p className="hint">Uploading…</p> : null}
         {!page.template ? (
           <p className="note" style={{ marginTop: 10 }}>
-            Start by uploading your base certificate template (PNG or JPEG, up to 8 MB).
+            Start by uploading a certificate template (PNG or JPEG, up to 8 MB).
           </p>
         ) : null}
         {props.issuedCount > 0 && state.dirty ? (

@@ -1,9 +1,11 @@
 "use client";
 
+import { summarizeBases, type BaseDesign, type BaseKind } from "@/lib/certificates/bases";
 import { DEFAULT_STYLE, assetKey, type AssetRef, type Design } from "@/lib/certificates/design";
 import { buildFieldCatalogue } from "@/lib/certificates/fields";
 import { defaultFormFor, type FormField } from "@/lib/registration-form/schema";
 import { DesignerLoader } from "./DesignerLoader";
+import { DesignTab } from "./DesignTab";
 
 // Sample data only — never a real person.
 const svgUrl = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
@@ -120,6 +122,41 @@ export function DesignerHarness() {
       previewRecipients={people}
       issuedCount={0}
       designSources={[]}
+      baseKind={null}
+      followsBase={false}
+      bases={NO_BASES}
+      savableBases={[]}
+      baseImpact={{}}
+      offline
+    />
+  );
+}
+
+const NO_BASES = summarizeBases(new Map());
+
+const SAVED_BASES = summarizeBases(
+  new Map<BaseKind, BaseDesign>([
+    ["participants", { kind: "participants", design, sourceEventTitle: "Hack Night 2026", updatedAt: "2026-09-12T10:00:00Z" }],
+  ]),
+);
+
+/** A Participants group following a saved council base, as a council admin sees it. */
+export function BaseHarness() {
+  return (
+    <DesignTab
+      eventId="00000000-0000-4000-8000-000000000000"
+      groupId="00000000-0000-4000-8000-00000000000b"
+      initialDesign={design}
+      initialAssetUrls={{ [assetKey(TEMPLATE)]: svgUrl(TEMPLATE_SVG), [assetKey(LOGO)]: svgUrl(LOGO_SVG) }}
+      catalogue={catalogue}
+      previewRecipients={people}
+      issuedCount={0}
+      designSources={[]}
+      baseKind="participants"
+      followsBase
+      bases={SAVED_BASES}
+      savableBases={["participants", "volunteers"]}
+      baseImpact={{ participants: { following: 9, withLive: 2 } }}
       offline
     />
   );
