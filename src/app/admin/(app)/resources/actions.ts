@@ -10,13 +10,23 @@ import { resolveOwningClub } from "@/lib/admin/club-scope";
 import { getResourceForEdit } from "@/lib/admin/resources";
 import { isSafeHttpUrl } from "@/lib/url";
 import type { Database } from "@/lib/database.types";
+import { toFieldErrors } from "@/lib/admin/field-errors";
 import type { ResourceFormState } from "@/lib/admin/form-state";
 
 type ResourceKind = Database["public"]["Enums"]["resource_kind"];
 
 const Schema = z.object({
-  title: z.string().trim().min(3).max(140),
-  url: z.string().trim().min(1).max(2000).refine(isSafeHttpUrl, "not-a-web-url"),
+  title: z
+    .string()
+    .trim()
+    .min(3, "Give it a title — at least 3 characters.")
+    .max(140, "Keep the title to 140 characters or fewer."),
+  url: z
+    .string()
+    .trim()
+    .min(1, "Paste the link.")
+    .max(2000, "That link is too long.")
+    .refine(isSafeHttpUrl, "Use a full http(s) URL, e.g. https://drive.google.com/…"),
   kind: z.enum(["drive", "doc", "template"]),
   // "" = council-wide (no club); a uuid = that club.
   clubId: z.union([z.literal(""), z.string().uuid()]),
@@ -35,9 +45,7 @@ export async function createResourceAction(
     kind: formData.get("kind"),
     clubId: formData.get("clubId") ?? "",
   });
-  if (!parsed.success) {
-    return { error: "Check the form — a valid title, http(s) link and type are required." };
-  }
+  if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error.issues) };
 
   const resolved = resolveOwningClub(session, "manage:resources", parsed.data.clubId);
   if ("error" in resolved) return { error: resolved.error };
@@ -90,9 +98,7 @@ export async function updateResourceAction(
     kind: formData.get("kind"),
     clubId: formData.get("clubId") ?? "",
   });
-  if (!parsed.success) {
-    return { error: "Check the form — a valid title, http(s) link and type are required." };
-  }
+  if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error.issues) };
 
   const resolved = resolveOwningClub(session, "manage:resources", parsed.data.clubId);
   if ("error" in resolved) return { error: resolved.error };

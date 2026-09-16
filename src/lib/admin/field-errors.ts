@@ -23,3 +23,30 @@ export function toFieldErrors(
   }
   return out;
 }
+
+/**
+ * Split issues into per-field complaints and a fallback banner.
+ *
+ * ⚠️ A complaint about a field the form does not SHOW has nowhere to render,
+ * and would vanish silently — leaving a form that refuses to submit and says
+ * nothing about why. The auth forms validate hidden `token` and `secret`
+ * fields, which is exactly that case: a tampered or expired hidden value must
+ * surface as a banner, not as an invisible error on an invisible input.
+ */
+export function visibleFieldErrors(
+  issues: readonly { path: readonly PropertyKey[]; message: string }[],
+  visible: readonly string[],
+  fallback: string,
+): { fieldErrors?: Record<string, string>; error?: string } {
+  const all = toFieldErrors(issues);
+  const shown: Record<string, string> = {};
+  let hidden = false;
+  for (const [key, message] of Object.entries(all)) {
+    if (visible.includes(key)) shown[key] = message;
+    else hidden = true;
+  }
+  // A pathless issue has no field either, so it belongs in the banner too.
+  if (issues.some((i) => i.path.length === 0)) hidden = true;
+  if (Object.keys(shown).length === 0) return { error: fallback };
+  return hidden ? { fieldErrors: shown, error: fallback } : { fieldErrors: shown };
+}

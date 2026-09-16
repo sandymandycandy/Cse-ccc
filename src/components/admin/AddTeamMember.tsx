@@ -3,6 +3,7 @@
 import { useActionState, useRef, useEffect } from "react";
 import type { TeamAddState } from "@/lib/admin/form-state";
 import type { ClubOption } from "@/lib/admin/team";
+import { FieldError, fieldClass } from "@/components/admin/FieldError";
 
 type AddAction = (prev: TeamAddState, formData: FormData) => Promise<TeamAddState>;
 
@@ -45,11 +46,12 @@ export function AddTeamMember({ action, clubs }: { action: AddAction; clubs: Clu
         ) : null}
 
         <div className="admin-form-row">
-          <div className="field">
+          <div className={fieldClass(state.fieldErrors, "name")}>
             <label htmlFor="add-name">Name</label>
             <input id="add-name" name="name" required maxLength={120} placeholder="e.g. Sai Varun" />
+            <FieldError errors={state.fieldErrors} name="name" />
           </div>
-          <div className="field">
+          <div className={fieldClass(state.fieldErrors, "designation")}>
             <label htmlFor="add-role">Role</label>
             <input
               id="add-role"
@@ -64,11 +66,12 @@ export function AddTeamMember({ action, clubs }: { action: AddAction; clubs: Clu
               <code>Events Head</code>, <code>Documentation Head</code>,{" "}
               <code>Social Media Head</code> — to place them in the leadership row.
             </span>
+            <FieldError errors={state.fieldErrors} name="designation" />
           </div>
         </div>
 
         <div className="admin-form-row">
-          <div className="field">
+          <div className={fieldClass(state.fieldErrors, "clubId")}>
             <label htmlFor="add-club">Club</label>
             <select id="add-club" name="clubId" defaultValue="">
               <option value="">— none (council-wide) —</option>
@@ -78,10 +81,12 @@ export function AddTeamMember({ action, clubs }: { action: AddAction; clubs: Clu
                 </option>
               ))}
             </select>
+            <FieldError errors={state.fieldErrors} name="clubId" />
           </div>
-          <div className="field">
+          <div className={fieldClass(state.fieldErrors, "rollNo")}>
             <label htmlFor="add-roll">VTU number (optional)</label>
             <input id="add-roll" name="rollNo" maxLength={20} placeholder="vtuxxxxx" />
+            <FieldError errors={state.fieldErrors} name="rollNo" />
           </div>
         </div>
 

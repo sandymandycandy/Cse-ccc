@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { cancelEventAction } from "@/app/admin/(app)/events/actions";
 import type { EventFormState } from "@/lib/admin/form-state";
+import { FieldError, fieldClass } from "@/components/admin/FieldError";
 
 const initial: EventFormState = {};
 
@@ -28,9 +29,10 @@ export function CancelEventForm({ eventId }: { eventId: string }) {
           {state.error}
         </div>
       ) : null}
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "reason")}>
         <label htmlFor="reason">Reason (optional — shared with registrants)</label>
         <input id="reason" name="reason" maxLength={500} placeholder="Why is it cancelled? (shared with registrants)" />
+        <FieldError errors={state.fieldErrors} name="reason" />
       </div>
       <button
         type="submit"

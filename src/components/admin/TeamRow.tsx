@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { TeamAvatar } from "@/components/TeamAvatar";
 import type { TeamLinksState } from "@/lib/admin/form-state";
 import type { ClubOption, TeamAdminRow } from "@/lib/admin/team";
+import { FieldError, fieldClass } from "@/components/admin/FieldError";
 
 type SaveAction = (prev: TeamLinksState, formData: FormData) => Promise<TeamLinksState>;
 
@@ -99,7 +100,7 @@ export function TeamRow({
           ) : null}
 
           <div className="admin-form-row">
-            <div className="field">
+            <div className={fieldClass(state.fieldErrors, "name")}>
               <label htmlFor={`name-${member.id}`}>Name</label>
               <input
                 id={`name-${member.id}`}
@@ -108,8 +109,9 @@ export function TeamRow({
                 maxLength={120}
                 defaultValue={member.name}
               />
+              <FieldError errors={state.fieldErrors} name="name" />
             </div>
-            <div className="field">
+            <div className={fieldClass(state.fieldErrors, "designation")}>
               <label htmlFor={`role-${member.id}`}>Role</label>
               <input
                 id={`role-${member.id}`}
@@ -126,10 +128,11 @@ export function TeamRow({
                 <code>Documentation Head</code>, <code>Social Media Head</code> puts
                 them in the council leadership row — spelled exactly.
               </span>
+              <FieldError errors={state.fieldErrors} name="designation" />
             </div>
           </div>
 
-          <div className="field">
+          <div className={fieldClass(state.fieldErrors, "clubId")}>
             <label htmlFor={`club-${member.id}`}>Club</label>
             <select id={`club-${member.id}`} name="clubId" defaultValue={member.clubId ?? ""}>
               <option value="">— none (council-wide) —</option>
@@ -143,10 +146,11 @@ export function TeamRow({
               Decides which section they appear under on <code>/team</code>. Leave
               blank for council leadership, or if they lead no single club.
             </span>
+            <FieldError errors={state.fieldErrors} name="clubId" />
           </div>
 
           <div className="admin-form-row">
-            <div className="field">
+            <div className={fieldClass(state.fieldErrors, "linkedinUrl")}>
               <label htmlFor={`li-${member.id}`}>LinkedIn</label>
               <input
                 id={`li-${member.id}`}
@@ -156,8 +160,9 @@ export function TeamRow({
                 defaultValue={member.linkedinUrl ?? ""}
                 placeholder="https://linkedin.com/in/…"
               />
+              <FieldError errors={state.fieldErrors} name="linkedinUrl" />
             </div>
-            <div className="field">
+            <div className={fieldClass(state.fieldErrors, "instagramUrl")}>
               <label htmlFor={`ig-${member.id}`}>Instagram</label>
               <input
                 id={`ig-${member.id}`}
@@ -167,9 +172,10 @@ export function TeamRow({
                 defaultValue={member.instagramUrl ?? ""}
                 placeholder="https://instagram.com/…"
               />
+              <FieldError errors={state.fieldErrors} name="instagramUrl" />
             </div>
           </div>
-          <div className="field">
+          <div className={fieldClass(state.fieldErrors, "bio")}>
             <label htmlFor={`bio-${member.id}`}>Description</label>
             <textarea
               id={`bio-${member.id}`}
@@ -183,9 +189,10 @@ export function TeamRow({
               Plain text, up to 800 characters. Line breaks are kept. Replaces the
               default &ldquo;Part of the CSE Club Council&hellip;&rdquo; paragraph.
             </span>
+            <FieldError errors={state.fieldErrors} name="bio" />
           </div>
 
-          <div className="field">
+          <div className={fieldClass(state.fieldErrors, "photo")}>
             <label htmlFor={`photo-${member.id}`}>
               {member.photoUrl ? "Replace photo" : "Photo"}
             </label>
@@ -199,6 +206,7 @@ export function TeamRow({
               PNG, JPEG, WebP or GIF, up to 2 MB. Square images look best — it is
               shown as a circle. Leaving this empty keeps the current photo.
             </span>
+            <FieldError errors={state.fieldErrors} name="photo" />
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

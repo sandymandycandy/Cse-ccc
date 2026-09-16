@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { generateInviteAction } from "@/app/admin/(app)/users/actions";
 import { ADMIN_ROLES } from "@/lib/auth/capabilities";
 import type { InviteCreateState } from "@/lib/admin/form-state";
+import { FieldError, fieldClass } from "@/components/admin/FieldError";
 
 const initial: InviteCreateState = {};
 
@@ -32,11 +33,12 @@ export function InviteForm({ clubs }: { clubs: { id: string; name: string }[] })
 
       <form action={action}>
         <div className="admin-form-row">
-          <div className="field">
+          <div className={fieldClass(state.fieldErrors, "email")}>
             <label htmlFor="inv-email">Email</label>
             <input id="inv-email" name="email" type="email" required placeholder="vtuxxxxx@veltech.edu.in" />
+            <FieldError errors={state.fieldErrors} name="email" />
           </div>
-          <div className="field">
+          <div className={fieldClass(state.fieldErrors, "role")}>
             <label htmlFor="inv-role">Role</label>
             <select id="inv-role" name="role" required defaultValue="">
               <option value="" disabled>
@@ -48,10 +50,11 @@ export function InviteForm({ clubs }: { clubs: { id: string; name: string }[] })
                 </option>
               ))}
             </select>
+            <FieldError errors={state.fieldErrors} name="role" />
           </div>
         </div>
 
-        <div className="field">
+        <div className={fieldClass(state.fieldErrors, "clubId")}>
           <label htmlFor="inv-club">Club (for club-scoped roles)</label>
           <select id="inv-club" name="clubId" defaultValue="">
             <option value="">— None —</option>
@@ -61,6 +64,7 @@ export function InviteForm({ clubs }: { clubs: { id: string; name: string }[] })
               </option>
             ))}
           </select>
+          <FieldError errors={state.fieldErrors} name="clubId" />
         </div>
 
         <button type="submit" className="btn btn-primary btn-sm" disabled={pending}>

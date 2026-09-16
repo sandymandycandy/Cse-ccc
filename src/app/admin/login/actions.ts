@@ -6,6 +6,7 @@ import { signIn } from "@/lib/auth";
 import { LoginSchema } from "@/lib/validation/admin";
 import { peekLoginLimits } from "@/lib/rate-limit";
 import { lockoutMessage } from "@/lib/auth/lockout";
+import { visibleFieldErrors } from "@/lib/admin/field-errors";
 import type { LoginState } from "@/lib/admin/form-state";
 
 /**
@@ -29,7 +30,17 @@ export async function loginAction(
     totp: formData.get("totp") || undefined,
     recoveryCode: formData.get("recoveryCode") || undefined,
   });
-  if (!parsed.success) return { error: "Enter your email and password." };
+  // ⚠️ SHAPE ONLY — an empty box is an empty box and says nothing about whether
+  // the account exists. The credential verdict below stays a single vague
+  // "Wrong email, password, or code." on purpose: splitting it per field would
+  // tell an attacker which addresses are real admin accounts.
+  if (!parsed.success) {
+    return visibleFieldErrors(
+      parsed.error.issues,
+      ["email", "password", "totp"],
+      "Enter your email and password.",
+    );
+  }
 
   // Key on the SCHEMA-NORMALISED email: LoginSchema trims and lowercases, and
   // `authorize` keys the limiter on that value. Peeking with the raw field

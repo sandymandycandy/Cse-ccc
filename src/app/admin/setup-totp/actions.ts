@@ -11,6 +11,7 @@ import {
   hashRecoveryCode,
 } from "@/lib/auth/totp";
 import { writeAudit } from "@/lib/admin/audit";
+import { visibleFieldErrors } from "@/lib/admin/field-errors";
 import type { SetupTotpState } from "@/lib/admin/form-state";
 
 /**
@@ -21,7 +22,7 @@ import type { SetupTotpState } from "@/lib/admin/form-state";
  * password-only session dies and the next request forces a full 2FA login.
  */
 const Schema = z.object({
-  totp: z.string().trim().min(1),
+  totp: z.string().trim().min(1, "Enter the 6-digit code from your authenticator."),
   secret: z.string().min(1),
 });
 
@@ -36,7 +37,13 @@ export async function setupTotpAction(
     totp: formData.get("totp"),
     secret: formData.get("secret"),
   });
-  if (!parsed.success) return { error: "Enter the 6-digit code from your authenticator." };
+  if (!parsed.success) {
+    return visibleFieldErrors(
+      parsed.error.issues,
+      ["totp"],
+      "Enter the 6-digit code from your authenticator.",
+    );
+  }
 
   const admin = createAdminClient();
 

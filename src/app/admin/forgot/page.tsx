@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { requestResetAction } from "./actions";
 import type { ForgotState } from "@/lib/admin/form-state";
+import { FieldError, fieldClass } from "@/components/admin/FieldError";
 
 const initial: ForgotState = {};
 
@@ -39,7 +40,7 @@ export default function ForgotPasswordPage() {
           </div>
         ) : null}
 
-        <div className="field">
+        <div className={fieldClass(state.fieldErrors, "email")}>
           <label htmlFor="email">Email</label>
           <input
             id="email"
@@ -49,6 +50,7 @@ export default function ForgotPasswordPage() {
             required
             placeholder="vtuxxxxx@veltech.edu.in"
           />
+          <FieldError errors={state.fieldErrors} name="email" />
         </div>
 
         <button type="submit" className="btn btn-primary w-full" disabled={pending}>

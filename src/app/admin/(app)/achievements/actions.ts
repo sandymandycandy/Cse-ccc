@@ -9,13 +9,23 @@ import { writeAudit } from "@/lib/admin/audit";
 import { resolveOwningClub } from "@/lib/admin/club-scope";
 import { handleImageUpload } from "@/lib/admin/image-upload";
 import { getAchievementForEdit } from "@/lib/admin/achievements";
+import { toFieldErrors } from "@/lib/admin/field-errors";
 import type { AchievementFormState } from "@/lib/admin/form-state";
 
 const Schema = z.object({
-  title: z.string().trim().min(3).max(140),
-  description: z.string().trim().max(20000).optional().or(z.literal("")),
+  title: z
+    .string()
+    .trim()
+    .min(3, "Give it a title — at least 3 characters.")
+    .max(140, "Keep the title to 140 characters or fewer."),
+  description: z
+    .string()
+    .trim()
+    .max(20000, "That is too long — 20000 characters at most.")
+    .optional()
+    .or(z.literal("")),
   // "" = no date; else a calendar date (YYYY-MM-DD).
-  happenedOn: z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]),
+  happenedOn: z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a valid date, or leave it blank.")]),
   // "" = council-wide (no club); a uuid = that club.
   clubId: z.union([z.literal(""), z.string().uuid()]),
   // The flat {rank,name,roll} shape stored in the jsonb — one row per person,
@@ -66,7 +76,7 @@ export async function createAchievementAction(
   if (!session) return { error: "Your session expired. Sign in again." };
 
   const parsed = parse(formData);
-  if (!parsed.success) return { error: "Check the form — a title (and a valid date, if set) are required." };
+  if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error.issues) };
 
   const resolved = resolveOwningClub(session, "manage:content", parsed.data.clubId);
   if ("error" in resolved) return { error: resolved.error };
@@ -128,7 +138,7 @@ export async function updateAchievementAction(
   }
 
   const parsed = parse(formData);
-  if (!parsed.success) return { error: "Check the form — a title (and a valid date, if set) are required." };
+  if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error.issues) };
 
   const resolved = resolveOwningClub(session, "manage:content", parsed.data.clubId);
   if ("error" in resolved) return { error: resolved.error };

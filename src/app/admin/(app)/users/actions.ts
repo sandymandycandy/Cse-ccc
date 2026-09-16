@@ -14,6 +14,7 @@ import { canDeactivate } from "@/lib/admin/admin-status";
 import { writeAudit } from "@/lib/admin/audit";
 import { siteOrigin } from "@/lib/site-origin";
 import { enqueueEmail } from "@/lib/email";
+import { toFieldErrors } from "@/lib/admin/field-errors";
 import type { InviteCreateState } from "@/lib/admin/form-state";
 
 const Schema = z.object({
@@ -38,7 +39,7 @@ export async function generateInviteAction(
     role: formData.get("role"),
     clubId: formData.get("clubId") || "",
   });
-  if (!parsed.success) return { error: "Enter a valid email and pick a role." };
+  if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error.issues) };
   const { email, role, clubId } = parsed.data;
 
   // ⚠️ Resolve the origin BEFORE minting the invite — from configuration only,

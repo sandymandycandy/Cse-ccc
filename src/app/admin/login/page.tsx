@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { loginAction } from "./actions";
 import { lockoutMessage } from "@/lib/auth/lockout";
 import type { LoginState } from "@/lib/admin/form-state";
+import { FieldError, fieldClass } from "@/components/admin/FieldError";
 
 const initial: LoginState = {};
 
@@ -65,12 +66,13 @@ export default function AdminLoginPage() {
           </div>
         ) : null}
 
-        <div className="field">
+        <div className={fieldClass(state.fieldErrors, "email")}>
           <label htmlFor="email">Email</label>
           <input id="email" name="email" type="email" autoComplete="username" required placeholder="vtuxxxxx@veltech.edu.in" />
+          <FieldError errors={state.fieldErrors} name="email" />
         </div>
 
-        <div className="field">
+        <div className={fieldClass(state.fieldErrors, "password")}>
           <label htmlFor="password">Password</label>
           <input
             id="password"
@@ -80,15 +82,17 @@ export default function AdminLoginPage() {
             required
             placeholder="Your password"
           />
+          <FieldError errors={state.fieldErrors} name="password" />
         </div>
 
         {useRecovery ? (
-          <div className="field">
+          <div className={fieldClass(state.fieldErrors, "recoveryCode")}>
             <label htmlFor="recoveryCode">Recovery code</label>
             <input id="recoveryCode" name="recoveryCode" autoComplete="one-time-code" placeholder="xxxxx-xxxxx" />
+            <FieldError errors={state.fieldErrors} name="recoveryCode" />
           </div>
         ) : (
-          <div className="field">
+          <div className={fieldClass(state.fieldErrors, "totp")}>
             <label htmlFor="totp">Authenticator code</label>
             <input
               id="totp"
@@ -97,6 +101,7 @@ export default function AdminLoginPage() {
               autoComplete="one-time-code"
               placeholder="6 digits — only if 2FA is enabled"
             />
+            <FieldError errors={state.fieldErrors} name="totp" />
           </div>
         )}
 

@@ -11,12 +11,13 @@ import {
   hashRecoveryCode,
 } from "@/lib/auth/totp";
 import { enqueueEmail } from "@/lib/email";
+import { visibleFieldErrors } from "@/lib/admin/field-errors";
 import type { ResetPasswordState } from "@/lib/admin/form-state";
 
 const Schema = z.object({
   token: z.string().min(1),
-  password: z.string().min(1).max(200),
-  totp: z.string().trim().min(1),
+  password: z.string().min(1, "Choose a new password.").max(200, "That password is too long."),
+  totp: z.string().trim().min(1, "Enter the 6-digit code from your authenticator."),
   secret: z.string().min(1),
 });
 
@@ -42,7 +43,11 @@ export async function resetPasswordAction(
     totp: formData.get("totp"),
     secret: formData.get("secret"),
   });
-  if (!parsed.success) return { error: "Fill in every field." };
+  // The hidden token and secret fall back to the banner — an invisible error on
+  // an invisible input would leave the form refusing to submit in silence.
+  if (!parsed.success) {
+    return visibleFieldErrors(parsed.error.issues, ["password", "totp"], "Fill in every field.");
+  }
   const { token, password, totp, secret: encSecret } = parsed.data;
 
   // Never trust the page's copy of the token.

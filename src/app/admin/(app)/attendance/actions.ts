@@ -9,17 +9,42 @@ import { resolveOwningClub } from "@/lib/admin/club-scope";
 import { writeAudit } from "@/lib/admin/audit";
 import { getMemberForEdit } from "@/lib/admin/members";
 import { createSession, savePresence, getSessionMarking, setSessionStatus } from "@/lib/admin/attendance-club";
+import { toFieldErrors } from "@/lib/admin/field-errors";
 import type { MemberFormState, SessionFormState } from "@/lib/admin/form-state";
 
 const MemberSchema = z.object({
-  name: z.string().trim().min(2).max(120),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Enter their name.")
+    .max(120, "Keep the name to 120 characters or fewer."),
   // Roll number and phone are mandatory for every roster member.
-  rollNo: z.string().trim().min(1).max(40),
-  email: z.string().trim().email().max(200).optional().or(z.literal("")),
-  phone: z.string().trim().min(1).max(20),
+  rollNo: z
+    .string()
+    .trim()
+    .min(1, "Enter their roll number.")
+    .max(40, "That roll number is too long."),
+  email: z
+    .string()
+    .trim()
+    .email("That does not look like an email address.")
+    .max(200, "That address is too long.")
+    .optional()
+    .or(z.literal("")),
+  phone: z
+    .string()
+    .trim()
+    .min(1, "Enter a phone number.")
+    .max(20, "That phone number is too long."),
   // Roster is members-only. Head / vice-head are admin_users, created via the
   // admin-invite flow — never set here — so `role` is always "member".
-  sort: z.coerce.number().int().min(0).max(9999).optional().or(z.literal("")),
+  sort: z.coerce
+    .number()
+    .int("Order must be a whole number.")
+    .min(0, "Order cannot be negative.")
+    .max(9999, "Order must be 9999 or less.")
+    .optional()
+    .or(z.literal("")),
   isActive: z.union([z.literal("on"), z.literal("")]),
   // resolveOwningClub uses "manage:members" grant; "" = council-wide is INVALID
   // for members (a member always belongs to a club), so require a uuid for `all`.
@@ -47,7 +72,7 @@ export async function createMemberAction(
   if (!session) return { error: "Your session expired. Sign in again." };
 
   const parsed = parse(formData);
-  if (!parsed.success) return { error: "Check the form — name, roll number and phone are all required." };
+  if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error.issues) };
 
   const resolved = resolveOwningClub(session, "manage:members", parsed.data.clubId);
   if ("error" in resolved) return { error: resolved.error };
@@ -101,7 +126,7 @@ export async function updateMemberAction(
   }
 
   const parsed = parse(formData);
-  if (!parsed.success) return { error: "Check the form — name, roll number and phone are required." };
+  if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error.issues) };
 
   // A club-scoped admin cannot move a member to another club; org-wide can.
   const resolved = resolveOwningClub(session, "manage:members", parsed.data.clubId);
@@ -159,7 +184,11 @@ export async function deleteMemberAction(formData: FormData): Promise<void> {
 }
 
 const SessionSchema = z.object({
-  title: z.string().trim().min(2).max(140),
+  title: z
+    .string()
+    .trim()
+    .min(2, "Give the session a title.")
+    .max(140, "Keep the title to 140 characters or fewer."),
   clubId: z.union([z.literal(""), z.string().uuid()]),
   sessionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date."),
   startTime: z.string().regex(/^\d{2}:\d{2}$/, "Pick a start time."),
@@ -180,7 +209,7 @@ export async function createSessionAction(
     startTime: formData.get("startTime"),
     endTime: formData.get("endTime"),
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the session details." };
+  if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error.issues) };
   if (parsed.data.endTime <= parsed.data.startTime) return { error: "End time must be after the start time." };
 
   const resolved = resolveOwningClub(session, "manage:members", parsed.data.clubId);

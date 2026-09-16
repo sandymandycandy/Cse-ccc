@@ -16,6 +16,7 @@ import { parseSchedule } from "@/lib/registration/schedule";
 import { istDateKey, istLocalToUTC } from "@/lib/datetime";
 import type { Json } from "@/lib/database.types";
 import type { AdminRole } from "@/lib/auth/capabilities";
+import { toFieldErrors } from "@/lib/admin/field-errors";
 import type { EventFormState } from "@/lib/admin/form-state";
 
 const POSTER_BUCKET = "event-posters";
@@ -30,13 +31,31 @@ const AUTO_APPROVE: AdminRole[] = [
 
 const CreateSchema = z
   .object({
-    title: z.string().trim().min(3).max(140),
-    description: z.string().trim().max(4000).optional(),
-    clubId: z.string().uuid(),
-    venueText: z.string().trim().max(120).optional(),
-    startsAt: z.string().min(1),
-    endsAt: z.string().min(1),
-    capacity: z.coerce.number().int().min(0).max(100000).optional().or(z.literal("")),
+    title: z
+      .string()
+      .trim()
+      .min(3, "Give the event a title — at least 3 characters.")
+      .max(140, "Keep the title to 140 characters or fewer."),
+    description: z
+      .string()
+      .trim()
+      .max(4000, "Keep the description to 4000 characters or fewer.")
+      .optional(),
+    clubId: z.string().uuid("Choose which club is hosting."),
+    venueText: z
+      .string()
+      .trim()
+      .max(120, "Keep the venue to 120 characters or fewer.")
+      .optional(),
+    startsAt: z.string().min(1, "Pick when it starts."),
+    endsAt: z.string().min(1, "Pick when it ends."),
+    capacity: z.coerce
+      .number()
+      .int("Capacity must be a whole number.")
+      .min(0, "Capacity cannot be negative.")
+      .max(100000, "That capacity is too large.")
+      .optional()
+      .or(z.literal("")),
     selectionMode: z.enum(["seats", "shortlist"]).default("seats"),
     registrationForm: z.string().optional(), // JSON; validated with validateFormSchema
     registrationOpensAt: z.string().optional(), // IST datetime-local; validated in parseSchedule
@@ -88,7 +107,7 @@ export async function createEventAction(
   if (!session) return { error: "Your session expired. Sign in again." };
 
   const parsed = parseEvent(formData);
-  if (!parsed.success) return { error: "Check the form — some fields are missing or invalid." };
+  if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error.issues) };
   const { title, description, clubId, venueText, capacity, selectionMode } = parsed.data;
 
   // Capability + club scope: a club-scoped role may only create for its own club.
@@ -101,9 +120,16 @@ export async function createEventAction(
 
   const startsAt = istLocalToUTC(parsed.data.startsAt);
   const endsAt = istLocalToUTC(parsed.data.endsAt);
-  if (!startsAt || !endsAt) return { error: "Enter a valid start and end time." };
+  if (!startsAt || !endsAt) {
+    return {
+      fieldErrors: {
+        ...(startsAt ? {} : { startsAt: "That is not a valid date and time." }),
+        ...(endsAt ? {} : { endsAt: "That is not a valid date and time." }),
+      },
+    };
+  }
   if (new Date(endsAt) <= new Date(startsAt)) {
-    return { error: "The event must end after it starts." };
+    return { fieldErrors: { endsAt: "It must end after it starts." } };
   }
 
   const sched = parseSchedule(
@@ -232,7 +258,7 @@ export async function updateEventAction(
   }
 
   const parsed = parseEvent(formData);
-  if (!parsed.success) return { error: "Check the form — some fields are missing or invalid." };
+  if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error.issues) };
   const { title, description, clubId, venueText, capacity, selectionMode } = parsed.data;
 
   const form = parseRegistrationForm(parsed.data.registrationForm);
@@ -278,9 +304,16 @@ export async function updateEventAction(
 
   const startsAt = istLocalToUTC(parsed.data.startsAt);
   const endsAt = istLocalToUTC(parsed.data.endsAt);
-  if (!startsAt || !endsAt) return { error: "Enter a valid start and end time." };
+  if (!startsAt || !endsAt) {
+    return {
+      fieldErrors: {
+        ...(startsAt ? {} : { startsAt: "That is not a valid date and time." }),
+        ...(endsAt ? {} : { endsAt: "That is not a valid date and time." }),
+      },
+    };
+  }
   if (new Date(endsAt) <= new Date(startsAt)) {
-    return { error: "The event must end after it starts." };
+    return { fieldErrors: { endsAt: "It must end after it starts." } };
   }
 
   const sched = parseSchedule(

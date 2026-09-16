@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import type { GalleryFormState } from "@/lib/admin/form-state";
 import { ImageEditor } from "./ImageEditor";
+import { FieldError, fieldClass } from "@/components/admin/FieldError";
 
 type GalleryAction = (
   prev: GalleryFormState,
@@ -57,12 +58,13 @@ export function GalleryForm({
         hint="Crop, rotate and resize before uploading — the gallery shows the shape you choose."
       />
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "caption")}>
         <label htmlFor="caption">Caption (optional)</label>
         <input id="caption" name="caption" maxLength={500} defaultValue={initial?.caption} placeholder="Optional caption" />
+        <FieldError errors={state.fieldErrors} name="caption" />
       </div>
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "sort")}>
         <label htmlFor="sort">Sort order</label>
         <input
           id="sort"
@@ -75,10 +77,11 @@ export function GalleryForm({
           placeholder="0"
         />
         <span className="hint">Lower numbers show first.</span>
+        <FieldError errors={state.fieldErrors} name="sort" />
       </div>
 
       {clubs ? (
-        <div className="field">
+        <div className={fieldClass(state.fieldErrors, "clubId")}>
           <label htmlFor="clubId">Club</label>
           <select id="clubId" name="clubId" defaultValue={initial?.clubId ?? ""}>
             <option value="">Council-wide (all clubs)</option>
@@ -88,6 +91,7 @@ export function GalleryForm({
               </option>
             ))}
           </select>
+          <FieldError errors={state.fieldErrors} name="clubId" />
         </div>
       ) : null}
 

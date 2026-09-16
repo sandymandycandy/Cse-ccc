@@ -10,13 +10,14 @@ import {
   generateRecoveryCodes,
   hashRecoveryCode,
 } from "@/lib/auth/totp";
+import { visibleFieldErrors } from "@/lib/admin/field-errors";
 import type { AcceptInviteState } from "@/lib/admin/form-state";
 
 const Schema = z.object({
   token: z.string().min(1),
-  name: z.string().trim().min(2).max(80),
-  password: z.string().min(1).max(200),
-  totp: z.string().trim().min(1),
+  name: z.string().trim().min(2, "Enter your name.").max(80, "That name is too long."),
+  password: z.string().min(1, "Choose a password.").max(200, "That password is too long."),
+  totp: z.string().trim().min(1, "Enter the 6-digit code from your authenticator."),
   // The TOTP secret we generated on page load, encrypted, round-tripped hidden.
   secret: z.string().min(1),
 });
@@ -32,7 +33,13 @@ export async function acceptInviteAction(
     totp: formData.get("totp"),
     secret: formData.get("secret"),
   });
-  if (!parsed.success) return { error: "Fill in every field." };
+  if (!parsed.success) {
+    return visibleFieldErrors(
+      parsed.error.issues,
+      ["name", "password", "totp"],
+      "Fill in every field.",
+    );
+  }
   const { token, name, password, totp, secret: encSecret } = parsed.data;
 
   const invite = await validateInvite(token);

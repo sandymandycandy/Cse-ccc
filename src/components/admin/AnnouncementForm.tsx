@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import type { AnnouncementFormState } from "@/lib/admin/form-state";
 import { ImageEditor } from "./ImageEditor";
+import { FieldError, fieldClass } from "@/components/admin/FieldError";
 
 type AnnouncementAction = (
   prev: AnnouncementFormState,
@@ -43,18 +44,20 @@ export function AnnouncementForm({
         </div>
       ) : null}
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "title")}>
         <label htmlFor="title">Title</label>
         <input id="title" name="title" required maxLength={140} defaultValue={init?.title} placeholder="e.g. Registrations open for TechFest 2026" />
+        <FieldError errors={state.fieldErrors} name="title" />
       </div>
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "body")}>
         <label htmlFor="body">Body</label>
         <textarea id="body" name="body" rows={12} required maxLength={20000} defaultValue={init?.body} placeholder="Write your announcement… (Markdown supported)" />
         <span className="hint">
           Formatting: <code># heading</code>, <code>**bold**</code>, <code>*italic*</code>,{" "}
           <code>`code`</code>, <code>[link](https://…)</code>, and <code>-</code> / <code>1.</code> lists.
         </span>
+        <FieldError errors={state.fieldErrors} name="body" />
       </div>
 
       {/* "Original" by default, like the gallery: neither the list thumbnail nor
@@ -74,7 +77,7 @@ export function AnnouncementForm({
         <span>Published (visible to everyone)</span>
       </label>
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "expiresAt")}>
         <label htmlFor="expiresAt">Hide from the site after (IST, optional)</label>
         <input
           id="expiresAt"
@@ -88,6 +91,7 @@ export function AnnouncementForm({
           <code>/announcements</code> — it is <strong>not</strong> deleted, stays
           listed here, and anyone holding its link can still open it.
         </span>
+        <FieldError errors={state.fieldErrors} name="expiresAt" />
       </div>
 
       <button type="submit" className="btn btn-primary" disabled={pending}>
