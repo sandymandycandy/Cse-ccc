@@ -22,6 +22,8 @@ interface ComposerProps {
     heads: number;
     council: number;
     councilTotal: number;
+    /** Addresses on BOTH the heads list and the council roster — see below. */
+    overlapHeadsCouncil: number;
     officeBearers: number;
     allMembers: number;
     ownClubMembers: number;
@@ -126,10 +128,33 @@ function ComposerForm({
     );
   }
 
-  const councilDetail =
+  // ⚠️ `heads` and `council` are two different tables describing largely the
+  // same humans, and they can show the SAME count while being different lists
+  // (26 and 26, with 23 in common). Naming the source on each, and stating the
+  // overlap, is what stops them reading as interchangeable — the failure it
+  // prevents is mailing 23 people the same thing twice, one send apart.
+  const councilDetail = [
+    `${counts.council} addresses`,
     counts.councilTotal > counts.council
-      ? `${counts.council} addresses · ${counts.councilTotal - counts.council} have no address on file`
-      : `${counts.council} addresses`;
+      ? `${counts.councilTotal - counts.council} of ${counts.councilTotal} have no address on file`
+      : null,
+    "from the public council roster",
+    counts.overlapHeadsCouncil > 0
+      ? `${counts.overlapHeadsCouncil} are also club heads`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const headsDetail = [
+    `${counts.heads} ${counts.heads === 1 ? "address" : "addresses"}`,
+    "from the admin accounts",
+    counts.overlapHeadsCouncil > 0
+      ? `${counts.overlapHeadsCouncil} are also on the council roster`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <form action={action} className="compose">
@@ -168,7 +193,7 @@ function ComposerForm({
               checked={kind === "heads"}
               onChange={() => choose("heads")}
               title="Club heads and vice heads — layer 3"
-              detail={`${counts.heads} ${counts.heads === 1 ? "address" : "addresses"}`}
+              detail={headsDetail}
             >
               {picker({ kind: "heads" })}
             </AudienceOption>

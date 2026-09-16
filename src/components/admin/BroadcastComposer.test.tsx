@@ -19,6 +19,7 @@ const counts = {
   heads: 26,
   council: 26,
   councilTotal: 32,
+  overlapHeadsCouncil: 23,
   officeBearers: 6,
   allMembers: 909,
   ownClubMembers: 236,
@@ -54,7 +55,29 @@ describe("BroadcastComposer", () => {
   // 26 reachable of 32 (the live numbers) is what decides whether to chase the
   // missing six before sending, so it cannot be dropped in the restyle.
   it("keeps the count of council members with no address on file", () => {
-    expect(compose()).toContain("6 have no address on file");
+    expect(compose()).toContain("6 of 32 have no address on file");
+  });
+
+  /**
+   * ⚠️ `heads` and `council` are different tables describing largely the same
+   * humans, and both currently read "26 addresses". Shown bare they look
+   * interchangeable; they are not, and sending to each in turn mails 23 people
+   * the same thing twice. Each card names its source, and both state the
+   * overlap.
+   */
+  it("distinguishes the two lists that both happen to count 26", () => {
+    const html = compose();
+    expect(html).toContain("from the admin accounts");
+    expect(html).toContain("from the public council roster");
+    expect(html).toContain("23 are also club heads");
+    expect(html).toContain("23 are also on the council roster");
+  });
+
+  it("says nothing about an overlap when there is none", () => {
+    const html = compose({ counts: { ...counts, overlapHeadsCouncil: 0 } });
+    expect(html).not.toContain("are also club heads");
+    expect(html).not.toContain("are also on the council roster");
+    expect(html).toContain("from the admin accounts");
   });
 
   // Layer 2 had no audience at all before this: `heads` is club_head+vice_head

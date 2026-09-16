@@ -151,18 +151,27 @@ export async function audienceCounts(ownClubId: string | null): Promise<{
   heads: number;
   council: number;
   councilTotal: number;
+  /**
+   * How many addresses are on BOTH the heads list and the council roster.
+   *
+   * ⚠️ These are two different tables describing largely the same humans —
+   * `admin_users` is who has a panel login, `council_members` is the public
+   * roster — and at the time of writing they are 26 and 26 with **23 in
+   * common**. Two audiences showing the same count look interchangeable and
+   * are not, so the overlap is stated rather than left to be discovered by
+   * mailing 23 people the same thing twice.
+   */
+  overlapHeadsCouncil: number;
   officeBearers: number;
   allMembers: number;
   ownClubMembers: number;
 }> {
   const admin = createAdminClient();
-  const [heads, councilTotal, members, ownMembers, councilWithEmail, officeBearers] =
+  const [headsList, councilTotal, members, ownMembers, councilWithEmail, officeBearers] =
     await Promise.all([
-    admin
-      .from("admin_users")
-      .select("id", { count: "exact", head: true })
-      .in("role", ["club_head", "vice_head"])
-      .eq("is_active", true),
+    // Resolved rather than counted, so the overlap below can be computed. Both
+    // lists are a few dozen rows, so this is cheaper than it looks.
+    resolveRecipients({ kind: "heads" }),
     admin
       .from("council_members")
       .select("id", { count: "exact", head: true })
@@ -188,10 +197,15 @@ export async function audienceCounts(ownClubId: string | null): Promise<{
       .eq("is_active", true),
   ]);
 
+  const councilEmails = new Set(councilWithEmail.map((r) => r.email));
+
   return {
-    heads: heads.count ?? 0,
+    heads: headsList.length,
     council: councilWithEmail.length,
     councilTotal: councilTotal.count ?? 0,
+    // Both lists are already lowercased and trimmed by `dedupeRecipients`, so
+    // a plain set intersection is the whole comparison.
+    overlapHeadsCouncil: headsList.filter((r) => councilEmails.has(r.email)).length,
     officeBearers: officeBearers.count ?? 0,
     allMembers: members.count ?? 0,
     ownClubMembers: ownMembers.count ?? 0,
