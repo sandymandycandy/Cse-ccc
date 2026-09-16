@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-16 (email composer + Outbox UI shipped, plus the Outbox table-class fix; co-hosted events still in flight).**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-16 (audience picker + layer-2 audience shipped; Outbox address leak fixed; co-hosted events still in flight).**
 
 ## What this is
 
@@ -20,6 +20,65 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-16)
 
+> ### 🔒 SHIPPED TO PRODUCTION 2026-09-16 — FIXED: the Outbox showed org-wide addresses to club heads
+>
+> **`5612ded`. Pre-existing on `main`, found by a security review of the audience-picker branch, not
+> introduced by it.** `/admin/outbox` is gated on `requireViewPage("manage:broadcast")`, and
+> **`club_head` / `vice_head` hold that as `own`** (`capabilities.ts:167-170`) — enough to open the
+> page. The recent list had **no club scoping at all**: the 20 most recent `email_log` rows org-wide,
+> whoever was looking.
+>
+> **What was exposed:** admin **password-reset** and **admin-invite** mail for other people, plus the
+> recipients of council-wide broadcasts and contact-form notifications.
+>
+> ⚠️ **`email_log` has no club, sender or actor column**, so that list *cannot* be narrowed per club
+> without a schema change — and existing rows could not be backfilled meaningfully in any case. So the
+> addresses are now shown only to an already-org-wide grant (`canSeeLog`). **The page no longer even
+> queries those rows** when the viewer may not see them: gating the render alone would still pull the
+> addresses into the server component's payload. A club head keeps the counts and the allowance bar —
+> what the page's own docstring says they need, and they name nobody.
+>
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-16 — audience picker, layer 2, typed addresses
+>
+> **`352ec7d`, merged as `2d8ee92`.** Gate re-run on the merged tree: typecheck ✓ lint ✓ **1138 tests** ✓
+> build ✓ `npm ci` lockfile in sync. No migration, dependency, env or `vercel.json` change.
+>
+> - **Layer 2 finally has an audience.** There was none: `heads` is `club_head`+`vice_head` (**layer 3,
+>   26**) and `council` reads the separate `council_members` roster (**32 active, 26 with an address**) —
+>   the office-bearers fell between the two. Resolved **BY ROLE** (`OFFICE_BEARER_ROLES`), never from a
+>   list of people, so it self-corrects as the team changes instead of going stale in a constant.
+>   ⚠️ **It reaches 6, not 7 — `events_head` is vacant in `admin_users`** (Events Head has no account;
+>   the owner is handling that). A vacant post contributes nobody rather than erroring.
+>   ⚠️ **`heads` is still the DEFAULT** even though layer 2 is listed above it — this block's own advice
+>   is to start with the 26 heads, and adding an audience must not change what pressing Send gives you.
+> - **"See who gets it"** on every card: scrollable, filterable, a checkbox each. Nothing loads until
+>   asked — the largest audience is 909 people. `previewAudienceAction` runs the **identical gate** to
+>   sending (same parse, same DB re-read of an event's owning club, same `isAudienceAllowed`).
+> - **Typed addresses**, council-wide only, capped at **200** — over the cap it *refuses* rather than
+>   quietly mailing the first 200.
+>
+> ⚠️ **Two authorisation invariants that must not be broken by a later refactor:**
+> 1. **The form posts who was EXCLUDED, never who was kept.** The server resolves the audience itself
+>    and `applyExclusions` only ever **subtracts**, so a tampered request can shrink a send but can
+>    never inject an address. Posting the keep-list would make the form the source of truth for
+>    recipients and walk straight around `isAudienceAllowed`.
+> 2. **`AudienceOption` renders `children` only while checked**, so exactly **one** `name="exclude"`
+>    field exists at a time. Were all cards' children rendered eagerly, `formData.get("exclude")` would
+>    return the first (empty) one and silently mail people the sender had unticked.
+>
+> **Reviewed:** an independent security pass over the branch found **no exploitable vulnerability** —
+> it specifically cleared cross-club reads through the preview action, exclusion-injection, the
+> `custom` refusal on both paths, and the event-club DB re-read. It was that review that turned up the
+> Outbox leak above. Note `broadcast-audience.ts` is now imported by a **client** component
+> (`CUSTOM_MAX`, `parseEmailList`), so it is client-reachable and **must never gain a secret or a DB
+> import**.
+>
+> ⚠️ **NOT OPENED IN A BROWSER.** The picker panel, its checkboxes and its filter have **no interaction
+> coverage** — `renderToStaticMarkup` cannot click or type, and RTL is not a dependency.
+> **Owed:** open `/admin/email`, press **See who gets it** on layer 2, confirm it lists the six; untick
+> one and check the button count drops; check the picker at 400 px; and confirm a club head's
+> `/admin/outbox` shows no addresses.
+>
 > ### 🚀 SHIPPED TO PRODUCTION 2026-09-16 — email composer + Outbox UI, responsive to 360px
 >
 > `feat/email-outbox-ui` merged to `main` as **`545e5de`** and pushed. `main` had not moved since
