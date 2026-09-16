@@ -2976,13 +2976,19 @@
   .outbox-tiles .admin-stat { min-width: 0; }
   /* The daily allowance, below the tiles rather than inside one: it is about
      the whole queue, and at phone width it will not fit in a third of a row. */
-  .ceiling { margin-top: 12px; }
+  /* Capped: a 4px track run across the full content width reads as a divider
+     rule between the tiles and the buttons, especially at 0%, which is exactly
+     when it is least obviously a meter. Narrow enough and it reads as a gauge. */
+  .ceiling { margin-top: 14px; max-width: 420px; }
   .ceiling .bar { margin-bottom: 7px; }
   .ceiling .bar > i[data-full="true"] { background: var(--clay); }
   .outbox-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
   /* Addresses and SMTP errors are long, unbroken and not ours to shorten. */
   .outbox-to { overflow-wrap: anywhere; }
   .outbox-error { display: block; margin-top: 5px; overflow-wrap: anywhere; }
+  /* A timestamp is one value. Left to wrap, "Sep 15, 2026 9:02 PM" broke after
+     the time and left "PM" stranded on its own line. */
+  .outbox-when { white-space: nowrap; }
   .badge-sent { background: var(--forest-tint); color: var(--forest); }
   .badge-pending { background: var(--clay-tint); color: var(--clay); }
   .badge-failed { background: var(--rust-tint); color: var(--rust); }

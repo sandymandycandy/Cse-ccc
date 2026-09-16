@@ -113,7 +113,11 @@ export function OutboxPanel({
 
       {recent.length > 0 ? (
         <div className="tablewrap cards" style={{ marginTop: 22 }}>
-          <table>
+          {/* ⚠️ `admin` is load-bearing, not decoration: every th/td rule and
+              the `.tablewrap.cards` phone collapse are scoped to `table.admin`.
+              Without it the header falls back to centred, the cells lose their
+              padding and borders, and the card mode only half applies. */}
+          <table className="admin">
             <thead>
               <tr>
                 <th>To</th>
@@ -136,7 +140,7 @@ export function OutboxPanel({
                     <span className={`badge badge-${statusTone(r.status)}`}>{r.status}</span>
                     {r.error ? <span className="hint outbox-error">{r.error}</span> : null}
                   </td>
-                  <td data-label="When">{r.when}</td>
+                  <td data-label="When" className="outbox-when">{r.when}</td>
                 </tr>
               ))}
             </tbody>

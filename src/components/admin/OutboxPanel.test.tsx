@@ -77,6 +77,20 @@ describe("OutboxPanel", () => {
     expect(html).not.toContain("failed — 550");
   });
 
+  // ⚠️ The whole table style AND the phone card mode are scoped to
+  // `table.admin` — `.tablewrap.cards table.admin { display:block }` included.
+  // Without the class the header keeps the browser default centre alignment,
+  // the cells lose their padding and borders, and the 720px card collapse only
+  // half happens. This table shipped without it for months.
+  it("carries the admin table class every other admin table has", () => {
+    expect(panel({ recent: [row()] })).toContain('<table class="admin"');
+  });
+
+  // "Sep 15, 2026 9:02 PM" broke after the time and left "PM" on its own line.
+  it("keeps a timestamp on one line", () => {
+    expect(panel({ recent: [row()] })).toContain("outbox-when");
+  });
+
   it("offers the drain buttons only to whoever may drain", () => {
     expect(panel({ canDrain: true, pending: 3 })).toContain("Send next batch");
     const readOnly = panel({ canDrain: false, pending: 3 });
