@@ -94,6 +94,13 @@ export interface BroadcastState {
   sent?: number;
 }
 
+/** What `previewAudienceAction` hands the picker: who an audience contains. */
+export interface AudiencePreview {
+  error?: string;
+  recipients?: { email: string; name: string | null }[];
+  label?: string;
+}
+
 /** The council-wide composer (`/admin/email`), which can also queue. */
 export interface ComposerState {
   error?: string;

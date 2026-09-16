@@ -3,9 +3,11 @@
 import { useActionState, useState } from "react";
 import { sendBroadcastAction } from "@/app/admin/(app)/email/actions";
 import type { ComposerState } from "@/lib/admin/form-state";
+import { CUSTOM_MAX, parseEmailList } from "@/lib/admin/broadcast-audience";
 import { AudienceOption } from "./compose/AudienceOption";
 import { CharCount } from "./compose/CharCount";
 import { EmailPreview } from "./compose/EmailPreview";
+import { RecipientPicker } from "./compose/RecipientPicker";
 
 const initial: ComposerState = {};
 
@@ -20,6 +22,7 @@ interface ComposerProps {
     heads: number;
     council: number;
     councilTotal: number;
+    officeBearers: number;
     allMembers: number;
     ownClubMembers: number;
   };
@@ -59,6 +62,33 @@ function ComposerForm({
   const [message, setMessage] = useState("");
   const [link, setLink] = useState("");
   const [linkLabel, setLinkLabel] = useState("");
+
+  // Controlled so the picker can be handed the same audience the form will
+  // post, and so it can be keyed on it — changing club after loading a list
+  // must throw that list away, not silently send to the previous one.
+  const [clubId, setClubId] = useState(clubs[0]?.id ?? "");
+  const [eventId, setEventId] = useState(events[0]?.id ?? "");
+  const [scope, setScope] = useState("confirmed");
+  const [emails, setEmails] = useState("");
+  const [selected, setSelected] = useState<number | null>(null);
+
+  const typed = parseEmailList(emails);
+  const overCap = typed.length > CUSTOM_MAX;
+
+  // Switching audience throws away any count from the previous one — the button
+  // must never quote a number that belongs to a list nobody is sending to.
+  const choose = (k: string) => {
+    setKind(k);
+    setSelected(null);
+  };
+
+  const picker = (a: Parameters<typeof RecipientPicker>[0]["audience"]) => (
+    <RecipientPicker
+      key={`${a.kind}:${a.clubId ?? ""}:${a.eventId ?? ""}:${a.scope ?? ""}`}
+      audience={a}
+      onSelectedChange={setSelected}
+    />
+  );
 
   if (state.sent != null) {
     return (
@@ -124,28 +154,44 @@ function ComposerForm({
           <>
             <AudienceOption
               name="kind"
+              value="office_bearers"
+              checked={kind === "office_bearers"}
+              onChange={() => choose("office_bearers")}
+              title="Council office-bearers — layer 2"
+              detail={`${counts.officeBearers} ${counts.officeBearers === 1 ? "person" : "people"} — president, vice-president and the heads`}
+            >
+              {picker({ kind: "office_bearers" })}
+            </AudienceOption>
+            <AudienceOption
+              name="kind"
               value="heads"
               checked={kind === "heads"}
-              onChange={() => setKind("heads")}
-              title="Club heads and vice heads"
+              onChange={() => choose("heads")}
+              title="Club heads and vice heads — layer 3"
               detail={`${counts.heads} ${counts.heads === 1 ? "address" : "addresses"}`}
-            />
+            >
+              {picker({ kind: "heads" })}
+            </AudienceOption>
             <AudienceOption
               name="kind"
               value="council"
               checked={kind === "council"}
-              onChange={() => setKind("council")}
+              onChange={() => choose("council")}
               title="Council members"
               detail={councilDetail}
-            />
+            >
+              {picker({ kind: "council" })}
+            </AudienceOption>
             <AudienceOption
               name="kind"
               value="all_members"
               checked={kind === "all_members"}
-              onChange={() => setKind("all_members")}
+              onChange={() => choose("all_members")}
               title="All club members"
               detail={`${counts.allMembers} addresses`}
-            />
+            >
+              {picker({ kind: "all_members" })}
+            </AudienceOption>
           </>
         ) : null}
 
@@ -153,7 +199,7 @@ function ComposerForm({
           name="kind"
           value="club_members"
           checked={kind === "club_members"}
-          onChange={() => setKind("club_members")}
+          onChange={() => choose("club_members")}
           title="One club’s members"
           detail={
             !councilWide && counts.ownClubMembers > 0
@@ -163,19 +209,29 @@ function ComposerForm({
         >
           <div className="field">
             <label htmlFor="clubId">Club</label>
-            <select id="clubId" name="clubId" required defaultValue={clubs[0]?.id ?? ""}>
+            <select
+              id="clubId"
+              name="clubId"
+              required
+              value={clubId}
+              onChange={(e) => {
+                setClubId(e.target.value);
+                setSelected(null);
+              }}
+            >
               {clubs.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
           </div>
+          {picker({ kind: "club_members", clubId })}
         </AudienceOption>
 
         <AudienceOption
           name="kind"
           value="event"
           checked={kind === "event"}
-          onChange={() => setKind("event")}
+          onChange={() => choose("event")}
           title="An event’s registrants"
         >
           {events.length === 0 ? (
@@ -184,7 +240,16 @@ function ComposerForm({
             <>
               <div className="field">
                 <label htmlFor="eventId">Event</label>
-                <select id="eventId" name="eventId" required defaultValue={events[0]?.id ?? ""}>
+                <select
+                  id="eventId"
+                  name="eventId"
+                  required
+                  value={eventId}
+                  onChange={(e) => {
+                    setEventId(e.target.value);
+                    setSelected(null);
+                  }}
+                >
                   {events.map((e) => (
                     <option key={e.id} value={e.id}>{e.title}</option>
                   ))}
@@ -192,14 +257,67 @@ function ComposerForm({
               </div>
               <div className="field">
                 <label htmlFor="scope">Which registrants</label>
-                <select id="scope" name="scope" defaultValue="confirmed">
+                <select
+                  id="scope"
+                  name="scope"
+                  value={scope}
+                  onChange={(e) => {
+                    setScope(e.target.value);
+                    setSelected(null);
+                  }}
+                >
                   <option value="confirmed">Confirmed only</option>
                   <option value="all">Everyone, including the waitlist</option>
                 </select>
               </div>
+              {picker({ kind: "event", eventId, scope })}
             </>
           )}
         </AudienceOption>
+
+        {/* Council-wide only. This is the one audience that can reach an address
+            outside the system entirely, so it is not a club head's to send —
+            `isAudienceAllowed` refuses it for them regardless of this. */}
+        {councilWide ? (
+          <AudienceOption
+            name="kind"
+            value="custom"
+            checked={kind === "custom"}
+            onChange={() => choose("custom")}
+            title="Specific addresses"
+            detail="Type or paste the addresses yourself"
+          >
+            <div className="field">
+              <label htmlFor="emails">Addresses</label>
+              <textarea
+                id="emails"
+                name="emails"
+                rows={4}
+                value={emails}
+                onChange={(e) => {
+                  setEmails(e.target.value);
+                  setSelected(null);
+                }}
+                placeholder="vtu27884@veltech.edu.in, someone@example.com"
+              />
+              <div className="field-foot">
+                <span className="hint">
+                  Separate with commas, spaces or new lines. Duplicates are removed.
+                </span>
+                <span className="hint counter" data-near-limit={overCap ? "over" : undefined}>
+                  {typed.length} / {CUSTOM_MAX}
+                </span>
+              </div>
+              {overCap ? (
+                <p className="hint" data-near-limit="over" role="alert">
+                  That is more than {CUSTOM_MAX} addresses. Nothing will send until the list is
+                  shorter — the send refuses rather than quietly mailing only the first{" "}
+                  {CUSTOM_MAX}.
+                </p>
+              ) : null}
+            </div>
+          </AudienceOption>
+        ) : null}
       </fieldset>
 
       <div className="field">
@@ -275,8 +393,18 @@ function ComposerForm({
       />
 
       <div className="compose-actions">
-        <button type="submit" className="btn btn-primary" disabled={pending}>
-          {pending ? "Sending…" : state.confirm ? "Yes, send it" : "Send"}
+        <button type="submit" className="btn btn-primary" disabled={pending || overCap}>
+          {pending
+            ? "Sending…"
+            : state.confirm
+              ? "Yes, send it"
+              : kind === "custom"
+                ? `Send to ${typed.length || "…"}`
+                : // Only once a list has been read: before that the count would
+                  // be the audience total, which is a different claim.
+                  selected != null
+                  ? `Send to ${selected}`
+                  : "Send"}
         </button>
       </div>
     </form>

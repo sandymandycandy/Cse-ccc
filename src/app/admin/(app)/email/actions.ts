@@ -9,13 +9,70 @@ import { writeAudit } from "@/lib/admin/audit";
 import { isSafeHttpUrl } from "@/lib/url";
 import { siteOrigin } from "@/lib/site-origin";
 import {
+  applyExclusions,
   audienceLabel,
   isAudienceAllowed,
   parseAudience,
+  parseEmailList,
   shouldQueue,
 } from "@/lib/admin/broadcast-audience";
 import { resolveRecipients } from "@/lib/admin/broadcast-recipients";
-import type { ComposerState } from "@/lib/admin/form-state";
+import type { AudiencePreview, ComposerState } from "@/lib/admin/form-state";
+
+/**
+ * The audience as the form describes it, plus the club the DATABASE says owns
+ * the event — never the posted one. Shared by the send and the preview so the
+ * two can never drift into disagreeing about who may reach what.
+ */
+async function authorisedAudience(raw: {
+  kind?: string | null;
+  clubId?: string | null;
+  eventId?: string | null;
+  scope?: string | null;
+  emails?: string | null;
+}) {
+  const session = await getAdminSession();
+  if (!session) return { error: "Your session expired. Sign in again." } as const;
+
+  const audience = parseAudience(raw);
+  if (!audience) return { error: "Pick who should receive this." } as const;
+
+  let resourceClubId: string | null = null;
+  if (audience.kind === "event") {
+    const ev = await getEventForAttendance(audience.eventId);
+    if (!ev) return { error: "Event not found." } as const;
+    resourceClubId = ev.clubId;
+  }
+  if (!isAudienceAllowed(session, audience, resourceClubId)) {
+    return { error: "You can't send to that audience." } as const;
+  }
+  return { session, audience } as const;
+}
+
+/**
+ * Who an audience actually contains, for the picker.
+ *
+ * Gated identically to sending — same parse, same database re-read of an
+ * event's club, same `isAudienceAllowed`. The bar is deliberately "if you may
+ * mail them, you may see them": it reaches no row that the roster pages under
+ * /admin already show the same person.
+ */
+export async function previewAudienceAction(raw: {
+  kind?: string | null;
+  clubId?: string | null;
+  eventId?: string | null;
+  scope?: string | null;
+  emails?: string | null;
+}): Promise<AudiencePreview> {
+  const gate = await authorisedAudience(raw);
+  if ("error" in gate) return { error: gate.error };
+
+  const recipients = await resolveRecipients(gate.audience);
+  return {
+    recipients: recipients.map((r) => ({ email: r.email, name: r.name })),
+    label: audienceLabel(gate.audience),
+  };
+}
 
 const Schema = z.object({
   subject: z.string().trim().min(3).max(120),
@@ -53,31 +110,29 @@ export async function sendBroadcastAction(
     return { error: "The link must be a full http(s) URL, e.g. https://chat.whatsapp.com/…" };
   }
 
-  const session = await getAdminSession();
-  if (!session) return { error: "Your session expired. Sign in again." };
-
-  const audience = parseAudience({
+  const gate = await authorisedAudience({
     kind: formData.get("kind") as string | null,
     clubId: formData.get("clubId") as string | null,
     eventId: formData.get("eventId") as string | null,
     scope: formData.get("scope") as string | null,
+    emails: formData.get("emails") as string | null,
   });
-  if (!audience) return { error: "Pick who should receive this." };
+  if ("error" in gate) return { error: gate.error };
+  const { session, audience } = gate;
 
-  // An event's club comes from the database, never from the form.
-  let resourceClubId: string | null = null;
-  if (audience.kind === "event") {
-    const ev = await getEventForAttendance(audience.eventId);
-    if (!ev) return { error: "Event not found." };
-    resourceClubId = ev.clubId;
-  }
-  if (!isAudienceAllowed(session, audience, resourceClubId)) {
-    return { error: "You can't send to that audience." };
-  }
+  // ⚠️ The audience is resolved on the server and THEN narrowed. The form posts
+  // who was unticked, never who was kept, so this can only ever shrink the
+  // send — a tampered request cannot add an address the sender was not already
+  // allowed to reach. See `applyExclusions`.
+  const excluded = parseEmailList((formData.get("exclude") as string | null) ?? "");
+  const all = await resolveRecipients(audience);
+  const recipients = applyExclusions(all, excluded);
 
-  const recipients = await resolveRecipients(audience);
-  if (recipients.length === 0) {
+  if (all.length === 0) {
     return { error: "Nobody to email — no one in that audience has an address on file." };
+  }
+  if (recipients.length === 0) {
+    return { error: "Everyone in that audience is unticked, so there is nobody left to email." };
   }
 
   const label = audienceLabel(audience);
@@ -131,6 +186,10 @@ export async function sendBroadcastAction(
       audience: audience.kind,
       label,
       recipients: recipients.length,
+      // Both numbers, so the log shows a send that skipped people as a
+      // deliberate act rather than as a mysteriously short audience.
+      audienceSize: all.length,
+      excluded: all.length - recipients.length,
       subject: parsed.data.subject,
       queued,
     },

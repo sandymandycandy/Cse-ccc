@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
-vi.mock("@/app/admin/(app)/email/actions", () => ({ sendBroadcastAction: vi.fn() }));
+vi.mock("@/app/admin/(app)/email/actions", () => ({
+  sendBroadcastAction: vi.fn(),
+  previewAudienceAction: vi.fn(),
+}));
 
 const { BroadcastComposer } = await import("./BroadcastComposer");
 
@@ -14,8 +17,9 @@ const { BroadcastComposer } = await import("./BroadcastComposer");
  */
 const counts = {
   heads: 26,
-  council: 24,
-  councilTotal: 27,
+  council: 26,
+  councilTotal: 32,
+  officeBearers: 6,
   allMembers: 909,
   ownClubMembers: 236,
 };
@@ -47,10 +51,36 @@ describe("BroadcastComposer", () => {
     expect(html).toContain("909 addresses");
   });
 
-  // 24 reachable of 27 is the number that decides whether to chase the missing
-  // three before sending, so it cannot be dropped in the restyle.
+  // 26 reachable of 32 (the live numbers) is what decides whether to chase the
+  // missing six before sending, so it cannot be dropped in the restyle.
   it("keeps the count of council members with no address on file", () => {
-    expect(compose()).toContain("3 have no address on file");
+    expect(compose()).toContain("6 have no address on file");
+  });
+
+  // Layer 2 had no audience at all before this: `heads` is club_head+vice_head
+  // (layer 3) and `council` reads the separate council_members roster, so the
+  // office-bearers could not be mailed as a group.
+  it("offers layer 2, and names the layers so the two are not confused", () => {
+    const html = compose();
+    expect(html).toContain("Council office-bearers — layer 2");
+    expect(html).toContain("Club heads and vice heads — layer 3");
+    expect(html).toContain("6 people");
+  });
+
+  it("offers typed addresses to the council, and to nobody else", () => {
+    expect(compose()).toContain("Specific addresses");
+    expect(compose({ councilWide: false })).not.toContain("Specific addresses");
+  });
+
+  it("offers to show who is in the chosen audience", () => {
+    expect(compose()).toContain("See who gets it");
+  });
+
+  // Every audience card posts its exclusions through the picker, so the field
+  // has to be there whichever one is chosen.
+  it("posts an exclude field from whichever audience is chosen", () => {
+    expect(compose()).toContain('name="exclude"');
+    expect(compose({ councilWide: false })).toContain('name="exclude"');
   });
 
   it("hides the council audiences from a club-scoped admin", () => {
@@ -60,8 +90,12 @@ describe("BroadcastComposer", () => {
     expect(html).toContain("236 addresses");
   });
 
-  it("starts on heads for the council and on their own club for everyone else", () => {
-    expect(chosen(compose())).toBe("Club heads and vice heads");
+  // Layer 2 is listed first but is NOT the default. The common send is the 26
+  // heads, and STATUS.md's own deploy note says to start there rather than with
+  // a bigger list — so adding an audience above it must not change what a
+  // distracted sender gets by pressing Send without choosing.
+  it("still starts on the heads for the council, and on their own club otherwise", () => {
+    expect(chosen(compose())).toBe("Club heads and vice heads — layer 3");
     expect(chosen(compose({ councilWide: false }))).toBe("One club’s members");
   });
 
