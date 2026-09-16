@@ -28,6 +28,7 @@ const panel = (over: Partial<Parameters<typeof OutboxPanel>[0]> = {}) =>
       failed={0}
       sentToday={0}
       canDrain
+      canSeeLog
       recent={[]}
       {...over}
     />,
@@ -100,5 +101,34 @@ describe("OutboxPanel", () => {
 
   it("will not offer to send an empty queue or retry nothing", () => {
     expect(panel({ pending: 0, failed: 0 })).toContain("disabled");
+  });
+
+  /**
+   * ⚠️ SECURITY. `email_log` has no club, sender or actor column, so the recent
+   * list CANNOT be scoped per club — it is the last 20 rows org-wide, whoever
+   * is looking. A club head holds `manage:broadcast: own`, which is enough to
+   * open this page, and the list carries admin password-reset and invite
+   * traffic for other people. So the addresses are shown only to someone whose
+   * grant is already org-wide.
+   *
+   * The counts and the allowance bar stay: they are what a club head actually
+   * needs here — that their queued send is draining — and they name nobody.
+   */
+  it("shows recipient addresses only to an org-wide admin", () => {
+    const rows = [row({ toEmail: "someone.else@veltech.edu.in", subject: "Your admin invite" })];
+
+    const council = panel({ canSeeLog: true, recent: rows });
+    expect(council).toContain("someone.else@veltech.edu.in");
+
+    const clubHead = panel({ canDrain: false, canSeeLog: false, recent: rows });
+    expect(clubHead).not.toContain("someone.else@veltech.edu.in");
+    expect(clubHead).not.toContain("Your admin invite");
+    expect(clubHead).not.toContain("<table");
+  });
+
+  it("still tells a club head how their own queued send is doing", () => {
+    const clubHead = panel({ canDrain: false, canSeeLog: false, pending: 236, sentToday: 84 });
+    expect(clubHead).toContain("236");
+    expect(clubHead).toContain("84 of about 500");
   });
 });
