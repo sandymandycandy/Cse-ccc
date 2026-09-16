@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-16 (audience picker + layer-2 audience shipped; Outbox address leak fixed; co-hosted events still in flight).**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-16 (per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed; co-hosted events still in flight).**
 
 ## What this is
 
@@ -20,6 +20,64 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-16)
 
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-16 — per-field validation errors, whole admin panel
+>
+> **`33ce77f`** (the two email composers) then **`b7a3cb7`** (everything else). Gate: typecheck ✓
+> lint ✓ **1162 tests** ✓ build ✓. No migration, dependency, env or `vercel.json` change.
+>
+> The complaint now sits **under the input it is about**, instead of one banner naming several fields
+> at once ("Add a subject (3+ characters) and a message (10+ characters)." named two and marked
+> neither). **22 form components** wired, **~50 generic banners** replaced, across events, attendance,
+> council, announcements, gallery, clubs, resources, achievements, users and the auth forms.
+>
+> - **The wording lives ON each zod rule** — `.min(3, "Give it a subject — at least 3 characters.")` —
+>   so what a person reads cannot drift from the rule that rejected them.
+> - `toFieldErrors` maps issues to one message per field; `FieldError` / `fieldProps` / `fieldClass`
+>   render it and wire `aria-invalid` + `aria-describedby`.
+> - Whole-form problems ("You can't send to that audience") stay in the banner — no field to sit under.
+>
+> ⚠️ **THE AUTH FORMS KEEP THEIR VAGUE CREDENTIAL VERDICTS, DELIBERATELY.** `/admin/login` still
+> answers **"Wrong email, password, or code."** as one message, and `/admin/forgot` still returns its
+> `NEUTRAL` acknowledgement whether or not the account exists. **Only the SHAPE check changed** — an
+> empty box is marked empty, which runs *before* any lookup and so cannot distinguish a real account
+> from an unknown one. Splitting the verdict per field would be an **account-enumeration oracle**
+> (SECURITY_SPEC §3, and the comment above `NEUTRAL` says it outright). Do not "improve" these.
+>
+> ⚠️ **`visibleFieldErrors` exists for a specific trap.** `reset`, `accept-invite` and `setup-totp`
+> validate **hidden** `token` / `secret` fields. A complaint keyed to those has no input to render
+> under and would **vanish silently**, leaving a form that refuses to submit and says nothing at all.
+> Anything not in the visible list falls back to the banner. Any new form with hidden validated fields
+> must use it.
+>
+> ⚠️ **Pre-existing bug fixed in passing: `.field.err` styled only `input`** — so a bad `textarea` or
+> `select` got **no red border at all**. The message box on both composers is a textarea and the club
+> and event pickers are selects, so the rule was missing most of what it existed for. Now covers all
+> three.
+>
+> **Convention note:** the **public** forms (Contact, Feedback, Register) already did this —
+> `FeedbackForm` even focuses the first bad field. This follows their `.field.err` + hint shape rather
+> than inventing a second one, and adds the aria wiring they lack.
+>
+> ⚠️ **No error has actually been SEEN rendered.** Submitting a bad form needs a signed-in session and
+> TOTP blocks agents. **Quickest check: submit `/admin/login` empty** — both boxes should go red
+> individually rather than one banner appearing.
+>
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-16 — the two lists that both read "26 addresses"
+>
+> **`5b47d23`.** `heads` and `council` are **different tables describing largely the same humans** —
+> `admin_users` (who holds a panel login) and `council_members` (the public roster). Live they are
+> **26 and 26, with 23 IN COMMON**, so they looked interchangeable and were not: sending to each in
+> turn mails 23 people the same thing twice, one send apart, with nothing on screen to suggest it.
+>
+> Each card now names its source and states the overlap — "from the admin accounts · 23 are also on
+> the council roster" / "from the public council roster · 23 are also club heads". The overlap line is
+> **omitted when zero**, so it does not become furniture if the rosters ever diverge. `audienceCounts`
+> resolves the heads list rather than counting it, to compute the intersection.
+>
+> ⚠️ **Worth a product decision, not a code one:** whether those two rosters *should* be 88%
+> duplicates, or whether `council_members` ought to be derived from `admin_users` instead of
+> maintained by hand. Not touched.
+>
 > ### 🔒 SHIPPED TO PRODUCTION 2026-09-16 — FIXED: the Outbox showed org-wide addresses to club heads
 >
 > **`5612ded`. Pre-existing on `main`, found by a security review of the audience-picker branch, not
