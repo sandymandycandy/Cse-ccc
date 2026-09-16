@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { broadcastAction } from "@/app/admin/(app)/events/[id]/email/actions";
 import type { BroadcastState } from "@/lib/admin/form-state";
+import { FieldError, fieldClass, fieldProps } from "./FieldError";
 import { AudienceOption } from "./compose/AudienceOption";
 import { CharCount } from "./compose/CharCount";
 import { EmailPreview } from "./compose/EmailPreview";
@@ -92,7 +93,7 @@ function SendForm({
         </div>
       ) : null}
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "subject")}>
         <label htmlFor="subject">Subject</label>
         <input
           id="subject"
@@ -102,13 +103,15 @@ function SendForm({
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
           placeholder="Venue has changed"
+          {...fieldProps(state.fieldErrors, "subject")}
         />
+        <FieldError errors={state.fieldErrors} name="subject" />
         <div className="field-foot">
           <CharCount value={subject} max={SUBJECT_MAX} />
         </div>
       </div>
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "message")}>
         <label htmlFor="message">Message</label>
         <textarea
           id="message"
@@ -119,14 +122,16 @@ function SendForm({
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Write what participants need to know."
+          {...fieldProps(state.fieldErrors, "message")}
         />
+        <FieldError errors={state.fieldErrors} name="message" />
         <div className="field-foot">
           <span className="hint">Plain text. Everyone gets the same message.</span>
           <CharCount value={message} max={MESSAGE_MAX} />
         </div>
       </div>
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "link")}>
         <label htmlFor="link">Link (optional)</label>
         <input
           id="link"
@@ -136,7 +141,9 @@ function SendForm({
           value={link}
           onChange={(e) => setLink(e.target.value)}
           placeholder="https://chat.whatsapp.com/…"
+          {...fieldProps(state.fieldErrors, "link")}
         />
+        <FieldError errors={state.fieldErrors} name="link" />
         <span className="hint">
           Becomes a button in the email — a WhatsApp group, a submission form, a
           meeting link. Without one the button opens the event page. Pasting a
@@ -144,7 +151,7 @@ function SendForm({
         </span>
       </div>
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "linkLabel")}>
         <label htmlFor="linkLabel">Button text (optional)</label>
         <input
           id="linkLabel"
@@ -153,7 +160,9 @@ function SendForm({
           value={linkLabel}
           onChange={(e) => setLinkLabel(e.target.value)}
           placeholder="Join the WhatsApp group"
+          {...fieldProps(state.fieldErrors, "linkLabel")}
         />
+        <FieldError errors={state.fieldErrors} name="linkLabel" />
         <span className="hint">Used only when there is a link to label.</span>
       </div>
 

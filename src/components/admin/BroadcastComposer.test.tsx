@@ -147,4 +147,9 @@ describe("BroadcastComposer", () => {
   it("keeps the character counts out of the way of an empty form", () => {
     expect(compose()).not.toContain("counter");
   });
+
+  it("shows no field complaints on a form nobody has submitted", () => {
+    expect(compose()).not.toContain("field-err");
+    expect(compose()).not.toContain("aria-invalid");
+  });
 });

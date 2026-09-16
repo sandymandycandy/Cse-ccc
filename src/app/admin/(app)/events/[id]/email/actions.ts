@@ -10,16 +10,30 @@ import { splitRegistrations } from "@/lib/registration/waitlist";
 import { enqueueEmail } from "@/lib/email";
 import { writeAudit } from "@/lib/admin/audit";
 import { isSafeHttpUrl } from "@/lib/url";
+import { toFieldErrors } from "@/lib/admin/field-errors";
 import type { BroadcastState } from "@/lib/admin/form-state";
 
 const Schema = z.object({
   eventId: z.string().uuid(),
-  subject: z.string().trim().min(3).max(120),
-  message: z.string().trim().min(10).max(4000),
+  subject: z
+    .string()
+    .trim()
+    .min(3, "Give it a subject — at least 3 characters.")
+    .max(120, "Keep the subject to 120 characters or fewer."),
+  message: z
+    .string()
+    .trim()
+    .min(10, "Write the message — at least 10 characters.")
+    .max(4000, "Keep the message to 4000 characters or fewer."),
   audience: z.enum(["confirmed", "all"]),
   // Optional: a WhatsApp group, a submission form, a meeting link.
-  link: z.string().trim().max(2000).optional().or(z.literal("")),
-  linkLabel: z.string().trim().max(60).optional().or(z.literal("")),
+  link: z.string().trim().max(2000, "That link is too long.").optional().or(z.literal("")),
+  linkLabel: z
+    .string()
+    .trim()
+    .max(60, "Keep the button text to 60 characters or fewer.")
+    .optional()
+    .or(z.literal("")),
 });
 
 /**
@@ -44,7 +58,7 @@ export async function broadcastAction(
     linkLabel: formData.get("linkLabel") ?? "",
   });
   if (!parsed.success) {
-    return { error: "Add a subject (3+ characters) and a message (10+ characters)." };
+    return { fieldErrors: toFieldErrors(parsed.error.issues) };
   }
   const { eventId, subject, message, audience } = parsed.data;
   const link = parsed.data.link?.trim() ?? "";
@@ -52,7 +66,9 @@ export async function broadcastAction(
   // javascript: URL is rejected outright rather than quietly dropped, so the
   // sender finds out now instead of after 69 people get a dead button.
   if (link && !isSafeHttpUrl(link)) {
-    return { error: "The link must be a full http(s) URL, e.g. https://chat.whatsapp.com/…" };
+    return {
+      fieldErrors: { link: "Use a full http(s) URL, e.g. https://chat.whatsapp.com/…" },
+    };
   }
 
   const session = await getAdminSession();

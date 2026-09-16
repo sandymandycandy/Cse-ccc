@@ -88,8 +88,16 @@ export interface MemberLoginState {
   error?: string;
 }
 
+/**
+ * One complaint per field, keyed by the input's `name`, rendered under that
+ * input. Whole-form problems ("you can't send to that audience") stay in
+ * `error` — they have no field to sit under.
+ */
+export type FieldErrors = Record<string, string>;
+
 export interface BroadcastState {
   error?: string;
+  fieldErrors?: FieldErrors;
   /** How many addresses the send actually reached, shown once on success. */
   sent?: number;
 }
@@ -104,6 +112,7 @@ export interface AudiencePreview {
 /** The council-wide composer (`/admin/email`), which can also queue. */
 export interface ComposerState {
   error?: string;
+  fieldErrors?: FieldErrors;
   /** Addresses mailed inline. */
   sent?: number;
   /** Rows queued for the Outbox to drain. */

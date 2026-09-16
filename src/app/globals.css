@@ -388,8 +388,17 @@
     color: var(--ink);
   }
   .field .hint { font: 400 11.5px var(--sans); color: var(--ink-3); }
-  .field.err input { border-color: var(--rust); }
+  /* ⚠️ `input` alone for a long time, which left a bad textarea or select with
+     no red border at all — the message box on both email composers is a
+     textarea, and the club and event pickers are selects. */
+  .field.err input,
+  .field.err textarea,
+  .field.err select { border-color: var(--rust); }
   .field.err .hint { color: var(--rust); }
+  /* The complaint itself, as opposed to the field's ordinary helper text. Both
+     go rust inside `.field.err`; this one also gets a little air so it does not
+     read as a second line of the hint above it. */
+  .field-err { margin-top: 1px; font-weight: 500; }
 
   /* ── contact page ─────────────────────────────────────────────────────────
      The form is the whole point of the page, so it comes first in the DOM and

@@ -17,6 +17,7 @@ import {
   shouldQueue,
 } from "@/lib/admin/broadcast-audience";
 import { resolveRecipients } from "@/lib/admin/broadcast-recipients";
+import { toFieldErrors } from "@/lib/admin/field-errors";
 import type { AudiencePreview, ComposerState } from "@/lib/admin/form-state";
 
 /**
@@ -78,11 +79,31 @@ export async function previewAudienceAction(raw: {
   };
 }
 
+// The wording lives on the rule, so the message a person reads under an input
+// cannot drift from the rule that rejected it.
 const Schema = z.object({
-  subject: z.string().trim().min(3).max(120),
-  message: z.string().trim().min(10).max(4000),
-  link: z.string().trim().max(2000).optional().or(z.literal("")),
-  linkLabel: z.string().trim().max(60).optional().or(z.literal("")),
+  subject: z
+    .string()
+    .trim()
+    .min(3, "Give it a subject — at least 3 characters.")
+    .max(120, "Keep the subject to 120 characters or fewer."),
+  message: z
+    .string()
+    .trim()
+    .min(10, "Write the message — at least 10 characters.")
+    .max(4000, "Keep the message to 4000 characters or fewer."),
+  link: z
+    .string()
+    .trim()
+    .max(2000, "That link is too long.")
+    .optional()
+    .or(z.literal("")),
+  linkLabel: z
+    .string()
+    .trim()
+    .max(60, "Keep the button text to 60 characters or fewer.")
+    .optional()
+    .or(z.literal("")),
 });
 
 /**
@@ -104,14 +125,18 @@ export async function sendBroadcastAction(
     linkLabel: formData.get("linkLabel") ?? "",
   });
   if (!parsed.success) {
-    return { error: "Add a subject (3+ characters) and a message (10+ characters)." };
+    return { fieldErrors: toFieldErrors(parsed.error.issues) };
   }
 
   const link = parsed.data.link?.trim() ?? "";
   // Scheme-checked before it becomes an href in someone's inbox: a relative or
   // javascript: URL is rejected now rather than after 900 people get a dead button.
   if (link && !isSafeHttpUrl(link)) {
-    return { error: "The link must be a full http(s) URL, e.g. https://chat.whatsapp.com/…" };
+    return {
+      fieldErrors: {
+        link: "Use a full http(s) URL, e.g. https://chat.whatsapp.com/…",
+      },
+    };
   }
 
   const gate = await authorisedAudience({
