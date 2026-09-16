@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-16 (email composer + Outbox UI shipped; co-hosted events still in flight).**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-16 (email composer + Outbox UI shipped, plus the Outbox table-class fix; co-hosted events still in flight).**
 
 ## What this is
 
@@ -65,12 +65,28 @@ end-to-end**, not a checklist of components.
 > deploy added no new route to 404-check against. `/admin/email` and `/admin/outbox` still 307 to the
 > login; `/`, `/achievements` and `/verify` still 200.
 >
-> ⚠️ **NEVER OPENED IN A BROWSER — same gap as the certificate work.** The Chrome extension was not
-> connected in the session that built this, and TOTP blocks agents from signing in. The interaction
-> paths are covered by **CSS and static render only**: `renderToStaticMarkup` cannot click a card or
-> type into a counter, and RTL is not a dependency. The Vercel MCP again returned **403** for this
-> team's scope (`sandymandycandys-projects`), and the GitHub MCP failed to connect, so the deploy was
-> confirmed by fetching the live CSS rather than through either integration.
+> ### 🔧 FOLLOW-UP `9efca66` — the Outbox table never had the `admin` class
+>
+> **The owner opened `/admin/outbox` in a browser (night mode, desktop) and the header row was centred.**
+> Cause: `<table>` with no `className="admin"` — the **only** `<table>` in `src/` missing it, and it had
+> been that way since the page was written, not a regression from this rebuild.
+>
+> ⚠️ **That class is load-bearing, not decoration.** Everything is scoped to `table.admin`:
+> `th { text-align: left }`, `td { padding; border-bottom }`, and — the one that mattered —
+> **`.tablewrap.cards table.admin { display: block; min-width: 0 }`**. Without it the 720px collapse to
+> cards only half applied, so the table most likely to be read on a phone was the one that did not
+> collapse properly. Also: `.outbox-when` gets `white-space: nowrap` (a timestamp was breaking after
+> the time, stranding "PM" on its own line), and `.ceiling` is capped at 420px (a 4px track across the
+> full content width read as a divider rule, worst at 0%). Two regression tests pin the class and the
+> timestamp cell. **1111 tests.**
+>
+> ⚠️ **Only `/admin/outbox` has been looked at, at desktop width in night mode.** Neither composer has
+> been opened, and nothing has been seen at 400 px or in day mode. The interaction paths remain covered
+> by **CSS and static render only**: `renderToStaticMarkup` cannot click a card or type into a counter,
+> and RTL is not a dependency. The Chrome extension was not connected in the session that built this,
+> and TOTP blocks agents from signing in. The Vercel MCP again returned **403** for this team's scope
+> (`sandymandycandys-projects`), and the GitHub MCP failed to connect, so deploys were confirmed by
+> fetching the live CSS rather than through either integration.
 >
 > **Owed human walkthrough** (as `sandy`, tech_head), at **1280 px and 400 px**, in **both themes**:
 >   1. `/admin/email` — tap each audience card; check the club picker appears inside the chosen card
