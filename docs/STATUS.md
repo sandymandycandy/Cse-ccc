@@ -54,6 +54,17 @@ end-to-end**, not a checklist of components.
 > - **"See who gets it"** on every card: scrollable, filterable, a checkbox each. Nothing loads until
 >   asked — the largest audience is 909 people. `previewAudienceAction` runs the **identical gate** to
 >   sending (same parse, same DB re-read of an event's owning club, same `isAudienceAllowed`).
+> - **Every row shows a role and club** (`514ddfe`) — "Club Head · AI Forge", "Member · Coding Club",
+>   "Technical Head" for an office-bearer, the free-text `designation` for a council row. The filter
+>   searches that line too, so a club name narrows 909 people to one club.
+>   ⚠️ **Deliberately omitted for `club_members`** — every row is the club already chosen in the
+>   dropdown above it, so the clubs lookup is skipped entirely for that audience.
+>   ⚠️ **`dedupeRecipients` is now generic.** It used to rebuild `{ email, name }` and so silently
+>   dropped any extra field; anything new a caller attaches must survive it. The send path is
+>   unaffected — it reads `email` and `name` only.
+>   ⚠️ **`ADMIN_ROLE_LABEL` is a TOTAL map of the `admin_role` enum** (`role-labels.ts`), so adding a
+>   role to the enum without naming it there is a typecheck failure, not a raw `social_media_head`
+>   showing up in somebody's recipient list.
 > - **Typed addresses**, council-wide only, capped at **200** — over the cap it *refuses* rather than
 >   quietly mailing the first 200.
 >
