@@ -17,12 +17,24 @@ export function OutboxPanel({
   failed,
   sentToday,
   canDrain,
+  canSeeLog,
   recent,
 }: {
   pending: number;
   failed: number;
   sentToday: number;
   canDrain: boolean;
+  /**
+   * ⚠️ Whether this viewer may see WHO was mailed.
+   *
+   * `email_log` has no club, sender or actor column, so the recent list cannot
+   * be scoped per club — it is the last 20 rows org-wide for everyone. A club
+   * head holds `manage:broadcast: own`, enough to open this page, and those
+   * rows carry admin password-reset and invite traffic for other people. So
+   * the addresses are for org-wide grants only, and the page does not even
+   * query them otherwise.
+   */
+  canSeeLog: boolean;
   recent: {
     id: string;
     toEmail: string;
@@ -111,7 +123,13 @@ export function OutboxPanel({
         </p>
       )}
 
-      {recent.length > 0 ? (
+      {!canSeeLog ? (
+        <p className="hint" style={{ marginTop: 22 }}>
+          The counts above cover every send, including other clubs&rsquo;. Who was
+          emailed is not shown here — the log is org-wide and cannot be narrowed
+          to one club.
+        </p>
+      ) : recent.length > 0 ? (
         <div className="tablewrap cards" style={{ marginTop: 22 }}>
           {/* ⚠️ `admin` is load-bearing, not decoration: every th/td rule and
               the `.tablewrap.cards` phone collapse are scoped to `table.admin`.

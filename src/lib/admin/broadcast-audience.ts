@@ -10,9 +10,38 @@ import { grantFor, type AdminIdentity } from "@/lib/auth/capabilities";
 export type Audience =
   | { kind: "heads" }
   | { kind: "council" }
+  | { kind: "office_bearers" }
   | { kind: "club_members"; clubId: string }
   | { kind: "all_members" }
-  | { kind: "event"; eventId: string; scope: "confirmed" | "all" };
+  | { kind: "event"; eventId: string; scope: "confirmed" | "all" }
+  | { kind: "custom"; emails: string[] };
+
+/**
+ * Layer 2 — the council's office-bearers, as ROLES rather than as a list of
+ * people. Resolving by role means the group self-corrects when someone is
+ * appointed or leaves, instead of going stale in a constant that nobody
+ * remembers to edit when next year's team takes over.
+ *
+ * ⚠️ A role with no holder simply contributes nobody. At the time of writing
+ * `events_head` is vacant in `admin_users`, so this reaches 6, not 7.
+ */
+export const OFFICE_BEARER_ROLES = [
+  "president",
+  "vice_president",
+  "tech_head",
+  "events_head",
+  "docs_head",
+  "social_media_head",
+] as const;
+
+/**
+ * Most addresses anyone may paste into one send.
+ *
+ * Not a performance limit — `shouldQueue` already handles size. It is here so
+ * that the one audience which can reach people outside the system entirely
+ * cannot become a channel for a scraped list.
+ */
+export const CUSTOM_MAX = 200;
 
 /**
  * At or below this many addresses a send goes out inline, as every existing
@@ -31,8 +60,12 @@ export function audienceLabel(a: Audience): string {
       return "Club heads and vice heads";
     case "council":
       return "Council members";
+    case "office_bearers":
+      return "Council office-bearers";
     case "all_members":
       return "All club members";
+    case "custom":
+      return `${a.emails.length} typed address${a.emails.length === 1 ? "" : "es"}`;
     case "club_members":
       return "One club's members";
     case "event":
@@ -42,19 +75,47 @@ export function audienceLabel(a: Audience): string {
   }
 }
 
+/**
+ * Split a typed blob into addresses: commas, semicolons, spaces and newlines
+ * all separate, because this is a field people paste into from a spreadsheet,
+ * a WhatsApp message or another mail client.
+ *
+ * Lowercased and deduped so one person cannot be mailed twice by typing their
+ * address in two different cases.
+ */
+export function parseEmailList(raw: string): string[] {
+  const seen = new Set<string>();
+  for (const part of raw.split(/[\s,;]+/)) {
+    const email = part.trim().toLowerCase();
+    if (EMAIL_RE.test(email)) seen.add(email);
+  }
+  return [...seen];
+}
+
 export function parseAudience(raw: {
   kind?: string | null;
   clubId?: string | null;
   eventId?: string | null;
   scope?: string | null;
+  emails?: string | null;
 }): Audience | null {
   switch (raw.kind) {
     case "heads":
       return { kind: "heads" };
     case "council":
       return { kind: "council" };
+    case "office_bearers":
+      return { kind: "office_bearers" };
     case "all_members":
       return { kind: "all_members" };
+    case "custom": {
+      const emails = parseEmailList(raw.emails ?? "");
+      // Refuse an over-long list rather than truncating it: quietly mailing the
+      // first 200 of 300 pasted addresses is worse than not sending at all,
+      // because nobody would notice the 100 who were dropped.
+      if (emails.length === 0 || emails.length > CUSTOM_MAX) return null;
+      return { kind: "custom", emails };
+    }
     case "club_members":
       return raw.clubId ? { kind: "club_members", clubId: raw.clubId } : null;
     case "event":
@@ -88,12 +149,48 @@ export function isAudienceAllowed(
 
   // An `own` holder reaches their own club's members and their own club's
   // events. The council-wide lists are not theirs to mail.
+  //
+  // ⚠️ Spelled out rather than left to the `return false` below. These are
+  // authorisation decisions, and an authorisation decision that holds only
+  // because of where it sits in a function is one refactor away from becoming
+  // a hole. `custom` matters most: it is the only audience that can reach an
+  // address outside the system entirely, so it is the one clean escape from
+  // the club scope every other audience keeps an `own` holder inside.
+  if (
+    a.kind === "heads" ||
+    a.kind === "council" ||
+    a.kind === "office_bearers" ||
+    a.kind === "all_members" ||
+    a.kind === "custom"
+  ) {
+    return false;
+  }
+
   if (a.kind === "club_members") return a.clubId === id.clubId;
   if (a.kind === "event") return resourceClubId != null && resourceClubId === id.clubId;
   return false;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Remove the people who were unticked in the picker.
+ *
+ * ⚠️ SUBTRACTS ONLY, and that is the whole point. The form posts who was
+ * EXCLUDED, never who was included, so the server stays the authority on who
+ * is in an audience and this can only ever make a send smaller. Were it the
+ * other way round, the posted list would be the source of truth for
+ * recipients, and a tampered request could put any address into a send —
+ * walking straight around `isAudienceAllowed`.
+ */
+export function applyExclusions(
+  recipients: { email: string; name: string | null }[],
+  excluded: string[],
+): { email: string; name: string | null }[] {
+  if (excluded.length === 0) return recipients;
+  const drop = new Set(excluded.map((e) => String(e ?? "").trim().toLowerCase()));
+  return recipients.filter((r) => !drop.has(r.email.trim().toLowerCase()));
+}
 
 /** One address is mailed once, whichever list it turned up on. First name wins. */
 export function dedupeRecipients(

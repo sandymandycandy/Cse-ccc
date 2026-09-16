@@ -2993,7 +2993,88 @@
   .badge-pending { background: var(--clay-tint); color: var(--clay); }
   .badge-failed { background: var(--rust-tint); color: var(--rust); }
 
+  /* ── who is in this audience (RecipientPicker) ──
+     Nothing loads until asked: the biggest list is 909 people, and reading it
+     on every render would be a bulk query behind a page nobody had interacted
+     with yet. */
+  .rpick { margin-top: 12px; }
+  .rpick-err { display: block; margin-top: 8px; color: var(--rust); }
+  .rpick-panel {
+    margin-top: 10px;
+    border: 1px solid var(--line-2b);
+    border-radius: var(--r-sm);
+    background: var(--paper-2);
+  }
+  .rpick-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line-2b);
+    flex-wrap: wrap;
+  }
+  .rpick-search {
+    flex: 1 1 11rem;
+    min-width: 0;
+    padding: 9px 12px;
+    border: 1px solid var(--line-3);
+    border-radius: var(--r-sm);
+    background: var(--paper-2);
+    color: var(--ink);
+    font: 400 13px var(--sans);
+    min-height: 40px;
+  }
+  .rpick-search:focus {
+    border-color: var(--forest);
+    outline: none;
+    box-shadow: 0 0 0 3px var(--forest-tint);
+  }
+  .rpick-count { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .rpick-acts {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line-2b);
+  }
+  /* Capped and scrolled: 909 rows inline would push the send button a very long
+     way down the page. */
+  .rpick-list {
+    list-style: none;
+    max-height: 260px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .rpick-row {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 9px 12px;
+    min-height: 44px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--line);
+  }
+  .rpick-list li:last-child .rpick-row { border-bottom: none; }
+  .rpick-row input[type="checkbox"] {
+    flex: none;
+    width: 17px;
+    height: 17px;
+    accent-color: var(--forest);
+  }
+  .rpick-who { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .rpick-name { font: 400 13px var(--sans); color: var(--ink); }
+  .rpick-mail {
+    font: 400 11.5px var(--mono);
+    color: var(--ink-3);
+    overflow-wrap: anywhere;
+  }
+  .rpick-empty { display: block; padding: 14px 12px; }
+
   @media (max-width: 599px) {
+    /* Outside `.field`, so it misses the global 16px rule that stops iOS
+       Safari zooming the page in when a control is focused. */
+    .rpick-search { font-size: 16px; flex-basis: 100%; }
+    .rpick-list { max-height: 220px; }
+    .rpick-acts .btn { flex: 1 1 auto; }
     /* The desktop indent would leave a select ~46px narrower than the card for
        no reason on a 360px screen. */
     .audience-extra { padding-left: 16px; }

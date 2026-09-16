@@ -11,7 +11,11 @@ import { OutboxPanel } from "@/components/admin/OutboxPanel";
  */
 export default async function OutboxPage() {
   const session = await requireViewPage("manage:broadcast");
-  const canDrain = grantFor(session.role, "manage:broadcast") === "all";
+  // One grant, two consequences: draining spends the org-wide Gmail allowance,
+  // and the log names people across every club. Both are org-wide concerns.
+  const councilWide = grantFor(session.role, "manage:broadcast") === "all";
+  const canDrain = councilWide;
+  const canSeeLog = councilWide;
 
   const admin = createAdminClient();
   const startOfToday = dayKeyStartUTC(todayKey()).toISOString();
@@ -24,11 +28,19 @@ export default async function OutboxPage() {
       .select("id", { count: "exact", head: true })
       .eq("status", "sent")
       .gte("sent_at", startOfToday),
-    admin
-      .from("email_log")
-      .select("id, to_email, subject, status, error, created_at")
-      .order("created_at", { ascending: false })
-      .limit(20),
+    // ⚠️ Not fetched at all unless the viewer may see it. `email_log` has no
+    // club, sender or actor column, so this list is org-wide for everyone who
+    // reads it — and it carries admin password-reset and invite traffic. A club
+    // head holds `manage:broadcast: own`, which opens this page but is not a
+    // grant over other clubs' correspondence. Gating the render alone would
+    // still pull the addresses into the server component's payload.
+    canSeeLog
+      ? admin
+          .from("email_log")
+          .select("id, to_email, subject, status, error, created_at")
+          .order("created_at", { ascending: false })
+          .limit(20)
+      : null,
   ]);
 
   return (
@@ -49,7 +61,8 @@ export default async function OutboxPage() {
         failed={failed.count ?? 0}
         sentToday={sentToday.count ?? 0}
         canDrain={canDrain}
-        recent={(recent.data ?? []).map((r) => ({
+        canSeeLog={canSeeLog}
+        recent={(recent?.data ?? []).map((r) => ({
           id: r.id,
           toEmail: r.to_email,
           subject: r.subject,

@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { listRegistrations, getEventFormSchema } from "@/lib/admin/registrations";
 import { teamRecipients } from "@/lib/registration-form/recipients";
 import { splitRegistrations } from "@/lib/registration/waitlist";
-import { dedupeRecipients, type Audience } from "./broadcast-audience";
+import { OFFICE_BEARER_ROLES, dedupeRecipients, type Audience } from "./broadcast-audience";
 
 export interface Recipient {
   email: string;
@@ -26,6 +26,22 @@ export async function resolveRecipients(a: Audience): Promise<Recipient[]> {
       .from("admin_users")
       .select("email, full_name")
       .in("role", ["club_head", "vice_head"])
+      .eq("is_active", true);
+    return dedupeRecipients((data ?? []).map((r) => ({ email: r.email, name: r.full_name })));
+  }
+
+  // Typed in by hand, so there is no roster row to take a name from. The
+  // template greets an unnamed recipient with a plain "Hi," — better than
+  // guessing a name from the local part of their address.
+  if (a.kind === "custom") {
+    return dedupeRecipients(a.emails.map((email) => ({ email, name: null })));
+  }
+
+  if (a.kind === "office_bearers") {
+    const { data } = await admin
+      .from("admin_users")
+      .select("email, full_name")
+      .in("role", [...OFFICE_BEARER_ROLES])
       .eq("is_active", true);
     return dedupeRecipients((data ?? []).map((r) => ({ email: r.email, name: r.full_name })));
   }
@@ -74,11 +90,13 @@ export async function audienceCounts(ownClubId: string | null): Promise<{
   heads: number;
   council: number;
   councilTotal: number;
+  officeBearers: number;
   allMembers: number;
   ownClubMembers: number;
 }> {
   const admin = createAdminClient();
-  const [heads, councilTotal, members, ownMembers, councilWithEmail] = await Promise.all([
+  const [heads, councilTotal, members, ownMembers, councilWithEmail, officeBearers] =
+    await Promise.all([
     admin
       .from("admin_users")
       .select("id", { count: "exact", head: true })
@@ -100,12 +118,20 @@ export async function audienceCounts(ownClubId: string | null): Promise<{
     // time — so the page shows both numbers rather than quietly mailing fewer
     // people than the roster suggests.
     resolveRecipients({ kind: "council" }),
+    // Layer 2. A vacant post contributes nobody, so this is the live number of
+    // people the audience actually reaches, not the number of seats.
+    admin
+      .from("admin_users")
+      .select("id", { count: "exact", head: true })
+      .in("role", [...OFFICE_BEARER_ROLES])
+      .eq("is_active", true),
   ]);
 
   return {
     heads: heads.count ?? 0,
     council: councilWithEmail.length,
     councilTotal: councilTotal.count ?? 0,
+    officeBearers: officeBearers.count ?? 0,
     allMembers: members.count ?? 0,
     ownClubMembers: ownMembers.count ?? 0,
   };
