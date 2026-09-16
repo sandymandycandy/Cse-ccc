@@ -38,8 +38,8 @@ export default async function OutboxPage() {
           <div className="eyebrow">Email</div>
           <h1 style={{ margin: "6px 0 0" }}>Outbox</h1>
           <p className="body-text" style={{ marginTop: 6 }}>
-            Gmail allows roughly 500 messages a day, so a large send clears over
-            more than one day. Whatever is left goes out overnight.
+            Mail waiting to go out. A large send clears over more than one day —
+            whatever is left goes out overnight.
           </p>
         </div>
       </div>

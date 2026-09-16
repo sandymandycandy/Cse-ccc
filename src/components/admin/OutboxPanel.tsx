@@ -2,15 +2,15 @@
 
 import { useState, useTransition } from "react";
 import { drainBatchAction, retryFailedAction } from "@/app/admin/(app)/outbox/actions";
-
-/** Roughly what a free Gmail app-password account will send in a day. */
-const DAILY_CEILING = 500;
+import { DAILY_CEILING, ceilingPercent, statusTone } from "@/lib/admin/outbox-view";
 
 /**
  * Queue state and the two buttons that move it.
  *
- * The "sent today" tile carries the daily ceiling because the alternative is a
- * send that silently stops working partway through with no explanation on screen.
+ * The daily ceiling is drawn, not just stated: the alternative is a send that
+ * silently stops working partway through with no explanation on screen. It sits
+ * below the tiles rather than inside the "sent today" one because it describes
+ * the whole queue — and because a third of a phone row is no place for it.
  */
 export function OutboxPanel({
   pending,
@@ -34,10 +34,11 @@ export function OutboxPanel({
 }) {
   const [busy, start] = useTransition();
   const [note, setNote] = useState<string | null>(null);
+  const used = ceilingPercent(sentToday);
 
   return (
     <div>
-      <div className="admin-stats">
+      <div className="admin-stats outbox-tiles">
         <div className="admin-stat">
           <div className="n">{pending}</div>
           <div className="label">Pending</div>
@@ -49,10 +50,24 @@ export function OutboxPanel({
         <div className="admin-stat">
           <div className="n">{sentToday}</div>
           <div className="label">Sent today</div>
-          <div className="hint" style={{ marginTop: 4 }}>
-            of about {DAILY_CEILING} Gmail allows
-          </div>
         </div>
+      </div>
+
+      <div className="ceiling">
+        <div
+          className="bar"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={used}
+          aria-label="Share of today's Gmail allowance used"
+        >
+          <i style={{ width: `${used}%` }} data-full={used >= 100 ? "true" : undefined} />
+        </div>
+        <span className="hint">
+          {sentToday} of about {DAILY_CEILING} Gmail allows in a day
+          {pending > 0 ? ` · ${pending} still waiting` : ""}
+        </span>
       </div>
 
       {note ? (
@@ -62,7 +77,7 @@ export function OutboxPanel({
       ) : null}
 
       {canDrain ? (
-        <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
+        <div className="outbox-actions">
           <button
             type="button"
             className="btn btn-primary"
@@ -110,11 +125,16 @@ export function OutboxPanel({
             <tbody>
               {recent.map((r) => (
                 <tr key={r.id}>
-                  <td data-label="To" data-primary>{r.toEmail}</td>
+                  <td data-label="To" data-primary className="outbox-to">
+                    {r.toEmail}
+                  </td>
                   <td data-label="Subject">{r.subject}</td>
+                  {/* The reason a send failed belongs to the status, on its own
+                      line — concatenated into the cell it used to run past the
+                      edge of a phone with no way to read the end of it. */}
                   <td data-label="Status">
-                    {r.status}
-                    {r.error ? ` — ${r.error}` : ""}
+                    <span className={`badge badge-${statusTone(r.status)}`}>{r.status}</span>
+                    {r.error ? <span className="hint outbox-error">{r.error}</span> : null}
                   </td>
                   <td data-label="When">{r.when}</td>
                 </tr>
