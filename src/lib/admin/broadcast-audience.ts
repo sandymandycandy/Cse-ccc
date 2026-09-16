@@ -192,17 +192,23 @@ export function applyExclusions(
   return recipients.filter((r) => !drop.has(r.email.trim().toLowerCase()));
 }
 
-/** One address is mailed once, whichever list it turned up on. First name wins. */
-export function dedupeRecipients(
-  list: { email: string; name: string | null }[],
-): { email: string; name: string | null }[] {
+/**
+ * One address is mailed once, whichever list it turned up on. First name wins.
+ *
+ * Generic so a caller can carry extra fields through — the picker needs each
+ * person's role and club alongside the address, and an earlier non-generic
+ * version silently dropped them by rebuilding `{ email, name }`.
+ */
+export function dedupeRecipients<T extends { email: string; name: string | null }>(
+  list: T[],
+): T[] {
   const seen = new Set<string>();
-  const out: { email: string; name: string | null }[] = [];
+  const out: T[] = [];
   for (const r of list) {
     const email = String(r.email ?? "").trim().toLowerCase();
     if (!EMAIL_RE.test(email) || seen.has(email)) continue;
     seen.add(email);
-    out.push({ email, name: r.name });
+    out.push({ ...r, email });
   }
   return out;
 }

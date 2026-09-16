@@ -6,8 +6,8 @@ vi.mock("@/app/admin/(app)/email/actions", () => ({ previewAudienceAction: vi.fn
 const { RecipientPicker, filterRecipients } = await import("./RecipientPicker");
 
 const list = [
-  { email: "vtu27884@veltech.edu.in", name: "Sandeep Kumar S" },
-  { email: "vtu30363@veltech.edu.in", name: "T Sai Varun" },
+  { email: "vtu27884@veltech.edu.in", name: "Sandeep Kumar S", meta: "Club Head · AI Forge" },
+  { email: "vtu30363@veltech.edu.in", name: "T Sai Varun", meta: "Vice Head · Coding Club" },
   { email: "someone@gmail.test", name: null },
 ];
 
@@ -31,9 +31,21 @@ describe("filterRecipients", () => {
 
   // A picker that crashed on the one recipient without a name would break
   // exactly on the typed-address audience, where nobody has one.
-  it("survives a recipient with no name", () => {
+  it("survives a recipient with no name and no role line", () => {
     expect(filterRecipients(list, "gmail")).toEqual([list[2]]);
     expect(() => filterRecipients(list, "anything")).not.toThrow();
+  });
+
+  // What makes a 909-person list usable: narrowing it to one club, or to the
+  // vice heads, without scrolling.
+  it("matches on the club, so a long list can be narrowed to one", () => {
+    expect(filterRecipients(list, "AI Forge")).toEqual([list[0]]);
+    expect(filterRecipients(list, "coding")).toEqual([list[1]]);
+  });
+
+  it("matches on the role", () => {
+    expect(filterRecipients(list, "vice head")).toEqual([list[1]]);
+    expect(filterRecipients(list, "head")).toHaveLength(2);
   });
 });
 

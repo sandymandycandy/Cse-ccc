@@ -6,6 +6,8 @@ import { previewAudienceAction } from "@/app/admin/(app)/email/actions";
 export interface PickerRecipient {
   email: string;
   name: string | null;
+  /** "Club Head · AI Forge" — what they are and where. May be absent. */
+  meta?: string | null;
 }
 
 /** The audience as the form describes it. Re-authorised on the server. */
@@ -17,12 +19,20 @@ export interface PickerAudience {
   emails?: string;
 }
 
-/** Case-insensitive match on either the name or the address. */
+/**
+ * Case-insensitive match on the name, the address, or the role/club line.
+ *
+ * Searching the meta line is what makes a 909-person list usable: typing a club
+ * name narrows it to that club, and typing "vice" finds the vice heads.
+ */
 export function filterRecipients(list: PickerRecipient[], query: string): PickerRecipient[] {
   const q = query.trim().toLowerCase();
   if (!q) return list;
   return list.filter(
-    (r) => r.email.toLowerCase().includes(q) || (r.name ?? "").toLowerCase().includes(q),
+    (r) =>
+      r.email.toLowerCase().includes(q) ||
+      (r.name ?? "").toLowerCase().includes(q) ||
+      (r.meta ?? "").toLowerCase().includes(q),
   );
 }
 
@@ -161,7 +171,10 @@ export function RecipientPicker({
                       }
                     />
                     <span className="rpick-who">
-                      <span className="rpick-name">{r.name ?? "—"}</span>
+                      <span className="rpick-name">
+                        {r.name ?? "—"}
+                        {r.meta ? <span className="rpick-meta">{r.meta}</span> : null}
+                      </span>
                       <span className="rpick-mail">{r.email}</span>
                     </span>
                   </label>

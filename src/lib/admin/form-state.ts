@@ -97,7 +97,7 @@ export interface BroadcastState {
 /** What `previewAudienceAction` hands the picker: who an audience contains. */
 export interface AudiencePreview {
   error?: string;
-  recipients?: { email: string; name: string | null }[];
+  recipients?: { email: string; name: string | null; meta: string | null }[];
   label?: string;
 }
 

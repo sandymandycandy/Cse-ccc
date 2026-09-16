@@ -4,10 +4,27 @@ import { listRegistrations, getEventFormSchema } from "@/lib/admin/registrations
 import { teamRecipients } from "@/lib/registration-form/recipients";
 import { splitRegistrations } from "@/lib/registration/waitlist";
 import { OFFICE_BEARER_ROLES, dedupeRecipients, type Audience } from "./broadcast-audience";
+import { ADMIN_ROLE_LABEL, MEMBER_ROLE_LABEL, describeRecipient } from "./role-labels";
 
 export interface Recipient {
   email: string;
   name: string | null;
+  /**
+   * "Club Head · AI Forge" — what this person is, and where, for the picker.
+   *
+   * Display only: the send path reads `email` and `name` and ignores this. Null
+   * whenever there is nothing useful to say, e.g. an event registrant, who
+   * belongs to no club through any table we have.
+   */
+  meta?: string | null;
+}
+
+/** id → display name for every club, built once per resolve that needs it. */
+async function clubNames(
+  admin: ReturnType<typeof createAdminClient>,
+): Promise<Map<string, string>> {
+  const { data } = await admin.from("clubs").select("id, name, short_name");
+  return new Map((data ?? []).map((c) => [c.id, c.short_name || c.name]));
 }
 
 /**
@@ -22,12 +39,26 @@ export async function resolveRecipients(a: Audience): Promise<Recipient[]> {
   const admin = createAdminClient();
 
   if (a.kind === "heads") {
-    const { data } = await admin
-      .from("admin_users")
-      .select("email, full_name")
-      .in("role", ["club_head", "vice_head"])
-      .eq("is_active", true);
-    return dedupeRecipients((data ?? []).map((r) => ({ email: r.email, name: r.full_name })));
+    const [{ data }, clubs] = await Promise.all([
+      admin
+        .from("admin_users")
+        .select("email, full_name, role, club_id")
+        .in("role", ["club_head", "vice_head"])
+        .eq("is_active", true),
+      clubNames(admin),
+    ]);
+    // Which club's head — the whole point of listing 26 of them is telling them
+    // apart, and a name alone does not.
+    return dedupeRecipients(
+      (data ?? []).map((r) => ({
+        email: r.email,
+        name: r.full_name,
+        meta: describeRecipient(
+          ADMIN_ROLE_LABEL[r.role],
+          r.club_id ? clubs.get(r.club_id) : null,
+        ),
+      })),
+    );
   }
 
   // Typed in by hand, so there is no roster row to take a name from. The
@@ -40,29 +71,59 @@ export async function resolveRecipients(a: Audience): Promise<Recipient[]> {
   if (a.kind === "office_bearers") {
     const { data } = await admin
       .from("admin_users")
-      .select("email, full_name")
+      .select("email, full_name, role")
       .in("role", [...OFFICE_BEARER_ROLES])
       .eq("is_active", true);
-    return dedupeRecipients((data ?? []).map((r) => ({ email: r.email, name: r.full_name })));
+    // No club: an office-bearer holds a council post, not a club one. The post
+    // IS the identifying fact here.
+    return dedupeRecipients(
+      (data ?? []).map((r) => ({
+        email: r.email,
+        name: r.full_name,
+        meta: describeRecipient(ADMIN_ROLE_LABEL[r.role], null),
+      })),
+    );
   }
 
   if (a.kind === "council") {
-    const { data } = await admin
-      .from("council_members")
-      .select("email, full_name")
-      .eq("is_active", true)
-      .not("approved_at", "is", null);
+    const [{ data }, clubs] = await Promise.all([
+      admin
+        .from("council_members")
+        .select("email, full_name, designation, club_id")
+        .eq("is_active", true)
+        .not("approved_at", "is", null),
+      clubNames(admin),
+    ]);
+    // `designation` is free text a human typed ("Robotics Club Head"), not an
+    // enum, so it is shown as written rather than mapped.
     return dedupeRecipients(
-      (data ?? []).map((r) => ({ email: r.email ?? "", name: r.full_name })),
+      (data ?? []).map((r) => ({
+        email: r.email ?? "",
+        name: r.full_name,
+        meta: describeRecipient(r.designation, r.club_id ? clubs.get(r.club_id) : null),
+      })),
     );
   }
 
   if (a.kind === "club_members" || a.kind === "all_members") {
-    const base = admin.from("club_members").select("email, name");
-    const { data } = await (a.kind === "club_members"
-      ? base.eq("club_id", a.clubId)
-      : base);
-    return dedupeRecipients((data ?? []).map((r) => ({ email: r.email ?? "", name: r.name })));
+    const base = admin.from("club_members").select("email, name, role, club_id");
+    const [{ data }, clubs] = await Promise.all([
+      a.kind === "club_members" ? base.eq("club_id", a.clubId) : base,
+      // ⚠️ Only worth a query when the audience spans clubs. Under
+      // `club_members` every row is the club chosen in the picker above, so
+      // repeating it 236 times is noise, not information.
+      a.kind === "all_members" ? clubNames(admin) : Promise.resolve(null),
+    ]);
+    return dedupeRecipients(
+      (data ?? []).map((r) => ({
+        email: r.email ?? "",
+        name: r.name,
+        meta: describeRecipient(
+          MEMBER_ROLE_LABEL[r.role],
+          clubs && r.club_id ? clubs.get(r.club_id) : null,
+        ),
+      })),
+    );
   }
 
   // An event: reuse the per-event path so team members are reached too, not

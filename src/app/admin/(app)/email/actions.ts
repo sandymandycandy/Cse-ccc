@@ -69,7 +69,11 @@ export async function previewAudienceAction(raw: {
 
   const recipients = await resolveRecipients(gate.audience);
   return {
-    recipients: recipients.map((r) => ({ email: r.email, name: r.name })),
+    recipients: recipients.map((r) => ({
+      email: r.email,
+      name: r.name,
+      meta: r.meta ?? null,
+    })),
     label: audienceLabel(gate.audience),
   };
 }
