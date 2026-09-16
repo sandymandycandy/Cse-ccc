@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-15 (broadcast email + certificate bases/winners shipped; co-hosted events still in flight).**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-16 (email composer + Outbox UI shipped; co-hosted events still in flight).**
 
 ## What this is
 
@@ -18,7 +18,69 @@ end-to-end**, not a checklist of components.
 
 ---
 
-## 🚦 START HERE — current git/deploy state (2026-09-15)
+## 🚦 START HERE — current git/deploy state (2026-09-16)
+
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-16 — email composer + Outbox UI, responsive to 360px
+>
+> `feat/email-outbox-ui` merged to `main` as **`545e5de`** and pushed. `main` had not moved since
+> `14caf60`, so the merge was clean and the gate was re-run on the merged tree anyway: typecheck ✓
+> lint ✓ **1109 tests** ✓ build ✓ `npm ci` lockfile in sync.
+>
+> **Presentation only.** The diff is 16 files, all UI — **no** server action, audience rule, capability
+> check, email template, migration, dependency, env var or `vercel.json` change. Nothing about who
+> receives a mail, or what is in it, moved.
+>
+> - **`globals.css` gains an `email + outbox` block** in `@layer components` (~188 lines):
+>   `.audience-opt` cards, `.field-foot`/`.counter`, `.mailprev*`, `.outbox-tiles`, `.ceiling`,
+>   `.badge-sent|pending|failed`, and one `max-width: 599px` block. ⚠️ Before this, **all three email
+>   surfaces had no breakpoint of their own** — they were built from inline styles and inherited
+>   responsiveness from `.field` and `.tablewrap.cards` and nothing else.
+> - **New `src/components/admin/compose/`** — `AudienceOption`, `CharCount`, `EmailPreview`, shared by
+>   both composers rather than duplicating the upgrade twice.
+> - **Audience choices are cards now**: a 56px tap target instead of a ~16px radio, the count on its own
+>   line, and each choice's own fields nested INSIDE the chosen card, retiring a 26px indent that meant
+>   nothing on a phone. ⚠️ The nested fields sit **outside the `<label>`** on purpose — a `<select>`
+>   inside it re-toggles its own radio when opened.
+> - **Character counts** on subject (120) and message (4000), and a **collapsed preview** of the mail.
+>   ⚠️ The preview is a **facsimile in app tokens, not the real template** — `renderEmail` is
+>   server-side, and a facsimile also themes correctly in night mode. If the template changes,
+>   `EmailPreview.tsx` does not follow automatically.
+> - **"Write another"** on the success screens. `useActionState` has no reset, so each form moved into a
+>   **keyed inner component** — a remount is the only way to clear the result. Before this the success
+>   screen was a dead end escapable only by reloading.
+> - **Outbox**: the three counts stay side by side at every width, the daily Gmail allowance is **drawn**
+>   rather than stated, statuses are badges, and a failure reason gets its own line instead of being
+>   concatenated into the status cell.
+>
+> **Two real fixes found while building:**
+> - `ceilingPercent` rounded to nearest, so **499/500 reported 100** and the bar read "allowance spent"
+>   one message early. It rounds **down** now; 100 means the day is genuinely over.
+> - Both composers claimed the button text 'Defaults to "Open link"'. **It does not.** With no link
+>   typed the actions send no `linkLabel` at all, so the template's own default wins and the button says
+>   **"Open"**. The hint is corrected, and `previewButtonLabel` in `EmailPreview.tsx` pins the real
+>   three-way rule so the next person cannot get it wrong from reading one file.
+>
+> **Verified live on https://cse-ccc.vercel.app:** the deployed CSS chunk contains `.audience-opt`,
+> `.outbox-tiles`, `.mailprev` and `.ceiling` — direct proof the new build is serving, since this
+> deploy added no new route to 404-check against. `/admin/email` and `/admin/outbox` still 307 to the
+> login; `/`, `/achievements` and `/verify` still 200.
+>
+> ⚠️ **NEVER OPENED IN A BROWSER — same gap as the certificate work.** The Chrome extension was not
+> connected in the session that built this, and TOTP blocks agents from signing in. The interaction
+> paths are covered by **CSS and static render only**: `renderToStaticMarkup` cannot click a card or
+> type into a counter, and RTL is not a dependency. The Vercel MCP again returned **403** for this
+> team's scope (`sandymandycandys-projects`), and the GitHub MCP failed to connect, so the deploy was
+> confirmed by fetching the live CSS rather than through either integration.
+>
+> **Owed human walkthrough** (as `sandy`, tech_head), at **1280 px and 400 px**, in **both themes**:
+>   1. `/admin/email` — tap each audience card; check the club picker appears inside the chosen card
+>      and that opening the `<select>` does not jump the selection to another card.
+>      ⚠️ The pickers are `required`, so a picker rendered under an unchosen card would block the form.
+>   2. Type past 96 chars of subject and 3200 of message — the counter should appear, not before.
+>   3. Open **Preview the email**, with and without a link. Without one the button must read **"Open"**.
+>   4. Send something small to yourself, then press **Write another** — the form must come back empty.
+>   5. `/admin/outbox` at 400 px — the three tiles must stay in one row, and a failed row's error must
+>      wrap instead of running off the edge.
 
 > ### 🚀 SHIPPED TO PRODUCTION 2026-09-15 — broadcast email, reminder button, `.ics` feeds
 >
