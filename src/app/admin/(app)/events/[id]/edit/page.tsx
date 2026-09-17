@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireViewPage } from "@/lib/auth/guards";
-import { grantFor, canManage } from "@/lib/auth/capabilities";
+import { grantFor } from "@/lib/auth/capabilities";
+import { canCancelEvent } from "@/lib/admin/event-hosts";
 import { getClubOptions, getEventForEdit } from "@/lib/admin/queries";
 import { EventForm } from "@/components/admin/EventForm";
 import { CancelEventForm } from "@/components/admin/CancelEventForm";
@@ -20,19 +21,19 @@ export default async function EditEventPage({
     getEventForEdit(session, id),
     getClubOptions(),
   ]);
-  // Fail closed: getEventForEdit returns null for a missing event or one outside
-  // a club-scoped admin's club.
+  // Fail closed: getEventForEdit returns null for a missing event or one this
+  // admin's club does not host.
   if (!event) notFound();
 
-  // Club-scoped roles keep the hosting club locked, same as create.
+  // Club-scoped roles keep the hosting club locked, locked to the club that OWNS
+  // the event. ⚠️ Not to their own club: for a co-host those differ, and posting
+  // their own club here would read as taking the primary, so every save a
+  // co-host made would be refused.
   const clubScoped = grantFor(session.role, "manage:events") === "own";
-  const fixedClub =
-    clubScoped && session.clubId
-      ? clubs.find((c) => c.id === session.clubId) ?? null
-      : null;
+  const fixedClub = clubScoped ? clubs.find((c) => c.id === event.clubId) ?? null : null;
 
   const isCancelled = event.status === "cancelled";
-  const canCancel = canManage(session, "cancel:events", event.clubId);
+  const canCancel = canCancelEvent(session, event.hosts);
 
   return (
     <div className="admin-page" style={{ maxWidth: 640 }}>
