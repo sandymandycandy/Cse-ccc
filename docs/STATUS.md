@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-17 (session history search + sortable date SHIPPED; co-hosted events shipped earlier the same day; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed).**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-17 (co-host dropdown + sectioned event form SHIPPED; session history search + sortable date SHIPPED; co-hosted events shipped earlier the same day; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed).**
 
 ## What this is
 
@@ -19,6 +19,47 @@ end-to-end**, not a checklist of components.
 ---
 
 ## 🚦 START HERE — current git/deploy state (2026-09-16)
+
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-17 — co-host dropdown + sectioned event form
+>
+> `feat/event-form-ux` merged as **`4eaf6f5`** (`f859f96` + `c5f2989`). Gate re-run on the merged
+> tree: typecheck ✓ lint ✓ **1257 tests** ✓ build ✓. **No migration, dependency, env or
+> `vercel.json` change.**
+>
+> The co-host picker was **fifteen bare checkboxes — about 1,100px of OPTIONAL field** wedged
+> between the hosting club and the venue, which pushed the rest of the form off a laptop screen
+> (the owner sent a screenshot of it). It is now one 44px control reading "No co-hosts" /
+> "Yoga Club" / "Yoga Club +2", opening to a filterable 260px panel, with what is picked shown as
+> removable chips underneath.
+>
+> ⚠️ **SHIPPED WITHOUT A SIGNED-IN WALKTHROUGH, at the owner's instruction.** Nothing automated can
+> open a dropdown, scroll a sticky bar or see dark mode. The owed check is in the list below.
+>
+> - ⚠️ **EVERY CHECKBOX STAYS MOUNTED — checked or not, panel open or closed.** The panel is hidden
+>   with `hidden`, and a hidden input still posts, so `formData.getAll("cohostIds")` in
+>   `events/actions.ts:92` is untouched: **no server change, no migration.** A test pins the
+>   closed-panel case. **Do not swap this for `<select multiple>` or unmount the unchecked boxes** —
+>   either drops co-hosts on save with nothing in the UI to show for it.
+> - ⚠️ **The filter box sits INSIDE the event form, which has a submit button.** Enter there would
+>   implicitly submit the form — *filtering would save the event*. It carries an
+>   `onKeyDown` → `preventDefault` guard (`c5f2989`). **Every search box in this repo that sits
+>   inside a form has this guard** (`SessionRoster`, `CouncilSessionRoster`); the ones outside a
+>   form do not need it. Audited repo-wide 2026-09-17 — the co-host filter was the only one missing it.
+> - **`EventForm` serves BOTH `/admin/events/new` and `/edit`**, so the create page changed identically.
+> - The form is now five `.form-section` cards (Basics · When & where · Registration · Registration
+>   form · Cover photo) instead of thirteen fields in one flat column, and Save sits in a sticky
+>   `.form-savebar` rather than only at the bottom of a ~2,000px page. Registration type now pairs
+>   with capacity on one row.
+> - ⚠️ **`position: sticky` on the save bar depends on NO `overflow` on the admin wrappers.**
+>   Checked: `.admin-shell` / `.admin-main` / `.admin-page` set none. Adding one would silently
+>   un-stick the bar.
+> - New pure module `cohost-summary.ts` (4 tests) for the trigger's label — it names the first club
+>   and counts the rest, because "Short Film & Movie Appreciation Club" spelled out twice wraps the
+>   control on a phone.
+> - ⚠️ **A club promoted to primary loses its chip AND its checkbox by derivation**, not by an
+>   effect — `choices` already excludes the primary. Its id stays in `picked` harmlessly, so
+>   switching the primary back restores the tick. An effect here trips the
+>   `react-hooks/set-state-in-effect` lint rule.
 
 > ### 🚀 SHIPPED TO PRODUCTION 2026-09-17 — session history search + sortable date
 >
@@ -3464,6 +3505,13 @@ flow as always.
    - [ ] **`/team`, `/team/<id>` and `/admin/team`** (merged 2026-09-14, `a4f70ae`) — click
          Publish on a member, upload a photo, save a bio; then check the grid and a profile at
          phone width. Never opened.
+   - [ ] **Co-host dropdown + sectioned event form** (2026-09-17) — on an event's edit page:
+         open the co-host dropdown, tick two clubs, confirm the trigger reads "X +1" and two chips
+         appear; type in the filter and confirm the list narrows; **press Enter in the filter and
+         confirm the event does NOT save**; click a chip to remove it; save and reopen to confirm
+         the co-hosts stuck. Then scroll and confirm the sticky Save bar stays reachable, and check
+         the panel and chips in dark mode and at phone width. Also open `/admin/events/new`, which
+         uses the same form. Never opened.
    - [ ] **Session history search + Date sort** (2026-09-17, `b893f8f`) — on
          `/admin/attendance`: type part of a session title and confirm the table narrows;
          clear it and confirm every row returns; click **Date** and confirm the order
