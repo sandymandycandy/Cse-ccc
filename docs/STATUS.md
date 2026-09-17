@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-14 (certificate designer shipped).**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-16 (per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed; co-hosted events still in flight).**
 
 ## What this is
 
@@ -18,11 +18,478 @@ end-to-end**, not a checklist of components.
 
 ---
 
-## 🚦 START HERE — current git/deploy state (2026-09-14)
+## 🚦 START HERE — current git/deploy state (2026-09-16)
 
-> **2026-09-14:** `main == origin/main @ c7cdb1c`, clean, nothing in flight. The **certificate
-> designer (all three phases) merged and deployed** today — see the SHIPPED block below. The owed
+> ### 2026-09-17 — Contact inbox is President, VP and Tech Head only
+>
+> Owner request. `manage:contact` lost **`faculty_advisor`** and **`social_media_head`**. Both used to
+> hold `all`. The nav link, `/admin/contact`, the message page, the mark-handled action and the
+> dashboard's "unanswered" reminder all read this one capability, so all of them follow the change.
+>
+> ⚠️ **The Faculty Advisor now lacks TWO capabilities, `view:feedback` and `manage:contact`.** Tests pin
+> both. Do not add them back "for consistency" with Faculty's otherwise-full access.
+>
+> Unchanged: the **new-message email** still goes to President + VP only (`NOTIFY_ROLES` in
+> `src/lib/contact/notify.ts`). The Tech Head can open the inbox but is not emailed.
+
+> ### 2026-09-17 — Social Media Head can take the Social Media Team's attendance
+>
+> Owner request. `manage:members` gained **`social_media_head: "own"`**. That is the whole Attendance
+> surface (sessions, marking, analytics, CSV export, **and the member roster: add/edit/remove**), the
+> same bundle a club head holds. It is scoped to the club on the account. The **Social Media Team club
+> (`socialmediateam`, 8 members) has no club head**, so before this only the council could run its
+> attendance. No migration.
+>
+> ⚠️ **"Own" means `admin_users.club_id`.** An SMH invited with no club sees "No club to show", so invite
+> them with the club set to Social Media Team. There is still **no UI to change an existing admin's
+> club**, so a fix means SQL. The owner's test account `testing smc` was linked that way on 2026-09-17, then deleted the same day.
+> The real SMH already had the club set.
+
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-16 — per-field validation errors, whole admin panel
+>
+> **`33ce77f`** (the two email composers) then **`b7a3cb7`** (everything else). Gate: typecheck ✓
+> lint ✓ **1162 tests** ✓ build ✓. No migration, dependency, env or `vercel.json` change.
+>
+> The complaint now sits **under the input it is about**, instead of one banner naming several fields
+> at once ("Add a subject (3+ characters) and a message (10+ characters)." named two and marked
+> neither). **22 form components** wired, **~50 generic banners** replaced, across events, attendance,
+> council, announcements, gallery, clubs, resources, achievements, users and the auth forms.
+>
+> - **The wording lives ON each zod rule** — `.min(3, "Give it a subject — at least 3 characters.")` —
+>   so what a person reads cannot drift from the rule that rejected them.
+> - `toFieldErrors` maps issues to one message per field; `FieldError` / `fieldProps` / `fieldClass`
+>   render it and wire `aria-invalid` + `aria-describedby`.
+> - Whole-form problems ("You can't send to that audience") stay in the banner — no field to sit under.
+>
+> ⚠️ **THE AUTH FORMS KEEP THEIR VAGUE CREDENTIAL VERDICTS, DELIBERATELY.** `/admin/login` still
+> answers **"Wrong email, password, or code."** as one message, and `/admin/forgot` still returns its
+> `NEUTRAL` acknowledgement whether or not the account exists. **Only the SHAPE check changed** — an
+> empty box is marked empty, which runs *before* any lookup and so cannot distinguish a real account
+> from an unknown one. Splitting the verdict per field would be an **account-enumeration oracle**
+> (SECURITY_SPEC §3, and the comment above `NEUTRAL` says it outright). Do not "improve" these.
+>
+> ⚠️ **`visibleFieldErrors` exists for a specific trap.** `reset`, `accept-invite` and `setup-totp`
+> validate **hidden** `token` / `secret` fields. A complaint keyed to those has no input to render
+> under and would **vanish silently**, leaving a form that refuses to submit and says nothing at all.
+> Anything not in the visible list falls back to the banner. Any new form with hidden validated fields
+> must use it.
+>
+> ⚠️ **Pre-existing bug fixed in passing: `.field.err` styled only `input`** — so a bad `textarea` or
+> `select` got **no red border at all**. The message box on both composers is a textarea and the club
+> and event pickers are selects, so the rule was missing most of what it existed for. Now covers all
+> three.
+>
+> **Convention note:** the **public** forms (Contact, Feedback, Register) already did this —
+> `FeedbackForm` even focuses the first bad field. This follows their `.field.err` + hint shape rather
+> than inventing a second one, and adds the aria wiring they lack.
+>
+> ⚠️ **No error has actually been SEEN rendered.** Submitting a bad form needs a signed-in session and
+> TOTP blocks agents. **Quickest check: submit `/admin/login` empty** — both boxes should go red
+> individually rather than one banner appearing.
+>
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-16 — the two lists that both read "26 addresses"
+>
+> **`5b47d23`.** `heads` and `council` are **different tables describing largely the same humans** —
+> `admin_users` (who holds a panel login) and `council_members` (the public roster). Live they are
+> **26 and 26, with 23 IN COMMON**, so they looked interchangeable and were not: sending to each in
+> turn mails 23 people the same thing twice, one send apart, with nothing on screen to suggest it.
+>
+> Each card now names its source and states the overlap — "from the admin accounts · 23 are also on
+> the council roster" / "from the public council roster · 23 are also club heads". The overlap line is
+> **omitted when zero**, so it does not become furniture if the rosters ever diverge. `audienceCounts`
+> resolves the heads list rather than counting it, to compute the intersection.
+>
+> ⚠️ **Worth a product decision, not a code one:** whether those two rosters *should* be 88%
+> duplicates, or whether `council_members` ought to be derived from `admin_users` instead of
+> maintained by hand. Not touched.
+>
+> ### 🔒 SHIPPED TO PRODUCTION 2026-09-16 — FIXED: the Outbox showed org-wide addresses to club heads
+>
+> **`5612ded`. Pre-existing on `main`, found by a security review of the audience-picker branch, not
+> introduced by it.** `/admin/outbox` is gated on `requireViewPage("manage:broadcast")`, and
+> **`club_head` / `vice_head` hold that as `own`** (`capabilities.ts:167-170`) — enough to open the
+> page. The recent list had **no club scoping at all**: the 20 most recent `email_log` rows org-wide,
+> whoever was looking.
+>
+> **What was exposed:** admin **password-reset** and **admin-invite** mail for other people, plus the
+> recipients of council-wide broadcasts and contact-form notifications.
+>
+> ⚠️ **`email_log` has no club, sender or actor column**, so that list *cannot* be narrowed per club
+> without a schema change — and existing rows could not be backfilled meaningfully in any case. So the
+> addresses are now shown only to an already-org-wide grant (`canSeeLog`). **The page no longer even
+> queries those rows** when the viewer may not see them: gating the render alone would still pull the
+> addresses into the server component's payload. A club head keeps the counts and the allowance bar —
+> what the page's own docstring says they need, and they name nobody.
+>
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-16 — audience picker, layer 2, typed addresses
+>
+> **`352ec7d`, merged as `2d8ee92`.** Gate re-run on the merged tree: typecheck ✓ lint ✓ **1138 tests** ✓
+> build ✓ `npm ci` lockfile in sync. No migration, dependency, env or `vercel.json` change.
+>
+> - **Layer 2 finally has an audience.** There was none: `heads` is `club_head`+`vice_head` (**layer 3,
+>   26**) and `council` reads the separate `council_members` roster (**32 active, 26 with an address**) —
+>   the office-bearers fell between the two. Resolved **BY ROLE** (`OFFICE_BEARER_ROLES`), never from a
+>   list of people, so it self-corrects as the team changes instead of going stale in a constant.
+>   ⚠️ **It reaches 6, not 7 — `events_head` is vacant in `admin_users`** (Events Head has no account;
+>   the owner is handling that). A vacant post contributes nobody rather than erroring.
+>   ⚠️ **`heads` is still the DEFAULT** even though layer 2 is listed above it — this block's own advice
+>   is to start with the 26 heads, and adding an audience must not change what pressing Send gives you.
+> - **"See who gets it"** on every card: scrollable, filterable, a checkbox each. Nothing loads until
+>   asked — the largest audience is 909 people. `previewAudienceAction` runs the **identical gate** to
+>   sending (same parse, same DB re-read of an event's owning club, same `isAudienceAllowed`).
+> - **Every row shows a role and club** (`514ddfe`) — "Club Head · AI Forge", "Member · Coding Club",
+>   "Technical Head" for an office-bearer, the free-text `designation` for a council row. The filter
+>   searches that line too, so a club name narrows 909 people to one club.
+>   ⚠️ **Deliberately omitted for `club_members`** — every row is the club already chosen in the
+>   dropdown above it, so the clubs lookup is skipped entirely for that audience.
+>   ⚠️ **`dedupeRecipients` is now generic.** It used to rebuild `{ email, name }` and so silently
+>   dropped any extra field; anything new a caller attaches must survive it. The send path is
+>   unaffected — it reads `email` and `name` only.
+>   ⚠️ **`ADMIN_ROLE_LABEL` is a TOTAL map of the `admin_role` enum** (`role-labels.ts`), so adding a
+>   role to the enum without naming it there is a typecheck failure, not a raw `social_media_head`
+>   showing up in somebody's recipient list.
+> - **Typed addresses**, council-wide only, capped at **200** — over the cap it *refuses* rather than
+>   quietly mailing the first 200.
+>
+> ⚠️ **Two authorisation invariants that must not be broken by a later refactor:**
+> 1. **The form posts who was EXCLUDED, never who was kept.** The server resolves the audience itself
+>    and `applyExclusions` only ever **subtracts**, so a tampered request can shrink a send but can
+>    never inject an address. Posting the keep-list would make the form the source of truth for
+>    recipients and walk straight around `isAudienceAllowed`.
+> 2. **`AudienceOption` renders `children` only while checked**, so exactly **one** `name="exclude"`
+>    field exists at a time. Were all cards' children rendered eagerly, `formData.get("exclude")` would
+>    return the first (empty) one and silently mail people the sender had unticked.
+>
+> **Reviewed:** an independent security pass over the branch found **no exploitable vulnerability** —
+> it specifically cleared cross-club reads through the preview action, exclusion-injection, the
+> `custom` refusal on both paths, and the event-club DB re-read. It was that review that turned up the
+> Outbox leak above. Note `broadcast-audience.ts` is now imported by a **client** component
+> (`CUSTOM_MAX`, `parseEmailList`), so it is client-reachable and **must never gain a secret or a DB
+> import**.
+>
+> ⚠️ **NOT OPENED IN A BROWSER.** The picker panel, its checkboxes and its filter have **no interaction
+> coverage** — `renderToStaticMarkup` cannot click or type, and RTL is not a dependency.
+> **Owed:** open `/admin/email`, press **See who gets it** on layer 2, confirm it lists the six; untick
+> one and check the button count drops; check the picker at 400 px; and confirm a club head's
+> `/admin/outbox` shows no addresses.
+>
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-16 — email composer + Outbox UI, responsive to 360px
+>
+> `feat/email-outbox-ui` merged to `main` as **`545e5de`** and pushed. `main` had not moved since
+> `14caf60`, so the merge was clean and the gate was re-run on the merged tree anyway: typecheck ✓
+> lint ✓ **1109 tests** ✓ build ✓ `npm ci` lockfile in sync.
+>
+> **Presentation only.** The diff is 16 files, all UI — **no** server action, audience rule, capability
+> check, email template, migration, dependency, env var or `vercel.json` change. Nothing about who
+> receives a mail, or what is in it, moved.
+>
+> - **`globals.css` gains an `email + outbox` block** in `@layer components` (~188 lines):
+>   `.audience-opt` cards, `.field-foot`/`.counter`, `.mailprev*`, `.outbox-tiles`, `.ceiling`,
+>   `.badge-sent|pending|failed`, and one `max-width: 599px` block. ⚠️ Before this, **all three email
+>   surfaces had no breakpoint of their own** — they were built from inline styles and inherited
+>   responsiveness from `.field` and `.tablewrap.cards` and nothing else.
+> - **New `src/components/admin/compose/`** — `AudienceOption`, `CharCount`, `EmailPreview`, shared by
+>   both composers rather than duplicating the upgrade twice.
+> - **Audience choices are cards now**: a 56px tap target instead of a ~16px radio, the count on its own
+>   line, and each choice's own fields nested INSIDE the chosen card, retiring a 26px indent that meant
+>   nothing on a phone. ⚠️ The nested fields sit **outside the `<label>`** on purpose — a `<select>`
+>   inside it re-toggles its own radio when opened.
+> - **Character counts** on subject (120) and message (4000), and a **collapsed preview** of the mail.
+>   ⚠️ The preview is a **facsimile in app tokens, not the real template** — `renderEmail` is
+>   server-side, and a facsimile also themes correctly in night mode. If the template changes,
+>   `EmailPreview.tsx` does not follow automatically.
+> - **"Write another"** on the success screens. `useActionState` has no reset, so each form moved into a
+>   **keyed inner component** — a remount is the only way to clear the result. Before this the success
+>   screen was a dead end escapable only by reloading.
+> - **Outbox**: the three counts stay side by side at every width, the daily Gmail allowance is **drawn**
+>   rather than stated, statuses are badges, and a failure reason gets its own line instead of being
+>   concatenated into the status cell.
+>
+> **Two real fixes found while building:**
+> - `ceilingPercent` rounded to nearest, so **499/500 reported 100** and the bar read "allowance spent"
+>   one message early. It rounds **down** now; 100 means the day is genuinely over.
+> - Both composers claimed the button text 'Defaults to "Open link"'. **It does not.** With no link
+>   typed the actions send no `linkLabel` at all, so the template's own default wins and the button says
+>   **"Open"**. The hint is corrected, and `previewButtonLabel` in `EmailPreview.tsx` pins the real
+>   three-way rule so the next person cannot get it wrong from reading one file.
+>
+> **Verified live on https://cse-ccc.vercel.app:** the deployed CSS chunk contains `.audience-opt`,
+> `.outbox-tiles`, `.mailprev` and `.ceiling` — direct proof the new build is serving, since this
+> deploy added no new route to 404-check against. `/admin/email` and `/admin/outbox` still 307 to the
+> login; `/`, `/achievements` and `/verify` still 200.
+>
+> ### 🔧 FOLLOW-UP `9efca66` — the Outbox table never had the `admin` class
+>
+> **The owner opened `/admin/outbox` in a browser (night mode, desktop) and the header row was centred.**
+> Cause: `<table>` with no `className="admin"` — the **only** `<table>` in `src/` missing it, and it had
+> been that way since the page was written, not a regression from this rebuild.
+>
+> ⚠️ **That class is load-bearing, not decoration.** Everything is scoped to `table.admin`:
+> `th { text-align: left }`, `td { padding; border-bottom }`, and — the one that mattered —
+> **`.tablewrap.cards table.admin { display: block; min-width: 0 }`**. Without it the 720px collapse to
+> cards only half applied, so the table most likely to be read on a phone was the one that did not
+> collapse properly. Also: `.outbox-when` gets `white-space: nowrap` (a timestamp was breaking after
+> the time, stranding "PM" on its own line), and `.ceiling` is capped at 420px (a 4px track across the
+> full content width read as a divider rule, worst at 0%). Two regression tests pin the class and the
+> timestamp cell. **1111 tests.**
+>
+> ⚠️ **Only `/admin/outbox` has been looked at, at desktop width in night mode.** Neither composer has
+> been opened, and nothing has been seen at 400 px or in day mode. The interaction paths remain covered
+> by **CSS and static render only**: `renderToStaticMarkup` cannot click a card or type into a counter,
+> and RTL is not a dependency. The Chrome extension was not connected in the session that built this,
+> and TOTP blocks agents from signing in. The Vercel MCP again returned **403** for this team's scope
+> (`sandymandycandys-projects`), and the GitHub MCP failed to connect, so deploys were confirmed by
+> fetching the live CSS rather than through either integration.
+>
+> **Owed human walkthrough** (as `sandy`, tech_head), at **1280 px and 400 px**, in **both themes**:
+>   1. `/admin/email` — tap each audience card; check the club picker appears inside the chosen card
+>      and that opening the `<select>` does not jump the selection to another card.
+>      ⚠️ The pickers are `required`, so a picker rendered under an unchosen card would block the form.
+>   2. Type past 96 chars of subject and 3200 of message — the counter should appear, not before.
+>   3. Open **Preview the email**, with and without a link. Without one the button must read **"Open"**.
+>   4. Send something small to yourself, then press **Write another** — the form must come back empty.
+>   5. `/admin/outbox` at 400 px — the three tiles must stay in one row, and a failed row's error must
+>      wrap instead of running off the edge.
+
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-15 — broadcast email, reminder button, `.ics` feeds
+>
+> `feat/broadcast-email-ics` merged to `main` as **`812cdb4`** and pushed, on the owner's instruction
+> **without the signed-in walkthrough**. It was 29 commits behind `main`; the code merged cleanly and
+> only `docs/STATUS.md` conflicted. The whole gate was re-run on the merged tree first: typecheck ✓
+> lint ✓ **1059 tests** ✓ build ✓ `npm ci` lockfile in sync. Vercel reported the deploy **success**.
+>
+> **Checked before deploying:** no change to `vercel.json`, dependencies or the database; the env vars
+> it reads already existed; and the live `email_log` had **0 pending rows** (84 sent, 8 failed from
+> 2026-08-25, which the drain does not retry) — so raising the nightly drain 25 → 100 sent nothing.
+>
+> **Verified live on https://cse-ccc.vercel.app:** `/admin/email` and `/admin/outbox` 307 to the login
+> (they 404'd before this deploy — proof the new build is serving) · `/api/cron/send-email` 401 without
+> the secret · `/calendar.ics`, `/clubs/ai-forge/events.ics` and `/events/<id>/event.ics` all 200
+> `text/calendar`, each one `VCALENDAR`, **every line CRLF, none over 75 octets**, `UID` of
+> `<eventId>@cse-ccc.vercel.app` (AI Forge's feed is a valid empty calendar — no events in its window).
+> `/`, `/achievements`, `/verify` still 200.
+>
+> ⚠️ **The owed walkthrough in the Broadcast block below is now a check against PRODUCTION.** The first
+> bulk send is the real test of Gmail at volume. **Start with the 26 heads, never all members.** The
+> 909-person send takes more than a day to clear under the ~500/day Gmail ceiling — by design.
+>
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-15 — certificate base templates + winner certificates
+>
+> `feat/certificate-bases` (25 commits) merged to `main` as **`4be68e4`** and pushed. The whole gate was
+> re-run on the merged tree first: typecheck ✓ lint ✓ **1011 tests** ✓ build ✓ `npm ci` lockfile in sync.
+> Vercel reported the deploy of that commit **success**. Verified live on https://cse-ccc.vercel.app:
+> `/`, `/achievements`, `/verify` 200 · an unknown serial says "Not a valid certificate" with `noindex` ·
+> `/admin/certificates` 307s to login · **`/dev/certificate-designer` 404s in production** · served from
+> `bom1` · `/achievements` still renders the PITCH DESK podium, now through the shared `podiumRound`.
+>
+> ⚠️ **Deployed WITHOUT a signed-in walkthrough, at the owner's instruction.** Nothing below has been
+> clicked in a browser. The first admin to open an event's Certificates page will create its
+> **Volunteers** and **Winners** groups — expected. The two owed walkthroughs in the blocks below are now
+> checks against production, not a merge gate.
+>
+> ⚠️ **The Vercel MCP returned 403 for this team's scope** in the session that shipped this (account
+> switch) — the deploy was confirmed through GitHub's commit status for `4be68e4` instead.
+>
+> ### 🧩 Certificate base templates, phase 1 (`feat/certificate-bases`, 2026-09-15) — now LIVE
+>
+> **Every event's Participants and Volunteers certificates follow a council base until customised.**
+> Spec `docs/superpowers/specs/2026-09-15-certificate-base-templates-design.md`, plan
+> `docs/superpowers/plans/2026-09-15-certificate-bases-phase1.md`. Gate: typecheck ✓ lint ✓ **988 tests** ✓ build ✓.
+>
+> - **Migration `certificate_bases` — APPLIED LIVE + VERIFIED** via the MCP (never `db push`):
+>   `certificate_bases` (RLS on; `anon`/`authenticated` hold nothing — all 6 privilege assertions false),
+>   `certificate_groups.base_kind` + **nullable `design`** (null = follows its base) + `position_column`
+>   (phase 2), `certificate_sheet_rows.roll`, `certificate_group_kind` gains `results` (phase 2), and
+>   `replace_certificate_sheet_rows` rewritten to carry `roll` (grants re-asserted: service_role only).
+>   The one live Participants group now follows.
+> - **How it works:** `CertificateGroup.design` is the *effective* design (`effectiveDesign` in
+>   `src/lib/certificates/bases.ts`), so issuing, previews, print and the outdated check follow a base
+>   without knowing bases exist. ⚠️ **Never read `certificate_groups.design` directly** — null means
+>   "use the base"; read `customDesign` when you specifically want the event's own.
+> - **UI:** a following group opens as the certificate itself (`CertificatePreview`, responsive) with
+>   **Customise**; the editor now has **Save for this event**, **Save as base ▾** (council-wide admins
+>   only, images copied into `certificate-assets/00000000-0000-0000-0000-000000000000/`, impact shown
+>   before overwriting), and **Reset to base**. Group chips read **● Base** / **◆ Custom**.
+> - **Volunteers exist on every event and are typed in by hand** — name, email, roll no. — with the
+>   CSV/Excel upload alongside (it now detects a roll column and warns that it replaces the list).
+>   ⚠️ Once someone holds a live certificate, their **name and email are locked** in that table:
+>   the key is derived from them, so an edit would orphan the certificate and queue a second one.
+> - **⚠️ NEVER OPENED IN A BROWSER.** The Chrome extension was not connected in the session that built
+>   this, so the harness panels (`/dev/certificate-designer?panel=base`, `?panel=list`) were verified
+>   only by their render tests and the pages' 200s. Check both at 1280 px and 400 px.
+> - **Owed human walkthrough** (as `sandy`, tech_head — TOTP blocks agents):
+>   1. On an event, design a certificate → **Save as base** → Participants + Volunteers.
+>   2. Open a second event: both groups show the certificate immediately, marked ● Base.
+>   3. Customise Volunteers there → Save for this event; edit the base from the first event →
+>      Participants changes on the second event, Volunteers does not.
+>   4. Reset Volunteers to base.
+>   5. Type three volunteers (one without an email), issue, then try to change the issued one's email →
+>      refused; change their roll no. → shows as outdated.
+> ### 🏆 Winner certificates, phase 2 (same branch, 2026-09-15) — now LIVE
+>
+> **Every event now has a Winners group too.** Plan `docs/superpowers/plans/2026-09-15-certificate-bases-phase2-winners.md`.
+> Gate: typecheck ✓ lint ✓ **1011 tests** ✓ build ✓. **No migration** — phase 1 already added everything.
+>
+> - **Where winners come from:** by default the **published results** — ranks 1–3 of the highest-`sort`
+>   round with published standings, **ties kept** (`1, 2, 3, 3`), every team member getting their own
+>   certificate. Or **a list you enter** (typed, or uploaded with a Position column). The rule for "which
+>   round" now lives once, in `podiumRound` (`src/lib/certificates/winners.ts`), and `/achievements` uses
+>   it too — a certificate can never disagree with the board or the results page.
+>   ⚠️ **Only PUBLISHED results count.** A certificate must never announce a placing the winner can't see.
+> - **Verified against live data (read-only):** the one event with published results returns ranks
+>   `1,2,3,3`, all four tied to registrations, with team members.
+> - **Fields:** `{Position}` → "1st", `{Position in words}` → "First". Offered only on the Winners group
+>   and the Winners base. A typed Position of `1`/`1st`/`First` normalises to "1st"; anything else
+>   ("Best UI") prints exactly as typed.
+> - **Ledger:** winners are `type: 'winner'` with `win:` recipient keys, so one person can hold a
+>   participation **and** a winner certificate. Issuing a Winners group checks `issue:winner_certificate`.
+>   `/verify` reads **"Winners · 1st place"** — from a top-level `snapshot.place`, never the whole snapshot
+>   (it holds email and roll).
+> - **Switching a Winners group's source is refused** while it has live certificates — the two sources key
+>   people differently, so a switch would give someone two.
+> - **A rank corrected after issuing:** still on the podium → shows outdated, re-issue as usual. **Dropped
+>   off** → the certificate stays live and appears in Recipients as **"Issued · no longer on the list"**,
+>   with Download and Revoke. **Nothing is revoked automatically.** The same applies to anyone removed from
+>   any list.
+> - **⚠️ A build-only bug existed between `5f2ac1c` and `36dd8c8`:** a sync helper was exported from the
+>   `"use server"` actions file. Typecheck, lint and tests all passed; only `npm run build` failed. Fixed.
+>   **Always run the build**, not just the tests, before calling a certificates change done.
+> - **⚠️ NEVER OPENED IN A BROWSER** (Chrome extension not connected): `/dev/certificate-designer?panel=winners`
+>   verified by render tests and a 200 only.
+> - **Owed human walkthrough, winners:**
+>   1. Open an event with published results → Winners → the podium count matches Results, ties included.
+>   2. Customise the Winners design with `{Position}`; preview the tied 3rd place.
+>   3. Issue to yourself; the email subject reads "Congratulations — your certificate for …".
+>   4. Scan the QR → "Winners · 3rd place".
+>   5. Try switching Winners to "A list I enter" → refused, naming the issued count.
+>
+> ---
+>
+> ## 📦 HANDOVER, 2026-09-15 — read this section, then do things in this order
+>
+> **`main` is clean and deployed. ONE branch is in flight.** Broadcast email and certificate
+> bases have both shipped (blocks above) — what they still lack is a signed-in human.
+>
+> | Branch | What it is | State |
+> |---|---|---|
+> | `feat/co-hosted-events` | Co-hosted events | **Spec only, no code.** Design approved; implementation plan not yet written. |
+>
+> ### The order to do things
+>
+> 1. **🔴 Walk through broadcast email ON PRODUCTION** — the checklist is in the Broadcast block below.
+>    The one step no test can prove: queue the 909-recipient send and drain one batch of 40.
+>    Test with the 26-person heads audience or the 8-person Social Media Team first, never all-members.
+>    ⚠️ **`.env.local` points at the LIVE database and carries REAL Gmail credentials — a send
+>    from localhost mails real students and spends the real daily quota, exactly like production.**
+> 2. **🔴 The attendance-autosave walkthrough, owed since 2026-09-05** (`dd9f084`, already merged
+>    and LIVE). It rewrote the save path a club head uses on a 200-person roster and **has never
+>    run in a browser.** This is arguably ahead of item 1: it is live in production right now.
+>    See the checklist further down this file.
+> 3. **Then `feat/co-hosted-events`**: the spec is approved, so the next step is an implementation
+>    plan, then TDD. Read the spec's §1 first — the feature is 80% an authorisation change.
+>
+> ### What only a human can do
+>
+> **Every admin account has TOTP enrolled, so no agent can sign in.** Every remaining
+> verification item on this project needs a person with the authenticator app. Use `sandy`
+> (`vtu27884@veltech.edu.in`, tech_head) for council-wide screens. There are **no `@cse.test`
+> accounts left** — they were hard-deleted 2026-09-05. `scripts/seed-admin.mjs` can recreate a
+> test login if you want one.
+>
+> ### Two facts that will save you a day
+>
+> - **Production email goes through GMAIL SMTP, not Resend.** `transport.ts` prefers `GMAIL_*`
+>   and only falls back to Resend, and both are configured — so Gmail always wins. One SMTP
+>   connection per message, **~500 recipients/day**. This is why bulk sending queues instead of
+>   sending inline. The real fix, when it starts hurting, is a verified domain on Resend.
+> - **Never run `supabase db push`** — see the block below. Migrations go through the Supabase
+>   MCP `apply_migration` tool only.
+>
+> ### Repo housekeeping
+>
+> The old feature branches — now including `feat/certificate-bases` and `feat/broadcast-email-ics` —
+> are **already merged into `main`** and safe to delete:
+> `git branch --merged main | grep -v main | xargs git branch -d`. The only one NOT merged is
+> `feat/co-hosted-events`.
+>
+> ---
+>
+> **2026-09-14:** `main == origin/main @ c7cdb1c`, clean. The **certificate
+> designer (all three phases) merged and deployed** — see the SHIPPED block below. The owed
 > work is the live human walkthrough listed there, not code.
+
+> ### ✅ Broadcast email + reminder button + `.ics` feeds (2026-09-15) — now LIVE (`812cdb4`)
+>
+> Branch `feat/broadcast-email-ics`. Spec:
+> `docs/superpowers/specs/2026-09-15-broadcast-email-and-ics-design.md`, plan:
+> `docs/superpowers/plans/2026-09-15-broadcast-email-and-ics.md`. **No migration** — every
+> audience reads a table that already existed.
+>
+> **1. The reminder is a BUTTON, and there is deliberately NO reminder cron.** The backlog listed
+> "reminder cron"; the owner asked for it as a button they press. `/admin/events/<id>/email` gains
+> a **"Remind them it's coming up"** preset that fills the existing subject and message from the
+> event (IST date, time, venue) and selects *Confirmed* — the head reads it, edits, presses the
+> normal Send. It goes through `broadcastAction` **unchanged**. `events.reminder_sent` still exists
+> in the schema from the older cron design: **do not use it, do not remove it.**
+> A **"Last emailed …"** line reads `audit_log` (indexed `(entity, entity_id)`), not `email_log` —
+> matching an event title inside a payload would break the moment someone renames an event.
+>
+> **2. `.ics` calendar feeds.** `src/lib/ics.ts` is a pure RFC 5545 renderer (CRLF, **75-octet**
+> folding — octets, not characters, so an em dash can't split a codepoint — escaping, all-day as
+> exclusive `VALUE=DATE`, stable `UID` of `<eventId>@<host>` so a re-poll updates instead of
+> duplicating). Three public routes: `/events/<id>/event.ics` (download), `/calendar.ics` and
+> `/clubs/<slug>/events.ics` (subscribable, upcoming + last 60 days, `max-age=300`). Cancelled
+> events are emitted as `STATUS:CANCELLED` rather than dropped — `events_public_read` already keeps
+> a cancelled event readable for 7 days, which is exactly that window. Links live on the event
+> page, `/calendar` and each club page.
+>
+> **3. Broadcast composer at `/admin/email` + Outbox at `/admin/outbox`.** New capability
+> **`manage:broadcast`**: `all` for faculty/president/VP/tech_head, `own` for club_head/vice_head.
+> Five audiences — club heads + vice heads (26) · council members (**26 of 32**, the gap is shown
+> on screen) · one club's members (8–236) · all club members (**909**) · an event's registrants
+> (confirmed or including waitlist). An `own` holder sees only their own club and their own club's
+> events, and **the action re-reads an event's club from the database — never from the form**.
+>
+> ### ⚠️ The constraint that shaped all of this: production sends over GMAIL SMTP
+>
+> `transport.ts` prefers `GMAIL_USER`/`GMAIL_APP_PASSWORD` and only falls back to Resend, and both
+> are set — **so Gmail always wins**, and `sendViaGmail` opens a **fresh SMTP connection per
+> message**, sequentially awaited. Three consequences, all now handled:
+> - **≤ 50 addresses sends inline** as before. **Above 50 it queues** (`enqueueEmailBatch`, one
+>   insert per 500 rows) at **priority 8** — below transactional mail, so a password reset never
+>   waits behind 900 newsletters. Over 50 also requires a **confirm step naming the exact count**;
+>   nothing is written until the form comes back confirmed.
+> - **A free Gmail app password caps near 500 recipients/day.** An all-members send therefore takes
+>   **more than one day** to clear. The Outbox shows "sent today" against that ceiling rather than
+>   letting a send mysteriously stop. **The real fix, when this starts hurting, is a verified
+>   domain on Resend** — not a bigger batch.
+> - Cron drain raised **25 → 100** (`/api/cron/send-email`, schedule unchanged at `0 3 * * *`).
+> - Bulk mail carries `List-Unsubscribe`; per-recipient email prefs remain a separate backlog item.
+>
+> **The Outbox access split is deliberate:** readable by any `manage:broadcast` holder, drainable
+> only at `all`. A club head with `own` can queue a 236-person send to their own club, which is
+> over the threshold — if the Outbox were council-only they'd press Send, see "queued", and have no
+> way to learn what happened to it. They can watch it; only the council spends the shared daily quota.
+>
+> **Verified without a browser:** the live recipient path was exercised against Mumbai directly —
+> heads 26, council 26 of 32, all members **909 rows deduping to 909 unique addresses**. Four gates
+> green. Both admin pages 307 to the login when signed out.
+>
+> ⚠️ **OWED — the signed-in walkthrough, none of it done** (every admin has TOTP, so this needs a
+> human with the authenticator; use `sandy` / `vtu27884@veltech.edu.in`, tech_head):
+> - [ ] Event email page: press the reminder preset, check the prefilled date/time/venue read
+>       correctly, send to yourself, confirm the mail arrives and the "Last emailed" line appears.
+> - [ ] `/admin/email` → heads (26) → Send → 26 arrive **inline** (no queue).
+> - [ ] `/admin/email` → all members (909) → the **confirm panel must name 909** before anything is
+>       sent → confirm → `/admin/outbox` shows 909 pending → **"Send next batch"** drains 40 and 40
+>       mails actually arrive. **This is the step no test can prove** and the likeliest place for a
+>       surprise in Gmail's behaviour at volume.
+> - [ ] Sign in as a club head: `/admin/email` offers only their own club; `/admin/outbox` opens
+>       read-only with no Send button.
+> - [ ] Download `/events/<id>/event.ics` on a phone → lands in the calendar at the right IST time.
+>       Subscribe to `/calendar.ics`, add an event, confirm it appears; cancel it, confirm the entry
+>       goes cancelled rather than vanishing.
+> - [ ] Both new admin pages at phone width, and in dark mode.
 
 > ### ⚠️ NEVER RUN `supabase db push` ON THIS PROJECT
 >
@@ -2975,10 +3442,14 @@ flow as always.
    are done. Remaining, roughly by size:
    - ~~**`/contact` inbox**~~ — ✅ **DONE** (see What's DONE below).
    - ~~**Clubs editor**~~ (name/tagline/description self-edit) — ✅ **DONE** (below).
+   - ~~**reminder cron**~~ — ✅ **BUILT as a BUTTON, not a cron** (2026-09-15, see the
+     block at the top). Do not build the cron; the owner asked for the timing to
+     stay in a human's hands.
+   - ~~**`.ics` feeds**~~ — ✅ **BUILT** (2026-09-15, three routes; see the block at the top).
    - **recruitment drives + `/join` form** (`recruitment_drives`, `join_requests`
      tables exist), **`/my-events`** (needs a student-lookup model — no student
-     login today), **waitlist auto-promote** (server/cron), **reminder cron**,
-     **`.ics` feeds**, **venue booking**, **co-hosted events**, **email prefs**,
+     login today), **waitlist auto-promote** (server/cron),
+     **venue booking**, **co-hosted events**, **email prefs**,
      **`/about`**, **schedules**. (`/team` is now BUILT on `feat/team-page` —
      see the block above; the org-chart *hierarchy lines* were not built, and the six
      officer rows still need entering.)

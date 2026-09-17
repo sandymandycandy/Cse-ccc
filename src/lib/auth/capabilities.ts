@@ -19,6 +19,10 @@
 // inbox, bringing the total to 22 capabilities. It is the ONE capability the
 // Faculty Advisor does not hold — see the note on that row before "fixing" it.
 //
+// 2026-09-17, owner decision: `manage:contact` (the contact inbox) was narrowed
+// to President + VP + Tech Head, so the Faculty Advisor now lacks TWO
+// capabilities: view:feedback and manage:contact.
+//
 // 2026-09-02, owner decision: the Faculty Advisor is NO LONGER read-only, and the
 // Vice President is no longer short of `revoke:certificate` / `manage:admins` /
 // `view:audit`. Both now hold "all" on every capability, which leaves THREE
@@ -71,6 +75,7 @@ export type Capability =
   | "manage:gallery" // the public photo gallery, split out of manage:content
   | "manage:clubs" // a club's own name / tagline / description
   | "manage:contact" // the public contact-form inbox (council-wide)
+  | "manage:broadcast" // compose-and-send mail to admins, council or club members
   | "manage:members"
   | "manage:council" // the council / leadership attendance roster + sessions (org-wide)
   | "manage:resources"
@@ -153,15 +158,30 @@ const MATRIX: Record<Capability, Partial<Record<AdminRole, Grant>>> = {
     faculty_advisor: "all", president: "all", vice_president: "all",
     tech_head: "all", club_head: "own", vice_head: "own",
   },
-  // The public contact-form inbox is council-wide (no club scope) — the roles
-  // that field outside enquiries plus Social Media (outreach); faculty read.
+  // The public contact-form inbox is council-wide (no club scope).
+  //
+  // Owner decision (2026-09-17): President, Vice President and Technical Head
+  // ONLY. The Faculty Advisor and the Social Media Head both held "all" here and
+  // were removed on purpose — do not restore them "for consistency" with the
+  // Faculty Advisor's otherwise-full access. A test pins this row.
   "manage:contact": {
-    faculty_advisor: "all", president: "all", vice_president: "all",
-    tech_head: "all", social_media_head: "all",
+    president: "all", vice_president: "all", tech_head: "all",
   },
-  "manage:members": {
+  // Mailing every club member is the largest outward-facing action in the panel
+  // (908 students as of 2026-09-15), so the council-wide lists are council-only.
+  // A club head gets `own`: their own club's members and their own club's
+  // events, nothing else.
+  "manage:broadcast": {
     faculty_advisor: "all", president: "all", vice_president: "all",
     tech_head: "all", club_head: "own", vice_head: "own",
+  },
+  // Owner decision (2026-09-17): the Social Media Head runs attendance for the
+  // Social Media Team, which is a club of its own with no club head. `own`, not
+  // `all` — it reaches only the club their account is linked to (admin_users.
+  // club_id), and an SMH with no club linked sees "No club to show".
+  "manage:members": {
+    faculty_advisor: "all", president: "all", vice_president: "all",
+    tech_head: "all", social_media_head: "own", club_head: "own", vice_head: "own",
   },
   // The council / leadership attendance body is org-wide (no club scope), so only
   // all/read/none. Taken by president + VP + tech head; faculty view-only. Club
@@ -195,8 +215,9 @@ const MATRIX: Record<Capability, Partial<Record<AdminRole, Grant>>> = {
   // President + Technical Head — the Tech Head so the surface can be debugged in
   // production without an admin editing their own role.
   //
-  // ⚠️ THE FACULTY ADVISOR IS DELIBERATELY ABSENT. This is the ONLY capability
-  // they do not hold, and it is a knowing exception to the 2026-09-02 note above
+  // ⚠️ THE FACULTY ADVISOR IS DELIBERATELY ABSENT. This was the only capability
+  // they did not hold until manage:contact joined it (2026-09-17), and it is a
+  // knowing exception to the 2026-09-02 note above
   // that Faculty / VP / Tech are unrestricted. Students are promised on the form
   // that their responses stay with the council leadership. Do NOT add
   // faculty_advisor here "for consistency" — a test pins this.

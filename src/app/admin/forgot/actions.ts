@@ -8,9 +8,16 @@ import { createReset } from "@/lib/admin/resets";
 import { checkPasswordResetLimits } from "@/lib/rate-limit";
 import { enqueueEmail } from "@/lib/email";
 import { siteOrigin } from "@/lib/site-origin";
+import { visibleFieldErrors } from "@/lib/admin/field-errors";
 import type { ForgotState } from "@/lib/admin/form-state";
 
-const Schema = z.object({ email: z.string().trim().toLowerCase().email() });
+const Schema = z.object({
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email("That does not look like an email address."),
+});
 
 /**
  * The ONE thing this action ever says. Unknown address, deactivated account,
@@ -66,7 +73,12 @@ export async function requestResetAction(
   formData: FormData,
 ): Promise<ForgotState> {
   const parsed = Schema.safeParse({ email: formData.get("email") });
-  if (!parsed.success) return { error: "Enter your admin email address." };
+  // ⚠️ Format only, and it runs BEFORE any lookup — so it cannot distinguish a
+  // real account from an unknown one. Everything past this point returns
+  // NEUTRAL regardless.
+  if (!parsed.success) {
+    return visibleFieldErrors(parsed.error.issues, ["email"], "Enter your admin email address.");
+  }
 
   // Read the header now: `after()` runs once the response is already sent, so
   // request-scoped APIs are no longer available inside it.

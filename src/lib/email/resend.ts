@@ -16,6 +16,8 @@ export interface SendArgs {
   html: string;
   text: string;
   attachments?: EmailAttachment[];
+  /** Extra headers, e.g. List-Unsubscribe on bulk mail. */
+  headers?: Record<string, string>;
 }
 
 export type SendResult = { ok: true; id: string } | { ok: false; error: string };
@@ -42,6 +44,7 @@ export async function sendViaResend(args: SendArgs): Promise<SendResult> {
         subject: args.subject,
         html: args.html,
         text: args.text,
+        ...(args.headers ? { headers: args.headers } : {}),
         ...(args.attachments?.length
           ? {
               attachments: args.attachments.map((a) => ({

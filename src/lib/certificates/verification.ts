@@ -15,6 +15,8 @@ export interface VerifyRow {
   revoked_at: string | null;
   superseded_by: string | null;
   group_label: string | null;
+  /** The placing a winner's certificate was awarded for ("1st", "Best UI"). Winners only. */
+  place: string | null;
   event: { title: string; starts_at: string; ends_at: string | null; club_name: string | null } | null;
 }
 
@@ -36,6 +38,18 @@ export type VerifyResult =
 /** Every verify response takes at least this long, hit or miss, so timing says nothing. */
 export const VERIFY_MIN_MS = 450;
 
+/**
+ * What the certificate says it is: the group it came from, and — for a winner —
+ * the placing. "1st" reads as "1st place"; an award like "Best UI" is already a
+ * noun, so it stands alone.
+ */
+function groupLabelOf(row: VerifyRow): string {
+  const group = row.group_label?.trim() || (row.type === "winner" ? "Winner" : "Participation");
+  const place = row.type === "winner" ? (row.place?.trim() ?? "") : "";
+  if (!place) return group;
+  return `${group} · ${/^[123](st|nd|rd)$/.test(place) ? `${place} place` : place}`;
+}
+
 export function toVerifyResult(row: VerifyRow | null): VerifyResult {
   if (!row || !row.event) return { state: "unknown" };
   const eventTitle = row.event.title;
@@ -53,7 +67,7 @@ export function toVerifyResult(row: VerifyRow | null): VerifyResult {
     eventTitle,
     clubName: row.event.club_name,
     eventDate: formatEventDate(row.event.starts_at, row.event.ends_at),
-    groupLabel: row.group_label?.trim() || (row.type === "winner" ? "Winner" : "Participation"),
+    groupLabel: groupLabelOf(row),
     issuedDate: formatIstDate(row.issued_at),
   };
 }

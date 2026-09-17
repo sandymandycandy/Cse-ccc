@@ -22,7 +22,7 @@ export async function lookupCertificate(serial: string): Promise<VerifyRow | nul
   const { data, error } = await createAdminClient()
     .from("certificates")
     .select(
-      "serial, type, recipient_name, issued_at, revoked_at, superseded_by, group_label:snapshot->>groupLabel, events ( title, starts_at, ends_at, event_clubs ( is_primary, clubs ( name ) ) )",
+      "serial, type, recipient_name, issued_at, revoked_at, superseded_by, group_label:snapshot->>groupLabel, place:snapshot->>place, events ( title, starts_at, ends_at, event_clubs ( is_primary, clubs ( name ) ) )",
     )
     .eq("serial", serial)
     .maybeSingle();
@@ -39,6 +39,7 @@ export async function lookupCertificate(serial: string): Promise<VerifyRow | nul
     revoked_at: row.revoked_at,
     superseded_by: row.superseded_by,
     group_label: row.group_label,
+    place: row.place,
     event: row.events
       ? {
           title: row.events.title,

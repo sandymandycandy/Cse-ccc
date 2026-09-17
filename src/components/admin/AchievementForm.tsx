@@ -5,6 +5,7 @@ import type { AchievementFormState } from "@/lib/admin/form-state";
 import type { Winner } from "@/lib/achievements-board";
 import { ImageEditor } from "./ImageEditor";
 import { WinnersEditor } from "./WinnersEditor";
+import { FieldError, fieldClass } from "@/components/admin/FieldError";
 
 type AchievementAction = (
   prev: AchievementFormState,
@@ -49,12 +50,13 @@ export function AchievementForm({
         </div>
       ) : null}
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "title")}>
         <label htmlFor="title">Title</label>
         <input id="title" name="title" required maxLength={140} defaultValue={initial?.title} placeholder="e.g. Smart India Hackathon 2026" />
+        <FieldError errors={state.fieldErrors} name="title" />
       </div>
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "description")}>
         <label htmlFor="description">Description (optional)</label>
         <textarea
           id="description"
@@ -68,11 +70,12 @@ export function AchievementForm({
           Formatting: <code># heading</code>, <code>**bold**</code>, <code>*italic*</code>,{" "}
           <code>`code`</code>, <code>[link](https://…)</code>, and <code>-</code> / <code>1.</code> lists.
         </span>
+        <FieldError errors={state.fieldErrors} name="description" />
       </div>
 
       <WinnersEditor initial={initial?.winners} />
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "happenedOn")}>
         <label htmlFor="happenedOn">Date (optional)</label>
         <input
           id="happenedOn"
@@ -81,6 +84,7 @@ export function AchievementForm({
           defaultValue={initial?.happenedOn ?? ""}
           style={{ maxWidth: 200 }}
         />
+        <FieldError errors={state.fieldErrors} name="happenedOn" />
       </div>
 
       {/* 3:2 to match the achievements list thumbnail. */}
@@ -92,7 +96,7 @@ export function AchievementForm({
       />
 
       {clubs ? (
-        <div className="field">
+        <div className={fieldClass(state.fieldErrors, "clubId")}>
           <label htmlFor="clubId">Club</label>
           <select id="clubId" name="clubId" defaultValue={initial?.clubId ?? ""}>
             <option value="">Council-wide (all clubs)</option>
@@ -102,6 +106,7 @@ export function AchievementForm({
               </option>
             ))}
           </select>
+          <FieldError errors={state.fieldErrors} name="clubId" />
         </div>
       ) : null}
 

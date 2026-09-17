@@ -13,6 +13,7 @@ import {
   ClubProfileSchema,
   ClubStructuralSchema,
 } from "@/lib/validation/club";
+import { toFieldErrors } from "@/lib/admin/field-errors";
 import type { ClubFormState } from "@/lib/admin/form-state";
 import type { Database } from "@/lib/database.types";
 
@@ -54,12 +55,7 @@ export async function createClubAction(
     ...profileFrom(formData),
     ...structuralFrom(formData),
   });
-  if (!parsed.success) {
-    return {
-      error:
-        "Check the form — a name, short name, lowercase-hyphen slug, category and a #hex colour are all required.",
-    };
-  }
+  if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error.issues) };
 
   const d = parsed.data;
   const admin = createAdminClient();
@@ -116,9 +112,7 @@ export async function updateClubAction(
   const canStructural = grantFor(session.role, "manage:clubs") === "all";
 
   const profile = ClubProfileSchema.safeParse(profileFrom(formData));
-  if (!profile.success) {
-    return { error: "Check the form — a name (2–80 chars) and a short name are required." };
-  }
+  if (!profile.success) return { fieldErrors: toFieldErrors(profile.error.issues) };
 
   const update: ClubUpdate = {
     name: profile.data.name,
@@ -135,11 +129,7 @@ export async function updateClubAction(
 
   if (canStructural) {
     const structural = ClubStructuralSchema.safeParse(structuralFrom(formData));
-    if (!structural.success) {
-      return {
-        error: "Check the structural fields — a lowercase-hyphen slug, category and #hex colour are required.",
-      };
-    }
+    if (!structural.success) return { fieldErrors: toFieldErrors(structural.error.issues) };
     update.slug = structural.data.slug;
     update.category = structural.data.category;
     update.color = structural.data.color;

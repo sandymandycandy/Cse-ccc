@@ -9,6 +9,7 @@ const row = (over: Partial<VerifyRow> = {}): VerifyRow => ({
   revoked_at: null,
   superseded_by: null,
   group_label: "Volunteers",
+  place: null,
   event: { title: "Hack Night", starts_at: "2026-09-12T04:30:00Z", ends_at: "2026-09-13T12:00:00Z", club_name: "Coding Club" },
   ...over,
 });
@@ -30,6 +31,23 @@ describe("toVerifyResult", () => {
   it("falls back to the certificate type when no group label was stored", () => {
     expect(toVerifyResult(row({ group_label: null }))).toMatchObject({ groupLabel: "Participation" });
     expect(toVerifyResult(row({ group_label: "  ", type: "winner" }))).toMatchObject({ groupLabel: "Winner" });
+  });
+
+  it("a winner's certificate names the placing it was awarded for", () => {
+    expect(toVerifyResult(row({ type: "winner", group_label: "Winners", place: "1st" }))).toMatchObject({
+      groupLabel: "Winners · 1st place",
+    });
+    // An award with no recognised placing ("Best UI") still reads sensibly.
+    expect(toVerifyResult(row({ type: "winner", group_label: "Winners", place: "Best UI" }))).toMatchObject({
+      groupLabel: "Winners · Best UI",
+    });
+    expect(toVerifyResult(row({ type: "winner", group_label: "Winners", place: "  " }))).toMatchObject({
+      groupLabel: "Winners",
+    });
+  });
+
+  it("never shows a placing on a participation certificate", () => {
+    expect(toVerifyResult(row({ place: "1st" }))).toMatchObject({ groupLabel: "Volunteers" });
   });
 
   it("a superseded certificate names the event but not the person", () => {

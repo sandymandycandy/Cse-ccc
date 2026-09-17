@@ -9,6 +9,7 @@ import { writeAudit } from "@/lib/admin/audit";
 import { resolveOwningClub } from "@/lib/admin/club-scope";
 import { handleImageUpload } from "@/lib/admin/image-upload";
 import { getGalleryForEdit } from "@/lib/admin/gallery";
+import { toFieldErrors } from "@/lib/admin/field-errors";
 import type { GalleryFormState } from "@/lib/admin/form-state";
 
 /** Upper bound on a reported dimension — the editor caps the long edge at 2400,
@@ -16,8 +17,19 @@ import type { GalleryFormState } from "@/lib/admin/form-state";
 const MAX_DIM = 20000;
 
 const Schema = z.object({
-  caption: z.string().trim().max(500).optional().or(z.literal("")),
-  sort: z.coerce.number().int().min(0).max(9999).optional().or(z.literal("")),
+  caption: z
+    .string()
+    .trim()
+    .max(500, "Keep the caption to 500 characters or fewer.")
+    .optional()
+    .or(z.literal("")),
+  sort: z.coerce
+    .number()
+    .int("Order must be a whole number.")
+    .min(0, "Order cannot be negative.")
+    .max(9999, "Order must be 9999 or less.")
+    .optional()
+    .or(z.literal("")),
   // "" = council-wide (no club); a uuid = that club.
   clubId: z.union([z.literal(""), z.string().uuid()]),
   // Reported by the client-side editor. Only ever a layout hint (the public
@@ -52,7 +64,7 @@ export async function createGalleryAction(
   if (!session) return { error: "Your session expired. Sign in again." };
 
   const parsed = parse(formData);
-  if (!parsed.success) return { error: "Check the form — caption or sort looks off." };
+  if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error.issues) };
 
   const resolved = resolveOwningClub(session, "manage:gallery", parsed.data.clubId);
   if ("error" in resolved) return { error: resolved.error };
@@ -115,7 +127,7 @@ export async function updateGalleryAction(
   }
 
   const parsed = parse(formData);
-  if (!parsed.success) return { error: "Check the form — caption or sort looks off." };
+  if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error.issues) };
 
   const resolved = resolveOwningClub(session, "manage:gallery", parsed.data.clubId);
   if ("error" in resolved) return { error: resolved.error };

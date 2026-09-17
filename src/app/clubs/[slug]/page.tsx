@@ -38,6 +38,9 @@ export default async function ClubProfilePage({ params }: Params) {
       <section className="section">
         <div className="sec-head">
           <h2>Upcoming events</h2>
+          <a href={`/clubs/${slug}/events.ics`} className="btn btn-ghost btn-sm">
+            Subscribe
+          </a>
         </div>
         {events.length > 0 ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

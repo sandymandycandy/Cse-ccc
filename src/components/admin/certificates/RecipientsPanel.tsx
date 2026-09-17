@@ -29,6 +29,13 @@ export interface RecipientRow {
   deliverTo: string | null;
   viaLeader: boolean;
   warnings: string[];
+  /**
+   * A live certificate whose person is no longer on any list — a winner whose
+   * rank was corrected, someone removed from a list. Kept visible so it can be
+   * downloaded or revoked; it is never re-issued, since there is nobody to
+   * re-issue to.
+   */
+  orphan?: boolean;
   status:
     | { state: "pending" }
     | { state: "issued"; certificateId: string; serial: string; issuedAt: string }
@@ -268,6 +275,7 @@ export function RecipientsPanel({ eventId, rows, groups, canRevoke }: Props) {
                     {row.status.state === "issued" ? (
                       <>
                         <span className="abadge abadge-approved">Issued</span>
+                        {row.orphan ? <div className="hint">no longer on the list</div> : null}
                         <div className="cd-serial">
                           {row.status.serial}
                           <br />
@@ -297,6 +305,7 @@ export function RecipientsPanel({ eventId, rows, groups, canRevoke }: Props) {
                           <button
                             type="button"
                             className="btn btn-ghost btn-sm"
+                            hidden={row.orphan}
                             disabled={busyKey !== null}
                             onClick={() => reissue(row)}
                           >

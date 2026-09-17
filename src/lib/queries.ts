@@ -2,6 +2,8 @@ import "server-only";
 import { createPublicClient } from "@/lib/supabase/server";
 import { orderStandings } from "@/lib/results";
 import { isSafeHttpUrl } from "@/lib/url";
+import { siteOrigin } from "@/lib/site-origin";
+import type { IcsEvent } from "@/lib/ics";
 import { validateFormSchema, type FormField } from "@/lib/registration-form/schema";
 import { registrationPhase, type RegPhase } from "@/lib/registration/phase";
 import {
@@ -10,6 +12,7 @@ import {
   parseWinners,
   winnersFromResults,
 } from "@/lib/achievements-board";
+import { podiumRound } from "@/lib/certificates/winners";
 import type { Database } from "@/lib/database.types";
 import type {
   CalendarEvent,
@@ -738,10 +741,9 @@ export async function getAchievementsBoard(): Promise<BoardEntry[]> {
 
   const auto: BoardEntry[] = [];
   for (const e of (autoRes.data ?? []) as unknown as AutoRow[]) {
-    // Highest-sort round that has at least one published result.
-    const round = [...(e.event_rounds ?? [])]
-      .sort((a, b) => b.sort - a.sort)
-      .find((r) => (r.results ?? []).some((x) => x.published_at != null));
+    // Highest-sort round that has at least one published result — the same rule
+    // winner certificates use, so the board and a certificate can never disagree.
+    const round = podiumRound(e.event_rounds ?? []);
     if (!round) continue;
 
     const published = round.results.filter((r) => r.published_at != null);
@@ -835,4 +837,62 @@ export async function getPublicResources(): Promise<PublicResource[]> {
       clubId: r.club_id,
       clubName: r.clubs?.name ?? null,
     }));
+}
+
+/**
+ * Raw event rows for the `.ics` feeds. Deliberately not `EventSummary` — that
+ * type is pre-formatted for the UI and drops `updated_at` and `status`, both of
+ * which a calendar subscriber needs.
+ *
+ * Window: everything upcoming plus the last 60 days, so a subscriber keeps a
+ * little history and sees a just-cancelled event. RLS does the visibility work:
+ * `events_public_read` allows approved events, and cancelled ones only for 7
+ * days after `cancelled_at` — exactly the window a subscriber needs to notice.
+ */
+export async function getIcsEvents(
+  opts: { eventId?: string; clubSlug?: string } = {},
+): Promise<IcsEvent[]> {
+  const origin = siteOrigin() ?? "";
+  const supabase = createPublicClient();
+  let q = supabase
+    .from("events")
+    .select(
+      "id, title, description, starts_at, ends_at, is_all_day, venue_text, status, updated_at, venues ( name ), event_clubs!inner ( clubs!inner ( slug ) )",
+    );
+
+  if (opts.eventId) q = q.eq("id", opts.eventId);
+  if (opts.clubSlug) q = q.eq("event_clubs.clubs.slug", opts.clubSlug);
+  if (!opts.eventId) {
+    const since = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+    q = q.gte("starts_at", since);
+  }
+
+  const { data, error } = await q.order("starts_at", { ascending: true }).limit(500);
+  if (error) throw error;
+
+  const rows = (data ?? []) as unknown as {
+    id: string;
+    title: string;
+    description: string | null;
+    starts_at: string;
+    ends_at: string;
+    is_all_day: boolean;
+    venue_text: string | null;
+    status: string;
+    updated_at: string;
+    venues: { name: string } | null;
+  }[];
+
+  return rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    description: r.description,
+    startsAt: r.starts_at,
+    endsAt: r.ends_at,
+    isAllDay: r.is_all_day,
+    location: r.venue_text ?? r.venues?.name ?? null,
+    url: origin ? `${origin}/events/${r.id}` : "",
+    updatedAt: r.updated_at,
+    cancelled: r.status === "cancelled",
+  }));
 }

@@ -1,41 +1,91 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { broadcastAction } from "@/app/admin/(app)/events/[id]/email/actions";
 import type { BroadcastState } from "@/lib/admin/form-state";
+import { FieldError, fieldClass, fieldProps } from "./FieldError";
+import { AudienceOption } from "./compose/AudienceOption";
+import { CharCount } from "./compose/CharCount";
+import { EmailPreview } from "./compose/EmailPreview";
 
 const initial: BroadcastState = {};
+
+const SUBJECT_MAX = 120;
+const MESSAGE_MAX = 4000;
+
+interface BroadcastFormProps {
+  eventId: string;
+  confirmedCount: number;
+  allCount: number;
+  /** Prefill for the reminder button; the text stays editable afterwards. */
+  reminder?: { subject: string; body: string };
+}
 
 /**
  * Compose and send a message to an event's participants.
  *
- * The recipient counts are computed on the server and shown on the button
- * itself, because "Send" on a mail that cannot be recalled should say who it is
- * about to reach before it is pressed.
+ * The recipient counts are computed on the server and shown on each audience,
+ * because "Send" on a mail that cannot be recalled should say who it is about
+ * to reach before it is pressed.
  */
-export function BroadcastForm({
+export function BroadcastForm(props: BroadcastFormProps) {
+  // See BroadcastComposer: remounting is the only way to clear a
+  // `useActionState` result, so "Write another" bumps this key.
+  const [round, setRound] = useState(0);
+  return (
+    <SendForm key={round} {...props} onWriteAnother={() => setRound((r) => r + 1)} />
+  );
+}
+
+function SendForm({
   eventId,
   confirmedCount,
   allCount,
-}: {
-  eventId: string;
-  confirmedCount: number;
-  allCount: number;
-}) {
+  reminder,
+  onWriteAnother,
+}: BroadcastFormProps & { onWriteAnother: () => void }) {
   const [state, action, pending] = useActionState(broadcastAction, initial);
+  const [audience, setAudience] = useState("confirmed");
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [link, setLink] = useState("");
+  const [linkLabel, setLinkLabel] = useState("");
 
   if (state.sent != null) {
     return (
-      <div className="note" style={{ marginTop: 18 }}>
-        Sent to {state.sent} {state.sent === 1 ? "address" : "addresses"}. Delivery
-        happens in the background — a failed send is retried automatically.
+      <div className="compose">
+        <div className="note">
+          Sent to {state.sent} {state.sent === 1 ? "address" : "addresses"}. Delivery
+          happens in the background — a failed send is retried automatically.
+        </div>
+        <div className="compose-actions" style={{ marginTop: 16 }}>
+          <button type="button" className="btn btn-ghost" onClick={onWriteAnother}>
+            Write another
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <form action={action} style={{ marginTop: 18, maxWidth: 640 }}>
+    <form action={action} className="compose">
       <input type="hidden" name="eventId" value={eventId} />
+
+      {/* Fills the two fields and stops. A send that cannot be recalled gets a
+          human's eyes on the wording first — one press to compose, one to send. */}
+      {reminder ? (
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          style={{ marginBottom: 16 }}
+          onClick={() => {
+            setSubject(reminder.subject);
+            setMessage(reminder.body);
+          }}
+        >
+          Remind them it&rsquo;s coming up
+        </button>
+      ) : null}
 
       {state.error ? (
         <div role="alert" className="note" style={{ borderLeftColor: "var(--rust)", marginBottom: 16 }}>
@@ -43,22 +93,57 @@ export function BroadcastForm({
         </div>
       ) : null}
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "subject")}>
         <label htmlFor="subject">Subject</label>
-        <input id="subject" name="subject" required maxLength={120} placeholder="Venue has changed" />
+        <input
+          id="subject"
+          name="subject"
+          required
+          maxLength={SUBJECT_MAX}
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          placeholder="Venue has changed"
+          {...fieldProps(state.fieldErrors, "subject")}
+        />
+        <FieldError errors={state.fieldErrors} name="subject" />
+        <div className="field-foot">
+          <CharCount value={subject} max={SUBJECT_MAX} />
+        </div>
       </div>
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "message")}>
         <label htmlFor="message">Message</label>
-        <textarea id="message" name="message" rows={7} required maxLength={4000}
-          placeholder="Write what participants need to know." />
-        <span className="hint">Plain text. Everyone gets the same message.</span>
+        <textarea
+          id="message"
+          name="message"
+          rows={7}
+          required
+          maxLength={MESSAGE_MAX}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Write what participants need to know."
+          {...fieldProps(state.fieldErrors, "message")}
+        />
+        <FieldError errors={state.fieldErrors} name="message" />
+        <div className="field-foot">
+          <span className="hint">Plain text. Everyone gets the same message.</span>
+          <CharCount value={message} max={MESSAGE_MAX} />
+        </div>
       </div>
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "link")}>
         <label htmlFor="link">Link (optional)</label>
-        <input id="link" name="link" type="url" maxLength={2000}
-          placeholder="https://chat.whatsapp.com/…" />
+        <input
+          id="link"
+          name="link"
+          type="url"
+          maxLength={2000}
+          value={link}
+          onChange={(e) => setLink(e.target.value)}
+          placeholder="https://chat.whatsapp.com/…"
+          {...fieldProps(state.fieldErrors, "link")}
+        />
+        <FieldError errors={state.fieldErrors} name="link" />
         <span className="hint">
           Becomes a button in the email — a WhatsApp group, a submission form, a
           meeting link. Without one the button opens the event page. Pasting a
@@ -66,31 +151,57 @@ export function BroadcastForm({
         </span>
       </div>
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "linkLabel")}>
         <label htmlFor="linkLabel">Button text (optional)</label>
-        <input id="linkLabel" name="linkLabel" maxLength={60}
-          placeholder="Join the WhatsApp group" />
-        <span className="hint">Defaults to &ldquo;Open link&rdquo;.</span>
+        <input
+          id="linkLabel"
+          name="linkLabel"
+          maxLength={60}
+          value={linkLabel}
+          onChange={(e) => setLinkLabel(e.target.value)}
+          placeholder="Join the WhatsApp group"
+          {...fieldProps(state.fieldErrors, "linkLabel")}
+        />
+        <FieldError errors={state.fieldErrors} name="linkLabel" />
+        <span className="hint">Used only when there is a link to label.</span>
       </div>
 
-      <fieldset style={{ border: 0, padding: 0, margin: "4px 0 18px" }}>
-        <legend className="label" style={{ marginBottom: 8 }}>Who receives it</legend>
-        <label style={{ display: "flex", gap: 8, alignItems: "baseline", marginBottom: 6 }}>
-          <input type="radio" name="audience" value="confirmed" defaultChecked />
-          <span>Confirmed participants — {confirmedCount} {confirmedCount === 1 ? "entry" : "entries"}</span>
-        </label>
-        <label style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-          <input type="radio" name="audience" value="all" />
-          <span>Everyone, including the waitlist — {allCount} {allCount === 1 ? "entry" : "entries"}</span>
-        </label>
-        <span className="hint" style={{ display: "block", marginTop: 8 }}>
+      <fieldset className="audience">
+        <legend className="label">Who receives it</legend>
+        <AudienceOption
+          name="audience"
+          value="confirmed"
+          checked={audience === "confirmed"}
+          onChange={() => setAudience("confirmed")}
+          title="Confirmed participants"
+          detail={`${confirmedCount} ${confirmedCount === 1 ? "entry" : "entries"}`}
+        />
+        <AudienceOption
+          name="audience"
+          value="all"
+          checked={audience === "all"}
+          onChange={() => setAudience("all")}
+          title="Everyone, including the waitlist"
+          detail={`${allCount} ${allCount === 1 ? "entry" : "entries"}`}
+        />
+        <span className="hint" style={{ display: "block", marginTop: 10 }}>
           Every member of each entry is emailed, not only the person who registered.
         </span>
       </fieldset>
 
-      <button type="submit" className="btn btn-primary" disabled={pending}>
-        {pending ? "Sending…" : "Send to participants"}
-      </button>
+      <EmailPreview
+        subject={subject}
+        message={message}
+        link={link}
+        linkLabel={linkLabel}
+        fallbackTarget="the event page"
+      />
+
+      <div className="compose-actions">
+        <button type="submit" className="btn btn-primary" disabled={pending}>
+          {pending ? "Sending…" : "Send to participants"}
+        </button>
+      </div>
     </form>
   );
 }

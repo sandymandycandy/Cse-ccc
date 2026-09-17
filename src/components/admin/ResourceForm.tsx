@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { RESOURCE_KINDS, type ResourceKind } from "@/lib/resources";
 import type { ResourceFormState } from "@/lib/admin/form-state";
+import { FieldError, fieldClass } from "@/components/admin/FieldError";
 
 type ResourceAction = (
   prev: ResourceFormState,
@@ -45,12 +46,13 @@ export function ResourceForm({
         </div>
       ) : null}
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "title")}>
         <label htmlFor="title">Title</label>
         <input id="title" name="title" required maxLength={140} defaultValue={initial?.title} placeholder="e.g. Club rulebook / syllabus" />
+        <FieldError errors={state.fieldErrors} name="title" />
       </div>
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "url")}>
         <label htmlFor="url">Link</label>
         <input
           id="url"
@@ -62,9 +64,10 @@ export function ResourceForm({
           defaultValue={initial?.url}
         />
         <span className="hint">Must start with http:// or https://</span>
+        <FieldError errors={state.fieldErrors} name="url" />
       </div>
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "kind")}>
         <label htmlFor="kind">Type</label>
         <select id="kind" name="kind" defaultValue={initial?.kind ?? "drive"}>
           {RESOURCE_KINDS.map((k) => (
@@ -73,10 +76,11 @@ export function ResourceForm({
             </option>
           ))}
         </select>
+        <FieldError errors={state.fieldErrors} name="kind" />
       </div>
 
       {clubs ? (
-        <div className="field">
+        <div className={fieldClass(state.fieldErrors, "clubId")}>
           <label htmlFor="clubId">Club</label>
           <select id="clubId" name="clubId" defaultValue={initial?.clubId ?? ""}>
             <option value="">Council-wide (all clubs)</option>
@@ -86,6 +90,7 @@ export function ResourceForm({
               </option>
             ))}
           </select>
+          <FieldError errors={state.fieldErrors} name="clubId" />
         </div>
       ) : (
         // Club-scoped admin: club is fixed server-side; keep the field absent so

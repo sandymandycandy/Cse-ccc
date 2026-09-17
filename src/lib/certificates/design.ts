@@ -107,8 +107,11 @@ export const LIMITS = {
   assetPx: 20000,
 };
 
-/** Field keys the catalogue can produce (spec §2.3). `form.*` / `sheet.*` are checked against context. */
+/** Field keys the catalogue can produce (spec §2.3). `form.*` / `sheet.*` / `winner.*` are checked against context. */
 const FIXED_FIELD = /^(person\.(name|roll|department|year|email|phone|role)|team\.(name|members|size)|event\.(title|date|venue|club)|cert\.(serial|issueDate|group))$/;
+
+/** Only a winners group (and the Winners base) prints a placing. */
+const WINNER_FIELD = /^winner\.(place|placeWords)$/;
 
 export function emptyDesign(): Design {
   return { v: 1, page: { template: null, ...DEFAULT_PAGE }, elements: [] };
@@ -196,10 +199,13 @@ export interface DesignContext {
   formFieldIds: ReadonlySet<string>;
   /** The group's sheet columns (valid `sheet.<column>` keys). */
   sheetColumns: ReadonlySet<string>;
+  /** True on a winners group, where `winner.*` may be printed. */
+  winnerFields?: boolean;
 }
 
 export function isKnownField(key: string, ctx: DesignContext): boolean {
   if (FIXED_FIELD.test(key)) return true;
+  if (WINNER_FIELD.test(key)) return ctx.winnerFields === true;
   if (key.startsWith("form.")) return ctx.formFieldIds.has(key.slice(5));
   if (key.startsWith("sheet.")) return ctx.sheetColumns.has(key.slice(6));
   return false;
@@ -265,6 +271,15 @@ export function assetRefsOf(design: Design): AssetRef[] {
   const refs: AssetRef[] = design.page.template ? [design.page.template] : [];
   for (const el of design.elements) if (el.type === "image") refs.push(el.asset);
   return refs;
+}
+
+/** The same design with every stored asset reference (template and images) passed through `swap`. */
+export function rewriteAssetRefs(design: Design, swap: (ref: AssetRef) => AssetRef): Design {
+  return {
+    ...design,
+    page: { ...design.page, template: design.page.template ? swap(design.page.template) : null },
+    elements: design.elements.map((el) => (el.type === "image" ? { ...el, asset: swap(el.asset) } : el)),
+  };
 }
 
 /** Deterministic JSON (sorted keys) — the input to a design version's hash. */

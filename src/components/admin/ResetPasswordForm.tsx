@@ -5,6 +5,7 @@ import { resetPasswordAction } from "@/app/admin/reset/[token]/actions";
 import { TotpEnrollFields } from "./TotpEnrollFields";
 import { RecoveryCodesPanel } from "./RecoveryCodesPanel";
 import type { ResetPasswordState } from "@/lib/admin/form-state";
+import { FieldError, fieldClass } from "@/components/admin/FieldError";
 
 const initial: ResetPasswordState = {};
 
@@ -54,7 +55,7 @@ export function ResetPasswordForm({
       <input type="hidden" name="token" value={token} />
       <input type="hidden" name="secret" value={encSecret} />
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "password")}>
         <label htmlFor="password">New password</label>
         <input
           id="password"
@@ -65,6 +66,7 @@ export function ResetPasswordForm({
           placeholder="At least 12 characters"
         />
         <span className="hint">At least 12 characters, not a known-breached password.</span>
+        <FieldError errors={state.fieldErrors} name="password" />
       </div>
 
       <TotpEnrollFields qr={qr} manualKey={manualKey} />

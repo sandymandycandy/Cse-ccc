@@ -10,16 +10,39 @@ import {
   createSession, savePresence, getSessionMarking, setSessionStatus,
   getMemberForEdit, rotateJoinToken,
 } from "@/lib/admin/attendance-council";
+import { toFieldErrors } from "@/lib/admin/field-errors";
 import type { MemberFormState, SessionFormState } from "@/lib/admin/form-state";
 
 const CAP = "manage:council" as const;
 
 const MemberSchema = z.object({
-  name: z.string().trim().min(2).max(120),
-  designation: z.string().trim().min(2).max(80),
-  rollNo: z.string().trim().min(1).max(40),
-  email: z.string().trim().email().max(200).optional().or(z.literal("")),
-  phone: z.string().trim().min(1).max(20),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Enter their name.")
+    .max(120, "Keep the name to 120 characters or fewer."),
+  designation: z
+    .string()
+    .trim()
+    .min(2, "Enter their role, e.g. Robotics Club Head.")
+    .max(80, "Keep the role to 80 characters or fewer."),
+  rollNo: z
+    .string()
+    .trim()
+    .min(1, "Enter their roll number.")
+    .max(40, "That roll number is too long."),
+  email: z
+    .string()
+    .trim()
+    .email("That does not look like an email address.")
+    .max(200, "That address is too long.")
+    .optional()
+    .or(z.literal("")),
+  phone: z
+    .string()
+    .trim()
+    .min(1, "Enter a phone number.")
+    .max(20, "That phone number is too long."),
   isActive: z.union([z.literal("on"), z.literal("")]),
 });
 
@@ -45,7 +68,7 @@ export async function createMemberAction(
   if (!canManage(session, CAP)) return { error: "You can't manage the council roster." };
 
   const parsed = parse(formData);
-  if (!parsed.success) return { error: "Check the form — name, role, roll number and phone are all required." };
+  if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error.issues) };
 
   const admin = createAdminClient();
   const { data, error } = await admin
@@ -85,7 +108,7 @@ export async function updateMemberAction(
   if (!existing) return { error: "That member no longer exists." };
 
   const parsed = parse(formData);
-  if (!parsed.success) return { error: "Check the form — name, role, roll number and phone are required." };
+  if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error.issues) };
 
   const admin = createAdminClient();
   const { error } = await admin
@@ -183,7 +206,11 @@ export async function rotateJoinTokenAction(): Promise<void> {
 // ── sessions + marking ──────────────────────────────────────────────────────
 
 const SessionSchema = z.object({
-  title: z.string().trim().min(2).max(140),
+  title: z
+    .string()
+    .trim()
+    .min(2, "Give the session a title.")
+    .max(140, "Keep the title to 140 characters or fewer."),
   sessionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date."),
   startTime: z.string().regex(/^\d{2}:\d{2}$/, "Pick a start time."),
   endTime: z.string().regex(/^\d{2}:\d{2}$/, "Pick an end time."),

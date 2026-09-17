@@ -388,8 +388,17 @@
     color: var(--ink);
   }
   .field .hint { font: 400 11.5px var(--sans); color: var(--ink-3); }
-  .field.err input { border-color: var(--rust); }
+  /* ⚠️ `input` alone for a long time, which left a bad textarea or select with
+     no red border at all — the message box on both email composers is a
+     textarea, and the club and event pickers are selects. */
+  .field.err input,
+  .field.err textarea,
+  .field.err select { border-color: var(--rust); }
   .field.err .hint { color: var(--rust); }
+  /* The complaint itself, as opposed to the field's ordinary helper text. Both
+     go rust inside `.field.err`; this one also gets a little air so it does not
+     read as a second line of the hint above it. */
+  .field-err { margin-top: 1px; font-weight: 500; }
 
   /* ── contact page ─────────────────────────────────────────────────────────
      The form is the whole point of the page, so it comes first in the DOM and
@@ -2639,6 +2648,29 @@
   }
   .cd-menu-item:hover { background: var(--sand); }
   .cd-copy { margin-top: 14px; }
+  /* Base preview (a group following its council base) — responsive, unlike the editor. */
+  .cd-preview { display: grid; gap: 12px; }
+  .cd-base-banner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border: 1px solid var(--line-3);
+    border-radius: var(--r-md);
+    background: var(--sand);
+  }
+  .cd-base-banner p { margin: 0; flex: 1 1 18rem; min-width: 0; }
+  .cd-preview-page {
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-md);
+    background: var(--card);
+    padding: 8px;
+  }
+  .cd-preview-page .cd-svg { width: 100%; height: auto; }
+  .cd-preview-actions { align-items: center; }
+  .cd-badge { font: 500 11px var(--sans); color: var(--ink-3); }
   /* Recipients tab + group bar */
   .cd-groups { display: grid; gap: 8px; margin-top: 14px; }
   .cd-groups input[type="text"],
@@ -2673,6 +2705,23 @@
     background: var(--sand);
   }
   .cd-upload { display: grid; gap: 10px; }
+  .cd-list { display: grid; gap: 10px; }
+  .cd-list-add { display: grid; grid-template-columns: 2fr 2fr 1fr auto; gap: 8px; align-items: center; }
+  .cd-list input {
+    width: 100%;
+    min-width: 0;
+    padding: 7px 10px;
+    border: 1px solid var(--line-3);
+    border-radius: 8px;
+    background: var(--paper-2);
+    color: var(--ink);
+    font: 400 13px var(--sans);
+  }
+  @media (max-width: 720px) {
+    .cd-list-add { grid-template-columns: 1fr; }
+    /* 16px stops iOS Safari zooming the page when an input takes focus. */
+    .cd-list input { font-size: 16px; min-height: 44px; }
+  }
   /* The serial and date under an Issued badge: small, monospaced, wrappable. */
   .cd-serial {
     font: 400 10.5px / 1.45 var(--mono);
@@ -2776,6 +2825,299 @@
     .verify-facts { grid-template-columns: 1fr; gap: 2px; }
     .verify-facts dd { margin-bottom: 10px; }
     .verify-page input { font-size: 16px; }
+  }
+
+  /* ── email composer + outbox ──────────────────────────────────────────────
+     /admin/email, /admin/events/[id]/email and /admin/outbox. These three were
+     built out of inline styles and so carried no breakpoint of their own —
+     they inherited responsiveness from `.field` and `.tablewrap.cards` and
+     nothing else. Everything below exists to make a send that CANNOT BE
+     RECALLED safe to do from a phone: real tap targets, a recipient count you
+     can read at a glance, and a look at the mail before it goes. */
+
+  /* 640px is the measure for a message about to reach 900 people; narrower
+     than that, the column is the measure. */
+  .compose { margin-top: 18px; max-width: 640px; }
+
+  /* Under-field row: hint left, character count pushed right. `margin-left:auto`
+     rather than `space-between` so the count still right-aligns on the fields
+     that carry no hint. */
+  .field-foot { display: flex; align-items: baseline; gap: 12px; }
+  .field-foot .hint { min-width: 0; }
+  .counter {
+    margin-left: auto;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── who receives it ──
+     A card per choice. The old shape was a bare radio with the count trailing
+     the label: a ~16px tap target, and "Council members — 24 (3 have no address
+     on file)" as one unscannable run. */
+  .audience { border: 0; padding: 0; margin: 4px 0 20px; }
+  .audience > legend { margin-bottom: 10px; }
+  .audience-opt {
+    background: var(--card);
+    border: 1px solid var(--line-2b);
+    border-radius: var(--r-sm);
+    margin-bottom: 8px;
+    transition: border-color 0.14s, background 0.14s;
+  }
+  .audience-opt:last-child { margin-bottom: 0; }
+  .audience-opt[data-checked="true"] {
+    border-color: var(--forest);
+    background: var(--forest-tint);
+  }
+  /* The ring goes on the card, not the 18px radio inside it. */
+  .audience-opt:focus-within {
+    border-color: var(--forest);
+    box-shadow: 0 0 0 3px var(--forest-tint);
+  }
+  .audience-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 15px 16px;
+    min-height: 56px;
+    cursor: pointer;
+  }
+  .audience-head input[type="radio"] {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    accent-color: var(--forest);
+  }
+  .audience-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .audience-title { font: 400 14px / 1.45 var(--sans); color: var(--ink); }
+  .audience-detail { display: block; }
+  /* The chosen card's own fields. Indented to the title's left edge
+     (16 + 18 + 12), which is a desktop nicety — see the phone block. */
+  .audience-extra {
+    padding: 14px 16px 15px 46px;
+    border-top: 1px solid var(--line-2b);
+  }
+  .audience-extra .field:last-child { margin-bottom: 0; }
+
+  .compose-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+  /* ── the preview ──
+     A FACSIMILE of the mail, in app tokens — see EmailPreview.tsx for why it is
+     not the real template. Collapsed by default: opened, it would push the send
+     button a screen and a half down a phone. */
+  .mailprev {
+    background: var(--card);
+    border: 1px solid var(--line-2b);
+    border-radius: var(--r-sm);
+    margin: 0 0 20px;
+  }
+  .mailprev-toggle {
+    display: flex;
+    align-items: center;
+    min-height: 48px;
+    padding: 13px 16px;
+    cursor: pointer;
+    font: 500 12px var(--sans);
+    color: var(--ink-2);
+  }
+  .mailprev[open] .mailprev-toggle { border-bottom: 1px solid var(--line-2b); }
+  .mailprev-paper { padding: 20px 18px 22px; }
+  .mailprev-brand {
+    font: 500 10px var(--mono);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--forest);
+  }
+  .mailprev-subject {
+    margin: 8px 0 14px;
+    font: 400 21px / 1.25 var(--serif);
+    color: var(--ink);
+    overflow-wrap: anywhere;
+  }
+  .mailprev-greeting {
+    margin-bottom: 12px;
+    font: 400 14px / 1.6 var(--sans);
+    color: var(--ink-2);
+  }
+  /* The bit the template fills in per recipient, marked as a slot so the
+     preview never implies it knows who it is addressed to. */
+  .mailprev-sub {
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--sand);
+    font: 500 12px var(--mono);
+    color: var(--ink-3);
+  }
+  .mailprev-body {
+    padding: 13px 15px;
+    border-left: 3px solid var(--forest);
+    border-radius: 0 var(--r-sm) var(--r-sm) 0;
+    background: var(--sand);
+    font: 400 14px / 1.6 var(--sans);
+    color: var(--ink);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .mailprev-empty { color: var(--ink-4); font-style: italic; }
+  .mailprev-cta { margin: 18px 0 10px; }
+  /* A picture of a button. `--paper` rather than the template's hard #ffffff:
+     night mode flips `--forest` to a pale green, and white-on-pale is the one
+     way a preview can be less readable than the mail it previews. */
+  .mailprev-btn {
+    display: inline-block;
+    padding: 11px 20px;
+    border-radius: 8px;
+    background: var(--forest);
+    color: var(--paper);
+    font: 600 14px var(--sans);
+    overflow-wrap: anywhere;
+  }
+  .mailprev-url { font: 400 11.5px / 1.6 var(--sans); color: var(--ink-3); overflow-wrap: anywhere; }
+  .mailprev-rule { border: none; border-top: 1px solid var(--line-2); margin: 20px 0 12px; }
+  .mailprev-foot { font: 400 11.5px / 1.5 var(--sans); color: var(--ink-4); }
+
+  /* ── outbox ──
+     The three tiles are one sentence — pending, failed, sent today — so they
+     stay side by side at every width. `.admin-stats` auto-fit would drop them
+     into a single 40px-serif column below 520px, which reads as three
+     unrelated numbers stacked into a wall. */
+  .outbox-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .outbox-tiles .admin-stat { min-width: 0; }
+  /* The daily allowance, below the tiles rather than inside one: it is about
+     the whole queue, and at phone width it will not fit in a third of a row. */
+  /* Capped: a 4px track run across the full content width reads as a divider
+     rule between the tiles and the buttons, especially at 0%, which is exactly
+     when it is least obviously a meter. Narrow enough and it reads as a gauge. */
+  .ceiling { margin-top: 14px; max-width: 420px; }
+  .ceiling .bar { margin-bottom: 7px; }
+  .ceiling .bar > i[data-full="true"] { background: var(--clay); }
+  .outbox-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+  /* Addresses and SMTP errors are long, unbroken and not ours to shorten. */
+  .outbox-to { overflow-wrap: anywhere; }
+  .outbox-error { display: block; margin-top: 5px; overflow-wrap: anywhere; }
+  /* A timestamp is one value. Left to wrap, "Sep 15, 2026 9:02 PM" broke after
+     the time and left "PM" stranded on its own line. */
+  .outbox-when { white-space: nowrap; }
+  .badge-sent { background: var(--forest-tint); color: var(--forest); }
+  .badge-pending { background: var(--clay-tint); color: var(--clay); }
+  .badge-failed { background: var(--rust-tint); color: var(--rust); }
+
+  /* ── who is in this audience (RecipientPicker) ──
+     Nothing loads until asked: the biggest list is 909 people, and reading it
+     on every render would be a bulk query behind a page nobody had interacted
+     with yet. */
+  .rpick { margin-top: 12px; }
+  .rpick-err { display: block; margin-top: 8px; color: var(--rust); }
+  .rpick-panel {
+    margin-top: 10px;
+    border: 1px solid var(--line-2b);
+    border-radius: var(--r-sm);
+    background: var(--paper-2);
+  }
+  .rpick-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line-2b);
+    flex-wrap: wrap;
+  }
+  .rpick-search {
+    flex: 1 1 11rem;
+    min-width: 0;
+    padding: 9px 12px;
+    border: 1px solid var(--line-3);
+    border-radius: var(--r-sm);
+    background: var(--paper-2);
+    color: var(--ink);
+    font: 400 13px var(--sans);
+    min-height: 40px;
+  }
+  .rpick-search:focus {
+    border-color: var(--forest);
+    outline: none;
+    box-shadow: 0 0 0 3px var(--forest-tint);
+  }
+  .rpick-count { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .rpick-acts {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line-2b);
+  }
+  /* Capped and scrolled: 909 rows inline would push the send button a very long
+     way down the page. */
+  .rpick-list {
+    list-style: none;
+    max-height: 260px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .rpick-row {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 9px 12px;
+    min-height: 44px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--line);
+  }
+  .rpick-list li:last-child .rpick-row { border-bottom: none; }
+  .rpick-row input[type="checkbox"] {
+    flex: none;
+    width: 17px;
+    height: 17px;
+    accent-color: var(--forest);
+  }
+  .rpick-who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .rpick-name {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    font: 400 13px var(--sans);
+    color: var(--ink);
+  }
+  /* Which club's head, which club's member. Telling 26 heads apart is the whole
+     reason for listing them, and a name alone does not do it. */
+  .rpick-meta {
+    padding: 1px 7px;
+    border-radius: var(--r-pill);
+    background: var(--sand);
+    font: 500 10px var(--mono);
+    letter-spacing: 0.06em;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .rpick-mail {
+    font: 400 11.5px var(--mono);
+    color: var(--ink-3);
+    overflow-wrap: anywhere;
+  }
+  .rpick-empty { display: block; padding: 14px 12px; }
+
+  @media (max-width: 599px) {
+    /* Outside `.field`, so it misses the global 16px rule that stops iOS
+       Safari zooming the page in when a control is focused. */
+    .rpick-search { font-size: 16px; flex-basis: 100%; }
+    .rpick-list { max-height: 220px; }
+    .rpick-acts .btn { flex: 1 1 auto; }
+    /* The desktop indent would leave a select ~46px narrower than the card for
+       no reason on a 360px screen. */
+    .audience-extra { padding-left: 16px; }
+    .compose-actions { gap: 8px; }
+    .compose-actions .btn,
+    .outbox-actions .btn { width: 100%; }
+    .outbox-tiles { gap: 8px; }
+    .outbox-tiles .admin-stat { padding: 14px 10px; border-radius: var(--r-sm); }
+    .outbox-tiles .admin-stat .n { font-size: 26px; }
+    .outbox-tiles .admin-stat .label {
+      margin-top: 6px;
+      font-size: 9px;
+      letter-spacing: 0.08em;
+    }
+    .mailprev-paper { padding: 16px 14px 18px; }
+    .mailprev-subject { font-size: 19px; }
   }
 }
 

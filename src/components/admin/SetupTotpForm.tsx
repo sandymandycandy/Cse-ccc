@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { setupTotpAction } from "@/app/admin/setup-totp/actions";
 import type { SetupTotpState } from "@/lib/admin/form-state";
+import { FieldError, fieldClass } from "./FieldError";
 
 const initial: SetupTotpState = {};
 
@@ -86,9 +87,10 @@ export function SetupTotpForm({
         </div>
       </div>
 
-      <div className="field" style={{ marginTop: 14 }}>
+      <div className={fieldClass(state.fieldErrors, "totp", "field")} style={{ marginTop: 14 }}>
         <label htmlFor="totp">6-digit code from the app</label>
         <input id="totp" name="totp" inputMode="numeric" autoComplete="one-time-code" required placeholder="6-digit code" />
+        <FieldError errors={state.fieldErrors} name="totp" />
       </div>
 
       <button type="submit" className="btn btn-primary w-full" disabled={pending}>

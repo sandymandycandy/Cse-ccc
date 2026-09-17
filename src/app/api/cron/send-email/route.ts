@@ -13,6 +13,8 @@ export async function GET(request: Request) {
   if (!secret || auth !== `Bearer ${secret}`) {
     return Response.json({ error: "Unauthorized." }, { status: 401 });
   }
-  const summary = await deliverPending(25);
+  // 100, not 25: a queued all-members send is ~908 rows, and this nightly pass
+  // is the backstop that clears whatever the Outbox did not.
+  const summary = await deliverPending(100);
   return Response.json({ ok: true, ...summary });
 }

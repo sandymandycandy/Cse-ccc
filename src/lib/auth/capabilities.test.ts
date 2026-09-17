@@ -45,6 +45,21 @@ describe("manage:members grants", () => {
     expect(grantFor("faculty_advisor", "manage:members")).toBe("all");
     expect(grantFor("events_head", "manage:members")).toBe("none");
   });
+
+  it("social media head runs attendance for their own club only", () => {
+    const smh = { role: "social_media_head", clubId: "smt" } as const;
+    expect(grantFor("social_media_head", "manage:members")).toBe("own");
+    expect(canViewClub(smh, "manage:members", "smt")).toBe(true);
+    expect(canManage(smh, "manage:members", "smt")).toBe(true);
+    expect(canViewClub(smh, "manage:members", "coding")).toBe(false);
+    expect(canManage(smh, "manage:members", "coding")).toBe(false);
+  });
+
+  it("a social media head with no linked club reaches no club", () => {
+    const unlinked = { role: "social_media_head", clubId: null } as const;
+    expect(canViewClub(unlinked, "manage:members", "smt")).toBe(false);
+    expect(canManage(unlinked, "manage:members", "smt")).toBe(false);
+  });
 });
 
 describe("manage:clubs grants", () => {
@@ -67,14 +82,19 @@ describe("manage:clubs grants", () => {
 });
 
 describe("manage:contact grants (council-wide, no club scope)", () => {
-  it("council + social media + faculty manage; club roles none", () => {
-    expect(grantFor("president", "manage:contact")).toBe("all");
-    expect(grantFor("vice_president", "manage:contact")).toBe("all");
-    expect(grantFor("tech_head", "manage:contact")).toBe("all");
-    expect(grantFor("social_media_head", "manage:contact")).toBe("all");
-    expect(grantFor("faculty_advisor", "manage:contact")).toBe("all");
-    expect(grantFor("club_head", "manage:contact")).toBe("none");
-    expect(grantFor("events_head", "manage:contact")).toBe("none");
+  // Owner decision (2026-09-17). If this fails because faculty or the social
+  // media head was added back, the grant is the bug, not the test.
+  it("is held by exactly president, vice president and tech head", () => {
+    const holders = ADMIN_ROLES.filter((r) => grantFor(r, "manage:contact") !== "none");
+    expect(holders.slice().sort()).toEqual(["president", "tech_head", "vice_president"]);
+    for (const role of holders) expect(grantFor(role, "manage:contact")).toBe("all");
+  });
+
+  it("is refused to the faculty advisor and the social media head", () => {
+    for (const role of ["faculty_advisor", "social_media_head"] as const) {
+      expect(canView({ role, clubId: null }, "manage:contact")).toBe(false);
+      expect(canManage({ role, clubId: null }, "manage:contact")).toBe(false);
+    }
   });
 
   it("an all grant can act with no club context (council-wide surface)", () => {
@@ -125,7 +145,7 @@ describe("canViewClub — read-or-manage view scope for a specific club", () => 
 });
 
 describe("roleRequiresTotp — mandatory 2FA for the widest-reach roles", () => {
-  it("requires TOTP for every role that holds all 21 capabilities", () => {
+  it("requires TOTP for the widest-reach roles", () => {
     expect(roleRequiresTotp("tech_head")).toBe(true);
     expect(roleRequiresTotp("president")).toBe(true);
     // faculty and the VP now carry the same blast radius as tech head
@@ -133,11 +153,18 @@ describe("roleRequiresTotp — mandatory 2FA for the widest-reach roles", () => 
     expect(roleRequiresTotp("vice_president")).toBe(true);
   });
 
+  // Derived, not hardcoded. This read `=== 21` until 2026-09-15, which matched
+  // no role once the capability count moved — so the assertion never ran and
+  // this 2FA guarantee was being reported as passing without being checked.
+  // Anchoring to the widest role keeps it true as capabilities are added.
   it("no unrestricted role is left without mandatory 2FA", () => {
-    for (const role of ADMIN_ROLES) {
-      if (viewableCapabilities(role).length === 21) {
-        expect(roleRequiresTotp(role)).toBe(true);
-      }
+    const widest = Math.max(...ADMIN_ROLES.map((r) => viewableCapabilities(r).length));
+    const unrestricted = ADMIN_ROLES.filter(
+      (r) => viewableCapabilities(r).length >= widest - 1,
+    );
+    expect(unrestricted.length).toBeGreaterThan(0);
+    for (const role of unrestricted) {
+      expect(roleRequiresTotp(role)).toBe(true);
     }
   });
 
@@ -151,10 +178,11 @@ describe("roleRequiresTotp — mandatory 2FA for the widest-reach roles", () => 
 describe("full-access roles (owner decision, 2026-09-02)", () => {
   const FULL = ["faculty_advisor", "vice_president"] as const;
 
-  // 22 capabilities exist as of 2026-09-04, when view:feedback was added. The
+  // 23 capabilities exist as of 2026-09-15, when manage:broadcast was added. The
   // count is asserted PER ROLE rather than shared, because the Faculty Advisor
-  // now holds 21 of the 22: view:feedback is withheld on purpose (design D2).
-  const TOTAL_CAPABILITIES = 22;
+  // holds 21 of the 23: view:feedback (design D2) and, since 2026-09-17,
+  // manage:contact are withheld on purpose.
+  const TOTAL_CAPABILITIES = 23;
 
   it("vice_president holds every capability the system defines", () => {
     // Pinned: if a new capability is added and this role is left out of its row,
@@ -162,10 +190,11 @@ describe("full-access roles (owner decision, 2026-09-02)", () => {
     expect(viewableCapabilities("vice_president")).toHaveLength(TOTAL_CAPABILITIES);
   });
 
-  it("faculty_advisor holds every capability EXCEPT view:feedback", () => {
+  it("faculty_advisor holds every capability EXCEPT view:feedback and manage:contact", () => {
     const caps = viewableCapabilities("faculty_advisor");
-    expect(caps).toHaveLength(TOTAL_CAPABILITIES - 1);
+    expect(caps).toHaveLength(TOTAL_CAPABILITIES - 2);
     expect(caps).not.toContain("view:feedback");
+    expect(caps).not.toContain("manage:contact");
   });
 
   it.each(FULL)("%s holds them at \"all\", never \"read\" or \"own\"", (role) => {
@@ -243,7 +272,7 @@ describe("gallery_manager — a gallery-only admin (owner ask, 2026-09-02)", () 
       "manage:contact", "manage:resources", "manage:venues", "manage:admins",
       "view:audit", "view:analytics", "revoke:certificate",
       "issue:participation_certificate", "issue:winner_certificate",
-      "manage:blackouts", "manage:schedules",
+      "manage:blackouts", "manage:schedules", "manage:broadcast",
     ] as const) {
       expect(grantFor("gallery_manager", cap)).toBe("none");
       expect(canView(gm, cap)).toBe(false);
@@ -335,5 +364,30 @@ describe("council oversight is gated on manage:council, not view:analytics", () 
       expect(canView(who, "view:analytics")).toBe(true);
       expect(canView(who, "manage:council")).toBe(false);
     }
+  });
+});
+
+describe("manage:broadcast", () => {
+  it("is council-wide for the council roles", () => {
+    for (const role of ["faculty_advisor", "president", "vice_president", "tech_head"] as const) {
+      expect(grantFor(role, "manage:broadcast")).toBe("all");
+    }
+  });
+
+  it("is own-club for club and vice heads", () => {
+    expect(grantFor("club_head", "manage:broadcast")).toBe("own");
+    expect(grantFor("vice_head", "manage:broadcast")).toBe("own");
+  });
+
+  it("is withheld from the roles that were not granted it", () => {
+    for (const role of ["events_head", "docs_head", "social_media_head", "gallery_manager"] as const) {
+      expect(grantFor(role, "manage:broadcast")).toBe("none");
+    }
+  });
+
+  it("lets a club head broadcast to their own club only", () => {
+    const head = { role: "club_head" as const, clubId: "club-a" };
+    expect(canManage(head, "manage:broadcast", "club-a")).toBe(true);
+    expect(canManage(head, "manage:broadcast", "club-b")).toBe(false);
   });
 });

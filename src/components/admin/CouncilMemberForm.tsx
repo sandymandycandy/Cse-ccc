@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import type { MemberFormState } from "@/lib/admin/form-state";
+import { FieldError, fieldClass } from "@/components/admin/FieldError";
 
 type MemberAction = (prev: MemberFormState, formData: FormData) => Promise<MemberFormState>;
 const initialState: MemberFormState = {};
@@ -30,25 +31,30 @@ export function CouncilMemberForm({
       {state.error ? (
         <div className="note" style={{ borderLeftColor: "var(--rust)", marginBottom: 16 }}>{state.error}</div>
       ) : null}
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "name")}>
         <label htmlFor="name">Name</label>
         <input id="name" name="name" required maxLength={120} defaultValue={initial?.name} placeholder="Member's full name" />
+        <FieldError errors={state.fieldErrors} name="name" />
       </div>
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "designation")}>
         <label htmlFor="designation">Role on the council</label>
         <input id="designation" name="designation" required maxLength={80} defaultValue={initial?.designation} placeholder="e.g. Robotics Club Head / President" />
+        <FieldError errors={state.fieldErrors} name="designation" />
       </div>
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "rollNo")}>
         <label htmlFor="rollNo">Roll number</label>
         <input id="rollNo" name="rollNo" required inputMode="numeric" maxLength={40} defaultValue={initial?.rollNo} placeholder="12345" />
+        <FieldError errors={state.fieldErrors} name="rollNo" />
       </div>
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "email")}>
         <label htmlFor="email">Email (contact)</label>
         <input id="email" name="email" type="email" maxLength={200} defaultValue={initial?.email} placeholder="vtuxxxxx@veltech.edu.in" />
+        <FieldError errors={state.fieldErrors} name="email" />
       </div>
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "phone")}>
         <label htmlFor="phone">Phone</label>
         <input id="phone" name="phone" required inputMode="numeric" maxLength={20} defaultValue={initial?.phone} placeholder="10-digit mobile" />
+        <FieldError errors={state.fieldErrors} name="phone" />
       </div>
       <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <input type="checkbox" name="isActive" defaultChecked={initial?.isActive ?? true} style={{ width: "auto" }} />

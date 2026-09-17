@@ -8,12 +8,21 @@ import { canManage } from "@/lib/auth/capabilities";
 import { writeAudit } from "@/lib/admin/audit";
 import { uniqueSlug, getAnnouncementForEdit } from "@/lib/admin/announcements";
 import { handleImageUpload } from "@/lib/admin/image-upload";
+import { toFieldErrors } from "@/lib/admin/field-errors";
 import type { AnnouncementFormState } from "@/lib/admin/form-state";
 import { istLocalToUTC } from "@/lib/datetime";
 
 const Schema = z.object({
-  title: z.string().trim().min(3).max(140),
-  body: z.string().trim().min(1).max(20000),
+  title: z
+    .string()
+    .trim()
+    .min(3, "Give it a title — at least 3 characters.")
+    .max(140, "Keep the title to 140 characters or fewer."),
+  body: z
+    .string()
+    .trim()
+    .min(1, "Write the announcement.")
+    .max(20000, "That is too long — 20000 characters at most."),
 });
 
 /**
@@ -42,11 +51,13 @@ export async function createAnnouncementAction(
   }
 
   const parsed = Schema.safeParse({ title: formData.get("title"), body: formData.get("body") });
-  if (!parsed.success) return { error: "Check the form — title and body are required." };
+  if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error.issues) };
   const { title, body } = parsed.data;
   const published = formData.get("published") === "on";
   const expiresAt = readExpiresAt(formData);
-  if (expiresAt === undefined) return { error: "Check the hide-after date and time." };
+  if (expiresAt === undefined) {
+    return { fieldErrors: { expiresAt: "That is not a valid date and time." } };
+  }
 
   const img = await handleImageUpload(formData, { bucket: "announcements" });
   if (img.error) return { error: img.error };
@@ -96,11 +107,13 @@ export async function updateAnnouncementAction(
   if (!existing) return { error: "That announcement no longer exists." };
 
   const parsed = Schema.safeParse({ title: formData.get("title"), body: formData.get("body") });
-  if (!parsed.success) return { error: "Check the form — title and body are required." };
+  if (!parsed.success) return { fieldErrors: toFieldErrors(parsed.error.issues) };
   const { title, body } = parsed.data;
   const published = formData.get("published") === "on";
   const expiresAt = readExpiresAt(formData);
-  if (expiresAt === undefined) return { error: "Check the hide-after date and time." };
+  if (expiresAt === undefined) {
+    return { fieldErrors: { expiresAt: "That is not a valid date and time." } };
+  }
 
   const img = await handleImageUpload(formData, { bucket: "announcements" });
   if (img.error) return { error: img.error };

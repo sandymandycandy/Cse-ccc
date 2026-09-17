@@ -5,6 +5,7 @@ import { acceptInviteAction } from "@/app/admin/accept-invite/actions";
 import { TotpEnrollFields } from "./TotpEnrollFields";
 import { RecoveryCodesPanel } from "./RecoveryCodesPanel";
 import type { AcceptInviteState } from "@/lib/admin/form-state";
+import { FieldError, fieldClass } from "@/components/admin/FieldError";
 
 const initial: AcceptInviteState = {};
 
@@ -56,12 +57,13 @@ export function AcceptInviteForm({
       <input type="hidden" name="token" value={token} />
       <input type="hidden" name="secret" value={encSecret} />
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "name")}>
         <label htmlFor="name">Full name</label>
         <input id="name" name="name" required autoComplete="name" placeholder="Your full name" />
+        <FieldError errors={state.fieldErrors} name="name" />
       </div>
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "password")}>
         <label htmlFor="password">Password</label>
         <input
           id="password"
@@ -72,6 +74,7 @@ export function AcceptInviteForm({
           placeholder="At least 12 characters"
         />
         <span className="hint">At least 12 characters, not a known-breached password.</span>
+        <FieldError errors={state.fieldErrors} name="password" />
       </div>
 
       <TotpEnrollFields qr={qr} manualKey={manualKey} />

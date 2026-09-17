@@ -7,6 +7,7 @@ import {
   type ClubCategory,
 } from "@/lib/validation/club";
 import type { ClubFormState } from "@/lib/admin/form-state";
+import { FieldError, fieldClass } from "@/components/admin/FieldError";
 
 type ClubAction = (prev: ClubFormState, formData: FormData) => Promise<ClubFormState>;
 
@@ -53,7 +54,7 @@ export function ClubForm({
         </div>
       ) : null}
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "name")}>
         <label htmlFor="name">Name</label>
         <input
           id="name"
@@ -64,9 +65,10 @@ export function ClubForm({
           defaultValue={initial.name}
           placeholder="Club name"
         />
+        <FieldError errors={state.fieldErrors} name="name" />
       </div>
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "shortName")}>
         <label htmlFor="shortName">Short name</label>
         <input
           id="shortName"
@@ -77,11 +79,12 @@ export function ClubForm({
           placeholder="e.g. GDG, CodeChef"
         />
         <span className="hint">A short label used in tight spaces (chips, calendar).</span>
+        <FieldError errors={state.fieldErrors} name="shortName" />
       </div>
 
       {canEditStructural ? (
         <>
-          <div className="field">
+          <div className={fieldClass(state.fieldErrors, "slug")}>
             <label htmlFor="slug">Slug</label>
             <input
               id="slug"
@@ -98,10 +101,11 @@ export function ClubForm({
               <code>/clubs/{initial.slug || "your-slug"}</code>
               {creating ? "" : " — changing it changes that link."}
             </span>
+            <FieldError errors={state.fieldErrors} name="slug" />
           </div>
 
           <div className="admin-form-row">
-            <div className="field">
+            <div className={fieldClass(state.fieldErrors, "category")}>
               <label htmlFor="category">Category</label>
               <select id="category" name="category" defaultValue={initial.category}>
                 {CLUB_CATEGORIES.map((c) => (
@@ -110,8 +114,9 @@ export function ClubForm({
                   </option>
                 ))}
               </select>
+              <FieldError errors={state.fieldErrors} name="category" />
             </div>
-            <div className="field">
+            <div className={fieldClass(state.fieldErrors, "color")}>
               <label htmlFor="color">Calendar colour</label>
               <input
                 id="color"
@@ -120,8 +125,9 @@ export function ClubForm({
                 defaultValue={initial.color || "#1f7a4d"}
                 style={{ width: 64, height: 38, padding: 2 }}
               />
+              <FieldError errors={state.fieldErrors} name="color" />
             </div>
-            <div className="field">
+            <div className={fieldClass(state.fieldErrors, "sort")}>
               <label htmlFor="sort">Sort order</label>
               <input
                 id="sort"
@@ -133,12 +139,13 @@ export function ClubForm({
                 style={{ maxWidth: 100 }}
                 placeholder="0"
               />
+              <FieldError errors={state.fieldErrors} name="sort" />
             </div>
           </div>
         </>
       ) : null}
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "tagline")}>
         <label htmlFor="tagline">Tagline</label>
         <input
           id="tagline"
@@ -148,9 +155,10 @@ export function ClubForm({
           defaultValue={initial.tagline ?? ""}
         />
         <span className="hint">Optional. Shown under the club name.</span>
+        <FieldError errors={state.fieldErrors} name="tagline" />
       </div>
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "description")}>
         <label htmlFor="description">Description</label>
         <textarea
           id="description"
@@ -161,6 +169,7 @@ export function ClubForm({
           defaultValue={initial.description ?? ""}
         />
         <span className="hint">Optional. Appears on the club&rsquo;s public page.</span>
+        <FieldError errors={state.fieldErrors} name="description" />
       </div>
 
       {canEditStructural ? (

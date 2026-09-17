@@ -5,6 +5,7 @@ import { defaultFormFor } from "@/lib/registration-form/schema";
 import { RegistrationFormBuilder } from "./RegistrationFormBuilder";
 import { ImageEditor } from "./ImageEditor";
 import type { EventFormState } from "@/lib/admin/form-state";
+import { FieldError, fieldClass } from "@/components/admin/FieldError";
 
 interface Option {
   id: string;
@@ -65,12 +66,13 @@ export function EventForm({
         </div>
       ) : null}
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "title")}>
         <label htmlFor="title">Title</label>
         <input id="title" name="title" required maxLength={140} defaultValue={initial?.title} placeholder="e.g. Intro to Machine Learning" />
+        <FieldError errors={state.fieldErrors} name="title" />
       </div>
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "description")}>
         <label htmlFor="description">Description</label>
         <textarea
           id="description"
@@ -80,6 +82,7 @@ export function EventForm({
           defaultValue={initial?.description}
           placeholder="What's this event about? Who should come?"
         />
+        <FieldError errors={state.fieldErrors} name="description" />
       </div>
 
       {fixedClub ? (
@@ -91,7 +94,7 @@ export function EventForm({
           </div>
         </>
       ) : (
-        <div className="field">
+        <div className={fieldClass(state.fieldErrors, "clubId")}>
           <label htmlFor="clubId">Hosting club</label>
           <select id="clubId" name="clubId" required defaultValue={initial?.clubId ?? ""}>
             <option value="" disabled>
@@ -103,10 +106,11 @@ export function EventForm({
               </option>
             ))}
           </select>
+          <FieldError errors={state.fieldErrors} name="clubId" />
         </div>
       )}
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "venueText")}>
         <label htmlFor="venueText">Venue</label>
         <input
           id="venueText"
@@ -116,10 +120,11 @@ export function EventForm({
           placeholder="e.g. Main Auditorium, Block C"
         />
         <span className="hint">Type the room or place. Leave blank if it&rsquo;s not decided yet.</span>
+        <FieldError errors={state.fieldErrors} name="venueText" />
       </div>
 
       <div className="admin-form-row">
-        <div className="field">
+        <div className={fieldClass(state.fieldErrors, "startsAt")}>
           <label htmlFor="startsAt">Starts (IST)</label>
           <input
             id="startsAt"
@@ -128,8 +133,9 @@ export function EventForm({
             required
             defaultValue={initial?.startsAtLocal}
           />
+          <FieldError errors={state.fieldErrors} name="startsAt" />
         </div>
-        <div className="field">
+        <div className={fieldClass(state.fieldErrors, "endsAt")}>
           <label htmlFor="endsAt">Ends (IST)</label>
           <input
             id="endsAt"
@@ -138,25 +144,28 @@ export function EventForm({
             required
             defaultValue={initial?.endsAtLocal}
           />
+          <FieldError errors={state.fieldErrors} name="endsAt" />
         </div>
       </div>
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "selectionMode")}>
         <label htmlFor="selectionMode">Registration type</label>
         <select id="selectionMode" name="selectionMode" defaultValue={initial?.selectionMode ?? "seats"}>
           <option value="seats">Seats — first come, capacity-limited</option>
           <option value="shortlist">Shortlist — collect everyone, you pick later</option>
         </select>
         <span className="hint">Shortlist ignores capacity; you select applicants afterward.</span>
+        <FieldError errors={state.fieldErrors} name="selectionMode" />
       </div>
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "capacity")}>
         <label htmlFor="capacity">Capacity (optional)</label>
         <input id="capacity" name="capacity" type="number" min={0} defaultValue={initial?.capacity} placeholder="Leave blank for unlimited" />
+        <FieldError errors={state.fieldErrors} name="capacity" />
       </div>
 
       <div className="admin-form-row">
-        <div className="field">
+        <div className={fieldClass(state.fieldErrors, "registrationOpensAt")}>
           <label htmlFor="registrationOpensAt">Registration opens (IST) — optional</label>
           <input
             id="registrationOpensAt"
@@ -165,8 +174,9 @@ export function EventForm({
             defaultValue={initial?.registrationOpensAtLocal}
           />
           <span className="hint">Leave blank to open right away. Until then students see a live countdown.</span>
+          <FieldError errors={state.fieldErrors} name="registrationOpensAt" />
         </div>
-        <div className="field">
+        <div className={fieldClass(state.fieldErrors, "registrationClosesAt")}>
           <label htmlFor="registrationClosesAt">Registration closes (IST) — optional</label>
           <input
             id="registrationClosesAt"
@@ -174,10 +184,11 @@ export function EventForm({
             type="datetime-local"
             defaultValue={initial?.registrationClosesAtLocal}
           />
+          <FieldError errors={state.fieldErrors} name="registrationClosesAt" />
         </div>
       </div>
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "waitlistEnabled")}>
         <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 400 }}>
           <input
             type="checkbox"
@@ -189,9 +200,10 @@ export function EventForm({
         <span className="hint">
           Extra students join a waitlist you can promote from on the registrations page.
         </span>
+        <FieldError errors={state.fieldErrors} name="waitlistEnabled" />
       </div>
 
-      <div className="field">
+      <div className={fieldClass(state.fieldErrors, "showOnAchievements")}>
         <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 400 }}>
           <input
             type="checkbox"
@@ -204,6 +216,7 @@ export function EventForm({
           On by default. Once results are published, the top three appear on the
           public achievements page — untick to keep them off it.
         </span>
+        <FieldError errors={state.fieldErrors} name="showOnAchievements" />
       </div>
 
       <RegistrationFormBuilder
