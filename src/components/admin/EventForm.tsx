@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { defaultFormFor } from "@/lib/registration-form/schema";
 import { RegistrationFormBuilder } from "./RegistrationFormBuilder";
 import { ImageEditor } from "./ImageEditor";
 import type { EventFormState } from "@/lib/admin/form-state";
 import { FieldError, fieldClass } from "@/components/admin/FieldError";
+import { CohostPicker } from "@/components/admin/CohostPicker";
 
 interface Option {
   id: string;
@@ -17,6 +18,8 @@ export interface EventFormInitial {
   title: string;
   description: string;
   clubId: string;
+  /** Co-hosting clubs, not including the primary. */
+  cohostIds: string[];
   venueText: string;
   startsAtLocal: string;
   endsAtLocal: string;
@@ -55,6 +58,8 @@ export function EventForm({
   initial?: EventFormInitial;
 }) {
   const [state, formAction, pending] = useActionState(action, emptyState);
+  // Tracked only so the co-host list can leave out whichever club is hosting.
+  const [primaryId, setPrimaryId] = useState(fixedClub?.id ?? initial?.clubId ?? "");
 
   return (
     <form action={formAction} style={{ marginTop: 20 }}>
@@ -96,7 +101,13 @@ export function EventForm({
       ) : (
         <div className={fieldClass(state.fieldErrors, "clubId")}>
           <label htmlFor="clubId">Hosting club</label>
-          <select id="clubId" name="clubId" required defaultValue={initial?.clubId ?? ""}>
+          <select
+            id="clubId"
+            name="clubId"
+            required
+            defaultValue={initial?.clubId ?? ""}
+            onChange={(e) => setPrimaryId(e.target.value)}
+          >
             <option value="" disabled>
               Choose a club…
             </option>
@@ -109,6 +120,13 @@ export function EventForm({
           <FieldError errors={state.fieldErrors} name="clubId" />
         </div>
       )}
+
+      <CohostPicker
+        clubs={clubs}
+        primaryClubId={primaryId}
+        selected={initial?.cohostIds ?? []}
+        fieldErrors={state.fieldErrors}
+      />
 
       <div className={fieldClass(state.fieldErrors, "venueText")}>
         <label htmlFor="venueText">Venue</label>

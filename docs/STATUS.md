@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-16 (per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed; co-hosted events still in flight).**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-17 (co-hosted events built on branch, unmerged; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed; co-hosted events still in flight).**
 
 ## What this is
 
@@ -19,6 +19,36 @@ end-to-end**, not a checklist of components.
 ---
 
 ## 🚦 START HERE — current git/deploy state (2026-09-16)
+
+> ### 🧩 BUILT ON `feat/co-hosted-events`, NOT MERGED — co-hosted events (2026-09-17)
+>
+> Spec `docs/superpowers/specs/2026-09-15-co-hosted-events-design.md`, plan
+> `docs/superpowers/plans/2026-09-17-co-hosted-events.md`. Gate: typecheck ✓ lint ✓ **1243 tests** ✓
+> build ✓. **No migration**: `event_clubs` always allowed several clubs per event. **Needs the owner's
+> signed-in walkthrough before merging** (every admin has TOTP); the six steps end the spec.
+>
+> - **Every event permission check now goes through `src/lib/admin/event-hosts.ts`.**
+>   `canManageEvent` / `canViewEvent` match ANY hosting club; `canCancelEvent` and `canSetPrimary`
+>   match the PRIMARY only. `getEventForAttendance` returns `hosts`, not `clubId`, so a check against
+>   the primary alone no longer typechecks.
+> - ⚠️ **The asymmetry this fixed:** the club-scoped event list matched any `event_clubs` row while
+>   every check read the primary, so a co-host's head would have seen the event and been refused on it.
+> - ⚠️ **`listEventsForAdmin` resolves event ids first.** An `event_clubs!inner` filter also strips the
+>   OTHER hosts from each row's embed. Do not fold it back into one query.
+> - ⚠️ **A co-host cannot cancel or reassign the primary.** Changing the primary also still needs the
+>   destination club, so in practice only the council reassigns.
+> - ⚠️ **The edit form locks a club-scoped role to the event's PRIMARY club, not their own.** Posting
+>   their own club would read as taking the primary and refuse every co-host save.
+> - A co-host's **duplicate** is owned by their club, with the original owner kept as co-host.
+> - The email composer's event audience and the calendar's filter chips follow co-hosts too.
+> - Public: "Coding × Ai Forge" wherever a club name showed, plus a "Hosted by … with …" line on the
+>   event page. Unchanged on purpose: certificate branding and the calendar dot colour stay the primary's.
+> - Audited as `event_cohosts_changed` (before/after `primary_club_id` + `cohost_ids`).
+> - **Verified locally against the live DB (read-only):** `/`, `/events`, `/events/past`, the one event's
+>   page, `/calendar`, `/clubs`, `/achievements` all 200, the calendar payload carries `clubSlugs`, and
+>   the single-host event reads exactly as before. **No co-hosted rendering has been seen**: that
+>   needs a second `event_clubs` row, which would show on the live site. The admin surfaces were not
+>   exercised: TOTP blocks agents.
 
 > ### 2026-09-17 — Contact inbox is President, VP and Tech Head only
 >

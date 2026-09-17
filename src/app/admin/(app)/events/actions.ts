@@ -6,6 +6,19 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminSession } from "@/lib/auth/guards";
 import { canManage } from "@/lib/auth/capabilities";
+import {
+  NO_HOSTS,
+  canCancelEvent,
+  canManageEvent,
+  canSetPrimary,
+  cohostIdsOf,
+  hostsForCopy,
+  hostsFromLinks,
+  isEmptyPlan,
+  normalizeCohosts,
+  planHostChanges,
+} from "@/lib/admin/event-hosts";
+import { applyHostPlan, notActiveClubIds } from "@/lib/admin/event-host-store";
 import { enqueueEmail } from "@/lib/email";
 import { teamRecipients } from "@/lib/registration-form/recipients";
 import { getEventFormSchema } from "@/lib/admin/registrations";
@@ -20,6 +33,7 @@ import { toFieldErrors } from "@/lib/admin/field-errors";
 import type { EventFormState } from "@/lib/admin/form-state";
 
 const POSTER_BUCKET = "event-posters";
+const COHOST_REFUSED = "One of those clubs can't co-host. Pick from the list.";
 
 // Roles whose own events skip the approval queue (§9).
 const AUTO_APPROVE: AdminRole[] = [
@@ -42,6 +56,10 @@ const CreateSchema = z
       .max(4000, "Keep the description to 4000 characters or fewer.")
       .optional(),
     clubId: z.string().uuid("Choose which club is hosting."),
+    cohostIds: z
+      .array(z.string().uuid("Pick co-hosts from the list."))
+      .max(10, "An event can have at most 10 co-hosts.")
+      .default([]),
     venueText: z
       .string()
       .trim()
@@ -70,6 +88,8 @@ function parseEvent(formData: FormData) {
     title: formData.get("title"),
     description: formData.get("description") || undefined,
     clubId: formData.get("clubId"),
+    // One entry per ticked checkbox; none ticked is an empty list.
+    cohostIds: formData.getAll("cohostIds").map(String),
     venueText: formData.get("venueText") || undefined,
     startsAt: formData.get("startsAt"),
     endsAt: formData.get("endsAt"),
@@ -113,6 +133,14 @@ export async function createEventAction(
   // Capability + club scope: a club-scoped role may only create for its own club.
   if (!canManage(session, "manage:events", clubId)) {
     return { error: "You can't create events for that club." };
+  }
+
+  // Co-hosts are picked directly, with no consent step (spec §2): the audit log
+  // records who added whom. A club-scoped creator's own club stays the primary,
+  // which the check above already guarantees.
+  const cohostIds = normalizeCohosts(clubId, parsed.data.cohostIds);
+  if ((await notActiveClubIds(cohostIds)).length > 0) {
+    return { fieldErrors: { cohostIds: COHOST_REFUSED } };
   }
 
   const form = parseRegistrationForm(parsed.data.registrationForm);
@@ -206,13 +234,15 @@ export async function createEventAction(
     return { error: "Could not save the event. Try again." };
   }
 
-  const { error: linkErr } = await admin
-    .from("event_clubs")
-    .insert({ event_id: ev.id, club_id: clubId, is_primary: true });
-  if (linkErr) {
-    await admin.from("events").delete().eq("id", ev.id); // avoid an orphan event
+  const linked = await applyHostPlan(
+    ev.id,
+    planHostChanges(NO_HOSTS, { primaryClubId: clubId, cohostIds }),
+  );
+  if (!linked) {
+    // Avoid an orphan event; any link rows already written cascade with it.
+    await admin.from("events").delete().eq("id", ev.id);
     if (poster.path) await admin.storage.from(POSTER_BUCKET).remove([poster.path]);
-    return { error: "Could not link the event to its club. Try again." };
+    return { error: "Could not link the event to its clubs. Try again." };
   }
 
   // Notify approvers when it needs approval (§9).
@@ -241,6 +271,16 @@ export async function createEventAction(
     entityId: ev.id,
     after: { title, approval_status: autoApproved ? "approved" : "pending" },
   });
+  if (cohostIds.length > 0) {
+    await writeAudit({
+      actorId: session.id,
+      action: "event_cohosts_changed",
+      entity: "event",
+      entityId: ev.id,
+      before: { primary_club_id: null, cohost_ids: [] },
+      after: { primary_club_id: clubId, cohost_ids: cohostIds },
+    });
+  }
 
   redirect("/admin/events");
 }
@@ -289,17 +329,29 @@ export async function updateEventAction(
     approval_status: string;
     event_clubs: { club_id: string; is_primary: boolean }[];
   };
-  const currentClubId =
-    (existing.event_clubs.find((l) => l.is_primary) ?? existing.event_clubs[0])?.club_id ?? null;
+  const hosts = hostsFromLinks(existing.event_clubs);
+  const cohostIds = normalizeCohosts(clubId, parsed.data.cohostIds);
 
-  // Authorise: must manage the event's current club, and — if moving it — the new
-  // club too. Club-scoped roles can therefore neither edit another club's event
-  // nor hand one to another club.
-  if (!canManage(session, "manage:events", currentClubId)) {
+  // Authorise through ANY hosting club: a co-host edits the event like its owner.
+  if (!canManageEvent(session, "manage:events", hosts)) {
     return { error: "You can't edit that event." };
   }
-  if (clubId !== currentClubId && !canManage(session, "manage:events", clubId)) {
-    return { error: "You can't move the event to that club." };
+  // Changing which club OWNS the event is narrower. A co-host may add and remove
+  // co-hosts, itself included, but never take the primary, or it could lock the
+  // owning club out of cancelling its own event. And no club-scoped role may hand
+  // an event to a club it does not manage, which this action has always refused,
+  // so in practice only council roles reassign the primary.
+  if (
+    clubId !== hosts.primaryClubId &&
+    (!canSetPrimary(session, hosts) || !canManage(session, "manage:events", clubId))
+  ) {
+    return { error: "Only the owning club or the council can change which club hosts this event." };
+  }
+  const hostPlan = planHostChanges(hosts, { primaryClubId: clubId, cohostIds });
+  // Only NEW co-hosts are checked. A co-host kept from before stays even if its
+  // club has since been made inactive.
+  if ((await notActiveClubIds(hostPlan.addCohosts)).length > 0) {
+    return { fieldErrors: { cohostIds: COHOST_REFUSED } };
   }
 
   const startsAt = istLocalToUTC(parsed.data.startsAt);
@@ -398,14 +450,20 @@ export async function updateEventAction(
     await admin.storage.from(POSTER_BUCKET).remove([existing.poster_path]);
   }
 
-  // Move the primary club link if the hosting club changed.
-  if (clubId !== currentClubId) {
-    const { error: linkErr } = await admin
-      .from("event_clubs")
-      .update({ club_id: clubId })
-      .eq("event_id", eventId)
-      .eq("is_primary", true);
-    if (linkErr) return { error: "Saved, but couldn't update the hosting club. Try again." };
+  // Reconcile the hosting clubs: add and remove co-hosts, and move the primary
+  // if a council role changed it. Adding a co-host never re-triggers approval.
+  if (!isEmptyPlan(hostPlan)) {
+    if (!(await applyHostPlan(eventId, hostPlan))) {
+      return { error: "Saved, but couldn't update the hosting clubs. Try again." };
+    }
+    await writeAudit({
+      actorId: session.id,
+      action: "event_cohosts_changed",
+      entity: "event",
+      entityId: eventId,
+      before: { primary_club_id: hosts.primaryClubId, cohost_ids: cohostIdsOf(hosts) },
+      after: { primary_club_id: clubId, cohost_ids: cohostIds },
+    });
   }
 
   // Resubmit: editing a REJECTED event sends it back to the approval queue with a
@@ -474,7 +532,7 @@ export async function updateEventAction(
       starts_at: existing.starts_at,
       ends_at: existing.ends_at,
       venue_text: existing.venue_text,
-      club_id: currentClubId,
+      club_id: hosts.primaryClubId,
     },
     after: { title, starts_at: startsAt, ends_at: endsAt, venue_text: venue, club_id: clubId },
   });
@@ -507,9 +565,12 @@ export async function duplicateEventAction(formData: FormData): Promise<void> {
     capacity: number | null;
     event_clubs: { club_id: string; is_primary: boolean }[];
   };
-  const clubId =
-    (src.event_clubs.find((l) => l.is_primary) ?? src.event_clubs[0])?.club_id ?? null;
-  if (!clubId || !canManage(session, "manage:events", clubId)) redirect("/admin/events");
+  const hosts = hostsFromLinks(src.event_clubs);
+  if (!hosts.primaryClubId || !canManageEvent(session, "manage:events", hosts)) {
+    redirect("/admin/events");
+  }
+  // A duplicate is a creation: a co-host's copy is owned by their own club.
+  const copy = hostsForCopy(session, hosts);
 
   // Insert a DRAFT copy — schedule/venue are carried over but a draft holds no
   // booking, so we skip the clash/blackout checks here; the admin sets a fresh
@@ -532,10 +593,14 @@ export async function duplicateEventAction(formData: FormData): Promise<void> {
     .single();
   if (error || !ev) redirect("/admin/events");
 
-  const { error: linkErr } = await admin
-    .from("event_clubs")
-    .insert({ event_id: ev.id, club_id: clubId, is_primary: true });
-  if (linkErr) {
+  const linked = await applyHostPlan(
+    ev.id,
+    planHostChanges(NO_HOSTS, {
+      primaryClubId: copy.primaryClubId ?? hosts.primaryClubId,
+      cohostIds: cohostIdsOf(copy),
+    }),
+  );
+  if (!linked) {
     await admin.from("events").delete().eq("id", ev.id); // avoid an orphan event
     redirect("/admin/events");
   }
@@ -545,7 +610,12 @@ export async function duplicateEventAction(formData: FormData): Promise<void> {
     action: "duplicate",
     entity: "event",
     entityId: ev.id,
-    after: { source: eventId, title: `Copy of ${src.title}`.slice(0, 140) },
+    after: {
+      source: eventId,
+      title: `Copy of ${src.title}`.slice(0, 140),
+      primary_club_id: copy.primaryClubId,
+      cohost_ids: cohostIdsOf(copy),
+    },
   });
 
   redirect(`/admin/events/${ev.id}/edit`);
@@ -574,12 +644,10 @@ export async function cancelEventAction(
     status: string;
     event_clubs: { club_id: string; is_primary: boolean }[];
   };
-  const clubId =
-    (ev.event_clubs.find((l) => l.is_primary) ?? ev.event_clubs[0])?.club_id ?? null;
-
-  // Cancel is its own capability (§9): club heads may cancel their own club's
-  // events, but vice heads (manage but not cancel) may not.
-  if (!canManage(session, "cancel:events", clubId)) {
+  // Cancel is its own capability (§9), and it stays with the club that OWNS the
+  // event: a co-host can edit, take attendance and enter results, but not cancel.
+  // Vice heads (manage but not cancel) still may not.
+  if (!canCancelEvent(session, hostsFromLinks(ev.event_clubs))) {
     return { error: "You can't cancel that event." };
   }
   if (ev.status === "cancelled") redirect("/admin/events"); // already cancelled

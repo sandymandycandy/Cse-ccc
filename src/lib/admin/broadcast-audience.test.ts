@@ -38,39 +38,45 @@ describe("shouldQueue", () => {
 describe("isAudienceAllowed", () => {
   it("lets a council role reach every audience", () => {
     for (const a of [heads, council, allMembers, ownClub, otherClub, event]) {
-      expect(isAudienceAllowed(tech, a, "club-b")).toBe(true);
+      expect(isAudienceAllowed(tech, a, ["club-b"])).toBe(true);
     }
   });
 
   it("lets a club head reach their own club's members", () => {
-    expect(isAudienceAllowed(head, ownClub, null)).toBe(true);
+    expect(isAudienceAllowed(head, ownClub, [])).toBe(true);
   });
 
   it("refuses a club head another club's members", () => {
-    expect(isAudienceAllowed(head, otherClub, null)).toBe(false);
+    expect(isAudienceAllowed(head, otherClub, [])).toBe(false);
   });
 
   it("refuses a club head the council-wide audiences", () => {
-    expect(isAudienceAllowed(head, heads, null)).toBe(false);
-    expect(isAudienceAllowed(head, council, null)).toBe(false);
-    expect(isAudienceAllowed(head, allMembers, null)).toBe(false);
+    expect(isAudienceAllowed(head, heads, [])).toBe(false);
+    expect(isAudienceAllowed(head, council, [])).toBe(false);
+    expect(isAudienceAllowed(head, allMembers, [])).toBe(false);
   });
 
   it("judges an event by the event's real club, not the form", () => {
-    expect(isAudienceAllowed(head, event, "club-a")).toBe(true);
-    expect(isAudienceAllowed(head, event, "club-b")).toBe(false);
-    expect(isAudienceAllowed(head, event, null)).toBe(false);
+    expect(isAudienceAllowed(head, event, ["club-a"])).toBe(true);
+    expect(isAudienceAllowed(head, event, ["club-b"])).toBe(false);
+    expect(isAudienceAllowed(head, event, [])).toBe(false);
+  });
+
+  it("lets a co-host's head reach the registrants of an event their club co-hosts", () => {
+    // club-coding owns the event; club-a co-hosts it.
+    expect(isAudienceAllowed(head, event, ["club-coding", "club-a"])).toBe(true);
+    expect(isAudienceAllowed(head, event, ["club-coding", "club-b"])).toBe(false);
   });
 
   it("refuses an own-scoped admin who has no club of their own", () => {
     const orphan = { role: "club_head" as const, clubId: null };
-    expect(isAudienceAllowed(orphan, ownClub, null)).toBe(false);
-    expect(isAudienceAllowed(orphan, event, "club-a")).toBe(false);
+    expect(isAudienceAllowed(orphan, ownClub, [])).toBe(false);
+    expect(isAudienceAllowed(orphan, event, ["club-a"])).toBe(false);
   });
 
   it("refuses a role without the capability entirely", () => {
     for (const a of [heads, ownClub, event]) {
-      expect(isAudienceAllowed(gallery, a, "club-a")).toBe(false);
+      expect(isAudienceAllowed(gallery, a, ["club-a"])).toBe(false);
     }
   });
 });
@@ -165,9 +171,9 @@ const custom: Audience = { kind: "custom", emails: ["a@x.test", "b@x.test"] };
 
 describe("office_bearers", () => {
   it("is a council-wide audience, not a club head's to send", () => {
-    expect(isAudienceAllowed(tech, officeBearers, null)).toBe(true);
-    expect(isAudienceAllowed(head, officeBearers, "club-a")).toBe(false);
-    expect(isAudienceAllowed(gallery, officeBearers, "club-a")).toBe(false);
+    expect(isAudienceAllowed(tech, officeBearers, [])).toBe(true);
+    expect(isAudienceAllowed(head, officeBearers, ["club-a"])).toBe(false);
+    expect(isAudienceAllowed(gallery, officeBearers, ["club-a"])).toBe(false);
   });
 
   it("parses and labels itself", () => {
@@ -181,9 +187,9 @@ describe("custom addresses", () => {
   // not in the system at all. A club head reaching it would be a straight
   // escape from the club scope every other audience keeps them inside.
   it("is refused to anyone who is not council-wide", () => {
-    expect(isAudienceAllowed(tech, custom, null)).toBe(true);
-    expect(isAudienceAllowed(head, custom, "club-a")).toBe(false);
-    expect(isAudienceAllowed(gallery, custom, "club-a")).toBe(false);
+    expect(isAudienceAllowed(tech, custom, [])).toBe(true);
+    expect(isAudienceAllowed(head, custom, ["club-a"])).toBe(false);
+    expect(isAudienceAllowed(gallery, custom, ["club-a"])).toBe(false);
   });
 
   it("splits on commas, semicolons, spaces and newlines", () => {

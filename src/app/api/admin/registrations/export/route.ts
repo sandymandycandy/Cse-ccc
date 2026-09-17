@@ -1,5 +1,5 @@
 import { requireSession } from "@/lib/auth/guards";
-import { canManage } from "@/lib/auth/capabilities";
+import { canManageEvent } from "@/lib/admin/event-hosts";
 import { getEventForAttendance } from "@/lib/admin/attendance";
 import { listRegistrations, getEventFormSchema } from "@/lib/admin/registrations";
 import { answerColumns } from "@/lib/registration-form/columns";
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
 
   const eventId = new URL(request.url).searchParams.get("event") ?? "";
   const ev = await getEventForAttendance(eventId);
-  if (!ev || !canManage(guard.session, "manage:registrations", ev.clubId)) {
+  if (!ev || !canManageEvent(guard.session, "manage:registrations", ev.hosts)) {
     return Response.json({ error: "Not permitted." }, { status: 403 });
   }
 

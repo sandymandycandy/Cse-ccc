@@ -13,6 +13,7 @@ import {
   winnersFromResults,
 } from "@/lib/achievements-board";
 import { podiumRound } from "@/lib/certificates/winners";
+import { hostLabel, hostedByLine, orderHosts } from "@/lib/event-hosts";
 import type { Database } from "@/lib/database.types";
 import type {
   CalendarEvent,
@@ -76,9 +77,9 @@ type EventJoinRow = {
   }[];
 };
 
-function primaryClubName(row: EventJoinRow): string {
-  const primary = row.event_clubs.find((ec) => ec.is_primary) ?? row.event_clubs[0];
-  return primary?.clubs?.name ?? "CSE Council";
+/** Every hosting club's full name, primary first. */
+function hostNames(row: EventJoinRow): string[] {
+  return orderHosts(row.event_clubs).map((c) => c.name);
 }
 
 /**
@@ -107,7 +108,7 @@ function toSummary(
     id: row.id,
     title: row.title,
     blurb: row.description ?? "",
-    club: primaryClubName(row),
+    club: hostLabel(hostNames(row)) || "CSE Council",
     day: istDayNum(row.starts_at),
     dateLabel: istDateLabel(row.starts_at),
     timeLabel: row.is_all_day ? "All day" : istTime(row.starts_at),
@@ -162,6 +163,8 @@ export async function getPastEvents(limit = 24): Promise<EventSummary[]> {
 
 export interface EventDetail extends EventSummary {
   description: string;
+  /** "Hosted by Coding Club with AI Forge", or null when one club hosts. */
+  hostedBy: string | null;
   rules: string | null;
   startsAt: string;
   endsAt: string;
@@ -201,6 +204,7 @@ export async function getEventDetail(id: string): Promise<EventDetail | null> {
   return {
     ...summary,
     description: row.description ?? "",
+    hostedBy: hostedByLine(hostNames(row)),
     rules: row.rules ?? null,
     startsAt: row.starts_at,
     endsAt: row.ends_at,
@@ -247,16 +251,17 @@ type CalEventRow = {
 };
 
 function toCalendarEvent(row: CalEventRow, registered: number): CalendarEvent {
-  const primary = row.event_clubs.find((ec) => ec.is_primary) ?? row.event_clubs[0];
-  const club = primary?.clubs;
+  const hosts = orderHosts(row.event_clubs);
+  const club = hosts[0];
   return {
     id: row.id,
     title: row.title,
     startsAt: row.starts_at,
     endsAt: row.ends_at,
     isAllDay: row.is_all_day,
-    club: club?.short_name ?? "Council",
+    club: hostLabel(hosts.map((c) => c.short_name)) || "Council",
     clubSlug: club?.slug ?? "council",
+    clubSlugs: hosts.length > 0 ? hosts.map((c) => c.slug) : ["council"],
     clubColor: club?.color ?? "var(--forest)",
     venue: row.venue_text ?? row.venues?.name ?? "TBA",
     registered,
@@ -450,11 +455,10 @@ export async function getWeekStrip(): Promise<WeekDay[]> {
   }[]) {
     const key = istDateKey(e.starts_at);
     if (byDay.has(key)) continue; // first event of the day wins
-    const primary = e.event_clubs.find((x) => x.is_primary) ?? e.event_clubs[0];
     byDay.set(key, {
       time: istTime(e.starts_at),
       title: e.title,
-      club: primary?.clubs?.short_name ?? "",
+      club: hostLabel(orderHosts(e.event_clubs).map((c) => c.short_name)),
     });
   }
 
@@ -750,12 +754,11 @@ export async function getAchievementsBoard(): Promise<BoardEntry[]> {
     const winners = winnersFromResults(published);
     if (winners.length === 0) continue;
 
-    const primary = e.event_clubs?.find((ec) => ec.is_primary) ?? e.event_clubs?.[0];
     auto.push({
       id: e.id,
       kind: "event" as const,
       title: e.title,
-      clubName: primary?.clubs?.name ?? null,
+      clubName: hostLabel(orderHosts(e.event_clubs).map((c) => c.name)) || null,
       date: e.starts_at,
       fallbackDate: e.created_at,
       winners,

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getAdminSession } from "@/lib/auth/guards";
-import { canManage } from "@/lib/auth/capabilities";
+import { canManageEvent } from "@/lib/admin/event-hosts";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getEventForAttendance } from "@/lib/admin/attendance";
 import { getEventFormSchema } from "@/lib/admin/registrations";
@@ -29,7 +29,7 @@ export async function toggleAttendanceAction(formData: FormData): Promise<void> 
   if (!registrationId || !eventId) return;
 
   const ev = await getEventForAttendance(eventId);
-  if (!ev || !canManage(session, "manage:registrations", ev.clubId)) return;
+  if (!ev || !canManageEvent(session, "manage:registrations", ev.hosts)) return;
 
   const admin = createAdminClient();
 
@@ -82,7 +82,7 @@ export async function shortlistAction(formData: FormData): Promise<void> {
   const eventId = String(formData.get("eventId") ?? "");
   if (!uuid.safeParse(eventId).success) redirect("/admin/events");
   const ev = await getEventForAttendance(eventId);
-  if (!ev || !canManage(session, "manage:registrations", ev.clubId)) redirect("/admin/events");
+  if (!ev || !canManageEvent(session, "manage:registrations", ev.hosts)) redirect("/admin/events");
 
   const ids = formData
     .getAll("selected")
@@ -150,7 +150,7 @@ export async function promoteWaitlistAction(formData: FormData): Promise<void> {
   if (!uuid.safeParse(registrationId).success || !uuid.safeParse(eventId).success) return;
 
   const ev = await getEventForAttendance(eventId);
-  if (!ev || !canManage(session, "manage:registrations", ev.clubId)) return;
+  if (!ev || !canManageEvent(session, "manage:registrations", ev.hosts)) return;
 
   const admin = createAdminClient();
   const { data: reg } = await admin
@@ -204,7 +204,7 @@ export async function unshortlistAction(formData: FormData): Promise<void> {
     redirect("/admin/events");
   }
   const ev = await getEventForAttendance(eventId);
-  if (!ev || !canManage(session, "manage:registrations", ev.clubId)) redirect("/admin/events");
+  if (!ev || !canManageEvent(session, "manage:registrations", ev.hosts)) redirect("/admin/events");
   const admin = createAdminClient();
   await admin
     .from("registrations")

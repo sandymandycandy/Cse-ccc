@@ -5,7 +5,8 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/database.types";
 import { getAdminSession, type AdminSession } from "@/lib/auth/guards";
-import { canManage, type Capability } from "@/lib/auth/capabilities";
+import type { Capability } from "@/lib/auth/capabilities";
+import { canManageEvent } from "@/lib/admin/event-hosts";
 import { writeAudit } from "@/lib/admin/audit";
 import { getEventForAttendance, type AttendanceEvent } from "@/lib/admin/attendance";
 import {
@@ -100,7 +101,7 @@ async function refuseUnpermittedGroups(
 ): Promise<{ ok: false; error: string } | null> {
   const groups = await Promise.all(groupIds.map((id) => getGroup(auth.ev.id, id)));
   for (const group of groups) {
-    if (group && !canManage(auth.session, groupCapability(group), auth.ev.clubId)) {
+    if (group && !canManageEvent(auth.session, groupCapability(group), auth.ev.hosts)) {
       return { ok: false, error: `You can't issue ${group.name} certificates for this event.` };
     }
   }
@@ -114,7 +115,7 @@ async function authorize(eventId: string): Promise<Authorized> {
   if (!uuid.safeParse(eventId).success) return { ok: false, error: "Missing event." };
   const ev = await getEventForAttendance(eventId);
   if (!ev) return { ok: false, error: "That event no longer exists." };
-  if (!canManage(session, CAP, ev.clubId)) {
+  if (!canManageEvent(session, CAP, ev.hosts)) {
     return { ok: false, error: "You can't manage certificates for that event." };
   }
   return { ok: true, session, ev };
@@ -455,7 +456,7 @@ export async function setWinnerSourceAction(input: {
 
   const group = await getGroup(input.eventId, input.groupId);
   if (!group || group.baseKind !== "winners") return { ok: false, error: "Only the Winners group has a source." };
-  if (!canManage(auth.session, groupCapability(group), auth.ev.clubId)) {
+  if (!canManageEvent(auth.session, groupCapability(group), auth.ev.hosts)) {
     return { ok: false, error: "You can't issue winner certificates for this event." };
   }
   if (group.kind === input.source) return { ok: true };
@@ -610,7 +611,7 @@ export async function reissueCertificateAction(input: {
   if (!key.success) return { ok: false, error: "Missing recipient." };
   // Winner keys are only ever minted for a Winners group, so the prefix is an
   // exact test for which capability this re-issue needs.
-  if (key.data.startsWith("win:") && !canManage(auth.session, "issue:winner_certificate", auth.ev.clubId)) {
+  if (key.data.startsWith("win:") && !canManageEvent(auth.session, "issue:winner_certificate", auth.ev.hosts)) {
     return { ok: false, error: "You can't issue winner certificates for this event." };
   }
 
@@ -635,7 +636,7 @@ export async function revokeCertificateAction(input: {
 }): Promise<ActionResult> {
   const auth = await authorize(input.eventId);
   if (!auth.ok) return { ok: false, error: auth.error };
-  if (!canManage(auth.session, "revoke:certificate", auth.ev.clubId)) {
+  if (!canManageEvent(auth.session, "revoke:certificate", auth.ev.hosts)) {
     return { ok: false, error: "Only the Faculty Advisor, Vice President or Tech Head can revoke. You can re-issue instead." };
   }
   if (!uuid.safeParse(input.certificateId).success) return { ok: false, error: "Missing certificate." };
@@ -663,7 +664,7 @@ export async function copyCertificateDesignAction(input: {
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!uuid.safeParse(input.sourceEventId).success) return { ok: false, error: "Choose an event to copy from." };
   const source = await getEventForAttendance(input.sourceEventId);
-  if (!source || !canManage(auth.session, CAP, source.clubId)) return { ok: false, error: "You can't copy from that event." };
+  if (!source || !canManageEvent(auth.session, CAP, source.hosts)) return { ok: false, error: "You can't copy from that event." };
 
   const [target, sourceEvent, sourceGroup] = await Promise.all([
     getCertEvent(input.eventId),

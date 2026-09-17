@@ -23,7 +23,7 @@ export interface EventSummary {
   id: string;
   title: string;
   blurb: string;
-  /** Primary club display name. */
+  /** Every hosting club's display name, primary first: "Coding Club × AI Forge". */
   club: string;
   /** Day-of-month, e.g. "21". */
   day: string;
@@ -54,9 +54,13 @@ export interface CalendarEvent {
   startsAt: string;
   endsAt: string;
   isAllDay: boolean;
-  /** Primary club: short name for chips, slug for filtering, colour for the rail. */
+  /** Every hosting club's short name, primary first: "Coding × Ai Forge". */
   club: string;
+  /** The PRIMARY club's slug, paired with `clubColor`: a dot is one colour. */
   clubSlug: string;
+  /** Every hosting club's slug, primary first. Filtering matches any of them. */
+  clubSlugs: string[];
+  /** The primary club's calendar colour. */
   clubColor: string;
   venue: string;
   registered: number;

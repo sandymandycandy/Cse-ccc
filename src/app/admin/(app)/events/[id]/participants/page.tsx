@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireViewPage } from "@/lib/auth/guards";
-import { grantFor } from "@/lib/auth/capabilities";
+import { canViewEvent } from "@/lib/admin/event-hosts";
 import { getEventForAttendance } from "@/lib/admin/attendance";
 import { listRegistrations, getEventFormSchema } from "@/lib/admin/registrations";
 import { listTeams } from "@/lib/registration-form/participants";
@@ -28,11 +28,9 @@ export default async function ParticipantsPage({
   const ev = await getEventForAttendance(id);
   if (!ev) notFound();
 
-  // Same scoping as the registrations page: all/read see any club, own sees theirs.
-  const grant = grantFor(session.role, "manage:registrations");
-  const canViewThis =
-    grant === "all" || grant === "read" || (grant === "own" && session.clubId === ev.clubId);
-  if (!canViewThis) redirect("/admin/events");
+  // Same scoping as the registrations page: all/read see any event, own sees the
+  // events its club hosts, as owner or co-host.
+  if (!canViewEvent(session, "manage:registrations", ev.hosts)) redirect("/admin/events");
 
   const [regs, { schema, selectionMode }] = await Promise.all([
     listRegistrations(id),

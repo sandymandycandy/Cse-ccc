@@ -1,12 +1,22 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { hostsFromLinks, type EventHosts } from "@/lib/admin/event-hosts";
 
-/** Resolve an event + its primary club id for attendance/registration authz. */
+/** Resolve an event + its hosting clubs for attendance/registration authz. */
 
 export interface AttendanceEvent {
   id: string;
   title: string;
-  clubId: string | null;
+  /**
+   * Every club hosting the event, primary first. Authorise with
+   * `canManageEvent` / `canViewEvent`.
+   *
+   * ⚠️ There is deliberately no `clubId` here. A check against the primary
+   * alone refuses a co-host's head on an event their own list shows them.
+   * Removing the field makes any such check a type error rather than a quiet
+   * dead end.
+   */
+  hosts: EventHosts;
   startsAt: string;
   endsAt: string;
   isAllDay: boolean;
@@ -36,11 +46,10 @@ export async function getEventForAttendance(
     event_clubs: { is_primary: boolean; club_id: string }[];
     venues: { name: string } | null;
   };
-  const primary = row.event_clubs.find((e) => e.is_primary) ?? row.event_clubs[0];
   return {
     id: row.id,
     title: row.title,
-    clubId: primary?.club_id ?? null,
+    hosts: hostsFromLinks(row.event_clubs),
     startsAt: row.starts_at,
     endsAt: row.ends_at,
     isAllDay: row.is_all_day,

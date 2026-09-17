@@ -2,6 +2,13 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { grantFor } from "@/lib/auth/capabilities";
 import type { AdminSession } from "@/lib/auth/guards";
+import {
+  canManageEvent,
+  cohostIdsOf,
+  hostsFromLinks,
+  type EventHosts,
+} from "@/lib/admin/event-hosts";
+import { hostLabel, orderHosts } from "@/lib/event-hosts";
 
 /**
  * Admin-side reads. These use the service-role client (drafts, pending events and
@@ -17,14 +24,16 @@ export interface AdminEventRow {
   endsAt: string;
   status: string;
   approvalStatus: string;
+  /** Every hosting club's short name, primary first: "Coding × Ai Forge". */
   club: string;
+  /** The primary (owning) club. */
   clubId: string | null;
   createdBy: string | null;
 }
 
 const EVENT_SELECT =
   "id, title, starts_at, ends_at, status, approval_status, created_by, " +
-  "event_clubs ( is_primary, clubs ( id, short_name ) )";
+  "event_clubs ( club_id, is_primary, clubs ( short_name ) )";
 
 type EventRow = {
   id: string;
@@ -34,11 +43,10 @@ type EventRow = {
   status: string;
   approval_status: string;
   created_by: string | null;
-  event_clubs: { is_primary: boolean; clubs: { id: string; short_name: string } | null }[];
+  event_clubs: { club_id: string; is_primary: boolean; clubs: { short_name: string } | null }[];
 };
 
 function toRow(e: EventRow): AdminEventRow {
-  const primary = e.event_clubs.find((ec) => ec.is_primary) ?? e.event_clubs[0];
   return {
     id: e.id,
     title: e.title,
@@ -46,8 +54,8 @@ function toRow(e: EventRow): AdminEventRow {
     endsAt: e.ends_at,
     status: e.status,
     approvalStatus: e.approval_status,
-    club: primary?.clubs?.short_name ?? "—",
-    clubId: primary?.clubs?.id ?? null,
+    club: hostLabel(orderHosts(e.event_clubs).map((c) => c.short_name)) || "—",
+    clubId: hostsFromLinks(e.event_clubs).primaryClubId,
     createdBy: e.created_by,
   };
 }
@@ -57,10 +65,6 @@ function isClubScoped(session: AdminSession): boolean {
   return grantFor(session.role, "manage:events") === "own";
 }
 
-// Inner-join variant so a club filter constrains which events come back (and the
-// row limit isn't spent on events the admin can't see).
-const EVENT_SELECT_OWN = EVENT_SELECT.replace("event_clubs (", "event_clubs!inner (");
-
 /** Events this admin may see, newest first. Club-scoped roles see only theirs. */
 export async function listEventsForAdmin(session: AdminSession): Promise<AdminEventRow[]> {
   const admin = createAdminClient();
@@ -68,10 +72,24 @@ export async function listEventsForAdmin(session: AdminSession): Promise<AdminEv
   if (isClubScoped(session)) {
     // Fail closed: a club-scoped admin with no club sees nothing, never "all".
     if (!session.clubId) return [];
+
+    // Every event this club hosts, as owner or co-host, resolved to ids FIRST.
+    // ⚠️ Do not fold this back into one `event_clubs!inner` query filtered on
+    // club_id. That filter also strips the embedded link rows down to this
+    // club's own, so each row would lose its other hosts and label a co-hosted
+    // event as this club's alone.
+    const { data: links, error: linkErr } = await admin
+      .from("event_clubs")
+      .select("event_id")
+      .eq("club_id", session.clubId);
+    if (linkErr) throw linkErr;
+    const ids = [...new Set((links ?? []).map((l) => l.event_id))];
+    if (ids.length === 0) return [];
+
     const { data, error } = await admin
       .from("events")
-      .select(EVENT_SELECT_OWN)
-      .eq("event_clubs.club_id", session.clubId)
+      .select(EVENT_SELECT)
+      .in("id", ids)
       .order("starts_at", { ascending: false })
       .limit(200);
     if (error) throw error;
@@ -126,7 +144,11 @@ export interface EventForEdit {
   venueText: string | null;
   posterUrl: string | null;
   capacity: number | null;
+  /** The primary (owning) club: the form's "Hosting club". */
   clubId: string | null;
+  /** Co-hosting clubs, not including the primary. */
+  cohostIds: string[];
+  hosts: EventHosts;
   status: string;
   approvalStatus: "pending" | "approved" | "rejected";
   rejectionReason: string | null;
@@ -139,9 +161,9 @@ export interface EventForEdit {
 }
 
 /**
- * A single event's editable fields + its primary club, for the edit form.
- * Fail-closed for club-scoped admins: returns null (→ 404) unless the event
- * belongs to the admin's own club.
+ * A single event's editable fields and its hosting clubs, for the edit form.
+ * Fail-closed: returns null (→ 404) unless this admin manages the event through
+ * one of its hosting clubs. A co-host's head gets the form, like the owner's.
  */
 export async function getEventForEdit(
   session: AdminSession,
@@ -182,12 +204,8 @@ export async function getEventForEdit(
     show_on_achievements: boolean | null;
     event_clubs: { club_id: string; is_primary: boolean }[];
   };
-  const primary = row.event_clubs.find((l) => l.is_primary) ?? row.event_clubs[0];
-  const clubId = primary?.club_id ?? null;
-
-  if (isClubScoped(session) && (!session.clubId || session.clubId !== clubId)) {
-    return null;
-  }
+  const hosts = hostsFromLinks(row.event_clubs);
+  if (!canManageEvent(session, "manage:events", hosts)) return null;
 
   return {
     id: row.id,
@@ -200,7 +218,9 @@ export async function getEventForEdit(
       ? admin.storage.from("event-posters").getPublicUrl(row.poster_path).data.publicUrl
       : null,
     capacity: row.capacity,
-    clubId,
+    clubId: hosts.primaryClubId,
+    cohostIds: cohostIdsOf(hosts),
+    hosts,
     status: row.status,
     approvalStatus: row.approval_status,
     rejectionReason: row.rejection_reason,
@@ -266,7 +286,6 @@ export async function getEventForReview(eventId: string): Promise<EventForReview
     created_by: string | null;
     event_clubs: { is_primary: boolean; clubs: { name: string } | null }[];
   };
-  const primary = row.event_clubs.find((l) => l.is_primary) ?? row.event_clubs[0];
 
   let submittedBy: string | null = null;
   if (row.created_by) {
@@ -289,7 +308,7 @@ export async function getEventForReview(eventId: string): Promise<EventForReview
       ? admin.storage.from("event-posters").getPublicUrl(row.poster_path).data.publicUrl
       : null,
     capacity: row.capacity,
-    club: primary?.clubs?.name ?? null,
+    club: hostLabel(orderHosts(row.event_clubs).map((c) => c.name)) || null,
     selectionMode: row.selection_mode ?? "seats",
     registrationForm: row.registration_form ?? null,
     approvalStatus: row.approval_status,

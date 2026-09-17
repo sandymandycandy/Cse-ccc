@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { requireSameOrigin, requireSession } from "@/lib/auth/guards";
-import { canManage } from "@/lib/auth/capabilities";
+import { canManageEvent } from "@/lib/admin/event-hosts";
 import { getEventForAttendance } from "@/lib/admin/attendance";
 import { getGroup, getCertificateWorkspace, groupContext } from "@/lib/admin/certificates";
 import { assetLoader, verifyNewAssets } from "@/lib/certificates/assets";
@@ -27,7 +27,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const ev = z.string().uuid().safeParse(id).success ? await getEventForAttendance(id) : null;
-  if (!ev || !canManage(guard.session, "issue:participation_certificate", ev.clubId)) {
+  if (!ev || !canManageEvent(guard.session, "issue:participation_certificate", ev.hosts)) {
     return Response.json({ error: "Not permitted." }, { status: 403 });
   }
 
@@ -88,7 +88,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const { id } = await params;
   const ev = z.string().uuid().safeParse(id).success ? await getEventForAttendance(id) : null;
-  if (!ev || !canManage(guard.session, "issue:participation_certificate", ev.clubId)) {
+  if (!ev || !canManageEvent(guard.session, "issue:participation_certificate", ev.hosts)) {
     return Response.json({ error: "Not permitted." }, { status: 403 });
   }
 

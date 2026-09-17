@@ -4,6 +4,7 @@ import {
   CAL_VIEWS,
   buildMonthGrid,
   clubsInRange,
+  filterByClubs,
   normalizeView,
   queryRange,
   stepAnchor,
@@ -19,6 +20,7 @@ function ev(over: Partial<CalendarEvent> = {}): CalendarEvent {
     isAllDay: false,
     club: "Coding",
     clubSlug: "coding",
+    clubSlugs: ["coding"],
     clubColor: "#3f5e4c",
     venue: "Lab 1",
     registered: 0,
@@ -120,8 +122,8 @@ describe("clubsInRange", () => {
 
   it("keeps only clubs that have an event, in the given club order", () => {
     const events = [
-      ev({ id: "a", clubSlug: "ai-forge" }),
-      ev({ id: "b", clubSlug: "coding" }),
+      ev({ id: "a", clubSlug: "ai-forge", clubSlugs: ["ai-forge"] }),
+      ev({ id: "b", clubSlug: "coding", clubSlugs: ["coding"] }),
     ];
     expect(clubsInRange(events, clubs).map((c) => c.slug)).toEqual([
       "coding",
@@ -134,11 +136,38 @@ describe("clubsInRange", () => {
   });
 
   it("ignores an event whose club is not in the list", () => {
-    expect(clubsInRange([ev({ clubSlug: "ghost" })], clubs)).toEqual([]);
+    expect(clubsInRange([ev({ clubSlug: "ghost", clubSlugs: ["ghost"] })], clubs)).toEqual([]);
   });
 
   it("does not duplicate a club with several events", () => {
     const events = [ev({ id: "a" }), ev({ id: "b" }), ev({ id: "c" })];
     expect(clubsInRange(events, clubs)).toHaveLength(1);
+  });
+
+  it("offers a chip for a club that only co-hosts an event", () => {
+    const events = [ev({ clubSlug: "coding", clubSlugs: ["coding", "ai-forge"] })];
+    expect(clubsInRange(events, clubs).map((c) => c.slug)).toEqual(["coding", "ai-forge"]);
+  });
+});
+
+describe("filterByClubs", () => {
+  const solo = ev({ id: "solo", clubSlug: "yoga", clubSlugs: ["yoga"] });
+  const joint = ev({ id: "joint", clubSlug: "coding", clubSlugs: ["coding", "ai-forge"] });
+
+  it("shows everything when no club is chosen", () => {
+    expect(filterByClubs([solo, joint], null).map((e) => e.id)).toEqual(["solo", "joint"]);
+  });
+
+  // ⚠️ The point of §3: filtering by the club that co-ran an event must find it.
+  it("finds a co-hosted event under its SECONDARY club", () => {
+    expect(filterByClubs([solo, joint], new Set(["ai-forge"])).map((e) => e.id)).toEqual(["joint"]);
+  });
+
+  it("still finds it under its primary", () => {
+    expect(filterByClubs([solo, joint], new Set(["coding"])).map((e) => e.id)).toEqual(["joint"]);
+  });
+
+  it("hides events no chosen club hosts", () => {
+    expect(filterByClubs([solo, joint], new Set(["nature"]))).toEqual([]);
   });
 });

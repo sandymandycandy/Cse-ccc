@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { getAdminSession } from "@/lib/auth/guards";
-import { canManage } from "@/lib/auth/capabilities";
+import { canManageEvent } from "@/lib/admin/event-hosts";
 import { getEventForAttendance } from "@/lib/admin/attendance";
 import { listRegistrations, getEventFormSchema } from "@/lib/admin/registrations";
 import { teamRecipients } from "@/lib/registration-form/recipients";
@@ -77,7 +77,7 @@ export async function broadcastAction(
   // Club scope is read from the event in the DB, never from the form.
   const ev = await getEventForAttendance(eventId);
   if (!ev) return { error: "Event not found." };
-  if (!canManage(session, "manage:registrations", ev.clubId)) {
+  if (!canManageEvent(session, "manage:registrations", ev.hosts)) {
     return { error: "You can't email that event's participants." };
   }
 
