@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-17 (co-hosted events built on branch, unmerged; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed; co-hosted events still in flight).**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-17 (session history search + sortable date SHIPPED; co-hosted events shipped earlier the same day; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed).**
 
 ## What this is
 
@@ -19,6 +19,43 @@ end-to-end**, not a checklist of components.
 ---
 
 ## 🚦 START HERE — current git/deploy state (2026-09-16)
+
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-17 — session history search + sortable date
+>
+> `feat/session-history-sort-search` merged as **`b893f8f`** (commit `7e96f6f`) and pushed. Plan:
+> `docs/superpowers/plans/2026-09-05-session-history-sort-search.md` — written 2026-09-05 at the
+> owner's request and handed off unbuilt; **now built and live.** Gate re-run on the merged tree:
+> typecheck ✓ lint ✓ **1249 tests** ✓ build ✓. **No migration, dependency, env or `vercel.json`
+> change.**
+>
+> A search box over the Session history table on `/admin/attendance`, plus a Date column header
+> that toggles newest ⇄ oldest. **Newest-first is still what you get on load** — this adds
+> user-controlled sorting, it does not change the default view.
+>
+> ⚠️ **SHIPPED WITHOUT A SIGNED-IN WALKTHROUGH, at the owner's instruction.** Nothing automated can
+> see sort order or a filtered table; the owed check is in the browser-verification list below.
+>
+> - **Both run client-side over rows the server already sent** (`SessionHistory.tsx`), the way
+>   `AttendanceRoster` already filters an already-loaded roster.
+> - ⚠️ **`listSessions` was deliberately NOT touched.** Its ordering and its `.limit(200)` stay as
+>   they are — re-ordering the *fetch* would make that limit hand back the **oldest** 200.
+> - ⚠️ **`sortSessions` keys on `istDateKey(sessionDate ?? openedAt)`, the IST calendar day the Date
+>   cell actually prints — not the raw string.** The plan said raw; raw is wrong twice over.
+>   `sessionDate` is `YYYY-MM-DD` and `openedAt` is a full ISO instant, so two rows on the same day
+>   never compare equal and the `openedAt` tie-break can never fire; and `openedAt` is UTC, so
+>   anything opened after **18:30 UTC** belongs to the next IST day and would otherwise file a day
+>   earlier than its own cell reads. A test pins that 18:30 case.
+> - **A live inconsistency fixed in passing:** the server orders `session_date` nulls last while the
+>   table displays `sessionDate ?? openedAt`, so an undated session showed a recent date and yet sat
+>   at the very bottom. Sorting on the displayed value ends that. No live row has a null
+>   `session_date` today, so this is invisible — don't let that tempt you into dropping the case.
+> - **New CSS: `.th-sort`.** A bare `<button>` inside a `<th>` renders as a default grey control in
+>   13px sans — nothing like the mono/uppercase header it replaced. It must inherit `font`,
+>   `letter-spacing`, `text-transform` and `color`, and the `<th>` drops its padding to the button.
+> - `aria-sort` sits on the `<th>`, not the button. `.tablewrap.cards` still reads `data-label` from
+>   the cells, so the phone card layout is unaffected by the header change.
+> - **Council session history is a SEPARATE component** (`attendance-council.ts:129`, rendered by
+>   `/admin/council`) and was deliberately left out. Same feature would apply — follow-up only if asked.
 
 > ### 🚀 SHIPPED TO PRODUCTION 2026-09-17 — co-hosted events
 >
@@ -3427,6 +3464,11 @@ flow as always.
    - [ ] **`/team`, `/team/<id>` and `/admin/team`** (merged 2026-09-14, `a4f70ae`) — click
          Publish on a member, upload a photo, save a bio; then check the grid and a profile at
          phone width. Never opened.
+   - [ ] **Session history search + Date sort** (2026-09-17, `b893f8f`) — on
+         `/admin/attendance`: type part of a session title and confirm the table narrows;
+         clear it and confirm every row returns; click **Date** and confirm the order
+         inverts and the arrow flips; click again for newest-first. Also check the header
+         button at phone width, where the table becomes cards. Never opened.
    - [ ] **🔴 ATTENDANCE AUTOSAVE + "Save draft"** (2026-09-05, `dd9f084`) — **do this
          one FIRST.** It rewrote the save path a club head uses on a live 200-person
          roster, and it has never run in a browser. On a SMALL session: tap a few
@@ -3461,10 +3503,12 @@ flow as always.
          normally" row is tappable across its whole width; the 560px collapse and
          the figures wrapping around 861px; and that the badges read in dark mode.
 
-1a. **📋 Session history — sortable date + search — PLANNED, NOT BUILT (2026-09-05).**
-   **Handed off deliberately: the owner asked for this to be written up rather than
-   built, for the next person to pick up.** Full task-by-task plan, ready to execute:
+1a. ~~**📋 Session history — sortable date + search**~~ — ✅ **BUILT & SHIPPED 2026-09-17**
+   (`b893f8f`; see the block at the top of this file). Planned 2026-09-05 and handed off
+   unbuilt; picked up and executed from
    **`docs/superpowers/plans/2026-09-05-session-history-sort-search.md`**.
+   What is left of it is the browser check in the list above. The notes below are kept
+   because they still describe what the code does and why.
    A search box over the Session history table on `/admin/attendance`, plus a Date
    column header that toggles newest ⇄ oldest. Design agreed in chat and approved.
    - **The current order is already newest-first and MUST stay the default** — this
