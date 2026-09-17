@@ -82,14 +82,19 @@ describe("manage:clubs grants", () => {
 });
 
 describe("manage:contact grants (council-wide, no club scope)", () => {
-  it("council + social media + faculty manage; club roles none", () => {
-    expect(grantFor("president", "manage:contact")).toBe("all");
-    expect(grantFor("vice_president", "manage:contact")).toBe("all");
-    expect(grantFor("tech_head", "manage:contact")).toBe("all");
-    expect(grantFor("social_media_head", "manage:contact")).toBe("all");
-    expect(grantFor("faculty_advisor", "manage:contact")).toBe("all");
-    expect(grantFor("club_head", "manage:contact")).toBe("none");
-    expect(grantFor("events_head", "manage:contact")).toBe("none");
+  // Owner decision (2026-09-17). If this fails because faculty or the social
+  // media head was added back, the grant is the bug, not the test.
+  it("is held by exactly president, vice president and tech head", () => {
+    const holders = ADMIN_ROLES.filter((r) => grantFor(r, "manage:contact") !== "none");
+    expect(holders.slice().sort()).toEqual(["president", "tech_head", "vice_president"]);
+    for (const role of holders) expect(grantFor(role, "manage:contact")).toBe("all");
+  });
+
+  it("is refused to the faculty advisor and the social media head", () => {
+    for (const role of ["faculty_advisor", "social_media_head"] as const) {
+      expect(canView({ role, clubId: null }, "manage:contact")).toBe(false);
+      expect(canManage({ role, clubId: null }, "manage:contact")).toBe(false);
+    }
   });
 
   it("an all grant can act with no club context (council-wide surface)", () => {
@@ -175,7 +180,8 @@ describe("full-access roles (owner decision, 2026-09-02)", () => {
 
   // 23 capabilities exist as of 2026-09-15, when manage:broadcast was added. The
   // count is asserted PER ROLE rather than shared, because the Faculty Advisor
-  // now holds 22 of the 23: view:feedback is withheld on purpose (design D2).
+  // holds 21 of the 23: view:feedback (design D2) and, since 2026-09-17,
+  // manage:contact are withheld on purpose.
   const TOTAL_CAPABILITIES = 23;
 
   it("vice_president holds every capability the system defines", () => {
@@ -184,10 +190,11 @@ describe("full-access roles (owner decision, 2026-09-02)", () => {
     expect(viewableCapabilities("vice_president")).toHaveLength(TOTAL_CAPABILITIES);
   });
 
-  it("faculty_advisor holds every capability EXCEPT view:feedback", () => {
+  it("faculty_advisor holds every capability EXCEPT view:feedback and manage:contact", () => {
     const caps = viewableCapabilities("faculty_advisor");
-    expect(caps).toHaveLength(TOTAL_CAPABILITIES - 1);
+    expect(caps).toHaveLength(TOTAL_CAPABILITIES - 2);
     expect(caps).not.toContain("view:feedback");
+    expect(caps).not.toContain("manage:contact");
   });
 
   it.each(FULL)("%s holds them at \"all\", never \"read\" or \"own\"", (role) => {

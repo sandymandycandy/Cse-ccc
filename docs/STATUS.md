@@ -20,6 +20,18 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-16)
 
+> ### 2026-09-17 — Contact inbox is President, VP and Tech Head only
+>
+> Owner request. `manage:contact` lost **`faculty_advisor`** and **`social_media_head`**. Both used to
+> hold `all`. The nav link, `/admin/contact`, the message page, the mark-handled action and the
+> dashboard's "unanswered" reminder all read this one capability, so all of them follow the change.
+>
+> ⚠️ **The Faculty Advisor now lacks TWO capabilities, `view:feedback` and `manage:contact`.** Tests pin
+> both. Do not add them back "for consistency" with Faculty's otherwise-full access.
+>
+> Unchanged: the **new-message email** still goes to President + VP only (`NOTIFY_ROLES` in
+> `src/lib/contact/notify.ts`). The Tech Head can open the inbox but is not emailed.
+
 > ### 2026-09-17 — Social Media Head can take the Social Media Team's attendance
 >
 > Owner request. `manage:members` gained **`social_media_head: "own"`**. That is the whole Attendance
@@ -30,7 +42,7 @@ end-to-end**, not a checklist of components.
 >
 > ⚠️ **"Own" means `admin_users.club_id`.** An SMH invited with no club sees "No club to show", so invite
 > them with the club set to Social Media Team. There is still **no UI to change an existing admin's
-> club**, so a fix means SQL. The owner's test account `testing smc` was linked that way on 2026-09-17.
+> club**, so a fix means SQL. The owner's test account `testing smc` was linked that way on 2026-09-17, then deleted the same day.
 > The real SMH already had the club set.
 
 > ### 🚀 SHIPPED TO PRODUCTION 2026-09-16 — per-field validation errors, whole admin panel

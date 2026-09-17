@@ -46,12 +46,12 @@ const CLUB_HEAD: DashboardReach = {
   clubScoped: true,
 };
 
-// social_media_head: contact inbox, no events grant at all.
+// social_media_head: content, no events grant and (since 2026-09-17) no contact inbox.
 const SOCIAL: DashboardReach = {
   canEvents: false,
   canApprove: false,
   canFeedback: false,
-  canContact: true,
+  canContact: false,
   canContent: true,
   clubScoped: false,
 };
@@ -91,7 +91,7 @@ describe("buildDocket", () => {
   });
 
   it("surfaces unanswered contact messages to whoever holds the inbox", () => {
-    const [row] = buildDocket(s({ contactUnhandled: 4 }), SOCIAL);
+    const [row] = buildDocket(s({ contactUnhandled: 4 }), PRESIDENT);
     expect(row.count).toBe(4);
     expect(row.href).toBe("/admin/contact");
     expect(row.tone).toBe("act");
@@ -120,7 +120,7 @@ describe("buildDocket", () => {
     const loud = s({ pending: 9, contactUnhandled: 9, feedbackOpen: true, feedbackResponses: 9 });
     expect(buildDocket(loud, NO_REACH)).toEqual([]);
     expect(buildDocket(loud, CLUB_HEAD).map((r) => r.key)).toEqual(["approvals"]);
-    expect(buildDocket(loud, SOCIAL).map((r) => r.key)).toEqual(["contact"]);
+    expect(buildDocket(loud, SOCIAL)).toEqual([]);
   });
 
   it("gives every row a distinct key", () => {
