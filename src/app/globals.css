@@ -1948,6 +1948,27 @@
   a.admin-stat .label { display: block; }
   .admin-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
+  /* Registration form builder (the event form's biggest section).
+     ⚠️ Every row here is a flex row holding a text input, and a flex item's
+     default `min-width: auto` refuses to shrink below the input's intrinsic
+     width (~220px). That is what pushed the whole edit page to 465px on a
+     390px phone — the page, not just these rows, so text was cut off from the
+     title down. `min-width: 0` is the fix; the wrapping keeps the controls
+     beside each input at a full tap target instead of crushing them. */
+  /* Each field's card and the column that holds them are flex items, and a flex
+     item's automatic minimum size is its CONTENT's minimum — a text input's
+     intrinsic ~181px. Without these the cards refuse to be narrower than their
+     widest row and drag the page with them. */
+  .rfb-list { min-width: 0; }
+  .rfb-card { min-width: 0; }
+  .rfb-row { display: flex; gap: 8px; align-items: center; }
+  .rfb-row > input { flex: 1; min-width: 0; }
+  .rfb-meta { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .rfb-minmax { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .rfb-member { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .rfb-member > input { flex: 1 1 140px; min-width: 0; }
+  .rfb-member > select { min-width: 0; }
+
   /* Club heading above each group on /admin/users. The count sits beside the
      name because "3" next to a club is the anomaly the grouping exists to show. */
   .admin-group-head {
@@ -2278,6 +2299,10 @@
     }
     .admin-main { padding: 28px var(--pad); }
     .admin-form-row { grid-template-columns: 1fr; }
+    /* A member field's label gets the whole row, so its type, "Req" and the
+       remove button sit together underneath instead of the remove button
+       wrapping onto a line of its own. */
+    .rfb-member > input { flex-basis: 100%; }
     /* Collapsed, the bar shows only the brand — so name the current page. */
     .admin-here {
       display: block;

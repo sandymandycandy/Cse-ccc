@@ -125,15 +125,14 @@ export function RegistrationFormBuilder({ initialJson }: { initialJson: string }
       </span>
       <input type="hidden" name="registrationForm" value={json} readOnly />
 
-      <div className="stack" style={{ gap: 10, marginTop: 10 }}>
+      <div className="stack rfb-list" style={{ gap: 10, marginTop: 10 }}>
         {fields.map((field, i) => (
-          <div key={field.id} className="card" style={{ padding: 12 }}>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div key={field.id} className="card rfb-card" style={{ padding: 12 }}>
+            <div className="rfb-row">
               <input
                 aria-label="Label"
                 value={field.label}
                 onChange={(e) => update(i, { label: e.target.value })}
-                style={{ flex: 1 }}
                 disabled={!!field.identity}
               />
               <button type="button" className="btn btn-sm btn-ghost" onClick={() => move(i, -1)}>
@@ -146,7 +145,7 @@ export function RegistrationFormBuilder({ initialJson }: { initialJson: string }
                 ✕
               </button>
             </div>
-            <div style={{ display: "flex", gap: 12, marginTop: 8, alignItems: "center" }}>
+            <div className="rfb-meta" style={{ marginTop: 8 }}>
               <span className="label">
                 {field.identity ? `${field.identity} · ${field.kind}` : field.kind}
               </span>
@@ -281,7 +280,7 @@ function TeamEditor({
 
   return (
     <div style={{ marginTop: 8 }}>
-      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+      <div className="rfb-minmax">
         <label style={{ fontWeight: 400 }}>
           Min
           <select
@@ -326,11 +325,10 @@ function TeamEditor({
       </div>
       <div className="stack" style={{ gap: 6, marginTop: 4 }}>
         {members.map((m, idx) => (
-          <div key={idx} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <div key={idx} className="rfb-member">
             <input
               aria-label="Member field label"
               value={m.label}
-              style={{ flex: 1 }}
               onChange={(e) => setMember(idx, { label: e.target.value })}
             />
             <select
