@@ -168,9 +168,13 @@ const MATRIX: Record<Capability, Partial<Record<AdminRole, Grant>>> = {
     faculty_advisor: "all", president: "all", vice_president: "all",
     tech_head: "all", club_head: "own", vice_head: "own",
   },
+  // Owner decision (2026-09-17): the Social Media Head runs attendance for the
+  // Social Media Team, which is a club of its own with no club head. `own`, not
+  // `all` — it reaches only the club their account is linked to (admin_users.
+  // club_id), and an SMH with no club linked sees "No club to show".
   "manage:members": {
     faculty_advisor: "all", president: "all", vice_president: "all",
-    tech_head: "all", club_head: "own", vice_head: "own",
+    tech_head: "all", social_media_head: "own", club_head: "own", vice_head: "own",
   },
   // The council / leadership attendance body is org-wide (no club scope), so only
   // all/read/none. Taken by president + VP + tech head; faculty view-only. Club

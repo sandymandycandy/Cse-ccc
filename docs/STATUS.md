@@ -20,6 +20,19 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-16)
 
+> ### 2026-09-17 — Social Media Head can take the Social Media Team's attendance
+>
+> Owner request. `manage:members` gained **`social_media_head: "own"`**. That is the whole Attendance
+> surface (sessions, marking, analytics, CSV export, **and the member roster: add/edit/remove**), the
+> same bundle a club head holds. It is scoped to the club on the account. The **Social Media Team club
+> (`socialmediateam`, 8 members) has no club head**, so before this only the council could run its
+> attendance. No migration.
+>
+> ⚠️ **"Own" means `admin_users.club_id`.** An SMH invited with no club sees "No club to show", so invite
+> them with the club set to Social Media Team. There is still **no UI to change an existing admin's
+> club**, so a fix means SQL. The owner's test account `testing smc` was linked that way on 2026-09-17.
+> The real SMH already had the club set.
+
 > ### 🚀 SHIPPED TO PRODUCTION 2026-09-16 — per-field validation errors, whole admin panel
 >
 > **`33ce77f`** (the two email composers) then **`b7a3cb7`** (everything else). Gate: typecheck ✓

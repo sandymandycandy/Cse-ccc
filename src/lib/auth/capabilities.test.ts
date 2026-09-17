@@ -45,6 +45,21 @@ describe("manage:members grants", () => {
     expect(grantFor("faculty_advisor", "manage:members")).toBe("all");
     expect(grantFor("events_head", "manage:members")).toBe("none");
   });
+
+  it("social media head runs attendance for their own club only", () => {
+    const smh = { role: "social_media_head", clubId: "smt" } as const;
+    expect(grantFor("social_media_head", "manage:members")).toBe("own");
+    expect(canViewClub(smh, "manage:members", "smt")).toBe(true);
+    expect(canManage(smh, "manage:members", "smt")).toBe(true);
+    expect(canViewClub(smh, "manage:members", "coding")).toBe(false);
+    expect(canManage(smh, "manage:members", "coding")).toBe(false);
+  });
+
+  it("a social media head with no linked club reaches no club", () => {
+    const unlinked = { role: "social_media_head", clubId: null } as const;
+    expect(canViewClub(unlinked, "manage:members", "smt")).toBe(false);
+    expect(canManage(unlinked, "manage:members", "smt")).toBe(false);
+  });
 });
 
 describe("manage:clubs grants", () => {

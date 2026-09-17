@@ -98,6 +98,7 @@ Layer 3     11 Club Cards — Club Head → Vice Head → Members
 | Blackout dates | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | — | — | — |
 | Manage schedules | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | own | — |
 | Registrations / attendance | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | own | — |
+| **Club-member roster & attendance** | ✅ | ✅ | ✅ | ✅ | — | — | **own** | own | own | — |
 | Issue participation certificates | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | — | — |
 | **Issue winner certificates** | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | own | — | — |
 | Revoke a certificate | ✅ | — | ✅ | ✅ | — | — | — | — | — | — |
@@ -113,6 +114,8 @@ Layer 3     11 Club Cards — Club Head → Vice Head → Members
 **Gal = Gallery Manager, the tenth role and the narrowest one** — `manage:gallery` and nothing else. It exists so one person can be handed the public photo gallery without also getting announcements and achievements, which the old single `manage:content` capability bundled together. It is the only role that never sees the dashboard: `/admin` is an events surface, so a Gallery Manager is redirected to `/admin/gallery` on login and their nav has exactly one item. **No mandatory TOTP** — the mandatory-2FA rule keys off blast radius, and this role can only touch a table of photos.
 
 *(Added 2026-09-02 by owner decision. `manage:gallery` was split out of `manage:content`; the split is **access-neutral for the nine existing roles** — the two rows carry identical grants and a test pins them together. Source of truth: `src/lib/auth/capabilities.ts`.)*
+
+*(Club-member roster & attendance is `manage:members`, separate from event registrations. **Social Media Head → `own`** added 2026-09-17 by owner decision: the Social Media Team is a club with no club head, so its head takes the team's attendance. Scoped to the club on their account, so an SMH with no club linked reaches none.)*
 
 **Three roles now hold full access: Faculty Advisor, Vice President, Tech Head** — every capability at `all`, `manage:admins` and `revoke:certificate` included. The Faculty Advisor additionally supplies the name and signature on every certificate.
 
