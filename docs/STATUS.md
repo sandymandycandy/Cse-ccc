@@ -32,6 +32,10 @@ end-to-end**, not a checklist of components.
 > the live data yet, so the feature is dormant until someone ticks a co-host; the owed walkthrough is
 > the six steps that end the spec. Until then, **no co-hosted event has ever been rendered or saved.**
 >
+> The branch is **deleted, local and origin** — everything is on `main`. Rollback, if the walkthrough
+> turns something up: `git revert 5d19488 && git push`. No migration ran, so there is nothing in the
+> database to undo.
+>
 > - **Every event permission check now goes through `src/lib/admin/event-hosts.ts`.**
 >   `canManageEvent` / `canViewEvent` match ANY hosting club; `canCancelEvent` and `canSetPrimary`
 >   match the PRIMARY only. `getEventForAttendance` returns `hosts`, not `clubId`, so a check against
@@ -403,6 +407,10 @@ end-to-end**, not a checklist of components.
 >
 > ## 📦 HANDOVER, 2026-09-15 — read this section, then do things in this order
 >
+> ⚠️ **SUPERSEDED 2026-09-17: nothing is in flight.** `feat/co-hosted-events` was built, merged and
+> deployed that day (see the block at the top of this file), and the branch is deleted. The rest of
+> this section still stands.
+>
 > **`main` is clean and deployed. ONE branch is in flight.** Broadcast email and certificate
 > bases have both shipped (blocks above) — what they still lack is a signed-in human.
 >
@@ -421,8 +429,8 @@ end-to-end**, not a checklist of components.
 >    and LIVE). It rewrote the save path a club head uses on a 200-person roster and **has never
 >    run in a browser.** This is arguably ahead of item 1: it is live in production right now.
 >    See the checklist further down this file.
-> 3. **Then `feat/co-hosted-events`**: the spec is approved, so the next step is an implementation
->    plan, then TDD. Read the spec's §1 first — the feature is 80% an authorisation change.
+> 3. ~~**Then `feat/co-hosted-events`**~~ — ✅ **DONE 2026-09-17**, shipped to production. What is
+>    left of it is the walkthrough in the block at the top of this file.
 >
 > ### What only a human can do
 >
@@ -445,8 +453,9 @@ end-to-end**, not a checklist of components.
 >
 > The old feature branches — now including `feat/certificate-bases` and `feat/broadcast-email-ics` —
 > are **already merged into `main`** and safe to delete:
-> `git branch --merged main | grep -v main | xargs git branch -d`. The only one NOT merged is
-> `feat/co-hosted-events`.
+> `git branch --merged main | grep -v main | xargs git branch -d`. As of 2026-09-17 **every branch is
+> merged**; `feat/co-hosted-events` was the last one out and is already deleted, local and origin.
+> ~13 stale local branches and 11 Dependabot branches on origin are still sitting there.
 >
 > ---
 >
