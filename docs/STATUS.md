@@ -20,12 +20,17 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-16)
 
-> ### 🧩 BUILT ON `feat/co-hosted-events`, NOT MERGED — co-hosted events (2026-09-17)
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-17 — co-hosted events
 >
-> Spec `docs/superpowers/specs/2026-09-15-co-hosted-events-design.md`, plan
-> `docs/superpowers/plans/2026-09-17-co-hosted-events.md`. Gate: typecheck ✓ lint ✓ **1243 tests** ✓
-> build ✓. **No migration**: `event_clubs` always allowed several clubs per event. **Needs the owner's
-> signed-in walkthrough before merging** (every admin has TOTP); the six steps end the spec.
+> `feat/co-hosted-events` merged as **`5d19488`** and pushed; live ~50s later. Spec
+> `docs/superpowers/specs/2026-09-15-co-hosted-events-design.md`, plan
+> `docs/superpowers/plans/2026-09-17-co-hosted-events.md`. Gate re-run on the merged tree:
+> typecheck ✓ lint ✓ **1243 tests** ✓ build ✓. **No migration, dependency, env or `vercel.json`
+> change** — `event_clubs` always allowed several clubs per event.
+>
+> ⚠️ **SHIPPED WITHOUT A SIGNED-IN WALKTHROUGH, at the owner's instruction.** Nothing is co-hosted in
+> the live data yet, so the feature is dormant until someone ticks a co-host; the owed walkthrough is
+> the six steps that end the spec. Until then, **no co-hosted event has ever been rendered or saved.**
 >
 > - **Every event permission check now goes through `src/lib/admin/event-hosts.ts`.**
 >   `canManageEvent` / `canViewEvent` match ANY hosting club; `canCancelEvent` and `canSetPrimary`
@@ -44,11 +49,12 @@ end-to-end**, not a checklist of components.
 > - Public: "Coding × Ai Forge" wherever a club name showed, plus a "Hosted by … with …" line on the
 >   event page. Unchanged on purpose: certificate branding and the calendar dot colour stay the primary's.
 > - Audited as `event_cohosts_changed` (before/after `primary_club_id` + `cohost_ids`).
-> - **Verified locally against the live DB (read-only):** `/`, `/events`, `/events/past`, the one event's
->   page, `/calendar`, `/clubs`, `/achievements` all 200, the calendar payload carries `clubSlugs`, and
->   the single-host event reads exactly as before. **No co-hosted rendering has been seen**: that
->   needs a second `event_clubs` row, which would show on the live site. The admin surfaces were not
->   exercised: TOTP blocks agents.
+> - **Prod smoke green:** `/`, `/events`, `/events/past`, the one event's page, `/calendar`, `/clubs`,
+>   `/achievements` all 200; `/admin/events`, an event's edit page and `/admin/email` still 307 to the
+>   login. **Proof the new build is serving:** the live `/calendar` payload now carries `clubSlugs`,
+>   a field this release added. The single-host event still reads "Innovation Club", with no `×` and
+>   no "Hosted by" line — correct for one host.
+> - The admin surfaces were **not** exercised: TOTP blocks agents.
 
 > ### 2026-09-17 — Contact inbox is President, VP and Tech Head only
 >
