@@ -45,4 +45,38 @@ describe("CohostPicker", () => {
     expect(html).toContain("One of those clubs can&#x27;t co-host.");
     expect(html).toContain('class="field err"');
   });
+
+  // ── The dropdown rewrite (2026-09-17) ────────────────────────────────────
+  // ⚠️ These render the picker's INITIAL, CLOSED state. `renderToStaticMarkup`
+  // runs no effects and handles no clicks, so opening the panel, filtering and
+  // removing a chip are not reachable from here — they are the browser pass.
+
+  it("starts closed", () => {
+    const html = render();
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toMatch(/class="cohost-panel"[^>]*hidden/);
+  });
+
+  it("keeps every checkbox in the form WHILE CLOSED", () => {
+    // The linchpin of the rewrite: the panel is hidden, never unmounted, so a
+    // hidden input still posts and `formData.getAll("cohostIds")` is unchanged.
+    // Unmounting these would drop co-hosts on save with nothing to show for it.
+    const html = render({ selected: ["c-forge"] });
+    expect(html).toMatch(/class="cohost-panel"[^>]*hidden/);
+    expect(inputFor(html, "c-forge")).toContain("checked");
+    expect(html.match(/name="cohostIds"/g)).toHaveLength(2);
+  });
+
+  it("summarises the selection on the closed trigger", () => {
+    expect(render()).toContain("No co-hosts");
+    expect(render({ selected: ["c-forge"] })).toContain("AI Forge");
+    expect(render({ selected: ["c-forge", "c-yoga"] })).toContain("+1");
+  });
+
+  it("shows a removable chip per co-host, in club order not click order", () => {
+    const html = render({ selected: ["c-yoga", "c-forge"] });
+    expect(html).toContain("Remove AI Forge as a co-host");
+    expect(html).toContain("Remove Yoga Club as a co-host");
+    expect(html.indexOf("Remove AI Forge")).toBeLessThan(html.indexOf("Remove Yoga Club"));
+  });
 });

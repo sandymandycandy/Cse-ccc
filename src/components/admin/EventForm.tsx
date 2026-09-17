@@ -33,6 +33,18 @@ export interface EventFormInitial {
   showOnAchievements: boolean;
 }
 
+/** One labelled block of the form. The event form runs to thirteen fields plus
+ *  a form builder and an image editor; ungrouped, it was a single column you
+ *  scrolled without ever knowing where you were. */
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="form-section">
+      <h2 className="form-section-title">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
 type EventAction = (
   prev: EventFormState,
   formData: FormData,
@@ -71,6 +83,7 @@ export function EventForm({
         </div>
       ) : null}
 
+      <Section title="Basics">
       <div className={fieldClass(state.fieldErrors, "title")}>
         <label htmlFor="title">Title</label>
         <input id="title" name="title" required maxLength={140} defaultValue={initial?.title} placeholder="e.g. Intro to Machine Learning" />
@@ -127,7 +140,9 @@ export function EventForm({
         selected={initial?.cohostIds ?? []}
         fieldErrors={state.fieldErrors}
       />
+      </Section>
 
+      <Section title="When &amp; where">
       <div className={fieldClass(state.fieldErrors, "venueText")}>
         <label htmlFor="venueText">Venue</label>
         <input
@@ -165,7 +180,10 @@ export function EventForm({
           <FieldError errors={state.fieldErrors} name="endsAt" />
         </div>
       </div>
+      </Section>
 
+      <Section title="Registration">
+      <div className="admin-form-row">
       <div className={fieldClass(state.fieldErrors, "selectionMode")}>
         <label htmlFor="selectionMode">Registration type</label>
         <select id="selectionMode" name="selectionMode" defaultValue={initial?.selectionMode ?? "seats"}>
@@ -180,6 +198,7 @@ export function EventForm({
         <label htmlFor="capacity">Capacity (optional)</label>
         <input id="capacity" name="capacity" type="number" min={0} defaultValue={initial?.capacity} placeholder="Leave blank for unlimited" />
         <FieldError errors={state.fieldErrors} name="capacity" />
+      </div>
       </div>
 
       <div className="admin-form-row">
@@ -236,11 +255,15 @@ export function EventForm({
         </span>
         <FieldError errors={state.fieldErrors} name="showOnAchievements" />
       </div>
+      </Section>
 
+      <Section title="Registration form">
       <RegistrationFormBuilder
         initialJson={initial?.registrationForm ?? JSON.stringify(defaultFormFor())}
       />
+      </Section>
 
+      <Section title="Cover photo">
       {/* No aspect default: the event page renders the poster at full width with
           no height cap, so a portrait poster is already shown uncut. The editor
           is here for straightening, rotating and shrinking oversized files. */}
@@ -251,10 +274,15 @@ export function EventForm({
         longEdge={2400}
         hint="Crop, rotate and resize before uploading. Shown on the event page."
       />
+      </Section>
 
-      <button type="submit" className="btn btn-primary" disabled={pending}>
-        {pending ? savingLabel : submitLabel}
-      </button>
+      {/* Sticky: the form is ~2,000px tall, and Save used to live only at the
+          very bottom of it. */}
+      <div className="form-savebar">
+        <button type="submit" className="btn btn-primary" disabled={pending}>
+          {pending ? savingLabel : submitLabel}
+        </button>
+      </div>
     </form>
   );
 }
