@@ -100,6 +100,13 @@ export function CohostPicker({
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
+            // ⚠️ This box sits INSIDE the event form, which has a submit button,
+            // so Enter here would implicitly submit it — filtering clubs would
+            // save the event. Swallow Enter; there is nothing to submit from a
+            // filter. Escape still closes the panel (handled on window).
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.preventDefault();
+            }}
             placeholder="Filter clubs…"
             aria-label="Filter the club list"
           />
