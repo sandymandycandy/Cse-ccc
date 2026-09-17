@@ -575,6 +575,34 @@
     color: var(--ink-3);
     border-bottom: 1px solid var(--line-2);
   }
+  /* A sortable column header. The <th> keeps its own type; the button inside it
+     has to be told to inherit, or it renders as a default grey control in 13px
+     sans — nothing like the header it replaced. */
+  table.admin th:has(> .th-sort) { padding: 0; }
+  .th-sort {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 12px 16px;
+    border: 0;
+    background: none;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .th-sort:hover { color: var(--ink); }
+  .th-sort:focus-visible {
+    outline: 2px solid var(--forest);
+    outline-offset: -2px;
+  }
+  @media (max-width: 599px) {
+    .th-sort { padding: 10px 12px; }
+  }
   table.admin td {
     padding: 14px 16px;
     border-bottom: 1px solid var(--line);
