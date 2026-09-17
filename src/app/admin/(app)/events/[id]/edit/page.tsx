@@ -61,6 +61,7 @@ export default async function EditEventPage({
           title: event.title,
           description: event.description ?? "",
           clubId: event.clubId ?? "",
+          cohostIds: event.cohostIds,
           venueText: event.venueText ?? "",
           startsAtLocal: istLocalInput(event.startsAt),
           endsAtLocal: istLocalInput(event.endsAt),
