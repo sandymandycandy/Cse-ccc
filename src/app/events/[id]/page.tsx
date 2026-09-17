@@ -71,6 +71,12 @@ export default async function EventDetailPage({ params }: Params) {
           {cta.showSeats ? <SeatBadge status={event.status} /> : null}
         </div>
         <h1 style={{ margin: "12px 0 0" }}>{event.title}</h1>
+        {/* Says outright what the "×" above the title means, for a co-hosted event. */}
+        {event.hostedBy ? (
+          <p className="body-text" style={{ marginTop: 6, color: "var(--ink-2)" }}>
+            {event.hostedBy}
+          </p>
+        ) : null}
 
         {/* when · where · seats, across the full width — these are the facts you
             check before reading anything else, so they lead. */}

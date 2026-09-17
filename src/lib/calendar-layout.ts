@@ -102,8 +102,20 @@ export function clubsInRange<T extends { slug: string }>(
   events: readonly CalendarEvent[],
   clubs: readonly T[],
 ): T[] {
-  const present = new Set(events.map((e) => e.clubSlug));
+  // Every host counts: a club that only co-hosts still gets its chip.
+  const present = new Set(events.flatMap((e) => e.clubSlugs));
   return clubs.filter((c) => present.has(c.slug));
+}
+
+/**
+ * The events a club filter shows. An event appears under EVERY club hosting it,
+ * so filtering by a co-host still finds the event it co-ran. `null` = no filter.
+ */
+export function filterByClubs(
+  events: readonly CalendarEvent[],
+  active: ReadonlySet<string> | null,
+): CalendarEvent[] {
+  return active ? events.filter((e) => e.clubSlugs.some((s) => active.has(s))) : [...events];
 }
 
 // ── month grid ───────────────────────────────────────────────────────────────

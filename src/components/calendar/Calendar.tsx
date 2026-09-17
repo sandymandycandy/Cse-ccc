@@ -8,6 +8,7 @@ import {
   type CalView,
   CAL_VIEWS,
   clubsInRange,
+  filterByClubs,
   stepAnchor,
 } from "@/lib/calendar-layout";
 import { istMonthYear } from "@/lib/datetime";
@@ -109,10 +110,7 @@ export function Calendar({
     return kept.length === 0 ? null : new Set(kept);
   }, [selected, rangeClubs]);
 
-  const filtered = useMemo(
-    () => (active ? events.filter((e) => active.has(e.clubSlug)) : events),
-    [events, active],
-  );
+  const filtered = useMemo(() => filterByClubs(events, active), [events, active]);
 
   // §5.5: with all on, tapping one club isolates it; tapping the last one clears.
   function toggleClub(slug: string) {
