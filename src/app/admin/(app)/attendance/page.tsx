@@ -3,9 +3,8 @@ import { requireViewPage } from "@/lib/auth/guards";
 import { grantFor } from "@/lib/auth/capabilities";
 import { resolveAttendanceScope } from "@/lib/admin/attendance-scope";
 import { rosterWithPercent, listSessions } from "@/lib/admin/attendance-club";
-import { pctOfStrength } from "@/lib/admin/attendance-analytics";
 import { CreateSessionForm } from "@/components/admin/CreateSessionForm";
-import { istNumericDate } from "@/lib/datetime";
+import { SessionHistory } from "@/components/admin/SessionHistory";
 
 /**
  * The attendance dashboard is the "run a session" surface: pick a club, create
@@ -66,24 +65,7 @@ export default async function AttendanceDashboard({
       </section>
 
       <h2 style={{ font: "400 18px var(--serif)", margin: "32px 0 8px" }}>Session history</h2>
-      {sessions.length === 0 ? <p className="body-text" style={{ color: "var(--ink-3)" }}>No sessions yet.</p> : (
-        <div className="tablewrap cards">
-          <table className="admin">
-            <thead><tr><th>Session</th><th>Date</th><th>Slot</th><th>Status</th><th>Present</th><th>% strength</th><th></th></tr></thead>
-            <tbody>{sessions.map((s) => (
-              <tr key={s.id}>
-                <td data-primary="" style={{ fontWeight: 500 }}>{s.title}</td>
-                <td data-label="Date">{istNumericDate(s.sessionDate ?? s.openedAt)}</td>
-                <td data-label="Slot">{s.startTime && s.endTime ? `${s.startTime.slice(0, 5)}–${s.endTime.slice(0, 5)}` : "—"}</td>
-                <td data-label="Status"><span className={`abadge${s.status === "closed" ? "" : " abadge-approved"}`}>{s.status === "closed" ? "Closed" : "Open"}</span></td>
-                <td data-label="Present">{s.presentCount}</td>
-                <td data-label="% strength">{pctOfStrength(s.presentCount, strength)}%</td>
-                <td data-action=""><Link href={`/admin/attendance/sessions/${s.id}`} className="btn btn-sm">Open</Link></td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </div>
-      )}
+      <SessionHistory sessions={sessions} strength={strength} />
     </div>
   );
 }
