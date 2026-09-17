@@ -1976,6 +1976,116 @@
   a.admin-stat .label { display: block; }
   .admin-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
+  /* ── Event form: labelled sections + a sticky save bar ──────────────────
+     Thirteen fields, a form builder and an image editor in one ungrouped
+     column ran to ~2,000px with Save only at the very bottom. */
+  .form-section {
+    border: 1px solid var(--line-2b);
+    border-radius: var(--r-lg);
+    background: var(--card);
+    padding: 20px;
+    margin-top: 18px;
+  }
+  .form-section > .field:first-of-type { margin-top: 0; }
+  .form-section-title {
+    font: 500 11px var(--mono);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 14px;
+  }
+  .form-savebar {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 18px;
+    padding: 12px 0;
+    background: var(--paper);
+    border-top: 1px solid var(--line-2);
+  }
+
+  /* ── Co-host multi-select ───────────────────────────────────────────────
+     Fifteen checkboxes collapsed behind one control. The panel is `hidden`,
+     never unmounted, so the checkboxes keep posting (see CohostPicker). */
+  .cohost { position: relative; }
+  .cohost-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    min-height: 44px;
+    padding: 11px 14px;
+    border: 1px solid var(--line-3);
+    border-radius: var(--r-sm);
+    background: var(--paper-2);
+    color: var(--ink);
+    font: 400 14px var(--sans);
+    text-align: left;
+    cursor: pointer;
+  }
+  .cohost-trigger:focus-visible {
+    border-color: var(--forest);
+    outline: none;
+    box-shadow: 0 0 0 3px var(--forest-tint);
+  }
+  .cohost-empty { color: var(--ink-3); }
+  .cohost-chevron { color: var(--ink-3); flex: none; }
+  .cohost-panel {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    padding: 10px;
+    border: 1px solid var(--line-2b);
+    border-radius: var(--r-sm);
+    background: var(--card);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.14);
+  }
+  /* `hidden` is only display:block-level by default — the panel is absolute,
+     so say it outright or a closed panel still paints. */
+  .cohost-panel[hidden] { display: none; }
+  .cohost-search {
+    width: 100%;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    border: 1px solid var(--line-3);
+    border-radius: var(--r-sm);
+    background: var(--paper-2);
+    color: var(--ink);
+    font: 400 14px var(--sans);
+  }
+  .cohost-list { max-height: 260px; overflow-y: auto; }
+  .cohost-option {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 9px 6px;
+    border-radius: var(--r-sm);
+    font-weight: 400;
+    cursor: pointer;
+  }
+  .cohost-option[hidden] { display: none; }
+  .cohost-option:hover { background: var(--sand); }
+  .cohost-none { color: var(--ink-3); padding: 6px; margin: 0; }
+  .cohost-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .cohost-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 10px;
+    border: 1px solid var(--line-2b);
+    border-radius: 99px;
+    background: var(--forest-tint);
+    color: var(--forest);
+    font: 400 12.5px var(--sans);
+    cursor: pointer;
+  }
+  .cohost-chip:hover { border-color: var(--rust); color: var(--rust); }
+
   /* Registration form builder (the event form's biggest section).
      ⚠️ Every row here is a flex row holding a text input, and a flex item's
      default `min-width: auto` refuses to shrink below the input's intrinsic
