@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireViewPage } from "@/lib/auth/guards";
-import { canManage } from "@/lib/auth/capabilities";
+import { canManageEvent } from "@/lib/admin/event-hosts";
 import { getEventForAttendance } from "@/lib/admin/attendance";
 import { listRegistrations, getEventFormSchema } from "@/lib/admin/registrations";
 import { teamRecipients } from "@/lib/registration-form/recipients";
@@ -25,7 +25,7 @@ export default async function EmailParticipantsPage({
   const { id } = await params;
   const ev = await getEventForAttendance(id);
   if (!ev) notFound();
-  if (!canManage(session, "manage:registrations", ev.clubId)) redirect("/admin/events");
+  if (!canManageEvent(session, "manage:registrations", ev.hosts)) redirect("/admin/events");
 
   const [regs, { schema }] = await Promise.all([
     listRegistrations(id),

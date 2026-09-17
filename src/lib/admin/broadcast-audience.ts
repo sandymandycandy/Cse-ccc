@@ -133,13 +133,14 @@ export function parseAudience(raw: {
 }
 
 /**
- * `resourceClubId` is the club the DATABASE says owns the event — never a value
- * the form supplied. It is ignored for the non-event audiences.
+ * `hostClubIds` are the clubs the DATABASE says host the event, primary and
+ * co-hosts alike. Never a value the form supplied. Ignored for the non-event
+ * audiences.
  */
 export function isAudienceAllowed(
   id: AdminIdentity,
   a: Audience,
-  resourceClubId: string | null,
+  hostClubIds: readonly string[],
 ): boolean {
   const grant = grantFor(id.role, "manage:broadcast");
   if (grant === "all") return true;
@@ -167,7 +168,8 @@ export function isAudienceAllowed(
   }
 
   if (a.kind === "club_members") return a.clubId === id.clubId;
-  if (a.kind === "event") return resourceClubId != null && resourceClubId === id.clubId;
+  // An event is theirs when their club hosts it, as owner or co-host.
+  if (a.kind === "event") return hostClubIds.includes(id.clubId);
   return false;
 }
 

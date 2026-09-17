@@ -2,7 +2,8 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/database.types";
-import { canManage, type AdminIdentity } from "@/lib/auth/capabilities";
+import type { AdminIdentity } from "@/lib/auth/capabilities";
+import { canManageEvent, hostsFromLinks } from "@/lib/admin/event-hosts";
 import { istDateMedium } from "@/lib/datetime";
 import { validateFormSchema, type FormField } from "@/lib/registration-form/schema";
 import { validateCertificateConfig } from "@/lib/certificates/config";
@@ -876,8 +877,12 @@ export async function listDesignSources(
   return rows
     .filter((row) => {
       if (!row.events || !parseStoredDesign(row.design)?.page.template) return false;
-      const primary = row.events.event_clubs.find((c) => c.is_primary) ?? row.events.event_clubs[0];
-      return canManage(identity, "issue:participation_certificate", primary?.club_id ?? null);
+      // Any event this admin could certify, as owner or co-host.
+      return canManageEvent(
+        identity,
+        "issue:participation_certificate",
+        hostsFromLinks(row.events.event_clubs),
+      );
     })
     .sort((a, b) => b.events!.starts_at.localeCompare(a.events!.starts_at))
     .map((row) => ({ eventId: row.event_id, title: row.events!.title, date: istDateMedium(row.events!.starts_at) }));

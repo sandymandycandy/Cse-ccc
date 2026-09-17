@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireViewPage } from "@/lib/auth/guards";
-import { canManage, grantFor } from "@/lib/auth/capabilities";
+import { canManageEvent, canViewEvent } from "@/lib/admin/event-hosts";
 import { getEventForAttendance } from "@/lib/admin/attendance";
 import { listRounds, getRoundRoster, roundIsPublished } from "@/lib/admin/results";
 import { createRoundAction } from "./actions";
@@ -21,12 +21,10 @@ export default async function AdminResultsPage({
   const ev = await getEventForAttendance(id);
   if (!ev) notFound();
 
-  // View: all/read see any club; club-scoped see only their own.
-  const grant = grantFor(session.role, "manage:results");
-  const canViewThis =
-    grant === "all" || grant === "read" || (grant === "own" && session.clubId === ev.clubId);
-  if (!canViewThis) redirect("/admin/events");
-  const canEdit = canManage(session, "manage:results", ev.clubId);
+  // View: all/read see any event; club-scoped see the events their club hosts,
+  // as owner or co-host.
+  if (!canViewEvent(session, "manage:results", ev.hosts)) redirect("/admin/events");
+  const canEdit = canManageEvent(session, "manage:results", ev.hosts);
 
   const rounds = await listRounds(id);
   const selectedId = roundParam ?? rounds[0]?.id ?? null;

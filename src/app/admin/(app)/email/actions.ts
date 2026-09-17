@@ -38,13 +38,15 @@ async function authorisedAudience(raw: {
   const audience = parseAudience(raw);
   if (!audience) return { error: "Pick who should receive this." } as const;
 
-  let resourceClubId: string | null = null;
+  // Every club hosting the event, read from the database: a co-host's head may
+  // mail the registrants of an event their club co-runs.
+  let hostClubIds: readonly string[] = [];
   if (audience.kind === "event") {
     const ev = await getEventForAttendance(audience.eventId);
     if (!ev) return { error: "Event not found." } as const;
-    resourceClubId = ev.clubId;
+    hostClubIds = ev.hosts.clubIds;
   }
-  if (!isAudienceAllowed(session, audience, resourceClubId)) {
+  if (!isAudienceAllowed(session, audience, hostClubIds)) {
     return { error: "You can't send to that audience." } as const;
   }
   return { session, audience } as const;

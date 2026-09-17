@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireViewPage } from "@/lib/auth/guards";
-import { canManage } from "@/lib/auth/capabilities";
+import { canManageEvent } from "@/lib/admin/event-hosts";
 import { getEventForAttendance } from "@/lib/admin/attendance";
 import { getCertificateWorkspace, listDesignSources } from "@/lib/admin/certificates";
 import { baseImpact } from "@/lib/admin/certificate-bases";
@@ -39,7 +39,7 @@ export default async function EventCertificatesPage({
   const ev = await getEventForAttendance(id);
   if (!ev) notFound();
   // An editing surface: read-only viewers (faculty) don't manage certificates.
-  if (!canManage(session, CAP, ev.clubId)) redirect("/admin/events");
+  if (!canManageEvent(session, CAP, ev.hosts)) redirect("/admin/events");
 
   const ws = await getCertificateWorkspace(id, session.id, requestedGroup);
   if (!ws) notFound();
@@ -166,7 +166,7 @@ export default async function EventCertificatesPage({
           eventId={id}
           rows={rows}
           groups={groupSummaries.map((g) => ({ id: g.id, name: g.name }))}
-          canRevoke={canManage(session, "revoke:certificate", ev.clubId)}
+          canRevoke={canManageEvent(session, "revoke:certificate", ev.hosts)}
         />
       ) : (
         <IssuePanel

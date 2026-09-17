@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { requireSession } from "@/lib/auth/guards";
-import { canManage } from "@/lib/auth/capabilities";
+import { canManageEvent } from "@/lib/admin/event-hosts";
 import { getEventForAttendance } from "@/lib/admin/attendance";
 import { getIssuedCertificate, renderIssuedCertificate } from "@/lib/admin/certificate-issue";
 import { certificateFileName } from "@/lib/certificates/recipients";
@@ -22,7 +22,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ cert
   if (!cert) return Response.json({ error: "That certificate no longer exists." }, { status: 404 });
 
   const event = await getEventForAttendance(cert.eventId);
-  if (!event || !canManage(guard.session, "issue:participation_certificate", event.clubId)) {
+  if (!event || !canManageEvent(guard.session, "issue:participation_certificate", event.hosts)) {
     return Response.json({ error: "Not permitted." }, { status: 403 });
   }
 

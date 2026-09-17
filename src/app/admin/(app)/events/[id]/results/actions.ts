@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getAdminSession } from "@/lib/auth/guards";
-import { canManage } from "@/lib/auth/capabilities";
+import { canManageEvent } from "@/lib/admin/event-hosts";
 import { getEventForAttendance } from "@/lib/admin/attendance";
 import { writeAudit } from "@/lib/admin/audit";
 import {
@@ -22,7 +22,7 @@ async function authorize(eventId: string) {
   const session = await getAdminSession();
   if (!session) return null;
   const ev = await getEventForAttendance(eventId);
-  if (!ev || !canManage(session, "manage:results", ev.clubId)) return null;
+  if (!ev || !canManageEvent(session, "manage:results", ev.hosts)) return null;
   return { session, ev };
 }
 
