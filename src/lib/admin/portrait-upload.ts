@@ -10,9 +10,19 @@ import { handleImageUpload } from "./image-upload";
  */
 export const COUNCIL_PHOTO_BUCKET = "council-photos";
 
-/** The bucket's own limit. handleImageUpload would otherwise allow 5 MB and let
- *  Storage reject the file with a message about nothing in particular. */
-export const PORTRAIT_MAX_BYTES = 2 * 1024 * 1024;
+/**
+ * Portraits may be large: these are camera/phone originals, and shrinking them
+ * by hand before upload is exactly the chore this admin exists to avoid.
+ *
+ * ⚠️ THREE limits must stay in agreement, largest last:
+ *   1. this value,
+ *   2. the `council-photos` bucket's own file_size_limit (raised to 10 MB on
+ *      2026-09-18) — Storage rejects anything above it regardless of this,
+ *   3. experimental.serverActions.bodySizeLimit in next.config.ts, which must
+ *      be ABOVE this so OUR check reports the size, not Next's opaque 413.
+ * upload-limits.test.ts pins (1) against (3).
+ */
+export const PORTRAIT_MAX_BYTES = 10 * 1024 * 1024;
 
 /**
  * Uploads a portrait and measures it.

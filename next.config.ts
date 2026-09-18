@@ -53,14 +53,15 @@ const nextConfig: NextConfig = {
   // "This page couldn't load", and handleImageUpload's friendly size message
   // was never reached.
   //
-  // This must stay ABOVE the largest cap we enforce ourselves (MAX_IMAGE, 5 MB)
-  // plus room for the rest of the form, so OUR check is the one that fires and
-  // the person gets a real message. Pinned by src/lib/admin/upload-limits.test.ts.
+  // This must stay ABOVE the largest cap we enforce ourselves — now the 10 MB
+  // portrait limit, not the 5 MB MAX_IMAGE — plus room for the rest of the
+  // form, so OUR check is the one that fires and the person gets a real
+  // message. Pinned by src/lib/admin/upload-limits.test.ts.
   //
   // Certificate assets are unaffected either way — they upload straight to
   // Storage through a signed URL, not through a Server Action.
   experimental: {
-    serverActions: { bodySizeLimit: "6mb" },
+    serverActions: { bodySizeLimit: "12mb" },
   },
   // The certificate renderer reads the bundled TTFs from disk (font-files.ts).
   // They live in public/, which is not part of a function's trace by default.

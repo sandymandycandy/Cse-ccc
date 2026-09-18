@@ -9,17 +9,17 @@ const { uploadPortrait, PORTRAIT_MAX_BYTES, COUNCIL_PHOTO_BUCKET } = await impor
 beforeEach(() => handleImageUpload.mockReset());
 
 describe("uploadPortrait", () => {
-  // The council-photos bucket caps at 2 MB. handleImageUpload defaults to 5 MB,
-  // so without an explicit cap a 3 MB file passes our check and is then
-  // rejected by Storage with "Could not upload the image" — a size problem
-  // reported as a generic failure.
-  it("caps at the bucket's 2 MB, not handleImageUpload's 5 MB default", async () => {
+  // Portraits are allowed to be camera originals: 10 MB, matching the
+  // council-photos bucket's own file_size_limit. handleImageUpload defaults to
+  // 5 MB, so the cap MUST be passed explicitly or a 6 MB portrait is refused by
+  // our own code with a message about a limit that no longer applies.
+  it("passes the 10 MB portrait cap explicitly, overriding the 5 MB default", async () => {
     handleImageUpload.mockResolvedValue({});
     await uploadPortrait(new FormData());
-    expect(PORTRAIT_MAX_BYTES).toBe(2 * 1024 * 1024);
+    expect(PORTRAIT_MAX_BYTES).toBe(10 * 1024 * 1024);
     expect(handleImageUpload).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ bucket: "council-photos", field: "photo", maxBytes: 2 * 1024 * 1024 }),
+      expect.objectContaining({ bucket: "council-photos", field: "photo", maxBytes: 10 * 1024 * 1024 }),
     );
   });
 

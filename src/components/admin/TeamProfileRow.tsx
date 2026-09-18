@@ -205,7 +205,7 @@ export function TeamProfileRow({
               }}
             />
             <span className="hint">
-              PNG, JPEG, WebP or GIF, up to 2 MB. A head-and-shoulders portrait, same style as the
+              PNG, JPEG, WebP or GIF, up to 10 MB. A head-and-shoulders portrait, same style as the
               others. Leaving this empty keeps the current photo.
             </span>
             <FieldError errors={state.fieldErrors} name="photo" />
