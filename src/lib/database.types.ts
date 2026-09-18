@@ -550,7 +550,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          base_kind?: Database["public"]["Enums"]["certificate_base_kind"] | null
+          base_kind?:
+            | Database["public"]["Enums"]["certificate_base_kind"]
+            | null
           created_at?: string
           created_by?: string | null
           design?: Json | null
@@ -564,7 +566,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          base_kind?: Database["public"]["Enums"]["certificate_base_kind"] | null
+          base_kind?:
+            | Database["public"]["Enums"]["certificate_base_kind"]
+            | null
           created_at?: string
           created_by?: string | null
           design?: Json | null
@@ -2163,6 +2167,71 @@ export type Database = {
           user_agent?: string | null
         }
         Relationships: []
+      }
+      team_profiles: {
+        Row: {
+          department: string | null
+          description: string | null
+          email: string
+          focal_x: number
+          focal_y: number
+          member_id: string
+          name: string
+          photo_blur: string | null
+          photo_height: number | null
+          photo_path: string | null
+          photo_width: number | null
+          portfolio: string | null
+          role: string
+          updated_at: string
+          updated_by: string | null
+          year: string | null
+        }
+        Insert: {
+          department?: string | null
+          description?: string | null
+          email: string
+          focal_x?: number
+          focal_y?: number
+          member_id: string
+          name: string
+          photo_blur?: string | null
+          photo_height?: number | null
+          photo_path?: string | null
+          photo_width?: number | null
+          portfolio?: string | null
+          role: string
+          updated_at?: string
+          updated_by?: string | null
+          year?: string | null
+        }
+        Update: {
+          department?: string | null
+          description?: string | null
+          email?: string
+          focal_x?: number
+          focal_y?: number
+          member_id?: string
+          name?: string
+          photo_blur?: string | null
+          photo_height?: number | null
+          photo_path?: string | null
+          photo_width?: number | null
+          portfolio?: string | null
+          role?: string
+          updated_at?: string
+          updated_by?: string | null
+          year?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_profiles_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       venue_bookings: {
         Row: {
