@@ -3630,3 +3630,99 @@ img {
   .fb-rating { gap: 8px; }
   .fb-rating-label { min-width: 100%; }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   /team — the team page
+   Ported from the standalone team-page preview. Every colour, font and radius
+   token it uses is already defined at the top of this file — it was built
+   against this exact palette — so what follows is only the handful of things
+   the preview's own globals.css added on top.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* The preview writes dark-mode utilities as `night:`; this file already calls
+   the identical thing `dark:`. Both names are kept so the team components read
+   exactly as they were written rather than being rewritten on the way in. */
+@custom-variant night (&:where([data-theme="night"], [data-theme="night"] *));
+@custom-variant pointer-fine (@media (hover: hover) and (pointer: fine));
+
+@theme inline {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root {
+  /* Height of the sticky .site-header, which the team page's sticky LayerNav,
+     the orbit plate and the anchor scroll offsets all hang off. Derived, not
+     measured by eye: 18px padding top + 18px bottom + the 42px ThemeToggle
+     (the tallest child at every width — .brand is 34px and .menu-btn is the
+     same 42px) + the 1px bottom border = 79px. If any of those four numbers
+     changes, this is the one place to update. */
+  --hdr: 79px;
+}
+
+/* The layer anchors (#president, #council, #clubs, #smt) scroll under both the
+   site header AND the sticky LayerNav, so the offset is the sum of the two.
+   Scoped with :has() because scroll-padding only works on the scrolling
+   element — it must sit on <html>, but it must not apply to the whole site. */
+html:has(.team-root) {
+  scroll-padding-top: calc(var(--hdr) + 81px);
+}
+
+@layer base {
+  /* The site styles every bare <a> forest-green. The preview had no such rule,
+     so its links either carry a colour utility or inherit from their parent.
+     Tailwind's utilities sit in a later cascade layer and still win, so this
+     only restores the inherited default for the links that set no colour. */
+  .team-root a,
+  .team-root a:hover {
+    color: inherit;
+  }
+}
+
+/* ── entrance animations (CSS only, so they run on the server-rendered HTML) ──
+   The global prefers-reduced-motion rule near the top of this file already
+   disables all of these. */
+
+@keyframes ccc-rise {
+  from { opacity: 0; transform: translate3d(0, 24px, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes ccc-line {
+  from { transform: translate3d(0, 105%, 0); }
+  to { transform: none; }
+}
+
+@keyframes film-in {
+  from { clip-path: inset(-24px 100% -24px -24px); }
+  to { clip-path: inset(-24px -24px -24px -24px); }
+}
+
+@keyframes film-in-rev {
+  from { clip-path: inset(-24px -24px -24px 100%); }
+  to { clip-path: inset(-24px -24px -24px -24px); }
+}
+
+@keyframes orbit-spin {
+  to { transform: rotate(360deg); }
+}
+
+.rise {
+  animation: ccc-rise 0.9s var(--ease-out-quint) both;
+  animation-delay: var(--delay, 0ms);
+}
+
+.line-mask {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.08em;
+  margin-bottom: -0.08em;
+}
+.line-mask > span {
+  display: block;
+  animation: ccc-line 1s var(--ease-out-expo) both;
+  animation-delay: var(--delay, 0ms);
+}
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
