@@ -20,22 +20,6 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-16)
 
-> ### 🔧 THE PUBLIC SITE IS DOWN RIGHT NOW — ON PURPOSE (2026-09-18)
-> **`DEFAULT_MAINTENANCE = true`** in `src/lib/maintenance.ts` (`0266f6d`). The
-> public site answers **503** with the standalone maintenance page; **`/admin/*`
-> is unaffected** and the council can still sign in and work.
->
-> **This is deliberate, not an outage.** If you are picking this up cold and the
-> site looks broken, this is why — check that constant before debugging anything.
->
-> **To bring it back:** set `DEFAULT_MAINTENANCE = false`, commit, push. ~1 min.
->
-> Checked before it went down: zero open attendance sessions of any kind, no
-> event within three hours either side, no registration in the last thirty
-> minutes. Verified after: public routes 503 with `retry-after` + `noindex`,
-> `/admin/login` 200.
-
-
 > ### 🚀 SHIPPED TO PRODUCTION 2026-09-18 — the new `/team` page and its CMS
 > `feat/team-page-v2` merged as **`73058ce`** and pushed; live on
 > cse-ccc.vercel.app. The redesigned **`/team`** page, plus a **CMS for it** at
