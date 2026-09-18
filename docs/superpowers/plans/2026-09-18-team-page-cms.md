@@ -355,13 +355,22 @@ git commit -m "feat(team): mergeProfiles — file values overlaid with edited ro
 
 Create `src/lib/team/read.test.ts`:
 
+⚠️ **Import the module under test with `await import`, never a static `import`.**
+`vi.mock` is hoisted, and a *static* import is evaluated before any top-level
+`const` — so a factory that touches `const from = vi.fn()` throws "Cannot access
+'from' before initialization". Hit exactly this on Task 7. A dynamic
+`await import` runs after the `const` is set; the `(...a) => from(...a)` wrapper
+additionally defers the lookup to call time. This matches the repo idiom
+(`BroadcastComposer.test.tsx:9`).
+
 ```ts
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+vi.mock("server-only", () => ({}));
 const from = vi.fn();
-vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({ from }) }));
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({ from: (...a: unknown[]) => from(...a) }) }));
 
-import { getTeamProfileRows } from "./read";
+const { getTeamProfileRows } = await import("./read");
 
 const select = (result: unknown) => ({ select: vi.fn().mockResolvedValue(result) });
 
