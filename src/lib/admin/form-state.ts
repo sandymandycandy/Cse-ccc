@@ -159,3 +159,12 @@ export interface TeamAddState {
   fieldErrors?: FieldErrors;
   addedName?: string;
 }
+
+/** One person's editor on /admin/team, backed by team_profiles — the table the
+ *  public /team page actually renders. Same `saved` convention as
+ *  TeamLinksState: the row confirms inline and keeps its values. */
+export interface TeamProfileState {
+  error?: string;
+  fieldErrors?: FieldErrors;
+  saved?: boolean;
+}
