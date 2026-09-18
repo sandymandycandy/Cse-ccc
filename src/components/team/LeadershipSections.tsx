@@ -3,10 +3,10 @@
 import { ArrowUpRight, Mail, Plus } from "lucide-react";
 import { motion } from "motion/react";
 
-import { coverPosition, councilLeaders, president, type Member } from "@/data/ccc";
+import type { Member } from "@/data/ccc";
 import { Portrait } from "./Portrait";
 import { Reveal } from "./Reveal";
-import { useTeam } from "./TeamProvider";
+import { useCoverPosition, useMembersInLayer, usePresident, useTeam } from "./team-context";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -15,6 +15,7 @@ const ease = [0.22, 1, 0.36, 1] as const;
 
 export function PresidentFeature() {
   const { openProfile } = useTeam();
+  const president = usePresident();
   const lines = president.description?.split("\n") ?? [];
   const [lead, ...rest] = lines;
   const quote = rest[0];
@@ -91,6 +92,7 @@ export function PresidentFeature() {
 
 export function MemberCard({ member, eyebrowClass = "text-clay", index = 0 }: { member: Member; eyebrowClass?: string; index?: number }) {
   const { openProfile } = useTeam();
+  const cover = useCoverPosition();
   const meta = [member.year && `Year ${member.year}`, member.department].filter(Boolean).join(" · ");
   return (
     <motion.li
@@ -110,7 +112,7 @@ export function MemberCard({ member, eyebrowClass = "text-clay", index = 0 }: { 
             member={member}
             label
             sizes="(min-width: 1024px) 28vw, (min-width: 640px) 45vw, 50vw"
-            position={coverPosition(member, 1, 6)}
+            position={cover(member, 1, 6)}
             className="grayscale-[0.35] transition-[filter,transform] duration-700 ease-out-quint group-hover:scale-[1.03] group-hover:grayscale-0"
           />
         </span>
@@ -130,6 +132,7 @@ export function MemberCard({ member, eyebrowClass = "text-clay", index = 0 }: { 
 }
 
 export function CouncilGrid() {
+  const councilLeaders = useMembersInLayer("council");
   return (
     <ul className="mt-12 grid grid-cols-2 gap-3 sm:gap-5 lg:mt-16 lg:grid-cols-3">
       {councilLeaders.map((m, i) => (

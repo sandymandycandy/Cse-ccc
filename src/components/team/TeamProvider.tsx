@@ -1,28 +1,30 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { AnimatePresence } from "motion/react";
 
-import type { ClubId } from "@/data/ccc";
+import type { ClubId, Member } from "@/data/ccc";
+import type { TeamPhoto } from "@/lib/team/profiles";
 import { ProfileDrawer } from "./ProfileDrawer";
 import { useViewStack } from "./shared/useViewStack";
+import { Ctx, type TeamContext } from "./team-context";
 
-type TeamContext = {
-  openProfile: (id: string) => void;
-  club: ClubId;
-  /** Select a club in the Clubs section; optionally scroll it into view. */
-  showClub: (id: ClubId, scroll?: boolean) => void;
-};
-
-const Ctx = createContext<TeamContext | null>(null);
-
-export function useTeam() {
-  const ctx = useContext(Ctx);
-  if (!ctx) throw new Error("useTeam must be used inside <TeamProvider>");
-  return ctx;
-}
-
-export function TeamProvider({ children }: { children: React.ReactNode }) {
+/**
+ * Supplies the merged team data and the open-profile state to the page.
+ *
+ * The hooks that READ this live in ./team-context, not here: this file renders
+ * ProfileDrawer, so hooks defined here would put ProfileDrawer in an import
+ * cycle with the provider that renders it.
+ */
+export function TeamProvider({
+  members,
+  photos,
+  children,
+}: {
+  members: Member[];
+  photos: Record<string, TeamPhoto>;
+  children: React.ReactNode;
+}) {
   const views = useViewStack();
   const [club, setClub] = useState<ClubId>("coding");
   const { open } = views;
@@ -36,8 +38,8 @@ export function TeamProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<TeamContext>(
-    () => ({ openProfile: (id) => open({ type: "member", id }), club, showClub }),
-    [open, club, showClub],
+    () => ({ openProfile: (id) => open({ type: "member", id }), club, showClub, members, photos }),
+    [open, club, showClub, members, photos],
   );
 
   return (

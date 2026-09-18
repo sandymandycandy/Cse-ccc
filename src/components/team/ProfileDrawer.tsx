@@ -4,22 +4,16 @@ import { useRef } from "react";
 import { AnimatePresence, motion, useDragControls } from "motion/react";
 import { ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight, Mail, X } from "lucide-react";
 
-import {
-  contextOf,
-  coverPosition,
-  getClub,
-  getLayer,
-  getMember,
-  profileFields,
-  type ClubId,
-} from "@/data/ccc";
+import { getClub, getLayer, profileFields, type ClubId } from "@/data/ccc";
 import { siteHref } from "@/lib/site";
+import { selectClubLeaders, selectInLayer } from "@/lib/team/selectors";
 import { Portrait } from "./Portrait";
 import { Description } from "./shared/Description";
 import { Portal } from "./shared/Portal";
 import { useMediaQuery } from "./shared/useMediaQuery";
 import { useModal } from "./shared/useModal";
 import type { ViewStack } from "./shared/useViewStack";
+import { useCoverPosition, useMembers } from "./team-context";
 import { layerTone } from "./tones";
 
 const ease = [0.22, 1, 0.36, 1] as const;
@@ -30,13 +24,20 @@ export function ProfileDrawer({ views, onShowClub }: { views: ViewStack; onShowC
   const drag = useDragControls();
   useModal(ref, views.close, closeRef);
   const desktop = useMediaQuery("(min-width: 768px)", true);
+  // ⚠️ Every hook sits ABOVE the early return below. A hook after it would be
+  // skipped on renders where no profile is open, and React would throw
+  // "rendered fewer hooks than expected".
+  const members = useMembers();
+  const cover = useCoverPosition();
 
-  const member = views.current ? getMember(views.current.id) : undefined;
+  const currentId = views.current?.id;
+  const member = currentId ? members.find((m) => m.id === currentId) : undefined;
   if (!member) return null;
 
   const layer = getLayer(member.layer);
   const club = member.club ? getClub(member.club) : undefined;
-  const ctx = contextOf(member);
+  // Pure selectors, not hooks: this runs after the early return above.
+  const ctx = member.club ? selectClubLeaders(members, member.club) : selectInLayer(members, member.layer);
   const index = ctx.findIndex((m) => m.id === member.id);
   const tone = layerTone[member.layer];
   const fields = profileFields(member).filter((f) => !["role", "club", "layer"].includes(f.key));
@@ -126,7 +127,7 @@ export function ProfileDrawer({ views, onShowClub }: { views: ViewStack; onShowC
             >
               <div className="grid grid-cols-[112px_1fr] items-end gap-5 sm:grid-cols-[150px_1fr]">
                 <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-sand">
-                  <Portrait member={member} sizes="150px" quality={90} position={coverPosition(member, 4 / 5)} label />
+                  <Portrait member={member} sizes="150px" quality={90} position={cover(member, 4 / 5)} label />
                 </div>
                 <div className="min-w-0 pb-1">
                   <p className={`font-mono text-[11px] uppercase tracking-[0.14em] ${tone.text}`}>{member.role}</p>

@@ -3,9 +3,9 @@
 import { motion } from "motion/react";
 import { ArrowUpRight } from "lucide-react";
 
-import { coverPosition, smtByGroup, smtMembers, type SmtGroup } from "@/data/ccc";
+import type { SmtGroup } from "@/data/ccc";
 import { Portrait } from "./Portrait";
-import { useTeam } from "./TeamProvider";
+import { useCoverPosition, useMembersInLayer, useSmtByGroup, useTeam } from "./team-context";
 import { smtTone } from "./tones";
 
 const ease = [0.22, 1, 0.36, 1] as const;
@@ -17,7 +17,9 @@ function slug(group: SmtGroup) {
 /** Layer 04: how the Social Media Team splits across functions, then the people in each. */
 export function SmtCredits() {
   const { openProfile } = useTeam();
-  const groups = smtByGroup();
+  const groups = useSmtByGroup();
+  const smtMembers = useMembersInLayer("smt");
+  const cover = useCoverPosition();
 
   return (
     <div className="mt-12 lg:mt-16">
@@ -79,7 +81,7 @@ export function SmtCredits() {
                     className="group grid w-full grid-cols-[56px_1fr_auto] items-center gap-3.5 rounded-[16px] p-2 text-left transition-colors hover:bg-sand focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-forest"
                   >
                     <span className="relative block aspect-square overflow-hidden rounded-[12px] bg-sand">
-                      <Portrait member={m} sizes="56px" position={coverPosition(m, 1, 4)} />
+                      <Portrait member={m} sizes="56px" position={cover(m, 1, 4)} />
                     </span>
                     <span className="min-w-0">
                       <span className="block font-serif text-[1.2rem] leading-[1.15] [overflow-wrap:anywhere]">{m.name}</span>

@@ -10,8 +10,13 @@ import { Reveal } from "@/components/team/Reveal";
 import { SectionIntro } from "@/components/team/SectionIntro";
 import { SmtCredits } from "@/components/team/SmtCredits";
 import { TeamProvider } from "@/components/team/TeamProvider";
-import { counts, pad } from "@/data/ccc";
+// `counts` stays a static import on purpose: the roster is fixed in code, so
+// these numbers cannot change when details are edited. Routing them through
+// context would add a re-render for a constant.
+import { counts, members as fileMembers, pad } from "@/data/ccc";
 import { siteHref } from "@/lib/site";
+import { mergeProfiles, photoOverrides } from "@/lib/team/profiles";
+import { getTeamProfileRows } from "@/lib/team/read";
 
 const description =
   "Meet the students who run the CSE Club Council — the President, council leadership, the Heads and Vice Heads of every club, and the Social Media Team.";
@@ -30,9 +35,15 @@ export const metadata: Metadata = {
 const delay = (ms: number) => ({ "--delay": `${ms}ms` }) as React.CSSProperties;
 const container = "mx-auto max-w-[1440px] px-5 sm:px-8 lg:px-14";
 
-export default function TeamPage() {
+export default async function TeamPage() {
+  // [] when the database is unreachable — mergeProfiles then returns the file's
+  // values, so an outage costs the page its edits, not the page.
+  const rows = await getTeamProfileRows();
+  const members = mergeProfiles(fileMembers, rows);
+  const photos = photoOverrides(rows);
+
   return (
-    <TeamProvider>
+    <TeamProvider members={members} photos={photos}>
         {/* ------------------------------------------------ Hero */}
         <section aria-labelledby="team-title" className={`${container} grid grid-cols-1 items-start gap-12 pb-20 pt-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,560px)] lg:gap-16 lg:pb-28 lg:pt-24`}>
           <div className="min-w-0">

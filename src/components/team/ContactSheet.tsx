@@ -1,13 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
-import { clubLeaders, clubs, councilLeaders, coverPosition, getClub, layers, pad, president, smtMembers, type LayerId, type Member } from "@/data/ccc";
+import { clubs, getClub, layers, pad, type LayerId, type Member } from "@/data/ccc";
+import { selectClubLeaders, selectInLayer, selectPresident } from "@/lib/team/selectors";
 import { Portrait } from "./Portrait";
-import { useTeam } from "./TeamProvider";
+import { useCoverPosition, useMembers, useTeam } from "./team-context";
 
-// The whole council on one roll, in hierarchy order: President → council → club leaders → SMT.
-const everyone: Member[] = [president, ...councilLeaders, ...clubs.flatMap((c) => clubLeaders(c.id)), ...smtMembers];
+/**
+ * The whole council on one roll, in hierarchy order: President → council → club
+ * leaders → SMT.
+ *
+ * This used to be a module-level constant. A module constant is built once,
+ * before React runs, from the file alone — so it could never show an edit
+ * made in /admin/team. It is now built from the merged list. The pure
+ * selectors are used because clubs.flatMap() is a loop, where hooks cannot go.
+ */
+function useEveryone(): Member[] {
+  const members = useMembers();
+  return useMemo(
+    () => [
+      selectPresident(members)!,
+      ...selectInLayer(members, "council"),
+      ...clubs.flatMap((c) => selectClubLeaders(members, c.id)),
+      ...selectInLayer(members, "smt"),
+    ],
+    [members],
+  );
+}
 
 const FILM = "#15160f";
 const AMBER = "#e0a458";
@@ -31,6 +51,7 @@ function chunk<T>(items: T[], size: number) {
  * it in grease pencil. Any frame opens that person's profile.
  */
 export function ContactSheet() {
+  const everyone = useEveryone();
   const [active, setActive] = useState<number | null>(null);
   const person = active === null ? null : everyone[active];
 
@@ -82,6 +103,7 @@ export function ContactSheet() {
 }
 
 function Sheet({ cols, className, onActive }: { cols: number; className: string; onActive: (i: number | null) => void }) {
+  const everyone = useEveryone();
   const strips = chunk(
     everyone.map((member, index) => ({ member, index })),
     cols,
@@ -121,6 +143,7 @@ function Sprockets({ className }: { className: string }) {
 
 function Frame({ member, index, onActive }: { member: Member; index: number; onActive: (i: number | null) => void }) {
   const { openProfile } = useTeam();
+  const cover = useCoverPosition();
   const circled = member.layer === "president";
   return (
     <div role="listitem" className="group relative">
@@ -138,7 +161,7 @@ function Frame({ member, index, onActive }: { member: Member; index: number; onA
           member={member}
           tone="film"
           sizes="(min-width: 640px) 64px, 16vw"
-          position={coverPosition(member, 4 / 5)}
+          position={cover(member, 4 / 5)}
           className="transition-[filter,transform] duration-500 ease-out-quint group-hover:scale-[1.08] group-hover:grayscale-0 group-focus-within:grayscale-0 pointer-fine:contrast-[1.08] pointer-fine:grayscale"
         />
       </button>

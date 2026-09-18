@@ -4,22 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowDown, ArrowUpRight } from "lucide-react";
 
-import {
-  clubLeaders,
-  clubOpenRoles,
-  clubs,
-  councilLeaders,
-  counts,
-  getLayer,
-  pad,
-  president,
-  smtByGroup,
-  smtMembers,
-  type LayerId,
-  type Member,
-} from "@/data/ccc";
+import { clubOpenRoles, clubs, counts, getLayer, pad, type LayerId, type Member } from "@/data/ccc";
+import { selectClubLeaders } from "@/lib/team/selectors";
 import { Portrait } from "./Portrait";
-import { useTeam } from "./TeamProvider";
+import { useMembers, useMembersInLayer, usePresident, useSmtByGroup, useTeam } from "./team-context";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -42,7 +30,9 @@ const PLATE_LABEL: Partial<Record<string, string>> = {
 const councilAngle = (i: number) => -90 + i * 60;
 const clubStep = 360 / clubs.length;
 const clubAngle = (i: number) => -90 + clubStep / 2 + i * clubStep;
-const smtAngle = (i: number) => -90 + i * (360 / smtMembers.length);
+// A COUNT, not member data: the roster is fixed in code, so the ring spacing
+// never changes when details are edited. Stays module-level and static.
+const smtAngle = (i: number) => -90 + i * (360 / counts.byLayer.smt);
 
 /** Rounded so server and browser trig render identical markup. */
 function polar(r: number, deg: number) {
@@ -139,6 +129,10 @@ export function CouncilOrbit() {
 
 function Plate({ step, onHover }: { step: Step; onHover: (h: Hover) => void }) {
   const { openProfile, showClub } = useTeam();
+  const members = useMembers();
+  const president = usePresident();
+  const councilLeaders = useMembersInLayer("council");
+  const smtMembers = useMembersInLayer("smt");
 
   return (
     // Decorative mirror of the story on the left, which holds the accessible controls.
@@ -251,7 +245,7 @@ function Plate({ step, onHover }: { step: Step; onHover: (h: Hover) => void }) {
       {/* Clubs */}
       {clubs.map((c, i) => {
         const s = stateOf("clubs", step);
-        const n = clubLeaders(c.id).length;
+        const n = selectClubLeaders(members, c.id).length;
         const open = clubOpenRoles(c.id).length;
         const sub = [`Club ${pad(c.number)}`, n ? `${n} leaders` : null, open ? `${open} open` : null].filter(Boolean).join(" · ");
         return (
@@ -479,6 +473,7 @@ function StepBlock({
 
 function PresidentStep() {
   const { openProfile } = useTeam();
+  const president = usePresident();
   return (
     <button
       type="button"
@@ -501,6 +496,7 @@ function PresidentStep() {
 
 function CouncilStep() {
   const { openProfile } = useTeam();
+  const councilLeaders = useMembersInLayer("council");
   return (
     <ul className="grid gap-x-6 sm:grid-cols-2">
       {councilLeaders.map((m) => (
@@ -553,9 +549,10 @@ function ClubsStep() {
 
 function SmtStep() {
   const { openProfile } = useTeam();
+  const smtGroups = useSmtByGroup();
   return (
     <dl className="divide-y divide-line border-y border-line">
-      {smtByGroup().map((g) => (
+      {smtGroups.map((g) => (
         <div key={g.group} className="grid gap-1 py-3 sm:grid-cols-[9.5rem_1fr] sm:gap-4">
           <dt className="font-mono text-[11px] uppercase tracking-[0.14em] text-rust">{g.group}</dt>
           <dd className="flex flex-wrap gap-x-3 gap-y-1 text-[15px]">

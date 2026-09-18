@@ -5,11 +5,9 @@ import { AnimatePresence, motion } from "motion/react";
 import { ArrowUpRight, Plus, UserPlus } from "lucide-react";
 
 import {
-  clubLeaders,
   clubOpenRoles,
   clubs,
   counts,
-  coverPosition,
   getClub,
   isHeadRole,
   pad,
@@ -18,8 +16,9 @@ import {
   type OpenRole,
 } from "@/data/ccc";
 import { siteHref } from "@/lib/site";
+import { selectClubLeaders } from "@/lib/team/selectors";
 import { Portrait } from "./Portrait";
-import { useTeam } from "./TeamProvider";
+import { useClubLeaders, useCoverPosition, useMembers, useTeam } from "./team-context";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -30,6 +29,9 @@ const ease = [0.22, 1, 0.36, 1] as const;
  */
 export function ClubsExplorer() {
   const { club, showClub } = useTeam();
+  // The tab list runs inside clubs.map(), where a per-club hook cannot be
+  // called — so it filters the merged list with the pure selector instead.
+  const members = useMembers();
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const chipRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -95,7 +97,7 @@ export function ClubsExplorer() {
       <div role="tablist" aria-label="Clubs" aria-orientation="vertical" className="hidden border-t border-line lg:block">
         {clubs.map((c) => {
           const on = c.id === club;
-          const leaders = clubLeaders(c.id);
+          const leaders = selectClubLeaders(members, c.id);
           const open = clubOpenRoles(c.id);
           return (
             <button
@@ -148,7 +150,7 @@ export function ClubsExplorer() {
 
 function ClubPanel({ clubId }: { clubId: ClubId }) {
   const club = getClub(clubId);
-  const leaders = clubLeaders(clubId);
+  const leaders = useClubLeaders(clubId);
   const open = clubOpenRoles(clubId);
   // Heads first, then Vice Heads, all side by side; open positions bring up the rear.
   const ordered = [...leaders.filter((m) => isHeadRole(m.role)), ...leaders.filter((m) => !isHeadRole(m.role))];
@@ -257,6 +259,7 @@ function OpenSlot({ role, delay, pair }: { role: OpenRole; delay: number; pair: 
 /** A leader as a large portrait card; the whole card opens their profile. */
 function LeaderCard({ member, delay, pair }: { member: Member; delay: number; pair: boolean }) {
   const { openProfile } = useTeam();
+  const cover = useCoverPosition();
   const head = isHeadRole(member.role);
   const meta = [member.year && `Year ${member.year}`, member.department].filter(Boolean).join(" · ");
   return (
@@ -272,7 +275,7 @@ function LeaderCard({ member, delay, pair }: { member: Member; delay: number; pa
           <Portrait
             member={member}
             sizes={pair ? "(min-width: 1024px) 30vw, 45vw" : "(min-width: 1280px) 22vw, (min-width: 1024px) 28vw, 45vw"}
-            position={coverPosition(member, pair ? 1 : 4 / 5, 6)}
+            position={cover(member, pair ? 1 : 4 / 5, 6)}
             className="transition-transform duration-700 ease-out-quint group-hover:scale-[1.04]"
           />
           <span

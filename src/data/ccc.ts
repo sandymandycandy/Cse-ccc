@@ -22,6 +22,8 @@
  */
 import type { StaticImageData } from "next/image";
 
+import { coverPositionFrom } from "@/lib/team/framing";
+
 import cheedellaVenkataSaiCharanPortrait from "@/assets/team/cheedella-venkata-sai-charan.jpg";
 import thokalaSaiVarunPortrait from "@/assets/team/thokala-sai-varun.jpg";
 import sSandeepKumarPortrait from "@/assets/team/s-sandeep-kumar.jpg";
@@ -988,16 +990,19 @@ export function objectPosition(member: Member) {
   return p ? `${p.focal.x}% ${p.focal.y}%` : "50% 35%";
 }
 
-/** object-position keeping the face in frame inside a container wider than the photo. */
+/**
+ * object-position keeping the face in frame inside a container wider than the
+ * photo — for the BUNDLED portrait only. The math lives in coverPositionFrom so
+ * an uploaded portrait (src/lib/team) runs through the same implementation;
+ * components should use useCoverPosition(), which prefers an upload.
+ */
 export function coverPosition(member: Member, containerAspect: number, headroom = 4) {
   const p = portraitOf(member);
-  if (!p) return "50% 35%";
-  const imageAspect = p.src.width / p.src.height;
-  if (containerAspect <= imageAspect) return `${p.focal.x}% ${p.focal.y}%`;
-  const visible = imageAspect / containerAspect;
-  const center = (p.focal.y - headroom) / 100;
-  const start = Math.min(Math.max(center - visible / 2, 0), 1 - visible);
-  return `${p.focal.x}% ${((start / (1 - visible)) * 100).toFixed(1)}%`;
+  return coverPositionFrom(
+    p && { width: p.src.width, height: p.src.height, focal: p.focal },
+    containerAspect,
+    headroom,
+  );
 }
 
 export type ProfileField = { key: string; label: string; value: string; href?: string };
