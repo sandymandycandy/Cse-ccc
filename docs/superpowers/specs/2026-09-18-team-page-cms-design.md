@@ -115,7 +115,10 @@ create table public.team_profiles (
   email       text not null,
   description text,
   portfolio   text,
-  photo_path  text,                      -- council-photos object; null = bundled
+  photo_path   text,                     -- council-photos object; null = bundled
+  photo_width  integer,                  -- needed by coverPosition(); see below
+  photo_height integer,
+  photo_blur   text,                     -- data: URL for placeholder="blur"
   focal_x     smallint not null default 50,
   focal_y     smallint not null default 50,
   updated_at  timestamptz not null default now(),
@@ -140,9 +143,25 @@ RLS on, no policies — service-role only, matching `council_members`
 
 ### Seeding
 
-The migration inserts all 46 rows with the values currently in `ccc.ts`. It is
-written as `insert ... on conflict (member_id) do nothing` so re-running is
-harmless.
+**Refined during planning (2026-09-18).** The original intent was 46 literal
+`INSERT`s in the migration. That would mean transcribing 46 bios — multi-line
+strings full of `\n` escapes and apostrophes — from TypeScript into SQL by hand,
+which is a transcription bug waiting to happen and would immediately drift from
+the file.
+
+Instead:
+
+- **The migration is DDL only.**
+- **The admin lists all 46 from the merge**, so every person is editable from
+  the moment the page loads, with no seed step. This is what "pre-create all 46"
+  was actually asking for.
+- **Saving a person upserts their row.** Rows materialise as people are edited.
+- **A `syncTeamProfilesAction` button** inserts rows for any `ccc.ts` member that
+  has none, using the file's values, and **never overwrites an existing row.**
+  Run once for a complete snapshot; run again after adding someone to `ccc.ts`.
+
+The values therefore come from the typed module itself rather than a hand-copied
+SQL literal, and they cannot disagree with it.
 
 ### Reading, and the resilience property
 
@@ -213,6 +232,19 @@ Two consequences:
   photos.
 - Decided: **generate it.** A photo that pops in while its 44 neighbours blur up
   is a visible inconsistency, and it is ~20 lines at the one upload site.
+
+⚠️ **`coverPosition()` divides by the image's aspect ratio**
+(`ccc.ts:995`, `p.src.width / p.src.height`). A static import supplies those
+dimensions; a Storage URL does not. That is why `photo_width` and
+`photo_height` are columns — `sharp` reads them at upload alongside the blur.
+Without them the orbit and contact-sheet crops silently fall back to
+`"50% 35%"` for every uploaded photo.
+
+⚠️ **`sharp` loads today (vips 8.18.3) but is NOT a declared dependency** — it
+arrives transitively through Next. Using it means **adding it to
+`package.json`**, or a Next upgrade can remove it and break uploads. Add it with
+`npm install sharp` so the lockfile is written properly (see the `npm ci`
+lockfile-drift note in `docs/STATUS.md`).
 
 **Focal point.** Each bundled portrait has a hand-tuned `focal: {x, y}` that
 keeps the face framed under `object-cover`. An uploaded photo has none, so
