@@ -144,18 +144,14 @@ export interface FeedbackToggleState {
   fieldErrors?: FieldErrors;
 }
 
-export interface TeamLinksState {
+/** One person's editor on /admin/team, backed by team_profiles — the table the
+ *  public /team page actually renders. `saved` lets the row confirm inline,
+ *  without the whole page flashing: /admin/team saves one person at a time.
+ *
+ *  Replaced TeamLinksState and TeamAddState, which belonged to the
+ *  council_members version of this page and went with it. */
+export interface TeamProfileState {
   error?: string;
   fieldErrors?: FieldErrors;
-  /** Set after a successful save so the row can confirm inline, without the whole
-   *  page flashing — /admin/team saves one member at a time. */
   saved?: boolean;
-}
-
-/** The "Add someone" form on /admin/team. Separate from TeamLinksState because a
- *  successful add clears the form, where a successful save keeps its values. */
-export interface TeamAddState {
-  error?: string;
-  fieldErrors?: FieldErrors;
-  addedName?: string;
 }

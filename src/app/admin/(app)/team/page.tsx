@@ -2,72 +2,51 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireViewPage } from "@/lib/auth/guards";
 import { canManage, canView } from "@/lib/auth/capabilities";
-import { listClubOptions, listTeamMembers, TeamColumnsMissingError } from "@/lib/admin/team";
-import { TeamRow } from "@/components/admin/TeamRow";
-import { AddTeamMember } from "@/components/admin/AddTeamMember";
-import {
-  addTeamMemberAction,
-  saveTeamLinksAction,
-  setTeamVisibilityAction,
-  setTeamVisibilityBulkAction,
-} from "./actions";
+import { getClub, layers, objectPosition, portraitOf, type LayerId } from "@/data/ccc";
+import { listTeamProfiles } from "@/lib/admin/team-profiles";
+import { publicPhotoUrl } from "@/lib/team/profiles";
+import { TeamProfileRow, type TeamProfileRowData } from "@/components/admin/TeamProfileRow";
+import { saveTeamProfileAction, syncTeamProfilesAction } from "./profile-actions";
 
+/**
+ * /admin/team edits the public /team page — every detail and portrait of the 46
+ * people in src/data/ccc.ts, stored in team_profiles.
+ *
+ * ⚠️ This page used to edit council_members. Since the new /team renders from
+ * src/data/ccc.ts + team_profiles, those edits appeared nowhere. The attendance
+ * roster is still edited at Council → Members, and is a separate list.
+ */
 export default async function AdminTeamPage() {
   const session = await requireViewPage("manage:council");
   if (!canView(session, "manage:council")) redirect("/admin");
   const canEdit = canManage(session, "manage:council");
 
-  let members;
-  try {
-    members = await listTeamMembers();
-  } catch (e) {
-    // The one failure worth its own screen: without the columns there is nothing
-    // to edit, and a generic error would send someone hunting the wrong problem.
-    if (e instanceof TeamColumnsMissingError) {
-      return (
-        <div className="admin-page">
-          <div className="eyebrow">Public site</div>
-          <h1 style={{ margin: "6px 0 0" }}>Team page</h1>
-          <div className="note" style={{ borderLeftColor: "var(--rust)", marginTop: 20 }}>
-            <p style={{ margin: 0 }}>
-              <strong>One migration needs applying before this page works.</strong>
-            </p>
-            <p style={{ margin: "8px 0 0" }}>
-              Run this once via the Supabase MCP <code>apply_migration</code> tool or
-              the dashboard SQL editor (never <code>db push</code> — see{" "}
-              <code>docs/STATUS.md</code>):
-            </p>
-            <pre
-              style={{
-                marginTop: 10,
-                padding: 12,
-                overflowX: "auto",
-                background: "var(--sand)",
-                borderRadius: "var(--r-sm, 8px)",
-                font: "500 12px var(--mono)",
-              }}
-            >
-{`alter table public.council_members
-  add column if not exists linkedin_url  text,
-  add column if not exists instagram_url text,
-  add column if not exists is_public     boolean not null default false;`}
-            </pre>
-            <p style={{ margin: "10px 0 0", color: "var(--ink-3)" }}>
-              Until then the public <code>/team</code> page publishes nobody, by
-              design — visibility cannot be read, so nothing is assumed public.
-            </p>
-          </div>
-        </div>
-      );
-    }
-    throw e;
-  }
+  const profiles = await listTeamProfiles();
+  const unsaved = profiles.filter((p) => !p.hasRow).length;
 
-  const live = members.filter((m) => m.isPublic && m.isActive).length;
-  const clubs = await listClubOptions();
-  // The bulk form lives OUTSIDE every row, and each row's checkbox joins it by
-  // `form={BULK_FORM_ID}` — HTML forbids nested forms and a row already has two.
-  const BULK_FORM_ID = "team-bulk";
+  const rows: (TeamProfileRowData & { layer: LayerId })[] = profiles.map((p) => {
+    const m = p.member;
+    const bundled = portraitOf(m);
+    const hasUpload = p.photoPath != null;
+    return {
+      layer: m.layer,
+      memberId: m.id,
+      name: m.name,
+      role: m.role,
+      email: m.email,
+      year: m.year ?? null,
+      department: m.department ?? null,
+      description: m.description ?? null,
+      portfolio: m.portfolio ?? null,
+      placement: m.club ? getClub(m.club).name : (layers.find((l) => l.id === m.layer)?.title ?? ""),
+      hasRow: p.hasRow,
+      photoUrl: hasUpload ? publicPhotoUrl(p.photoPath!) : (bundled?.src.src ?? null),
+      hasUpload,
+      bundledPosition: objectPosition(m),
+      focalX: p.focalX,
+      focalY: p.focalY,
+    };
+  });
 
   return (
     <div className="admin-page">
@@ -81,73 +60,63 @@ export default async function AdminTeamPage() {
         </Link>
       </div>
 
-      <p className="body-text" style={{ marginTop: 12, maxWidth: 620 }}>
-        Who appears on the public <code>/team</code> page, plus each person&rsquo;s
-        photo, description and links. Nobody is published until you say so —{" "}
-        <strong>{live} of {members.length}</strong> {live === 1 ? "person is" : "people are"}{" "}
-        live right now.
+      <p className="body-text" style={{ marginTop: 12, maxWidth: 640 }}>
+        Everyone on the public <code>/team</code> page — {profiles.length} people. Edit a
+        name, role, year, department, email, description or photo and save: it is live
+        on <code>/team</code> straight away.
       </p>
-      <p className="body-text" style={{ marginTop: 8, maxWidth: 620, color: "var(--ink-3)" }}>
-        Name, role and club can be edited here, and they are the{" "}
-        <em>same</em> record as{" "}
-        <Link href="/admin/council/members">Council → Members</Link> — a change here
-        shows there too. Email, phone and attendance still live on that page, and
-        are never published.
+      <p className="body-text" style={{ marginTop: 8, maxWidth: 640, color: "var(--ink-3)" }}>
+        Who is on the page, and which section they appear in, is set in code — adding or
+        removing a person needs a change to the site. This is a separate list from the
+        attendance roster in <Link href="/admin/council/members">Council → Members</Link>.
       </p>
 
-      {members.length === 0 ? (
-        <p className="body-text" style={{ marginTop: 24 }}>
-          No onboarded council members yet. Add them in{" "}
-          <Link href="/admin/council/members">Council → Members</Link> first.
-        </p>
-      ) : (
-        <>
-          {canEdit ? (
-            <form
-              id={BULK_FORM_ID}
-              action={setTeamVisibilityBulkAction}
-              className="panel"
-              style={{
-                marginTop: 20,
-                padding: "12px 16px",
-                borderRadius: "var(--r-md)",
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                flexWrap: "wrap",
-              }}
-            >
-              <span className="label">With the ticked people</span>
-              {/* Posts the state it WANTS, never a flip — same rule as one row. */}
-              <button type="submit" name="next" value="public" className="btn btn-sm btn-primary">
-                Publish selected
-              </button>
-              <button type="submit" name="next" value="hidden" className="btn btn-sm">
-                Hide selected
-              </button>
-              <span className="hint" style={{ marginLeft: "auto" }}>
-                Tick nobody and nothing happens.
+      {canEdit && unsaved > 0 ? (
+        <form
+          action={syncTeamProfilesAction}
+          className="panel"
+          style={{
+            marginTop: 20,
+            padding: "12px 16px",
+            borderRadius: "var(--r-md)",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <span className="body-text" style={{ margin: 0 }}>
+            <strong>{unsaved}</strong> {unsaved === 1 ? "person is" : "people are"} still showing
+            the form&rsquo;s answers and {unsaved === 1 ? "has" : "have"} no saved record yet.
+          </span>
+          <button type="submit" className="btn btn-sm">
+            Save everyone&rsquo;s current details
+          </button>
+          <span className="hint" style={{ marginLeft: "auto" }}>
+            Optional — saving any one person also does this for them. Never overwrites an edit.
+          </span>
+        </form>
+      ) : null}
+
+      {layers.map((layer) => {
+        const inLayer = rows.filter((r) => r.layer === layer.id);
+        if (inLayer.length === 0) return null;
+        return (
+          <section key={layer.id} style={{ marginTop: 28 }}>
+            <div className="sec-head">
+              <h2 style={{ margin: 0 }}>{layer.title}</h2>
+              <span className="label">
+                {inLayer.length} {inLayer.length === 1 ? "person" : "people"}
               </span>
-            </form>
-          ) : null}
-
-          <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
-            {members.map((m) => (
-              <TeamRow
-                key={m.id}
-                member={m}
-                clubs={clubs}
-                saveAction={saveTeamLinksAction}
-                visibilityAction={setTeamVisibilityAction}
-                bulkFormId={BULK_FORM_ID}
-                canEdit={canEdit}
-              />
-            ))}
-          </div>
-
-          {canEdit ? <AddTeamMember action={addTeamMemberAction} clubs={clubs} /> : null}
-        </>
-      )}
+            </div>
+            <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
+              {inLayer.map((row) => (
+                <TeamProfileRow key={row.memberId} row={row} saveAction={saveTeamProfileAction} canEdit={canEdit} />
+              ))}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }

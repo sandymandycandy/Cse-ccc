@@ -56,6 +56,9 @@ const nextConfig: NextConfig = {
     // AVIF first, WebP second: both are far smaller than the source JPEG/WebP
     // originals, and Next falls back automatically for browsers that lack them.
     formats: ["image/avif", "image/webp"],
+    // 90 is for the team-page portraits, which are large and faces-first —
+    // 75 visibly softens them. Everything else stays on the 75 default.
+    qualities: [75, 90],
     remotePatterns: supabaseHostname
       ? [
           {

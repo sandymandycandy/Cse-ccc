@@ -1,107 +1,177 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ButtonLink } from "@/components/ui/Button";
-import { TeamCard } from "@/components/TeamCard";
-import { getCouncilRoster } from "@/lib/council/public-roster";
-import { groupByClub, splitRoster } from "@/lib/council/roster";
+import { ArrowDown, ArrowUpRight } from "lucide-react";
+
+import { ClubsExplorer } from "@/components/team/ClubsExplorer";
+import { LayerNav } from "@/components/team/LayerNav";
+import { CouncilGrid, PresidentFeature } from "@/components/team/LeadershipSections";
+import { ContactSheet } from "@/components/team/ContactSheet";
+import { CouncilOrbit } from "@/components/team/CouncilOrbit";
+import { Reveal } from "@/components/team/Reveal";
+import { SectionIntro } from "@/components/team/SectionIntro";
+import { SmtCredits } from "@/components/team/SmtCredits";
+import { TeamProvider } from "@/components/team/TeamProvider";
+// `counts` stays a static import on purpose: the roster is fixed in code, so
+// these numbers cannot change when details are edited. Routing them through
+// context would add a re-render for a constant.
+import { counts, members as fileMembers, pad } from "@/data/ccc";
+import { siteHref } from "@/lib/site";
+import { mergeProfiles, photoOverrides } from "@/lib/team/profiles";
+import { getTeamProfileRows } from "@/lib/team/read";
+
+const description =
+  "Meet the students who run the CSE Club Council — the President, council leadership, the Heads and Vice Heads of every club, and the Social Media Team.";
 
 export const metadata: Metadata = {
-  title: "The council",
-  description:
-    "The CSE Club Council — how the department's eleven clubs are organised and led.",
+  title: "Team",
+  description,
+  openGraph: {
+    title: "The people behind one community — CSE Club Council",
+    description,
+    type: "website",
+  },
+  twitter: { card: "summary_large_image", title: "The people behind one community", description },
 };
 
+const delay = (ms: number) => ({ "--delay": `${ms}ms` }) as React.CSSProperties;
+const container = "mx-auto max-w-[1440px] px-5 sm:px-8 lg:px-14";
+
 export default async function TeamPage() {
-  // null = the read failed; [] = nobody is listed yet. Different messages.
-  const roster = await getCouncilRoster();
-  const { leadership, heads } = splitRoster(roster ?? []);
-  // Club heads are grouped by club_id, never by their designation text — the
-  // same club is written three different ways across the roster.
-  const clubs = groupByClub(heads);
-  const total = leadership.length + heads.length;
+  // [] when the database is unreachable — mergeProfiles then returns the file's
+  // values, so an outage costs the page its edits, not the page.
+  const rows = await getTeamProfileRows();
+  const members = mergeProfiles(fileMembers, rows);
+  const photos = photoOverrides(rows);
 
   return (
-    <>
-      <section className="section" style={{ paddingTop: 56 }}>
-        <div className="eyebrow">The council</div>
-        <h1 style={{ margin: "12px 0 0" }}>The council</h1>
-        <p className="lead" style={{ marginTop: 16, maxWidth: 560 }}>
-          The CSE Club Council brings the department&rsquo;s clubs under one roof —
-          a shared calendar, one approvals process, and a small elected team that
-          keeps it all running. Each club has its own leads; the council
-          coordinates across them.
-        </p>
-        <div className="stack" style={{ marginTop: 28, gap: 12 }}>
-          <ButtonLink href="/clubs">Browse the clubs</ButtonLink>
-        </div>
-      </section>
-
-      {/* Hidden until the officer rows exist, so the page never shows an empty
-          heading. A member joins this tier by holding a designation that matches
-          LEADERSHIP_TITLES exactly — set it in /admin/team. */}
-      {leadership.length > 0 ? (
-        <section className="section">
-          <div className="sec-head">
-            <h2>Council leadership</h2>
-            {total > 0 ? (
-              <span className="label">
-                {total} {total === 1 ? "member" : "members"} in all
+    <TeamProvider members={members} photos={photos}>
+        {/* ------------------------------------------------ Hero */}
+        <section aria-labelledby="team-title" className={`${container} grid grid-cols-1 items-start gap-12 pb-20 pt-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,560px)] lg:gap-16 lg:pb-28 lg:pt-24`}>
+          <div className="min-w-0">
+            <p className="rise font-mono text-[12px] uppercase tracking-[0.2em] text-ink-3" style={delay(60)}>
+              Department of Computer Science · The team
+            </p>
+            <h1 id="team-title" className="mt-6 font-serif text-[clamp(3.2rem,7.4vw,6.2rem)] leading-[0.96] tracking-[-0.01em]">
+              <span className="line-mask">
+                <span style={delay(120)}>The people behind</span>
               </span>
-            ) : null}
-          </div>
-          <div className="clubs">
-            {leadership.map((member) => (
-              <TeamCard key={member.id} member={member} />
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {/* One section per club, A→Z, heads before vice heads. The trailing group
-          (clubId null) holds anyone not attached to a club — a permanent state,
-          since /council/join/[token] lets a member register before anyone
-          assigns them one. */}
-      {clubs.map((group) => (
-        <section className="section" key={group.clubId ?? "unassigned"}>
-          <div className="sec-head">
-            <h2>{group.clubName ?? "Also on the council"}</h2>
-            {group.clubSlug ? (
-              <Link
-                href={`/clubs/${group.clubSlug}`}
-                className="label"
-                style={{ color: "var(--forest)" }}
+              <span className="line-mask">
+                <span style={delay(220)}>
+                  one <em className="text-forest">community.</em>
+                </span>
+              </span>
+            </h1>
+            <p className="rise mt-7 max-w-xl text-[18px] leading-relaxed text-ink-2" style={delay(340)}>
+              The council is run by {counts.people} students in four layers: a President, {counts.byLayer.council} council leads, the Heads and Vice
+              Heads of all {counts.clubs} clubs, and an {counts.byLayer.smt}-member Social Media Team.
+            </p>
+            <div className="rise mt-9 flex flex-wrap gap-3" style={delay(420)}>
+              <a
+                href="#structure"
+                className="inline-flex h-12 items-center gap-2 rounded-full bg-ink px-6 text-[15px] font-medium text-paper transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
               >
-                About the club →
-              </Link>
-            ) : null}
-          </div>
-          <div className="clubs">
-            {group.members.map((member) => (
-              <TeamCard key={member.id} member={member} />
-            ))}
-          </div>
-        </section>
-      ))}
+                How the council works <ArrowDown className="size-4" />
+              </a>
+              <a
+                href="#clubs"
+                className="inline-flex h-12 items-center rounded-full border border-line-3 bg-paper-2 px-6 text-[15px] font-medium transition-colors hover:bg-sand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+              >
+                Find a club&rsquo;s leaders
+              </a>
+            </div>
 
-      {/* Two distinct states, deliberately not merged. A failed read must not
-          claim the roster "is being put together" — that reads as the truth and
-          hides an outage. Keyed off the WHOLE roster, not either tier, so officers
-          listed with no club heads yet does not contradict the cards above. */}
-      {roster === null ? (
-        <section className="section">
-          <p className="body-text" style={{ maxWidth: 560, color: "var(--ink-3)" }}>
-            The roster couldn&rsquo;t be loaded just now. Please refresh in a moment
-            &mdash; the council list is still there, this is a temporary hiccup.
-          </p>
+            <dl className="rise mt-12 grid grid-cols-2 gap-x-8 gap-y-6 border-t border-line pt-7 sm:flex sm:flex-wrap sm:gap-x-10" style={delay(500)}>
+              {[
+                [counts.people, "People"],
+                [pad(counts.layers), "Layers"],
+                [counts.clubs, "Clubs"],
+                [counts.byLayer.clubs, "Club leaders"],
+                ...(counts.openRoles ? [[counts.openRoles, "Roles open"] as const] : []),
+              ].map(([value, label]) => (
+                <div key={label} className="flex flex-col-reverse">
+                  <dt className="mt-1 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-3">{label}</dt>
+                  <dd className="font-serif text-[2.4rem] leading-none tabular-nums">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+
+          <ContactSheet />
         </section>
-      ) : roster.length === 0 ? (
-        <section className="section">
-          <p className="body-text" style={{ maxWidth: 560, color: "var(--ink-3)" }}>
-            The full roster of council members and club leads is being put together
-            and will be published here soon.
-          </p>
+
+        {/* ------------------------------------------------ Structure */}
+        <section id="structure" aria-labelledby="structure-title" className="scroll-mt-[var(--hdr)] border-t border-line bg-paper-2 py-20 lg:py-28">
+          <div className={container}>
+            <Reveal className="grid gap-6 lg:grid-cols-12 lg:gap-8">
+              <p className="font-mono text-[12px] uppercase tracking-[0.2em] text-ink-3 lg:col-span-4">How the council works</p>
+              <div className="lg:col-span-8">
+                <h2 id="structure-title" className="font-serif text-[clamp(2.6rem,5.4vw,4.75rem)] leading-[0.98]">
+                  How the council <em className="text-forest">fits together.</em>
+                </h2>
+                <p className="mt-4 max-w-2xl text-[17px] leading-relaxed text-ink-2">
+                  Picture it as an orbit. Leadership starts at the centre and widens ring by ring — scroll to move outward, one layer at a time.
+                </p>
+              </div>
+            </Reveal>
+            <CouncilOrbit />
+          </div>
         </section>
-      ) : null}
-    </>
+
+        {/* ------------------------------------------------ Layers */}
+        <div className="relative">
+          <LayerNav />
+
+          <section id="president" aria-labelledby="president-title" className={`${container} py-20 lg:py-28`}>
+            <SectionIntro layer="president" title={<>The <em className="text-forest">President</em></>} />
+            <PresidentFeature />
+          </section>
+
+          <section id="council" aria-labelledby="council-title" className="border-t border-line py-20 lg:py-28">
+            <div className={container}>
+              <SectionIntro layer="council" title={<>Council <em className="text-clay">leadership</em></>} />
+              <CouncilGrid />
+            </div>
+          </section>
+
+          <section id="clubs" aria-labelledby="clubs-title" className="border-t border-line bg-paper-2 py-20 lg:py-28">
+            <div className={container}>
+              <SectionIntro layer="clubs" title={<>The {counts.clubs} <em>clubs</em></>} />
+              <ClubsExplorer />
+            </div>
+          </section>
+
+          <section id="smt" aria-labelledby="smt-title" className="border-t border-line py-20 lg:py-28">
+            <div className={container}>
+              <SectionIntro layer="smt" title={<>Social Media <em className="text-rust">Team</em></>} />
+              <SmtCredits />
+            </div>
+          </section>
+        </div>
+
+        {/* ------------------------------------------------ Closing */}
+        <section aria-labelledby="closing-title" className="border-t border-line bg-sand">
+          <div className={`${container} grid items-end gap-8 py-20 lg:grid-cols-12 lg:py-24`}>
+            <Reveal className="lg:col-span-7">
+              <h2 id="closing-title" className="font-serif text-[clamp(2.6rem,5.4vw,4.5rem)] leading-[0.98]">
+                {counts.clubs} clubs. <em className="text-forest">Find yours.</em>
+              </h2>
+              <p className="mt-4 max-w-lg text-[17px] leading-relaxed text-ink-2">Every club has its own page on the council site, with its events and what it&rsquo;s about.</p>
+            </Reveal>
+            <Reveal className="flex flex-wrap gap-3 lg:col-span-5 lg:justify-end" delay={0.08}>
+              <a
+                href={siteHref("/clubs")}
+                className="inline-flex h-12 items-center gap-2 rounded-full bg-ink px-6 text-[15px] font-medium text-paper transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+              >
+                Explore the clubs <ArrowUpRight className="size-4" />
+              </a>
+              <a
+                href={siteHref("/contact")}
+                className="inline-flex h-12 items-center rounded-full border border-line-3 bg-paper-2 px-6 text-[15px] font-medium transition-colors hover:bg-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest"
+              >
+                Contact the council
+              </a>
+            </Reveal>
+          </div>
+        </section>
+    </TeamProvider>
   );
 }

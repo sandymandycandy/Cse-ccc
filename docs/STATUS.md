@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-17 (co-host dropdown + sectioned event form SHIPPED; session history search + sortable date SHIPPED; co-hosted events shipped earlier the same day; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed).**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-18 (new `/team` page + its CMS BUILT on `feat/team-page-v2`, NOT merged — one migration already applied live; 2026-09-17: co-host dropdown + sectioned event form SHIPPED; session history search + sortable date SHIPPED; co-hosted events shipped earlier the same day; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed).**
 
 ## What this is
 
@@ -19,6 +19,91 @@ end-to-end**, not a checklist of components.
 ---
 
 ## 🚦 START HERE — current git/deploy state (2026-09-16)
+
+> ### 🟡 BUILT ON BRANCH `feat/team-page-v2` — NOT merged (2026-09-18)
+> The redesigned **`/team`** page, plus a **CMS for it** at `/admin/team`. Spec:
+> `docs/superpowers/specs/2026-09-18-team-page-cms-design.md`, plan:
+> `docs/superpowers/plans/2026-09-18-team-page-cms.md`. Gate on the branch:
+> typecheck ✓ lint ✓ **1299 tests** ✓ build ✓.
+>
+> ⚠️ **ONE MIGRATION IS ALREADY APPLIED LIVE** — `team_profiles`
+> (`20260918000000`), applied to `jisahccdnthzgibszwnq` on 2026-09-18 with the
+> owner's go-ahead. It is a new, empty table that **nothing on `main` reads**, so
+> production is unaffected until this branch merges. Rollback is
+> `drop table public.team_profiles;`.
+>
+> **New dependencies:** `motion`, `lucide-react`, and **`sharp`** — the last one
+> already loaded transitively through Next, and is now declared so a Next upgrade
+> cannot remove it. Pinned `^0.35` to match Next's own range so npm dedupes onto
+> one native binary. `npm ci --dry-run` is clean.
+>
+> - **`/team` renders from `src/data/ccc.ts` (46 people), NOT `council_members`.**
+>   ⚠️ That file is the RICHER dataset — 46 people / 45 photos / 46 bios, against
+>   `council_members`' 33 / 0 / 0. It came from the council's own form responses.
+>   **Do not "migrate the page onto the real table"** — the table is the thin one.
+> - **`team_profiles` holds only the EDITABLE fields**, keyed by the `ccc.ts` slug
+>   (`"s-anurudh"`), not a uuid. No layer/club/smt_group columns: those decide
+>   *where* a person renders, are not editable, and a second copy would drift.
+>   **`council_members` is untouched**, so council attendance, broadcasts and
+>   token registration cannot be affected by any of this.
+> - ⚠️ **The page must keep falling back to the file when the read fails.**
+>   `getTeamProfileRows()` returns `[]` on ANY failure and never throws, so an
+>   outage costs `/team` its *edits*, not the page — which the old DB-driven
+>   roster could not do. The trade is that on an outage you see the file's
+>   values, stale once anything has been edited. **Never empty `ccc.ts` or delete
+>   `src/assets/team/` "now that the DB has the data".**
+> - ⚠️ **`/admin/team` used to edit `council_members` and its edits went
+>   NOWHERE** once `/team` stopped reading that table — a live defect from
+>   `08bd9c5`, fixed here by repointing it. The attendance roster keeps its own
+>   editor at **Council → Members**; the two lists are separate on purpose.
+> - **Nine client components read member data as module imports**, which are
+>   evaluated before React runs and can never see an edit. They now read through
+>   `TeamProvider`. `ContactSheet` built its whole 46-frame roll that way.
+> - ⚠️ **Context and hooks live in `team-context.ts`, which imports NO
+>   components.** `TeamProvider` renders `ProfileDrawer`, so hooks defined in
+>   `TeamProvider.tsx` put it in an import cycle with the provider that renders
+>   it. Keep that file component-free.
+> - ⚠️ **`useViewStack` deliberately still uses the STATIC `getMember`/
+>   `contextOf`** — it only needs id/club/layer to step between profiles, which
+>   the merge never changes, and it CANNOT use context because `TeamProvider`
+>   calls it before its own context exists.
+> - ⚠️ **`coverPosition()` is called in five components**, and read the static
+>   portraits map — so an uploaded photo would have been cropped with the OLD
+>   bundled photo's focal point and aspect ratio. The math now lives in
+>   `src/lib/team/framing.ts` and `useCoverPosition()` prefers the upload. It
+>   returns a *function* because three call sites run inside `.map()`.
+> - ⚠️ **`placeholder="blur"` THROWS for a remote `src` without `blurDataURL`**,
+>   so `sharp` stores a 16px blur at upload. It also stores width/height, because
+>   `coverPosition` divides by the aspect ratio and a Storage URL carries none.
+> - ⚠️ **Uploads must pass `maxBytes` explicitly.** `handleImageUpload` defaults
+>   to 5 MB; the `council-photos` bucket allows 2 MB, so a 3 MB file passes our
+>   check and Storage then rejects it with a generic message.
+> - ⚠️ **A replaced portrait deletes the old object AFTER the row is written.**
+>   Deleting first leaves a `photo_path` naming a missing file; skipping it
+>   orphans one file per replacement, forever.
+> - **The Sync button never overwrites an edit** — it is `ON CONFLICT DO
+>   NOTHING`, enforced by the database rather than by a read that can fail.
+> - **`counts` and the orbit's `smtAngle` stay static imports.** The roster is
+>   fixed in code, so they are constants; routing them through React would only
+>   add re-renders.
+> - **Verified by baseline, not by eye:** `/team` was captured before the change
+>   (161 `object-position` crops + 161 alt texts, in order) and re-rendered from
+>   the new prod build after — **both sequences identical**, so the refactor is a
+>   true no-op until something is edited.
+> - **Known cost:** +22.6 KB raw / +6.1 KB gzip on `/team`. The merged members
+>   array is a client-component prop, so React serialises it into the RSC payload
+>   (a bio appears twice in the HTML). Follow-up, not done: client components
+>   still import `ccc.ts` for structure, so the bios are in the JS bundle too —
+>   splitting `ccc.ts` into structure vs member data would remove that copy.
+> - ⏳ **OWED — never opened in a browser.** Chrome has not connected. Saving a
+>   field, uploading a portrait, the framing preview, the Sync button and dark
+>   mode are all unexercised; server-action POSTs cannot be curled.
+> - **Data gaps (2026-09-18, owner emailed both):** **S.Anurudh** (Vice Head, Game
+>   Dev) has no photo and no bio — the only person who must supply something
+>   themselves. **Ten people lack department, six lack year, and all ten are
+>   Social Media Team** — the SMT brief collected different fields. **NetForge has
+>   no Head and no Vice Head**; they render as marked-open slots, and filling them
+>   is a `ccc.ts` change, not a CMS one.
 
 > ### 🚀 SHIPPED TO PRODUCTION 2026-09-17 — co-host dropdown + sectioned event form
 >
