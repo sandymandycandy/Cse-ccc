@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-18 (new `/team` page + its CMS BUILT on `feat/team-page-v2`, NOT merged — one migration already applied live; 2026-09-17: co-host dropdown + sectioned event form SHIPPED; session history search + sortable date SHIPPED; co-hosted events shipped earlier the same day; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed).**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-18 (new `/team` page + its CMS SHIPPED (73058ce), migration team_profiles applied live and still empty; 2026-09-17: co-host dropdown + sectioned event form SHIPPED; session history search + sortable date SHIPPED; co-hosted events shipped earlier the same day; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed).**
 
 ## What this is
 
@@ -20,17 +20,25 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-16)
 
-> ### 🟡 BUILT ON BRANCH `feat/team-page-v2` — NOT merged (2026-09-18)
-> The redesigned **`/team`** page, plus a **CMS for it** at `/admin/team`. Spec:
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-18 — the new `/team` page and its CMS
+> `feat/team-page-v2` merged as **`73058ce`** and pushed; live on
+> cse-ccc.vercel.app. The redesigned **`/team`** page, plus a **CMS for it** at
+> `/admin/team`. Spec:
 > `docs/superpowers/specs/2026-09-18-team-page-cms-design.md`, plan:
-> `docs/superpowers/plans/2026-09-18-team-page-cms.md`. Gate on the branch:
-> typecheck ✓ lint ✓ **1299 tests** ✓ build ✓.
+> `docs/superpowers/plans/2026-09-18-team-page-cms.md`. Gate re-run on the
+> merged tree: typecheck ✓ lint ✓ **1299 tests** ✓ build ✓, and
+> `npm ci --dry-run` clean. **The branch is deleted, local and origin** (it was
+> never pushed) — everything is on `main`.
 >
-> ⚠️ **ONE MIGRATION IS ALREADY APPLIED LIVE** — `team_profiles`
-> (`20260918000000`), applied to `jisahccdnthzgibszwnq` on 2026-09-18 with the
-> owner's go-ahead. It is a new, empty table that **nothing on `main` reads**, so
-> production is unaffected until this branch merges. Rollback is
-> `drop table public.team_profiles;`.
+> **Verified live after the deploy:** `/team` renders 161 `object-position`
+> crops and 161 alt texts **identical to the pre-change baseline**, and all ten
+> public pages plus the `/admin/team` guard return what they should.
+>
+> ⚠️ **ONE MIGRATION WAS APPLIED LIVE** — `team_profiles` (`20260918000000`),
+> applied to `jisahccdnthzgibszwnq` on 2026-09-18. It is still **empty**, so
+> `/team` currently renders entirely from `src/data/ccc.ts`.
+> **Rollback:** `git revert 73058ce && git push`; the table can stay (nothing
+> else reads it) or go with `drop table public.team_profiles;`.
 >
 > **New dependencies:** `motion`, `lucide-react`, and **`sharp`** — the last one
 > already loaded transitively through Next, and is now declared so a Next upgrade
@@ -95,9 +103,12 @@ end-to-end**, not a checklist of components.
 >   (a bio appears twice in the HTML). Follow-up, not done: client components
 >   still import `ccc.ts` for structure, so the bios are in the JS bundle too —
 >   splitting `ccc.ts` into structure vs member data would remove that copy.
-> - ⏳ **OWED — never opened in a browser.** Chrome has not connected. Saving a
->   field, uploading a portrait, the framing preview, the Sync button and dark
->   mode are all unexercised; server-action POSTs cannot be curled.
+> - ⏳ **OWED — SHIPPED WITHOUT A SIGNED-IN WALKTHROUGH, at the owner's
+>   instruction.** Chrome has not connected. Saving a field, uploading a
+>   portrait, the framing preview, the Sync button and dark mode are all
+>   unexercised; server-action POSTs cannot be curled. **`team_profiles` is
+>   empty, so a bug in those write paths cannot affect the public page** —
+>   `/team` falls back to the file. The first real save is the test.
 > - **Data gaps (2026-09-18, owner emailed both):** **S.Anurudh** (Vice Head, Game
 >   Dev) has no photo and no bio — the only person who must supply something
 >   themselves. **Ten people lack department, six lack year, and all ten are
