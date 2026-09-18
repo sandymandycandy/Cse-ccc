@@ -22,7 +22,7 @@ const EXT: Record<string, string> = {
   "image/webp": "webp",
   "image/gif": "gif",
 };
-const MAX_IMAGE = 5 * 1024 * 1024;
+export const MAX_IMAGE = 5 * 1024 * 1024;
 
 export async function handleImageUpload(
   formData: FormData,

@@ -120,26 +120,26 @@ export default async function TeamPage() {
         <div className="relative">
           <LayerNav />
 
-          <section id="president" aria-labelledby="president-title" className={`${container} py-20 lg:py-28`}>
+          <section id="president" aria-labelledby="president-title" className={`${container} scroll-mt-[calc(var(--hdr)_+_81px)] py-20 lg:py-28`}>
             <SectionIntro layer="president" title={<>The <em className="text-forest">President</em></>} />
             <PresidentFeature />
           </section>
 
-          <section id="council" aria-labelledby="council-title" className="border-t border-line py-20 lg:py-28">
+          <section id="council" aria-labelledby="council-title" className="scroll-mt-[calc(var(--hdr)_+_81px)] border-t border-line py-20 lg:py-28">
             <div className={container}>
               <SectionIntro layer="council" title={<>Council <em className="text-clay">leadership</em></>} />
               <CouncilGrid />
             </div>
           </section>
 
-          <section id="clubs" aria-labelledby="clubs-title" className="border-t border-line bg-paper-2 py-20 lg:py-28">
+          <section id="clubs" aria-labelledby="clubs-title" className="scroll-mt-[calc(var(--hdr)_+_81px)] border-t border-line bg-paper-2 py-20 lg:py-28">
             <div className={container}>
               <SectionIntro layer="clubs" title={<>The {counts.clubs} <em>clubs</em></>} />
               <ClubsExplorer />
             </div>
           </section>
 
-          <section id="smt" aria-labelledby="smt-title" className="border-t border-line py-20 lg:py-28">
+          <section id="smt" aria-labelledby="smt-title" className="scroll-mt-[calc(var(--hdr)_+_81px)] border-t border-line py-20 lg:py-28">
             <div className={container}>
               <SectionIntro layer="smt" title={<>Social Media <em className="text-rust">Team</em></>} />
               <SmtCredits />

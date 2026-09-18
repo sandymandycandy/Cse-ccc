@@ -45,6 +45,23 @@ const nextConfig: NextConfig = {
   // Pin the workspace root — a stray package-lock.json in the parent (home) dir
   // otherwise makes Turbopack infer the wrong root.
   turbopack: { root: import.meta.dirname },
+  // ⚠️ Every admin image upload posts through a Server Action, and Next caps a
+  // Server Action body at 1 MB BY DEFAULT — before any of our code runs. That
+  // default silently broke every upload over 1 MB across the whole admin
+  // (gallery, announcements, achievements, event posters, team portraits):
+  // the forms offered 5 MB and 2 MB, Next answered 413 with an opaque
+  // "This page couldn't load", and handleImageUpload's friendly size message
+  // was never reached.
+  //
+  // This must stay ABOVE the largest cap we enforce ourselves (MAX_IMAGE, 5 MB)
+  // plus room for the rest of the form, so OUR check is the one that fires and
+  // the person gets a real message. Pinned by src/lib/admin/upload-limits.test.ts.
+  //
+  // Certificate assets are unaffected either way — they upload straight to
+  // Storage through a signed URL, not through a Server Action.
+  experimental: {
+    serverActions: { bodySizeLimit: "6mb" },
+  },
   // The certificate renderer reads the bundled TTFs from disk (font-files.ts).
   // They live in public/, which is not part of a function's trace by default.
   outputFileTracingIncludes: {

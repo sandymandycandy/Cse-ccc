@@ -3661,12 +3661,15 @@ img {
 }
 
 /* The layer anchors (#president, #council, #clubs, #smt) scroll under both the
-   site header AND the sticky LayerNav, so the offset is the sum of the two.
-   Scoped with :has() because scroll-padding only works on the scrolling
-   element — it must sit on <html>, but it must not apply to the whole site. */
-html:has(.team-root) {
-  scroll-padding-top: calc(var(--hdr) + 81px);
-}
+   site header AND the sticky LayerNav, so they need an offset of the two summed.
+   That offset is `scroll-mt-*` ON EACH TARGET, in page.tsx.
+   ⚠️ It used to be `scroll-padding-top` on <html> via :has(.team-root). Do not
+   put it back: Next's navigation scroll handler READS the root's
+   scroll-padding-top (getScrollTargetState in layout-router) and treats content
+   above it as off-screen. This page's content starts at 79px, under the sticky
+   header, so a 160px root padding made Next decide the top of the page was not
+   visible on every navigation to /team. scroll-margin on the target does the
+   same job without Next ever seeing it. */
 
 @layer base {
   /* The site styles every bare <a> forest-green. The preview had no such rule,
