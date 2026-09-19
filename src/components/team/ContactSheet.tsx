@@ -30,7 +30,6 @@ function useEveryone(): Member[] {
 }
 
 const FILM = "#15160f";
-const AMBER = "#e0a458";
 const PENCIL = "#e2553a";
 
 /** Layer marks, tuned to read on dark film. */
@@ -182,10 +181,10 @@ function Frame({ member, index, onActive }: { member: Member; index: number; onA
         />
       </svg>
 
-      <span aria-hidden className="absolute -bottom-[15px] left-0.5 flex items-center gap-1 font-mono text-[8px] leading-none" style={{ color: AMBER }}>
+      {/* Layer mark only. The frame numbers that used to print beside it read as
+          clutter at this size; the frame's identity is in the caption on hover. */}
+      <span aria-hidden className="absolute -bottom-[15px] left-0.5 flex items-center gap-1 leading-none">
         <span className="size-[5px] rounded-full" style={{ background: filmTone[member.layer] }} />
-        {index + 1}
-        {index % 2 ? "A" : ""}
       </span>
     </div>
   );
