@@ -186,21 +186,19 @@ export const layers: Layer[] = [
 ];
 
 export const clubs: Club[] = [
-  { id: "coding", number: 1, name: "Coding Club", short: "Coding", siteSlug: "coding", tagline: "Contribution nights, ladder contests, ICPC training." },
-  { id: "innovation", number: 2, name: "Innovation Club", short: "Innovation", siteSlug: "innovation", tagline: "Build weekends, prototyping jams and demo days." },
-  { id: "cybersentinel", number: 3, name: "CyberSentinel Club", short: "CyberSentinel", siteSlug: "cybersentinel", tagline: "CTFs, wargames and responsible-disclosure practice." },
-  { id: "animatrix", number: 4, name: "Animatrix Club", short: "Animatrix", siteSlug: "animatrix", tagline: "Motion, 3D and the annual showreel night." },
-  { id: "magazine", number: 5, name: "Magazine Club", short: "Magazine", siteSlug: "magazine", tagline: "The department magazine, from pitch to print." },
-  { id: "fusion-fashion", number: 6, name: "Fusion & Fashion Club", short: "Fusion & Fashion", siteSlug: "fusion-fashion", tagline: "Styling, choreography and the annual runway." },
-  { id: "nature", number: 7, name: "Nature Club", short: "Nature", siteSlug: "nature", tagline: "Trails, clean-ups and campus biodiversity walks." },
-  { id: "yoga", number: 8, name: "Yoga Club", short: "Yoga", siteSlug: "yoga", tagline: "Morning sessions on the lawn, all levels welcome." },
-  { id: "aspirex", number: 9, name: "AspireX Club", short: "AspireX", siteSlug: "aspirex", tagline: "Placement prep, mock interviews and alumni talks.", memberCount: 27 },
-  { id: "appnova", number: 10, name: "AppNova Club", short: "AppNova", siteSlug: "appnova", tagline: "Ideas into Apps, Built and Shipped in Public." },
-  { id: "short-film", number: 11, name: "Short Film & Movie Appreciation Club", short: "Short Film", siteSlug: "short-film", tagline: "Create. Capture. Inspire." },
-  { id: "ai-forge", number: 12, name: "AI Forge", short: "AI Forge", siteSlug: "ai-forge", tagline: "Ai For All" },
+  { id: "ai-forge", number: 1, name: "AI Forge", short: "AI Forge", siteSlug: "ai-forge", tagline: "Ai For All" },
+  { id: "animatrix", number: 2, name: "Animatrix Club", short: "Animatrix", siteSlug: "animatrix", tagline: "Motion, 3D and the annual showreel night." },
+  { id: "appnova", number: 3, name: "AppNova Club", short: "AppNova", siteSlug: "appnova", tagline: "Ideas into Apps, Built and Shipped in Public." },
+  { id: "aspirex", number: 4, name: "AspireX Club", short: "AspireX", siteSlug: "aspirex", tagline: "Placement prep, mock interviews and alumni talks.", memberCount: 27 },
+  { id: "coding", number: 5, name: "Coding Club", short: "Coding", siteSlug: "coding", tagline: "Contribution nights, ladder contests, ICPC training." },
+  { id: "cybersentinel", number: 6, name: "CyberSentinel Club", short: "CyberSentinel", siteSlug: "cybersentinel", tagline: "CTFs, wargames and responsible-disclosure practice." },
+  { id: "fusion-fashion", number: 7, name: "Fusion & Fashion Club", short: "Fusion & Fashion", siteSlug: "fusion-fashion", tagline: "Styling, choreography and the annual runway." },
+  { id: "innovation", number: 8, name: "Innovation Club", short: "Innovation", siteSlug: "innovation", tagline: "Build weekends, prototyping jams and demo days." },
+  { id: "magazine", number: 9, name: "Magazine Club", short: "Magazine", siteSlug: "magazine", tagline: "The department magazine, from pitch to print." },
+  { id: "nature", number: 10, name: "Nature Club", short: "Nature", siteSlug: "nature", tagline: "Trails, clean-ups and campus biodiversity walks." },
   {
     id: "netforge",
-    number: 13,
+    number: 11,
     name: "NetForge",
     short: "NetForge",
     isNew: true,
@@ -208,6 +206,8 @@ export const clubs: Club[] = [
     about:
       "NetForge is a hands-on technical community focused on exploring the world of computer networking, network infrastructure, and connected technologies. The club provides students with opportunities to understand how modern networks are designed, configured, secured, and managed through practical lab sessions, workshops, technical sessions, projects, and real-world challenges. From network fundamentals, routing and switching, protocols, and network devices to cybersecurity, cloud networking, IoT, and network automation, NetForge encourages students to move beyond theory and build practical skills through experimentation and collaboration.",
   },
+  { id: "short-film", number: 12, name: "Short Film & Movie Appreciation Club", short: "Short Film", siteSlug: "short-film", tagline: "Create. Capture. Inspire." },
+  { id: "yoga", number: 13, name: "Yoga Club", short: "Yoga", siteSlug: "yoga", tagline: "Morning sessions on the lawn, all levels welcome." },
 ];
 
 /**
