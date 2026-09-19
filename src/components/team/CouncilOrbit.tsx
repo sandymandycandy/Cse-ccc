@@ -23,7 +23,7 @@ const PLATE_LABEL: Partial<Record<string, string>> = {
   innovation: "Innov.",
   animatrix: "Anim.",
   cybersentinel: "Cyber",
-  "fashion-fusion": "Fashion",
+  "fusion-fashion": "Fusion",
   "short-film": "Film",
 };
 

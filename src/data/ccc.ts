@@ -81,7 +81,7 @@ export type ClubId =
   | "cybersentinel"
   | "animatrix"
   | "magazine"
-  | "fashion-fusion"
+  | "fusion-fashion"
   | "nature"
   | "yoga"
   | "aspirex"
@@ -191,7 +191,7 @@ export const clubs: Club[] = [
   { id: "cybersentinel", number: 3, name: "CyberSentinel Club", short: "CyberSentinel", siteSlug: "cybersentinel", tagline: "CTFs, wargames and responsible-disclosure practice." },
   { id: "animatrix", number: 4, name: "Animatrix Club", short: "Animatrix", siteSlug: "animatrix", tagline: "Motion, 3D and the annual showreel night." },
   { id: "magazine", number: 5, name: "Magazine Club", short: "Magazine", siteSlug: "magazine", tagline: "The department magazine, from pitch to print." },
-  { id: "fashion-fusion", number: 6, name: "Fashion & Fusion Club", short: "Fashion & Fusion", siteSlug: "fusion-fashion", tagline: "Styling, choreography and the annual runway." },
+  { id: "fusion-fashion", number: 6, name: "Fusion & Fashion Club", short: "Fusion & Fashion", siteSlug: "fusion-fashion", tagline: "Styling, choreography and the annual runway." },
   { id: "nature", number: 7, name: "Nature Club", short: "Nature", siteSlug: "nature", tagline: "Trails, clean-ups and campus biodiversity walks." },
   { id: "yoga", number: 8, name: "Yoga Club", short: "Yoga", siteSlug: "yoga", tagline: "Morning sessions on the lawn, all levels welcome." },
   { id: "aspirex", number: 9, name: "AspireX Club", short: "AspireX", siteSlug: "aspirex", tagline: "Placement prep, mock interviews and alumni talks.", memberCount: 27 },
@@ -503,13 +503,13 @@ export const members: Member[] = [
       "Iam a Third-year Computer Science student joined the Magazine Club for collaborating with the People and leadership team to drive initiatives, engage students, empower teams, and learn skills and express my talent.",
   },
 
-  /* ---------------- Fashion & Fusion ---------------- */
+  /* ---------------- Fusion & Fashion ---------------- */
   {
     id: "kollepara-y-n-jyothi-lakshmi-praneetha",
     name: "Kollepara Y N Jyothi Lakshmi Praneetha",
     role: "Head",
     layer: "clubs",
-    club: "fashion-fusion",
+    club: "fusion-fashion",
     year: "III",
     department: "CSE (AIDS)",
     vtu: "27682",
@@ -523,7 +523,7 @@ export const members: Member[] = [
     name: "GALLA REVANTH",
     role: "Vice Head",
     layer: "clubs",
-    club: "fashion-fusion",
+    club: "fusion-fashion",
     year: "II",
     department: "CSE (AIML)",
     vtu: "32755",
