@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-import { clubs, getClub, layers, pad, type LayerId, type Member } from "@/data/ccc";
+import { clubs, getClub, pad, type Member } from "@/data/ccc";
 import { selectClubLeaders, selectInLayer, selectPresident } from "@/lib/team/selectors";
 import { Portrait } from "./Portrait";
 import { useCoverPosition, useMembers, useTeam } from "./team-context";
@@ -31,14 +31,6 @@ function useEveryone(): Member[] {
 
 const FILM = "#15160f";
 const PENCIL = "#e2553a";
-
-/** Layer marks, tuned to read on dark film. */
-const filmTone: Record<LayerId, string> = {
-  president: "#8fbb9c",
-  council: "#d2a16b",
-  clubs: "#c9ccbf",
-  smt: "#e08a78",
-};
 
 function chunk<T>(items: T[], size: number) {
   return Array.from({ length: Math.ceil(items.length / size) }, (_, i) => items.slice(i * size, i * size + size));
@@ -88,15 +80,6 @@ export function ContactSheet() {
           )}
         </span>
       </figcaption>
-
-      <ul aria-label="Colour key" className="mt-4 flex flex-wrap gap-x-5 gap-y-2">
-        {layers.map((l) => (
-          <li key={l.id} className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-3">
-            <span className="size-2 rounded-full ring-1 ring-black/10" style={{ background: filmTone[l.id] }} />
-            {l.short}
-          </li>
-        ))}
-      </ul>
     </figure>
   );
 }
@@ -113,7 +96,7 @@ function Sheet({ cols, className, onActive }: { cols: number; className: string;
         <div
           key={r}
           role="presentation"
-          className="relative pb-[34px] pt-[22px]"
+          className="relative py-[22px]"
           // "backwards" fill: clipped before and during the reveal, no clip-path left behind afterwards.
           style={{ animation: `${r % 2 ? "film-in-rev" : "film-in"} 1.1s var(--ease-out-expo) backwards`, animationDelay: `${200 + r * 120}ms` }}
         >
@@ -180,12 +163,6 @@ function Frame({ member, index, onActive }: { member: Member; index: number; onA
           }`}
         />
       </svg>
-
-      {/* Layer mark only. The frame numbers that used to print beside it read as
-          clutter at this size; the frame's identity is in the caption on hover. */}
-      <span aria-hidden className="absolute -bottom-[15px] left-0.5 flex items-center gap-1 leading-none">
-        <span className="size-[5px] rounded-full" style={{ background: filmTone[member.layer] }} />
-      </span>
     </div>
   );
 }
