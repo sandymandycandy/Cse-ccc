@@ -16,6 +16,7 @@ const LINKS = [
   // surfaced in the home hero instead. /announcements is still a real page,
   // reached from that hero card and from "All notices →" on the home page.
   { href: "/team", label: "Team" },
+  { href: "/contact", label: "Contact" },
 ] as const;
 
 function isActive(pathname: string, href: string) {
