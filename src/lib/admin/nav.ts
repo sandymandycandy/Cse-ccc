@@ -90,3 +90,50 @@ export function activeLabel(links: NavLink[], pathname: string): string | null {
   const href = activeHref(links, pathname);
   return href === null ? null : (links.find((l) => l.href === href)?.label ?? null);
 }
+/* ── menu filter + group collapse (layout upgrade, 2026-09-20) ────────────
+   Both are pure so the sidebar's two fiddly rules — "a filtered group that
+   loses every link disappears" and "a group you collapsed still opens when it
+   holds the page you're on" — are testable without a router. */
+
+/** Case-insensitive substring match of a nav label. Blank query matches all. */
+export function matchesNavQuery(label: string, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  return q === "" || label.toLowerCase().includes(q);
+}
+
+/**
+ * Drop links whose label doesn't match, then drop sections left with nothing.
+ * Returning `[]` is what tells the nav to render its "no match" line.
+ */
+export function filterNavSections(sections: NavSection[], query: string): NavSection[] {
+  if (query.trim() === "") return sections;
+  return sections
+    .map((s) => ({ ...s, links: s.links.filter((l) => matchesNavQuery(l.label, query)) }))
+    .filter((s) => s.links.length > 0);
+}
+
+/**
+ * Whether a group renders expanded.
+ *
+ * A collapsed group is a convenience, never a trap: filtering forces every
+ * surviving group open (you asked to see matches), and so does holding the
+ * active link (otherwise the page you're on hides itself). Only outside those
+ * two cases does the user's own toggle apply.
+ */
+export function isGroupOpen({
+  section,
+  current,
+  query,
+  collapsed,
+}: {
+  section: NavSection;
+  current: string | null;
+  query: string;
+  collapsed: Record<string, boolean>;
+}): boolean {
+  if (query.trim() !== "") return true;
+  if (current !== null && section.links.some((l) => l.href === current)) return true;
+  // An unlabelled section has no header to click, so it can never be collapsed.
+  if (section.label === null) return true;
+  return !collapsed[section.label];
+}

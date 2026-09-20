@@ -4,6 +4,7 @@ import { requireViewPage } from "@/lib/auth/guards";
 import { listPeriods, listResponses, clubNames } from "@/lib/admin/feedback";
 import { summariseByClub } from "@/lib/feedback/summary";
 import { istNumericDate } from "@/lib/datetime";
+import { AdminTable, type AdminTableRow } from "@/components/admin/AdminTable";
 
 const fmt = (n: number | null) => (n == null ? "—" : n.toFixed(1));
 
@@ -33,6 +34,30 @@ export default async function FeedbackPeriodPage({
     })),
   ).sort((a, b) => b.responses - a.responses);
 
+  const summaryRows: AdminTableRow[] = summary.map((s) => {
+    const club = names.get(s.clubId) ?? "—";
+    return {
+      key: s.clubId,
+      // No status column here — every row is the same kind of thing, so the
+      // chip row is suppressed and the search carries the screen.
+      values: [club, s.responses],
+      cells: [
+        club,
+        s.responses,
+        fmt(s.clubAvg),
+        fmt(s.headAvg),
+        fmt(s.viceAvg),
+        <Link
+          key="o"
+          href={`/admin/feedback/${periodId}/${s.clubId}`}
+          className="btn btn-ghost btn-sm"
+        >
+          Open
+        </Link>,
+      ],
+    };
+  });
+
   return (
     <div className="admin-page">
       <div className="admin-page-head">
@@ -40,7 +65,7 @@ export default async function FeedbackPeriodPage({
           <div className="eyebrow">
             <Link href="/admin/feedback">Feedback</Link>
           </div>
-          <h1 style={{ margin: "6px 0 0" }}>
+          <h1 style={{ margin: "8px 0 0" }}>
             {istNumericDate(period.openedAt)} –{" "}
             {period.closedAt ? istNumericDate(period.closedAt) : "present"}
           </h1>
@@ -68,42 +93,23 @@ export default async function FeedbackPeriodPage({
           No responses yet.
         </div>
       ) : (
-        <div className="tablewrap cards fb-summary" style={{ marginTop: 18 }}>
-          <table className="admin">
-            <thead>
-              <tr>
-                <th>Club</th>
-                <th>Responses</th>
-                <th>Club</th>
-                <th>Head</th>
-                <th>Vice</th>
-                <th>Read</th>
-              </tr>
-            </thead>
-            <tbody>
-              {summary.map((s) => (
-                <tr key={s.clubId}>
-                  <td data-primary>{names.get(s.clubId) ?? "—"}</td>
-                  <td data-label="Responses">{s.responses}</td>
-                  {/* On a phone the three averages ride one compact row rather
-                      than three stacked label/value pairs — six labelled rows
-                      per club across 14 clubs is an unreadable page. */}
-                  <td data-label="Club" data-compact>{fmt(s.clubAvg)}</td>
-                  <td data-label="Head" data-compact>{fmt(s.headAvg)}</td>
-                  <td data-label="Vice" data-compact>{fmt(s.viceAvg)}</td>
-                  <td data-action>
-                    <Link
-                      href={`/admin/feedback/${period.id}/${s.clubId}`}
-                      className="btn btn-ghost btn-sm"
-                    >
-                      Open
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <AdminTable
+          heading="Clubs"
+          noun="club"
+          wrapClassName="fb-summary"
+          columns={[
+            { label: "Club" },
+            { label: "Responses" },
+            /* On a phone the three averages ride one compact row rather than
+               three stacked label/value pairs — six labelled rows per club
+               across 14 clubs is an unreadable page. */
+            { label: "Club", compact: true },
+            { label: "Head", compact: true },
+            { label: "Vice", compact: true },
+            { label: "Read", action: true },
+          ]}
+          rows={summaryRows}
+        />
       )}
     </div>
   );

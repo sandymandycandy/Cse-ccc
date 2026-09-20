@@ -2,6 +2,7 @@
 
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { matchesAny } from "@/lib/admin/roster-filter";
+import { describeCount } from "@/lib/admin/table-views";
 
 export interface SearchableRow {
   key: string;
@@ -14,10 +15,16 @@ export interface SearchableRow {
 /**
  * An admin table with a free-text search box over already-loaded rows.
  *
+ * ⚠️ Prefer `AdminTable` for new list screens — it brings derived view chips,
+ * inline rename and the shared empty state. This one survives for the
+ * registrations screen alone, because that table has a leading **checkbox**
+ * column for shortlisting, and `AdminTable` gives its first cell to the rename
+ * affordance. Shortlisting is a selection workflow, not the destructive bulk
+ * action the redesign removed, so it stays.
+ *
  * The rows arrive as server-rendered nodes: this component only decides which
  * of them to render, so the page keeps its server actions, its link handling
- * and its markup exactly as they were. Filtering is instant and needs no
- * round-trip.
+ * and its markup exactly as they were.
  */
 export function SearchableTable({
   head,
@@ -37,31 +44,40 @@ export function SearchableTable({
 }) {
   const [q, setQ] = useState("");
   const shown = rows.filter((r) => matchesAny(r.values, q));
-  const searching = q.trim() !== "";
 
   return (
     <>
-      <input
-        className="search-input"
-        type="search"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder={placeholder}
-        aria-label={ariaLabel}
-        style={{ marginTop: 18 }}
-      />
-
-      {searching ? (
-        <p className="label" style={{ color: "var(--ink-3)", marginTop: 2 }} aria-live="polite">
-          {shown.length === 0
-            ? `Nothing matches “${q.trim()}”`
-            : `${shown.length} of ${rows.length} ${rows.length === 1 ? noun : `${noun}s`}`}
+      <div className="listbar">
+        <div className="listbar-row">
+          <div className="listbar-search">
+            <span aria-hidden="true">⌕</span>
+            <input
+              type="search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={placeholder}
+              aria-label={ariaLabel}
+            />
+          </div>
+        </div>
+        <p className="count-note" aria-live="polite">
+          {describeCount({ shown: shown.length, total: rows.length, noun, query: q })}
         </p>
-      ) : null}
+      </div>
 
-      {shown.length === 0 ? null : (
+      {shown.length === 0 ? (
+        <div className="table-empty">
+          <h2>Nothing matches</h2>
+          <p>Try a shorter search, or go back to every row.</p>
+          {q.trim() !== "" ? (
+            <button type="button" className="btn btn-ghost" onClick={() => setQ("")}>
+              Clear filters
+            </button>
+          ) : null}
+        </div>
+      ) : (
         <div className="tablewrap cards" style={wrapStyle}>
-          <table className="admin">
+          <table className="admin" data-density="comfortable">
             <thead>{head}</thead>
             <tbody>{shown.map((r) => r.row)}</tbody>
           </table>

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminSession } from "@/lib/auth/guards";
@@ -154,4 +155,50 @@ export async function updateAnnouncementAction(
   });
 
   redirect("/admin/announcements");
+}
+
+/**
+ * Inline rename from the list — title only.
+ *
+ * Deliberately narrower than `updateAnnouncementAction`: it does not touch the
+ * slug, so a rename cannot break a link already published to students. Anything
+ * beyond the title still goes through the edit form.
+ */
+export async function renameAnnouncementAction(
+  id: string,
+  title: string,
+): Promise<{ ok: true } | { ok: false; error?: string }> {
+  const session = await getAdminSession();
+  if (!session) return { ok: false, error: "Your session expired. Sign in again." };
+  if (!canManage(session, "manage:content")) {
+    return { ok: false, error: "You can't manage announcements." };
+  }
+  if (!z.string().uuid().safeParse(id).success) {
+    return { ok: false, error: "Missing announcement reference." };
+  }
+
+  const parsed = Schema.shape.title.safeParse(title);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
+
+  const existing = await getAnnouncementForEdit(id);
+  if (!existing) return { ok: false, error: "That announcement no longer exists." };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("announcements")
+    .update({ title: parsed.data })
+    .eq("id", id);
+  if (error) return { ok: false, error: "Could not save that. Try again." };
+
+  await writeAudit({
+    actorId: session.id,
+    action: "update",
+    entity: "announcement",
+    entityId: id,
+    before: { title: existing.title },
+    after: { title: parsed.data },
+  });
+
+  revalidatePath("/admin/announcements");
+  return { ok: true };
 }

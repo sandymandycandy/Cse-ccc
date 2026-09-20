@@ -3,6 +3,9 @@ import {
   groupNavLinks,
   activeHref,
   activeLabel,
+  filterNavSections,
+  isGroupOpen,
+  matchesNavQuery,
   GROUPING_THRESHOLD,
   type NavLink,
 } from "./nav";
@@ -182,5 +185,73 @@ describe("the Oversight group", () => {
   it("does not let the dashboard steal current from an oversight route", () => {
     // `/admin` covers every admin path by prefix; longest-match must win.
     expect(activeHref(FULL, "/admin/oversight/clubs")).not.toBe("/admin");
+  });
+});
+
+describe("menu filter", () => {
+  it("matches case-insensitively on a substring", () => {
+    expect(matchesNavQuery("Announcements", "nounce")).toBe(true);
+    expect(matchesNavQuery("Announcements", "NOUNCE")).toBe(true);
+    expect(matchesNavQuery("Announcements", "zz")).toBe(false);
+  });
+
+  it("treats a blank or whitespace query as matching everything", () => {
+    expect(matchesNavQuery("Events", "")).toBe(true);
+    expect(matchesNavQuery("Events", "   ")).toBe(true);
+  });
+
+  it("drops groups left with no surviving link", () => {
+    const sections = filterNavSections(groupNavLinks(FULL), "club");
+    // "Club health" (oversight) and "Clubs" (people) survive; nothing else.
+    expect(sections.map((s) => s.label)).toEqual(["Oversight", "People"]);
+    expect(sections.flatMap((s) => s.links.map((l) => l.label)))
+      .toEqual(["Club health", "Clubs"]);
+  });
+
+  it("returns every section untouched for a blank query", () => {
+    const all = groupNavLinks(FULL);
+    expect(filterNavSections(all, "")).toEqual(all);
+  });
+
+  it("returns [] when nothing matches, which is what shows the no-match line", () => {
+    expect(filterNavSections(groupNavLinks(FULL), "zzzz")).toEqual([]);
+  });
+});
+
+describe("group collapse", () => {
+  const sections = groupNavLinks(FULL);
+  const programme = sections.find((s) => s.label === "Programme")!;
+  const content = sections.find((s) => s.label === "Content")!;
+
+  it("honours the user's toggle when nothing forces it open", () => {
+    const open = (collapsed: Record<string, boolean>) =>
+      isGroupOpen({ section: content, current: "/admin/events", query: "", collapsed });
+    expect(open({})).toBe(true);
+    expect(open({ Content: true })).toBe(false);
+  });
+
+  it("forces every surviving group open while filtering", () => {
+    expect(
+      isGroupOpen({ section: content, current: null, query: "ann", collapsed: { Content: true } }),
+    ).toBe(true);
+  });
+
+  it("forces the group holding the active link open", () => {
+    // Collapsed by the user, but it holds the page they are on — hiding it
+    // would hide the current page from its own nav.
+    expect(
+      isGroupOpen({
+        section: programme,
+        current: "/admin/events",
+        query: "",
+        collapsed: { Programme: true },
+      }),
+    ).toBe(true);
+  });
+
+  it("keeps an unlabelled section open — it has no header to click", () => {
+    const [flat] = groupNavLinks(FULL.slice(0, 2));
+    expect(flat.label).toBeNull();
+    expect(isGroupOpen({ section: flat, current: null, query: "", collapsed: {} })).toBe(true);
   });
 });

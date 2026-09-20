@@ -1,8 +1,6 @@
-"use client";
-
 import Link from "next/link";
-import { useState } from "react";
-import { matchesQuery } from "@/lib/admin/roster-filter";
+import { AdminTable, type AdminTableRow } from "./AdminTable";
+import { renameMemberAction } from "@/app/admin/(app)/attendance/actions";
 
 interface Member {
   id: string;
@@ -11,47 +9,55 @@ interface Member {
   isActive: boolean;
 }
 
-/** The club members table with a name/roll search box. Edit links stay per-row. */
+/**
+ * The club members roster.
+ *
+ * The old hand-rolled search box and the "#" column are gone: `AdminTable`
+ * brings the search, and the count line says how many there are, which is all
+ * the index was doing here. (The session roster keeps its index, because there
+ * the number is a position in the register you read aloud.)
+ */
 export function MembersTable({ members }: { members: Member[] }) {
-  const [q, setQ] = useState("");
-  const filtered = members.filter((m) => matchesQuery(m.name, m.rollNo, q));
+  const rows: AdminTableRow[] = members.map((m) => ({
+    key: m.id,
+    status: m.isActive ? "Active" : "Inactive",
+    rename: m.name,
+    values: [m.name, m.rollNo, m.isActive ? "Active" : "Inactive"],
+    cells: [
+      m.name,
+      m.rollNo ?? "—",
+      m.isActive ? "Yes" : "No",
+      <Link
+        key="e"
+        href={`/admin/attendance/members/${m.id}/edit`}
+        className="label"
+        style={{ color: "var(--forest)" }}
+      >
+        Edit →
+      </Link>,
+    ],
+  }));
+
+  if (members.length === 0) {
+    return (
+      <div className="cal-empty" style={{ marginTop: 18 }}>
+        No members yet.
+      </div>
+    );
+  }
 
   return (
-    <div style={{ marginTop: 18 }}>
-      <input
-        className="search-input"
-        type="search"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Search name or roll…"
-        aria-label="Search members by name or roll number"
-      />
-      {filtered.length === 0 ? (
-        <div className="cal-empty">{q ? `No members match “${q}”.` : "No members yet."}</div>
-      ) : (
-        <div className="tablewrap">
-          <table className="admin">
-            <thead>
-              <tr><th style={{ width: 44 }}>#</th><th>Name</th><th>Roll</th><th>Active</th><th>Edit</th></tr>
-            </thead>
-            <tbody>
-              {filtered.map((m, i) => (
-                <tr key={m.id}>
-                  <td>{i + 1}</td>
-                  <td style={{ fontWeight: 500 }}>{m.name}</td>
-                  <td>{m.rollNo ?? "—"}</td>
-                  <td>{m.isActive ? "Yes" : "No"}</td>
-                  <td>
-                    <Link href={`/admin/attendance/members/${m.id}/edit`} className="label" style={{ color: "var(--forest)" }}>
-                      Edit →
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+    <AdminTable
+      heading="Members"
+      noun="member"
+      columns={[
+        { label: "Name" },
+        { label: "Roll" },
+        { label: "Active" },
+        { label: "Edit" },
+      ]}
+      rows={rows}
+      onRename={renameMemberAction}
+    />
   );
 }

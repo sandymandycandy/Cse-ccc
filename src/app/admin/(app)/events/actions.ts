@@ -762,3 +762,62 @@ export async function approveEventAction(formData: FormData): Promise<void> {
 export async function rejectEventAction(formData: FormData): Promise<void> {
   await decide(formData, false);
 }
+
+/**
+ * Inline rename from the events list — title only.
+ *
+ * Authorised through ANY hosting club, the same as `updateEventAction`: a
+ * co-host edits the event like its owner, and authorising on the primary alone
+ * would refuse a co-host the rename it is allowed to make on the full form.
+ *
+ * Approval state is deliberately left alone. A title fix is not a resubmission,
+ * and bouncing an approved event back to pending over a typo would cost the
+ * club its slot.
+ */
+export async function renameEventAction(
+  id: string,
+  title: string,
+): Promise<{ ok: true } | { ok: false; error?: string }> {
+  const session = await getAdminSession();
+  if (!session) return { ok: false, error: "Your session expired. Sign in again." };
+  if (!z.string().uuid().safeParse(id).success) {
+    return { ok: false, error: "Missing event reference." };
+  }
+
+  const parsed = CreateSchema.shape.title.safeParse(title);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
+
+  const admin = createAdminClient();
+  const { data: existingRaw } = await admin
+    .from("events")
+    .select("id, title, event_clubs ( club_id, is_primary )")
+    .eq("id", id)
+    .maybeSingle();
+  if (!existingRaw) return { ok: false, error: "That event no longer exists." };
+  const existing = existingRaw as unknown as {
+    id: string;
+    title: string;
+    event_clubs: { club_id: string; is_primary: boolean }[];
+  };
+
+  if (!canManageEvent(session, "manage:events", hostsFromLinks(existing.event_clubs))) {
+    return { ok: false, error: "You can't edit that event." };
+  }
+
+  const { error } = await admin.from("events").update({ title: parsed.data }).eq("id", id);
+  if (error) return { ok: false, error: "Could not save that. Try again." };
+
+  await writeAudit({
+    actorId: session.id,
+    action: "update",
+    entity: "event",
+    entityId: id,
+    before: { title: existing.title },
+    after: { title: parsed.data },
+  });
+
+  // The title is on the public site as well as this table.
+  revalidatePath("/admin/events");
+  revalidatePath(`/events/${id}`);
+  return { ok: true };
+}

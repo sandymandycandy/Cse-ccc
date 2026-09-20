@@ -10,8 +10,11 @@ import { useState } from "react";
  */
 export function ThemeToggle({
   initialTheme = "day",
+  variant = "header",
 }: {
   initialTheme?: "day" | "night";
+  /** `rail` is the smaller circular form the admin sidebar uses. */
+  variant?: "header" | "rail";
 }) {
   const [theme, setTheme] = useState<"day" | "night">(initialTheme);
 
@@ -30,9 +33,13 @@ export function ThemeToggle({
       aria-pressed={isNight}
       title={isNight ? "Switch to day paper" : "Switch to night paper"}
       aria-label={isNight ? "Switch to day paper" : "Switch to night paper"}
-      className="grid place-items-center w-[42px] h-[42px] rounded-[12px] border border-line-3 text-ink bg-transparent cursor-pointer"
+      className={
+        variant === "rail"
+          ? "admin-theme-toggle"
+          : "grid place-items-center w-[42px] h-[42px] rounded-[12px] border border-line-3 text-ink bg-transparent cursor-pointer"
+      }
     >
-      <span aria-hidden>{isNight ? "◑" : "◐"}</span>
+      <span aria-hidden>{variant === "rail" ? (isNight ? "☾" : "☀") : isNight ? "◑" : "◐"}</span>
     </button>
   );
 }

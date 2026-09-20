@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { requireViewPage } from "@/lib/auth/guards";
 import { canManage, canViewClub } from "@/lib/auth/capabilities";
@@ -23,10 +24,22 @@ export default async function SessionPage({
   const notice = closed ? "Session closed." : reopened ? "Session reopened." : saved ? "Attendance saved (draft)." : null;
 
   return (
-    <div className="admin-page" style={{ maxWidth: 620 }}>
-      <div className="eyebrow">Attendance · {istNumericDate(s.sessionDate ?? s.openedAt)}{slot}</div>
-      <h1 style={{ margin: "6px 0 16px" }}>{s.title}</h1>
-      {notice ? <div className="note" style={{ marginBottom: 16 }}>{notice}</div> : null}
+    <div className="admin-page">
+      <Link href="/admin/attendance" className="admin-back">
+        ← Attendance
+      </Link>
+      <div className="admin-page-head">
+        <div>
+          <div className="eyebrow">
+            Attendance · {istNumericDate(s.sessionDate ?? s.openedAt)}{slot}
+          </div>
+          <h1 style={{ margin: "8px 0 0" }}>{s.title}</h1>
+        </div>
+        <a href="/api/admin/attendance/export" className="btn btn-ghost">
+          Export CSV
+        </a>
+      </div>
+      {notice ? <div className="note" style={{ marginTop: 16 }}>{notice}</div> : null}
       <SessionRoster sessionId={s.id} roster={detail.roster} canEdit={canEdit} status={s.status} />
     </div>
   );

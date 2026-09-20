@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminSession } from "@/lib/auth/guards";
@@ -159,4 +160,50 @@ export async function deleteResourceAction(formData: FormData): Promise<void> {
   }
 
   redirect("/admin/resources");
+}
+
+/**
+ * Inline rename from the list — title only.
+ *
+ * Authorised against the resource's *current* owning club, the same as
+ * `updateResourceAction`: a club-scoped admin sees council-wide rows in the
+ * table and must not be able to rename them from there.
+ */
+export async function renameResourceAction(
+  id: string,
+  title: string,
+): Promise<{ ok: true } | { ok: false; error?: string }> {
+  const session = await getAdminSession();
+  if (!session) return { ok: false, error: "Your session expired. Sign in again." };
+  if (!z.string().uuid().safeParse(id).success) {
+    return { ok: false, error: "Missing resource reference." };
+  }
+
+  const existing = await getResourceForEdit(id);
+  if (!existing) return { ok: false, error: "That resource no longer exists." };
+  if (!canManage(session, "manage:resources", existing.clubId)) {
+    return { ok: false, error: "You can't manage that resource." };
+  }
+
+  const parsed = Schema.shape.title.safeParse(title);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("resources")
+    .update({ title: parsed.data })
+    .eq("id", id);
+  if (error) return { ok: false, error: "Could not save that. Try again." };
+
+  await writeAudit({
+    actorId: session.id,
+    action: "update",
+    entity: "resource",
+    entityId: id,
+    before: { title: existing.title },
+    after: { title: parsed.data },
+  });
+
+  revalidatePath("/admin/resources");
+  return { ok: true };
 }

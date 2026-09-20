@@ -1,7 +1,15 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { summarizeAttendance } from "./attendance-math";
-import { diffPresence } from "./attendance-presence";
+import { diffMarks, type Mark, type MarkState } from "./attendance-marks";
+
+/** A roster line as the marking screen needs it: `mark: null` = not yet marked. */
+export interface RosterMark {
+  memberId: string;
+  name: string;
+  rollNo: string | null;
+  mark: MarkState;
+}
 
 const NO_MARKS: ReadonlySet<string> = new Set();
 const SESSION_COLS = "id, title, status, opened_at, closed_at, club_id, session_date, start_time, end_time";
@@ -48,7 +56,10 @@ async function countPresent(sessionId: string): Promise<number> {
   const { count } = await admin
     .from("club_attendance")
     .select("id", { count: "exact", head: true })
-    .eq("session_id", sessionId);
+    .eq("session_id", sessionId)
+    // ⚠️ The table now also holds explicit ABSENT marks, so a bare row count
+    // is no longer a headcount.
+    .eq("status", "present");
   return count ?? 0;
 }
 
@@ -92,15 +103,18 @@ export async function createSession(input: {
 /** The marking view: every approved+active member with a seeded present flag. */
 export async function getSessionMarking(
   sessionId: string,
-): Promise<{ session: SessionRow; roster: { memberId: string; name: string; rollNo: string | null; present: boolean }[] } | null> {
+): Promise<{ session: SessionRow; roster: RosterMark[] } | null> {
   const admin = createAdminClient();
   const { data: s } = await admin
     .from("club_attendance_sessions").select(SESSION_COLS).eq("id", sessionId).maybeSingle();
   if (!s) return null;
 
   const { data: marks } = await admin
-    .from("club_attendance").select("member_id").eq("session_id", sessionId);
-  const present = new Set((marks ?? []).map((m) => m.member_id));
+    .from("club_attendance").select("member_id, status").eq("session_id", sessionId);
+  // A member with no row at all is UNMARKED — not absent. That distinction is
+  // the whole point of the roster screen, so it is preserved all the way up.
+  const markOf = new Map((marks ?? []).map((m) => [m.member_id, m.status]));
+  const presentCount = (marks ?? []).filter((m) => m.status === "present").length;
 
   const { data: members } = await admin
     .from("club_members")
@@ -108,21 +122,49 @@ export async function getSessionMarking(
     .eq("club_id", s.club_id).eq("is_active", true).not("approved_at", "is", null)
     .order("name");
 
-  const roster = (members ?? []).map((m) => ({ memberId: m.id, name: m.name, rollNo: m.roll_no, present: present.has(m.id) }));
-  return { session: mapSession(s, present.size), roster };
+  const roster = (members ?? []).map((m) => ({
+    memberId: m.id,
+    name: m.name,
+    rollNo: m.roll_no,
+    mark: markOf.get(m.id) ?? null,
+  }));
+  return { session: mapSession(s, presentCount), roster };
 }
 
-/** Persist a session's present-set: insert the newly-present rows, delete the newly-absent. */
-export async function savePresence(sessionId: string, desiredIds: string[], markedBy: string): Promise<void> {
+/**
+ * Persist a session's marks.
+ *
+ * Needs migration `20260920000000_attendance_absent_mark` (applied live
+ * 2026-09-20) — the `status` column is what separates an explicit ABSENT from
+ * a member nobody has got to yet.
+ *
+ * A single upsert per save rather than a request per row: a 200-member roll
+ * call is one round trip. `(session_id, member_id)` is unique, which is what
+ * makes the upsert idempotent and safe to retry.
+ */
+export async function saveMarks(
+  sessionId: string,
+  desired: ReadonlyMap<string, MarkState>,
+  markedBy: string,
+): Promise<void> {
   const admin = createAdminClient();
   const { data: marks } = await admin
-    .from("club_attendance").select("member_id").eq("session_id", sessionId);
-  const current = new Set((marks ?? []).map((m) => m.member_id));
-  const desired = new Set(desiredIds);
-  const { toAdd, toRemove } = diffPresence(current, desired);
-  if (toAdd.length > 0) {
-    await admin.from("club_attendance")
-      .insert(toAdd.map((memberId) => ({ session_id: sessionId, member_id: memberId, marked_by: markedBy })));
+    .from("club_attendance").select("member_id, status").eq("session_id", sessionId);
+  const current = new Map<string, Mark>(
+    (marks ?? []).map((m) => [m.member_id, m.status as Mark]),
+  );
+
+  const { toUpsert, toRemove } = diffMarks(current, desired);
+  if (toUpsert.length > 0) {
+    await admin.from("club_attendance").upsert(
+      toUpsert.map(({ memberId, status }) => ({
+        session_id: sessionId,
+        member_id: memberId,
+        status,
+        marked_by: markedBy,
+      })),
+      { onConflict: "session_id,member_id" },
+    );
   }
   if (toRemove.length > 0) {
     await admin.from("club_attendance").delete().eq("session_id", sessionId).in("member_id", toRemove);
@@ -164,7 +206,9 @@ export async function rosterWithPercent(clubId: string): Promise<RosterPct[]> {
   const { data: marks } = await admin
     .from("club_attendance")
     .select("member_id, session_id, club_attendance_sessions!inner(club_id)")
-    .eq("club_attendance_sessions.club_id", clubId);
+    .eq("club_attendance_sessions.club_id", clubId)
+    // Absent marks live here too now; attendance means present.
+    .eq("status", "present");
 
   const sess = (sessions ?? []).map((s) => ({ id: s.id, date: sessionDateOf(s) }));
   const attendedByMember = new Map<string, Set<string>>();
@@ -204,7 +248,9 @@ export async function attendanceRegister(clubId: string): Promise<AttendanceRegi
   const { data: marks } = await admin
     .from("club_attendance")
     .select("member_id, session_id, club_attendance_sessions!inner(club_id)")
-    .eq("club_attendance_sessions.club_id", clubId);
+    .eq("club_attendance_sessions.club_id", clubId)
+    // Absent marks live here too now; attendance means present.
+    .eq("status", "present");
 
   const sessions = (sessionsRaw ?? [])
     .map((s) => ({ id: s.id, title: s.title, date: sessionDateOf(s) }))
@@ -254,7 +300,8 @@ export async function getMemberAttendanceByRoll(roll: string): Promise<RollLooku
     .from("club_attendance_sessions")
     .select("id, title, session_date, opened_at").eq("club_id", m.club_id);
   const { data: marks } = await admin
-    .from("club_attendance").select("session_id").eq("member_id", m.id);
+    .from("club_attendance").select("session_id").eq("member_id", m.id)
+    .eq("status", "present");
   const attendedIds = new Set((marks ?? []).map((x) => x.session_id));
 
   const rows = (sessions ?? [])

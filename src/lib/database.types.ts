@@ -752,6 +752,7 @@ export type Database = {
           marked_by: string | null
           member_id: string
           session_id: string
+          status: Database["public"]["Enums"]["club_attendance_mark"]
         }
         Insert: {
           id?: string
@@ -759,6 +760,7 @@ export type Database = {
           marked_by?: string | null
           member_id: string
           session_id: string
+          status?: Database["public"]["Enums"]["club_attendance_mark"]
         }
         Update: {
           id?: string
@@ -766,6 +768,7 @@ export type Database = {
           marked_by?: string | null
           member_id?: string
           session_id?: string
+          status?: Database["public"]["Enums"]["club_attendance_mark"]
         }
         Relationships: [
           {
@@ -2452,6 +2455,7 @@ export type Database = {
       certificate_group_kind: "participants" | "sheet" | "results"
       certificate_type: "participation" | "winner"
       checkin_method: "door" | "self" | "manual"
+      club_attendance_mark: "present" | "absent"
       club_category: "tech" | "media" | "cultural" | "wellness" | "career"
       club_session_status: "open" | "closed"
       council_session_status: "open" | "closed"
@@ -2607,6 +2611,7 @@ export const Constants = {
       certificate_group_kind: ["participants", "sheet", "results"],
       certificate_type: ["participation", "winner"],
       checkin_method: ["door", "self", "manual"],
+      club_attendance_mark: ["present", "absent"],
       club_category: ["tech", "media", "cultural", "wellness", "career"],
       club_session_status: ["open", "closed"],
       council_session_status: ["open", "closed"],

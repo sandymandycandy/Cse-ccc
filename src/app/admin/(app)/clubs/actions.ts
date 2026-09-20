@@ -200,3 +200,48 @@ export async function setClubVisibilityAction(formData: FormData): Promise<void>
 
   revalidatePath("/admin/clubs");
 }
+
+/**
+ * Inline rename from the list — display name only.
+ *
+ * Deliberately does not touch the slug: that is the club's public URL, and a
+ * rename from a table row must not silently break every link to it. Slug
+ * changes stay on the edit form, behind `ClubStructuralSchema`.
+ */
+export async function renameClubAction(
+  id: string,
+  name: string,
+): Promise<{ ok: true } | { ok: false; error?: string }> {
+  const session = await getAdminSession();
+  if (!session) return { ok: false, error: "Your session expired. Sign in again." };
+  if (!z.string().uuid().safeParse(id).success) {
+    return { ok: false, error: "Missing club reference." };
+  }
+  if (!canManage(session, "manage:clubs", id)) {
+    return { ok: false, error: "You can't manage that club." };
+  }
+
+  const existing = await getClubForEdit(id);
+  if (!existing) return { ok: false, error: "That club no longer exists." };
+
+  const parsed = ClubProfileSchema.shape.name.safeParse(name);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("clubs").update({ name: parsed.data }).eq("id", id);
+  if (error) return { ok: false, error: "Could not save that. Try again." };
+
+  await writeAudit({
+    actorId: session.id,
+    action: "update",
+    entity: "club",
+    entityId: id,
+    before: { name: existing.name },
+    after: { name: parsed.data },
+  });
+
+  // The club name is on the public site too, not just this table.
+  revalidatePath("/admin/clubs");
+  revalidatePath("/clubs");
+  return { ok: true };
+}

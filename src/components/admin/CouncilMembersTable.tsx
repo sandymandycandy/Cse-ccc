@@ -1,8 +1,6 @@
-"use client";
-
 import Link from "next/link";
-import { useState } from "react";
-import { matchesQuery } from "@/lib/admin/roster-filter";
+import { AdminTable, type AdminTableRow } from "./AdminTable";
+import { renameCouncilMemberAction } from "@/app/admin/(app)/council/actions";
 
 interface Row {
   id: string;
@@ -13,54 +11,62 @@ interface Row {
   isActive: boolean;
 }
 
-/** The onboarded council members table with a name/roll search box. */
+/**
+ * The onboarded council members table.
+ *
+ * Views slice by designation rather than active/inactive: this list is read to
+ * find a particular officer far more often than to audit who is switched off.
+ */
 export function CouncilMembersTable({ rows, canEdit }: { rows: Row[]; canEdit: boolean }) {
-  const [q, setQ] = useState("");
-  const filtered = rows.filter((r) => matchesQuery(r.name, r.rollNo, q));
+  const tableRows: AdminTableRow[] = rows.map((m) => ({
+    key: m.id,
+    status: m.designation,
+    // Renaming is an edit, so it follows the same permission as the edit link.
+    ...(canEdit ? { rename: m.name } : {}),
+    values: [m.name, m.designation, m.rollNo, m.isActive ? "Active" : "Inactive"],
+    cells: [
+      m.name,
+      m.designation,
+      m.rollNo ?? "—",
+      m.pct == null ? "—" : `${m.pct}%`,
+      m.isActive ? "Yes" : "No",
+      ...(canEdit
+        ? [
+            <Link
+              key="e"
+              href={`/admin/council/members/${m.id}/edit`}
+              className="label"
+              style={{ color: "var(--forest)" }}
+            >
+              Edit →
+            </Link>,
+          ]
+        : []),
+    ],
+  }));
+
+  if (rows.length === 0) {
+    return (
+      <div className="cal-empty" style={{ marginTop: 18 }}>
+        No council members yet.
+      </div>
+    );
+  }
 
   return (
-    <div style={{ marginTop: 18 }}>
-      <input
-        className="search-input"
-        type="search"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Search name or roll…"
-        aria-label="Search members by name or roll number"
-      />
-      {filtered.length === 0 ? (
-        <div className="cal-empty">{q ? `No members match “${q}”.` : "No council members yet."}</div>
-      ) : (
-        <div className="tablewrap">
-          <table className="admin">
-            <thead>
-              <tr>
-                <th style={{ width: 44 }}>#</th><th>Name</th><th>Role</th><th>Roll</th>
-                <th>Attendance</th><th>Active</th>{canEdit ? <th>Edit</th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((m, i) => (
-                <tr key={m.id}>
-                  <td>{i + 1}</td>
-                  <td style={{ fontWeight: 500 }}>{m.name}</td>
-                  <td>{m.designation}</td>
-                  <td>{m.rollNo ?? "—"}</td>
-                  <td>{m.pct == null ? "—" : `${m.pct}%`}</td>
-                  <td>{m.isActive ? "Yes" : "No"}</td>
-                  {canEdit ? (
-                    <td>
-                      <Link href={`/admin/council/members/${m.id}/edit`} className="label" style={{ color: "var(--forest)" }}>
-                        Edit →
-                      </Link>
-                    </td>
-                  ) : null}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+    <AdminTable
+      heading="Council members"
+      noun="member"
+      columns={[
+        { label: "Name" },
+        { label: "Role" },
+        { label: "Roll" },
+        { label: "Attendance" },
+        { label: "Active" },
+        ...(canEdit ? [{ label: "Edit" }] : []),
+      ]}
+      rows={tableRows}
+      onRename={canEdit ? renameCouncilMemberAction : undefined}
+    />
   );
 }

@@ -119,6 +119,8 @@ export async function getClubVitalityData(nowKey: string): Promise<ClubVitalityI
       .from("club_attendance")
       .select("member_id, session_id")
       .in("session_id", windowSessionIds)
+      // Absent marks are rows too now — vitality counts turnout, not roll calls.
+      .eq("status", "present")
       .order("session_id")
       .order("member_id")
       .range(from, to),

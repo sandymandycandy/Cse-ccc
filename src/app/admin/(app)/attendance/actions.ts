@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminSession } from "@/lib/auth/guards";
@@ -8,7 +9,8 @@ import { canManage } from "@/lib/auth/capabilities";
 import { resolveOwningClub } from "@/lib/admin/club-scope";
 import { writeAudit } from "@/lib/admin/audit";
 import { getMemberForEdit } from "@/lib/admin/members";
-import { createSession, savePresence, getSessionMarking, setSessionStatus } from "@/lib/admin/attendance-club";
+import { createSession, saveMarks, getSessionMarking, setSessionStatus } from "@/lib/admin/attendance-club";
+import type { MarkState } from "@/lib/admin/attendance-marks";
 import { toFieldErrors } from "@/lib/admin/field-errors";
 import type { MemberFormState, SessionFormState } from "@/lib/admin/form-state";
 
@@ -229,6 +231,35 @@ export async function createSessionAction(
   redirect(`/admin/attendance/sessions/${id}`);
 }
 
+/**
+ * Read the roster marks off a submitted form.
+ *
+ * Present and absent arrive as separate id lists, and anyone in NEITHER stays
+ * unmarked — that third state is the whole point, so it cannot be inferred
+ * from "not in the present list" the way it used to be.
+ */
+function marksFromForm(formData: FormData): Map<string, MarkState> {
+  const uuid = (v: FormDataEntryValue) => {
+    const str = String(v);
+    return z.string().uuid().safeParse(str).success ? str : null;
+  };
+  const marks = new Map<string, MarkState>();
+  for (const v of formData.getAll("absent")) {
+    const id = uuid(v);
+    if (id) marks.set(id, "absent");
+  }
+  // Present wins a contradictory submission: it is the affirmative mark.
+  for (const v of formData.getAll("present")) {
+    const id = uuid(v);
+    if (id) marks.set(id, "present");
+  }
+  for (const v of formData.getAll("unmarked")) {
+    const id = uuid(v);
+    if (id && !marks.has(id)) marks.set(id, null);
+  }
+  return marks;
+}
+
 export async function saveAttendanceAction(formData: FormData): Promise<void> {
   const session = await getAdminSession();
   if (!session) redirect("/admin/login");
@@ -239,11 +270,12 @@ export async function saveAttendanceAction(formData: FormData): Promise<void> {
   if (!detail) redirect("/admin/attendance");
   if (!canManage(session, "manage:members", detail.session.clubId)) redirect("/admin/attendance");
 
-  const present = formData.getAll("present").map(String).filter((v) => z.string().uuid().safeParse(v).success);
-  await savePresence(sessionId, present, session.id);
+  const marks = marksFromForm(formData);
+  await saveMarks(sessionId, marks, session.id);
   await writeAudit({
     actorId: session.id, action: "update", entity: "club_attendance_session",
-    entityId: sessionId, after: { present: present.length },
+    entityId: sessionId,
+    after: { present: [...marks.values()].filter((m) => m === "present").length },
   });
   redirect(`/admin/attendance/sessions/${sessionId}?saved=1`);
 }
@@ -260,7 +292,7 @@ export async function saveAttendanceAction(formData: FormData): Promise<void> {
  *
  * Deliberately writes NO audit row: this runs every few seconds, and flooding
  * audit_log would bury the events that matter. Attribution survives anyway —
- * savePresence stamps marked_by on every row it inserts — and the explicit
+ * saveMarks stamps marked_by on every row it writes — and the explicit
  * "Save draft" and "Save & close" actions still audit.
  *
  * Returns ok:false rather than redirecting, so the caller can surface a failure
@@ -268,7 +300,7 @@ export async function saveAttendanceAction(formData: FormData): Promise<void> {
  */
 export async function autosaveAttendanceAction(
   sessionId: string,
-  presentIds: string[],
+  entries: [string, MarkState][],
 ): Promise<{ ok: boolean }> {
   const session = await getAdminSession();
   if (!session) return { ok: false };
@@ -280,8 +312,10 @@ export async function autosaveAttendanceAction(
   // A closed session is finalised; autosave must not quietly reopen its marks.
   if (detail.session.status === "closed") return { ok: false };
 
-  const present = presentIds.filter((v) => z.string().uuid().safeParse(v).success);
-  await savePresence(sessionId, present, session.id);
+  const marks = new Map<string, MarkState>(
+    entries.filter(([id]) => z.string().uuid().safeParse(id).success),
+  );
+  await saveMarks(sessionId, marks, session.id);
   return { ok: true };
 }
 
@@ -296,12 +330,16 @@ export async function saveAndCloseAction(formData: FormData): Promise<void> {
   if (!detail) redirect("/admin/attendance");
   if (!canManage(session, "manage:members", detail.session.clubId)) redirect("/admin/attendance");
 
-  const present = formData.getAll("present").map(String).filter((v) => z.string().uuid().safeParse(v).success);
-  await savePresence(sessionId, present, session.id);
+  const marks = marksFromForm(formData);
+  await saveMarks(sessionId, marks, session.id);
   await setSessionStatus(sessionId, "closed");
   await writeAudit({
     actorId: session.id, action: "close", entity: "club_attendance_session",
-    entityId: sessionId, after: { present: present.length, closed: true },
+    entityId: sessionId,
+    after: {
+      present: [...marks.values()].filter((m) => m === "present").length,
+      closed: true,
+    },
   });
   redirect(`/admin/attendance/sessions/${sessionId}?closed=1`);
 }
@@ -374,4 +412,47 @@ export async function resetJoinTokenAction(formData: FormData): Promise<void> {
     actorId: session.id, action: "update", entity: "club", entityId: clubId, after: { joinTokenReset: true },
   });
   redirect(`/admin/attendance/members?club=${clubId}`);
+}
+
+/**
+ * Inline rename from the members list — name only.
+ *
+ * Authorised against the member's *current* club, matching
+ * `updateMemberAction`. Roll number stays on the edit form: it is the identity
+ * the QR scan and the roster dedupe key off, not a label.
+ */
+export async function renameMemberAction(
+  id: string,
+  name: string,
+): Promise<{ ok: true } | { ok: false; error?: string }> {
+  const session = await getAdminSession();
+  if (!session) return { ok: false, error: "Your session expired. Sign in again." };
+  if (!z.string().uuid().safeParse(id).success) {
+    return { ok: false, error: "Missing member reference." };
+  }
+
+  const existing = await getMemberForEdit(id);
+  if (!existing) return { ok: false, error: "That member no longer exists." };
+  if (!canManage(session, "manage:members", existing.clubId)) {
+    return { ok: false, error: "You can't manage that member." };
+  }
+
+  const parsed = MemberSchema.shape.name.safeParse(name);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("club_members").update({ name: parsed.data }).eq("id", id);
+  if (error) return { ok: false, error: "Could not save that. Try again." };
+
+  await writeAudit({
+    actorId: session.id,
+    action: "update",
+    entity: "club_member",
+    entityId: id,
+    before: { name: existing.name },
+    after: { name: parsed.data },
+  });
+
+  revalidatePath("/admin/attendance/members");
+  return { ok: true };
 }

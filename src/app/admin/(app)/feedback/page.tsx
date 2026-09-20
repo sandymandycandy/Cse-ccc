@@ -4,18 +4,41 @@ import { listPeriods, listLeaderChoices } from "@/lib/admin/feedback";
 import { FeedbackLeaderPicker } from "@/components/admin/FeedbackLeaderPicker";
 import { istNumericDate } from "@/lib/datetime";
 import { openFeedbackAction, closeFeedbackAction } from "./actions";
+import { AdminTable, type AdminTableRow } from "@/components/admin/AdminTable";
 
 export default async function AdminFeedbackPage() {
   await requireViewPage("view:feedback");
   const [periods, choices] = await Promise.all([listPeriods(), listLeaderChoices()]);
   const open = periods.find((p) => p.closedAt == null) ?? null;
 
+  const periodRows: AdminTableRow[] = periods.map((p) => {
+    const span = `${istNumericDate(p.openedAt)} – ${
+      p.closedAt ? istNumericDate(p.closedAt) : "present"
+    }`;
+    const status = p.closedAt ? "Closed" : "Open";
+    return {
+      key: p.id,
+      status,
+      // No `rename`: a period is a span of dates, not something with a name.
+      values: [span, p.responses, status],
+      cells: [
+        <Link key="p" href={`/admin/feedback/${p.id}`}>
+          {span}
+        </Link>,
+        p.responses,
+        <span key="s" className="label" style={{ color: p.closedAt ? "var(--ink-3)" : "var(--rust)" }}>
+          {p.closedAt ? "Closed" : "● Open"}
+        </span>,
+      ],
+    };
+  });
+
   return (
     <div className="admin-page">
       <div className="admin-page-head">
         <div>
           <div className="eyebrow">Students</div>
-          <h1 style={{ margin: "6px 0 0" }}>Feedback</h1>
+          <h1 style={{ margin: "8px 0 0" }}>Feedback</h1>
         </div>
         <form action={open ? closeFeedbackAction : openFeedbackAction}>
           <button type="submit" className={open ? "btn btn-ghost" : "btn"}>
@@ -35,38 +58,12 @@ export default async function AdminFeedbackPage() {
           Feedback has never been opened.
         </div>
       ) : (
-        <div className="tablewrap cards" style={{ marginTop: 18 }}>
-          <table className="admin">
-            <thead>
-              <tr>
-                <th>Period</th>
-                <th>Responses</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {periods.map((p) => (
-                <tr key={p.id}>
-                  <td data-primary>
-                    <Link href={`/admin/feedback/${p.id}`}>
-                      {istNumericDate(p.openedAt)} –{" "}
-                      {p.closedAt ? istNumericDate(p.closedAt) : "present"}
-                    </Link>
-                  </td>
-                  <td data-label="Responses">{p.responses}</td>
-                  <td data-label="Status">
-                    <span
-                      className="label"
-                      style={{ color: p.closedAt ? "var(--ink-3)" : "var(--rust)" }}
-                    >
-                      {p.closedAt ? "Closed" : "● Open"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <AdminTable
+          heading="Feedback periods"
+          noun="period"
+          columns={[{ label: "Period" }, { label: "Responses" }, { label: "Status" }]}
+          rows={periodRows}
+        />
       )}
 
       <h2 style={{ marginTop: 36 }}>Who the form names</h2>

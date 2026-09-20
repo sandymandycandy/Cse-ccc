@@ -1,6 +1,8 @@
+import { cookies } from "next/headers";
 import { requireAdminPage } from "@/lib/auth/guards";
 import { canView, canManage, adminHomePath } from "@/lib/auth/capabilities";
 import { AdminNav } from "@/components/admin/AdminNav";
+import { ToastProvider } from "@/components/admin/Toaster";
 import type { NavLink } from "@/lib/admin/nav";
 
 export default async function AdminAppLayout({
@@ -9,6 +11,12 @@ export default async function AdminAppLayout({
   children: React.ReactNode;
 }) {
   const session = await requireAdminPage();
+
+  // The admin area renders its own chrome, so the root layout's header —
+  // and with it the only theme toggle — never reaches these pages. The rail
+  // carries one instead, seeded server-side from the same cookie so it
+  // hydrates without a flash.
+  const theme = (await cookies()).get("theme")?.value === "night" ? "night" : "day";
 
   // A role whose home isn't the dashboard has no business on it — it's an
   // events surface — so it gets no Dashboard link at all.
@@ -86,9 +94,16 @@ export default async function AdminAppLayout({
   ];
 
   return (
-    <div className="admin-shell">
-      <AdminNav name={session.name} role={session.role} links={links} />
-      <div className="admin-main">{children}</div>
-    </div>
+    <ToastProvider>
+      <div className="admin-shell">
+        <AdminNav
+          name={session.name}
+          role={session.role}
+          links={links}
+          initialTheme={theme}
+        />
+        <div className="admin-main">{children}</div>
+      </div>
+    </ToastProvider>
   );
 }

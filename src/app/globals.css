@@ -1821,41 +1821,74 @@
   }
   .admin-auth-alt:hover { color: var(--ink); }
 
+  /* ── Admin shell ────────────────────────────────────────────────────────
+     Flex, not grid, so the rail can wrap above the content on a narrow
+     viewport without a second grid definition. 264px holds the longest label
+     ("Announcements") plus the filter field without wrapping. */
   .admin-shell {
-    display: grid;
-    grid-template-columns: 236px minmax(0, 1fr);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
     min-height: 100dvh;
   }
   .admin-nav {
+    flex: 0 0 264px;
+    min-width: 264px;
+    align-self: stretch;
     border-right: 1px solid var(--line);
     background: var(--paper-2);
-    padding: 22px 16px;
+    padding: 26px 16px 18px;
     display: flex;
     flex-direction: column;
     gap: 20px;
     position: sticky;
     top: 0;
-    height: 100dvh;
+    max-height: 100dvh;
+    overflow: auto;
+    /* The rail scrolls, but a scrollbar down the middle of the chrome reads as
+       a seam. Hidden in all three engines; the wheel still works. */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
+  .admin-nav::-webkit-scrollbar { display: none; }
   .admin-brand {
-    font: 400 18px var(--serif);
+    font: 400 21px var(--serif);
+    letter-spacing: -0.01em;
     display: flex;
     flex-direction: column;
     line-height: 1.1;
+    min-width: 0;
+    padding-left: 4px;
   }
   .admin-brand span {
     font: 500 10px var(--mono);
-    letter-spacing: 0.18em;
+    letter-spacing: 0.2em;
     text-transform: uppercase;
     color: var(--forest);
-    margin-top: 3px;
+    margin-top: 5px;
   }
   .admin-nav-bar {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
   }
+  /* Circular and quiet: it sits beside the wordmark, where a squared control
+     would read as a second brand element. */
+  .admin-theme-toggle {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--line-3);
+    border-radius: var(--r-pill);
+    background: transparent;
+    color: var(--ink-2);
+    font: 400 14px var(--sans);
+    cursor: pointer;
+  }
+  .admin-theme-toggle:hover { border-color: var(--ink); color: var(--ink); }
   .admin-nav-toggle {
     display: none; /* desktop: the sidebar is always open, so no toggle */
     align-items: center;
@@ -1878,7 +1911,18 @@
     flex-direction: column;
     gap: 20px;
   }
-  /* The rail is a fixed 100dvh column, so a role holding every link (a tech
+  .admin-nav-filter {
+    width: 100%;
+    min-height: 38px;
+    padding: 0 15px;
+    border: 1px solid var(--line-3);
+    border-radius: var(--r-pill);
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 13px var(--sans);
+  }
+  .admin-nav-filter::-webkit-search-cancel-button { -webkit-appearance: none; }
+  /* The rail is a fixed-height column, so a role holding every link (a tech
      head sees sixteen across six sections) overruns it. `flex: 1` alone does
      NOT clip: a flex item's min-height is `auto`, so nav refuses to shrink
      below its content and spills out of the panel — which is what painted the
@@ -1891,64 +1935,121 @@
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
-    scrollbar-width: thin;
+    scrollbar-width: none;
   }
+  .admin-nav nav::-webkit-scrollbar { display: none; }
   /* Sections come from `groupNavLinks`, which only labels them once a role
      holds enough links to need headings — a one-link nav renders flat. */
   .admin-nav-group { display: flex; flex-direction: column; gap: 2px; }
   .admin-nav-group + .admin-nav-group { margin-top: 16px; }
-  /* Quieter than .label: this repeats up to six times down the rail, so it has
-     to organise the list without competing with it. */
+  /* A button, not a label: the heading is the collapse control. Quieter than
+     .label because it repeats up to six times down the rail, so it has to
+     organise the list without competing with it. */
   .admin-nav-head {
-    font: 500 9.5px var(--mono);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font: 500 10px var(--mono);
     letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--ink-4);
-    padding: 0 12px 6px;
+    padding: 0 12px 7px;
   }
+  .admin-nav-head:hover { color: var(--ink-2); }
+  .admin-nav-caret {
+    font: 400 9px var(--sans);
+    display: inline-block;
+    transition: transform 0.14s;
+  }
+  .admin-nav-caret[data-open="false"] { transform: rotate(-90deg); }
   .admin-nav nav a {
-    padding: 9px 12px;
-    border-radius: var(--r-sm);
+    padding: 10px 12px;
+    border-radius: 10px;
     color: var(--ink-2);
     font: 500 13.5px var(--sans);
   }
   .admin-nav nav a:hover { background: var(--sand); color: var(--ink); }
-  /* A forest rail rather than a filled ink pill: at fourteen links a full-bleed
-     black row shouts. Drawn with an inset shadow instead of a border so the
-     label doesn't shift sideways when it becomes current. */
+  /* Sand with a forest rail rather than a filled ink pill: at sixteen links a
+     full-bleed black row shouts. Drawn with an inset shadow instead of a
+     border so the label doesn't shift sideways when it becomes current. */
   .admin-nav nav a[aria-current="page"] {
-    background: var(--forest-tint);
-    color: var(--forest-deep);
-    font-weight: 600;
+    background: var(--sand);
+    color: var(--ink);
     box-shadow: inset 3px 0 0 var(--forest);
+  }
+  .admin-nav-nomatch {
+    padding: 6px 12px;
+    font: 400 12.5px/1.5 var(--sans);
+    color: var(--ink-4);
   }
   /* Names the current page while the rail is collapsed. Desktop shows the
      marked row instead, so it stays hidden there. */
   .admin-here { display: none; }
   .admin-nav-foot {
+    margin-top: auto;
     border-top: 1px solid var(--line);
-    padding-top: 14px;
+    padding-top: 18px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 14px;
   }
   .admin-who { display: flex; flex-direction: column; }
   .admin-who strong { font: 600 13px var(--sans); }
   .admin-who span {
     font: 500 10px var(--mono);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.16em;
     color: var(--ink-3);
+    margin-top: 3px;
   }
-  .admin-main { padding: 40px var(--pad); min-width: 0; }
-  .admin-page { max-width: 960px; }
+  .admin-main {
+    flex: 1 1 620px;
+    min-width: 0;
+    padding: 44px 48px 110px;
+  }
+  .admin-page { max-width: 1120px; margin: 0 auto; }
   .admin-page-head {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 16px;
+    gap: 20px;
     flex-wrap: wrap;
   }
+  /* The public scale tops out at 70px, which is a poster headline. An admin
+     page is a working surface read at arm's length all day, so it gets a
+     fixed 44px instead of the fluid clamp. */
+  .admin-page-head h1 {
+    font-size: 44px;
+    line-height: 1.05;
+  }
+  @media (max-width: 599px) {
+    .admin-page-head h1 { font-size: 34px; }
+  }
+  /* A lead paragraph under the heading, capped so it stays readable rather
+     than running the full 1120px column. */
+  .admin-lead {
+    font: 400 16px/1.65 var(--sans);
+    color: var(--ink-2);
+    margin-top: 14px;
+    max-width: 620px;
+    text-wrap: pretty;
+  }
+  /* Back link above the heading on sub-screens. */
+  .admin-back {
+    display: inline-block;
+    margin-bottom: 16px;
+    font: 500 10px var(--mono);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--forest);
+  }
+  .admin-back:hover { color: var(--forest-deep); }
   .admin-stats {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -2357,19 +2458,152 @@
     outline: none;
     box-shadow: 0 0 0 3px var(--forest-tint);
   }
-  .sroster-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
-  /* Row as aligned columns: index · name · roll · toggle. */
-  .sroster-row {
-    display: grid;
-    grid-template-columns: 30px minmax(0, 1fr) auto auto;
+  /* ── Session roster (tri-state marking) ──────────────────────────────────
+     Present / absent / unmarked. "Absent" is an explicit mark, distinct from
+     "not yet looked at", so a half-finished roll call cannot read as a
+     finished one with poor turnout. */
+  .sroster-summary {
+    margin-top: 22px;
+    background: var(--card);
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-lg);
+    padding: 22px 26px;
+    display: flex;
     align-items: center;
-    gap: 4px 10px;
-    padding-bottom: 6px;
+    gap: 30px;
+    flex-wrap: wrap;
   }
-  .sroster-name { min-width: 0; font-weight: 500; }
-  .sroster-idx { color: var(--ink-3); }
-  .sroster-roll { color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .sroster-row .btn-sm { flex-shrink: 0; }
+  .sroster-figure { display: flex; align-items: baseline; gap: 8px; }
+  .sroster-figure strong { font: 400 46px/1 var(--serif); color: var(--forest); }
+  .sroster-figure > span { font: 400 19px/1 var(--serif); color: var(--ink-4); }
+  .sroster-progress { flex: 1 1 260px; min-width: 190px; }
+  /* Two fills in one track, so the unfilled remainder IS the unmarked count —
+     it needs no colour of its own to be legible. */
+  .sroster-track {
+    display: flex;
+    height: 8px;
+    border-radius: 99px;
+    background: var(--line-2);
+    overflow: hidden;
+  }
+  .sroster-stats {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+    font: 400 12.5px var(--sans);
+    color: var(--ink-3);
+  }
+  .sroster-stats > span { white-space: nowrap; }
+  .sroster-bulk {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+  }
+
+  .sroster-list {
+    list-style: none;
+    padding: 0;
+    margin: 16px 0 0;
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    background: var(--card);
+  }
+  /* Row as aligned columns: index · name · roll · segmented control. */
+  .sroster-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 11px 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  .sroster-row:last-child { border-bottom: none; }
+  /* An unmarked row is findable without filtering for it. Colour is never the
+     only signal — the Unmarked chip carries the same count. */
+  .sroster-row[data-unmarked="true"] { box-shadow: inset 3px 0 0 var(--clay); }
+  .sroster-idx {
+    flex: none;
+    width: 26px;
+    text-align: right;
+    font: 500 11px var(--mono);
+    color: var(--ink-4);
+  }
+  .sroster-name { flex: 1 1 220px; min-width: 0; font: 500 14.5px var(--sans); color: var(--ink); }
+  .sroster-roll {
+    flex: none;
+    font: 500 12.5px var(--mono);
+    letter-spacing: 0.04em;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Two buttons, not one toggle: absent has to be sayable out loud. */
+  .seg {
+    flex: none;
+    display: flex;
+    padding: 3px;
+    border-radius: var(--r-pill);
+    background: var(--sand);
+    border: 1px solid var(--line-2);
+  }
+  .seg > button {
+    min-height: 34px;
+    padding: 0 17px;
+    border: none;
+    border-radius: var(--r-pill);
+    background: transparent;
+    color: var(--ink-3);
+    font: 600 12.5px var(--sans);
+    cursor: pointer;
+  }
+  .seg > button:hover { filter: brightness(1.12); }
+  .seg > button[data-kind="present"][data-on="true"] {
+    background: var(--forest-tint);
+    color: var(--forest);
+  }
+  .seg > button[data-kind="absent"][data-on="true"] {
+    background: var(--rust-tint);
+    color: var(--rust);
+  }
+
+  .sroster-foot {
+    margin-top: 16px;
+    max-width: 620px;
+    font: 400 11.5px/1.6 var(--sans);
+    color: var(--ink-3);
+  }
+  .sroster-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  /* Floats over the list so it is reachable from anywhere in a 200-name roll
+     call, and capped so it can never push the page sideways on a phone. */
+  .sroster-bar {
+    position: fixed;
+    left: 50%;
+    bottom: 26px;
+    transform: translateX(-50%);
+    z-index: 50;
+    max-width: calc(100vw - 32px);
+    overflow-x: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px 10px 20px;
+    border-radius: var(--r-pill);
+    background: var(--card);
+    border: 1px solid var(--clay);
+    box-shadow: 0 16px 44px rgba(0, 0, 0, 0.3);
+    font: 600 13px var(--sans);
+    white-space: nowrap;
+  }
   .att-qr {
     background: #fff; /* stays scannable in night mode */
     padding: 12px;
@@ -2400,13 +2634,19 @@
     border-color: var(--forest-tint);
   }
   @media (max-width: 860px) {
-    .admin-shell { grid-template-columns: 1fr; }
-    /* Sidebar becomes a sticky top bar; the links collapse into a drawer. */
+    /* Sidebar becomes a sticky top bar; the links collapse into a drawer.
+       The handoff wraps the full rail above the content at this width, but a
+       twenty-link list pushed every page's heading off-screen on a phone, so
+       the existing drawer is kept and the current page is named in the bar. */
     .admin-nav {
+      flex: 1 1 100%;
+      min-width: 0;
       position: sticky;
       top: 0;
       z-index: 20;
-      height: auto;
+      align-self: auto;
+      max-height: none;
+      overflow: visible;
       gap: 0;
       padding: 12px var(--pad);
       border-right: 0;
@@ -2435,7 +2675,7 @@
       display: flex;
       align-items: center;
     }
-    .admin-main { padding: 28px var(--pad); }
+    .admin-main { flex: 1 1 100%; padding: 28px var(--pad) 90px; }
     .admin-form-row { grid-template-columns: 1fr; }
     /* A member field's label gets the whole row, so its type, "Req" and the
        remove button sit together underneath instead of the remove button
@@ -2445,6 +2685,7 @@
     .admin-here {
       display: block;
       margin-left: auto;
+      margin-right: 4px;
       max-width: 44vw;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -3282,6 +3523,174 @@
     .mailprev-paper { padding: 16px 14px 18px; }
     .mailprev-subject { font-size: 19px; }
   }
+
+  /* ── Admin list surface (layout upgrade, 2026-09-20) ─────────────────────
+     Toolbar, table states, inline rename and toasts, shared by every list
+     screen so a search box cannot drift out of step between two of them. */
+
+  .listbar {
+    margin-top: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .listbar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .listbar-search {
+    flex: 1 1 280px;
+    min-width: 200px;
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .listbar-search > span {
+    position: absolute;
+    left: 17px;
+    font: 400 14px var(--sans);
+    color: var(--ink-4);
+    pointer-events: none;
+  }
+  .listbar-search > input {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 18px 0 38px;
+    border: 1px solid var(--line-3);
+    border-radius: var(--r-pill);
+    background: var(--paper-2);
+    color: var(--ink);
+    font: 400 14px var(--sans);
+  }
+  .listbar-search > input::-webkit-search-cancel-button { -webkit-appearance: none; }
+  .view-chips { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .view-chip {
+    flex: none;
+    white-space: nowrap;
+    min-height: 38px;
+    padding: 0 15px;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--line-3);
+    background: transparent;
+    color: var(--ink-2);
+    font: 600 12.5px var(--sans);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .view-chip:hover { border-color: var(--ink-3); }
+  .view-chip > span { font: 400 11px var(--mono); opacity: 0.65; }
+  .view-chip[aria-pressed="true"] {
+    background: var(--sand);
+    border-color: var(--ink-3);
+    color: var(--ink);
+  }
+  .count-note {
+    font: 500 10px var(--mono);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-4);
+  }
+
+  /* Comfortable is the default; compact only changes vertical padding, so a
+     denser table stays the same table rather than a different design. */
+  table.admin[data-density="comfortable"] td { padding: 15px 20px; }
+  table.admin[data-density="compact"] td { padding: 9px 20px; }
+  table.admin tbody tr:hover { background: var(--paper-2); }
+  table.admin td { vertical-align: middle; white-space: nowrap; }
+  /* Prose needs room, but `white-space: normal` alone lets auto layout squeeze
+     a bio into a two-word column, so it also gets a floor. */
+  table.admin td[data-wrap] { white-space: normal; min-width: 240px; }
+  table.admin td[data-primary] { font-weight: 500; color: var(--ink); }
+
+  .table-scroll-hint {
+    margin-top: 8px;
+    font: 500 10px var(--mono);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-4);
+  }
+
+  /* Filtering to nothing removes the table rather than leaving a headed husk —
+     an empty grid reads as a broken screen. */
+  .table-empty {
+    margin-top: 16px;
+    border: 1px dashed var(--line-3);
+    border-radius: var(--r-md);
+    padding: 52px 24px;
+    text-align: center;
+  }
+  .table-empty h2 { font: 400 22px var(--serif); color: var(--ink); }
+  .table-empty p {
+    font: 400 13.5px/1.6 var(--sans);
+    color: var(--ink-3);
+    margin-top: 7px;
+  }
+  .table-empty .btn { margin-top: 18px; }
+
+  .rename-btn {
+    width: 26px;
+    height: 26px;
+    margin-left: 8px;
+    vertical-align: middle;
+    display: inline-grid;
+    place-items: center;
+    border: none;
+    border-radius: var(--r-pill);
+    background: transparent;
+    color: var(--ink-3);
+    cursor: pointer;
+  }
+  .rename-btn:hover { color: var(--forest); background: var(--sand); }
+  .rename-input {
+    width: 100%;
+    min-width: 200px;
+    min-height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--forest);
+    border-radius: var(--r-pill);
+    background: var(--paper-2);
+    color: var(--ink);
+    font: 500 13.5px var(--sans);
+  }
+  .rename-input:disabled { opacity: 0.6; }
+
+  .toast-stack {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 80;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 9px;
+    pointer-events: none;
+    max-width: calc(100vw - 32px);
+  }
+  .toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 12px 20px;
+    border-radius: var(--r-pill);
+    background: var(--card);
+    border: 1px solid var(--line-4);
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.28);
+    font: 500 13px var(--sans);
+    color: var(--ink);
+  }
+  .toast-dot {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: var(--r-pill);
+    background: var(--forest);
+  }
+  .toast[data-tone="revert"] .toast-dot { background: var(--clay); }
 }
 
 @keyframes cal-fade { from { opacity: 0; } to { opacity: 1; } }

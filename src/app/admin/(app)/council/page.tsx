@@ -6,6 +6,8 @@ import { rosterWithPercent, listSessions } from "@/lib/admin/attendance-council"
 import { pctOfStrength } from "@/lib/admin/attendance-analytics";
 import { CouncilCreateSessionForm } from "@/components/admin/CouncilCreateSessionForm";
 import { istNumericDate } from "@/lib/datetime";
+import { AdminTable, type AdminTableRow } from "@/components/admin/AdminTable";
+import { renameCouncilSessionAction } from "./actions";
 
 /**
  * The council dashboard is the "hold a meeting" surface: create a meeting, then
@@ -20,10 +22,36 @@ export default async function CouncilDashboard() {
   const [roster, sessions] = await Promise.all([rosterWithPercent(), listSessions()]);
   const strength = roster.length;
 
+  const historyRows: AdminTableRow[] = sessions.map((s) => {
+    const status = s.status === "closed" ? "Closed" : "Open";
+    const date = istNumericDate(s.sessionDate ?? s.openedAt);
+    const slot =
+      s.startTime && s.endTime ? `${s.startTime.slice(0, 5)}–${s.endTime.slice(0, 5)}` : "—";
+    return {
+      key: s.id,
+      status,
+      ...(canEdit ? { rename: s.title } : {}),
+      values: [s.title, date, slot, status],
+      cells: [
+        s.title,
+        date,
+        slot,
+        <span key="st" className={`abadge${s.status === "closed" ? "" : " abadge-approved"}`}>
+          {status}
+        </span>,
+        s.presentCount,
+        `${pctOfStrength(s.presentCount, strength)}%`,
+        <Link key="o" href={`/admin/council/sessions/${s.id}`} className="btn btn-sm">
+          Open
+        </Link>,
+      ],
+    };
+  });
+
   return (
     <div className="admin-page">
       <div className="admin-page-head">
-        <div><div className="eyebrow">Council</div><h1 style={{ margin: "6px 0 0" }}>Dashboard</h1></div>
+        <div><div className="eyebrow">Council</div><h1 style={{ margin: "8px 0 0" }}>Dashboard</h1></div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link href="/admin/council/analytics" className="btn btn-primary">Analytics</Link>
           <a href="/api/admin/council/export" className="btn">Export attendance (CSV)</a>
@@ -41,23 +69,24 @@ export default async function CouncilDashboard() {
       </section>
 
       <h2 style={{ font: "400 18px var(--serif)", margin: "32px 0 8px" }}>Meeting history</h2>
-      {sessions.length === 0 ? <p className="body-text" style={{ color: "var(--ink-3)" }}>No meetings yet.</p> : (
-        <div className="tablewrap cards">
-          <table className="admin">
-            <thead><tr><th>Meeting</th><th>Date</th><th>Slot</th><th>Status</th><th>Present</th><th>% strength</th><th></th></tr></thead>
-            <tbody>{sessions.map((s) => (
-              <tr key={s.id}>
-                <td data-primary="" style={{ fontWeight: 500 }}>{s.title}</td>
-                <td data-label="Date">{istNumericDate(s.sessionDate ?? s.openedAt)}</td>
-                <td data-label="Slot">{s.startTime && s.endTime ? `${s.startTime.slice(0, 5)}–${s.endTime.slice(0, 5)}` : "—"}</td>
-                <td data-label="Status"><span className={`abadge${s.status === "closed" ? "" : " abadge-approved"}`}>{s.status === "closed" ? "Closed" : "Open"}</span></td>
-                <td data-label="Present">{s.presentCount}</td>
-                <td data-label="% strength">{pctOfStrength(s.presentCount, strength)}%</td>
-                <td data-action=""><Link href={`/admin/council/sessions/${s.id}`} className="btn btn-sm">Open</Link></td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </div>
+      {sessions.length === 0 ? (
+        <p className="body-text" style={{ color: "var(--ink-3)" }}>No meetings yet.</p>
+      ) : (
+        <AdminTable
+          heading="Meeting history"
+          noun="meeting"
+          columns={[
+            { label: "Meeting" },
+            { label: "Date" },
+            { label: "Slot" },
+            { label: "Status" },
+            { label: "Present" },
+            { label: "% strength" },
+            { label: "Open" },
+          ]}
+          rows={historyRows}
+          onRename={canEdit ? renameCouncilSessionAction : undefined}
+        />
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAdminSession } from "@/lib/auth/guards";
@@ -296,4 +297,98 @@ export async function reopenSessionAction(formData: FormData): Promise<void> {
     entityId: sessionId, after: { reopened: true },
   });
   redirect(`/admin/council/sessions/${sessionId}?reopened=1`);
+}
+
+/**
+ * Inline rename from the council members list — name only.
+ *
+ * ⚠️ This is the ATTENDANCE roster (`council_members`), not the public /team
+ * page, which renders from `src/data/ccc.ts` + `team_profiles`. Renaming here
+ * changes who the register calls, and nothing the public site shows.
+ */
+export async function renameCouncilMemberAction(
+  id: string,
+  name: string,
+): Promise<{ ok: true } | { ok: false; error?: string }> {
+  const session = await getAdminSession();
+  if (!session) return { ok: false, error: "Your session expired. Sign in again." };
+  if (!canManage(session, "manage:council")) {
+    return { ok: false, error: "You can't manage council members." };
+  }
+  if (!z.string().uuid().safeParse(id).success) {
+    return { ok: false, error: "Missing member reference." };
+  }
+
+  const parsed = MemberSchema.shape.name.safeParse(name);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
+
+  const admin = createAdminClient();
+  const { data: before } = await admin
+    .from("council_members")
+    .select("full_name")
+    .eq("id", id)
+    .maybeSingle();
+  if (!before) return { ok: false, error: "That member no longer exists." };
+
+  const { error } = await admin
+    .from("council_members")
+    .update({ full_name: parsed.data })
+    .eq("id", id);
+  if (error) return { ok: false, error: "Could not save that. Try again." };
+
+  await writeAudit({
+    actorId: session.id,
+    action: "update",
+    entity: "council_member",
+    entityId: id,
+    before: { name: before.full_name },
+    after: { name: parsed.data },
+  });
+
+  revalidatePath("/admin/council/members");
+  return { ok: true };
+}
+
+/** Inline rename from the meeting history — title only. */
+export async function renameCouncilSessionAction(
+  id: string,
+  title: string,
+): Promise<{ ok: true } | { ok: false; error?: string }> {
+  const session = await getAdminSession();
+  if (!session) return { ok: false, error: "Your session expired. Sign in again." };
+  if (!canManage(session, "manage:council")) {
+    return { ok: false, error: "You can't manage council meetings." };
+  }
+  if (!z.string().uuid().safeParse(id).success) {
+    return { ok: false, error: "Missing meeting reference." };
+  }
+
+  const parsed = SessionSchema.shape.title.safeParse(title);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
+
+  const admin = createAdminClient();
+  const { data: before } = await admin
+    .from("council_attendance_sessions")
+    .select("title")
+    .eq("id", id)
+    .maybeSingle();
+  if (!before) return { ok: false, error: "That meeting no longer exists." };
+
+  const { error } = await admin
+    .from("council_attendance_sessions")
+    .update({ title: parsed.data })
+    .eq("id", id);
+  if (error) return { ok: false, error: "Could not save that. Try again." };
+
+  await writeAudit({
+    actorId: session.id,
+    action: "update",
+    entity: "council_session",
+    entityId: id,
+    before: { title: before.title },
+    after: { title: parsed.data },
+  });
+
+  revalidatePath("/admin/council");
+  return { ok: true };
 }
