@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-18 (new `/team` page + its CMS SHIPPED (73058ce), migration team_profiles applied live and still empty; 2026-09-17: co-host dropdown + sectioned event form SHIPPED; session history search + sortable date SHIPPED; co-hosted events shipped earlier the same day; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed).**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-20 (admin layout/interaction upgrade SHIPPED (d27c4d9), migration `attendance_absent_mark` APPLIED LIVE — club attendance is now tri-state; 2026-09-18: new `/team` page + its CMS SHIPPED (73058ce), migration team_profiles applied live and still empty; 2026-09-17: co-host dropdown + sectioned event form SHIPPED; session history search + sortable date SHIPPED; co-hosted events shipped earlier the same day; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed).**
 
 ## What this is
 
@@ -19,6 +19,82 @@ end-to-end**, not a checklist of components.
 ---
 
 ## 🚦 START HERE — current git/deploy state (2026-09-16)
+
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-20 — admin layout + interaction upgrade
+> **`d27c4d9`** on `main`. Implements the design handoff in
+> `design_handoff_admin_uiux/` (`Admin.dc.html` + `README.md`, high-fidelity).
+> Visual language is UNCHANGED — the tokens in `globals.css` already matched the
+> handoff's table value-for-value. This is layout, density and interaction.
+> Gate: typecheck ✓ lint ✓ **1338 tests** ✓ build ✓, `npm ci --dry-run` clean.
+>
+> ⚠️ **ONE MIGRATION WAS APPLIED LIVE** — `attendance_absent_mark`, applied to
+> `jisahccdnthzgibszwnq` on 2026-09-20, recorded there as version
+> **`20260920054746`** (the repo file is `20260920000000_...`, the usual
+> rounded-name convention). It adds `club_attendance.status`
+> (`club_attendance_mark` = present|absent, NOT NULL, default `'present'`) plus
+> index `club_attendance_session_status`. **All 1,947 existing rows backfilled to
+> `'present'` — semantically a no-op**, since a row already meant present.
+> Applied BEFORE the code shipped, which was safe precisely because it is
+> additive and defaulted. RLS unchanged (on, no policies, service-role only).
+> **Rollback:** `git revert d27c4d9 && git push`; the column can stay (the old
+> code never reads it) or go with
+> `alter table public.club_attendance drop column status;` — but only once no
+> absent marks matter, because dropping it silently turns every absent row back
+> into a present one.
+>
+> - ⚠️ **`club_attendance` is no longer a presence-row table.** It used to be
+>   "a row means present, no row means absent". Now the row carries `status`,
+>   and the ABSENCE of a row is what means *unmarked*. **SEVEN queries counted
+>   rows as attendance** and every one now filters `status = 'present'`:
+>   `countPresent`, `getSessionMarking`, two analytics joins and the member
+>   portal in `attendance-club.ts`, plus `club-vitality-data.ts`. **Miss one and
+>   an absent mark silently becomes attendance** — inflating session turnout,
+>   club vitality, the analytics panels and each member's percentage on the
+>   public `/my-events` portal. Anything new that reads that table must filter.
+> - **Council attendance is untouched.** It writes to `council_attendance` via
+>   its own `savePresence` in `attendance-council.ts` and stays binary. Do not
+>   "make it consistent" without repeating the seven-query audit for that table.
+> - **Autosave was deliberately KEPT.** The prototype replaces it with a manual
+>   save bar; the existing roster autosaves every 2.5s behind an in-flight guard
+>   so a dead tab cannot cost a roll call. The floating bar now reports how far
+>   the save got and offers Revert, rather than gating the write.
+> - **Bulk actions act on the WHOLE roster, never the filtered view** — "mark all
+>   present" with a search active would otherwise skip everyone the search hid.
+>   Hidden inputs are likewise emitted for the full roster, including an explicit
+>   `unmarked` field: "not in the present list" no longer means absent.
+> - **`AdminTable` is the shared list surface** (`src/components/admin/`): search,
+>   view chips **derived from the rows' own statuses** (nobody configures them),
+>   count line, inline rename, empty state, density. 13 screens use it.
+> - ⚠️ **`SearchableTable` still exists, for registrations ONLY.** That table has
+>   a leading **checkbox** column for shortlisting and `AdminTable` gives its
+>   first cell to the rename pencil. Shortlisting is a selection workflow, not
+>   the destructive bulk action the handoff removed. Restyled to match, so the
+>   two look identical. **Do not delete it thinking it is dead.**
+> - **Four screens stayed off `AdminTable` on purpose:** registrations (above),
+>   the results editor (an editable grid — filtering rows in a form that submits
+>   all of them is how you lose data), Admins (one table per club group), and the
+>   short pending-approval queues.
+> - **Rename never touches a slug.** Clubs, announcements and events keep their
+>   public URL through a rename, so a table-row edit cannot break a link already
+>   given to students. Each rename action authorises exactly as its screen's edit
+>   form does — `renameEventAction` through ANY hosting club, so a co-host can
+>   rename like the owner; resources/achievements against the row's *current*
+>   owning club.
+> - **Mobile keeps the drawer**, not the handoff's flex-wrap: a twenty-link rail
+>   above the content pushed every page heading off a phone screen.
+> - **`database.types.ts` was regenerated from the live schema** after the
+>   migration (via MCP — the Supabase CLI is not logged in here, so
+>   `npm run types:gen` fails with `LegacyPlatformAuthRequiredError` until
+>   someone runs `supabase login`).
+> - ⏳ **OWED — SHIPPED WITHOUT A SIGNED-IN WALKTHROUGH.** Chrome has not
+>   connected. The menu filter, group collapse, inline rename (commit on blur vs
+>   discard on Escape), toasts, and the whole tri-state roster are unexercised by
+>   a human; server-action POSTs cannot be curled. **The roster is the risk** —
+>   it is the one screen whose write path changed. First real roll call is the
+>   test. Everything else is read-path work over unchanged data.
+> - **Pre-existing advisories, NOT from this change**, if anyone is auditing:
+>   `btree_gist` sits in the `public` schema, and `get_registration_count(s)` are
+>   `SECURITY DEFINER` and callable by `anon` via `/rest/v1/rpc/`.
 
 > ### 🚀 SHIPPED TO PRODUCTION 2026-09-18 — the new `/team` page and its CMS
 > `feat/team-page-v2` merged as **`73058ce`** and pushed; live on
