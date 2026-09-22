@@ -73,6 +73,7 @@ export default async function EditEventPage({
           registrationClosesAtLocal: event.registrationClosesAt ? istLocalInput(event.registrationClosesAt) : "",
           waitlistEnabled: event.waitlistEnabled,
           showOnAchievements: event.showOnAchievements,
+          whatsappUrl: event.whatsappUrl ?? "",
         }}
       />
 

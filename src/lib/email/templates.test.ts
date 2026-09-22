@@ -155,3 +155,77 @@ describe("renderEmail — custom button label (participant broadcasts)", () => {
     expect(renderEmail("event_broadcast", "U", null, { url, linkLabel: 42 }).html).toContain(">Open<");
   });
 });
+
+/**
+ * A registration confirmation needs two links: the group chat the student
+ * should join now, and the event page they can come back to. The wrapper has
+ * exactly one button, so the second one renders as a plain text link beneath it.
+ */
+describe("renderEmail — secondary link", () => {
+  const url = "https://chat.whatsapp.com/ABCdef123";
+  const secondaryUrl = "https://cse-ccc.vercel.app/events/e1";
+
+  it("renders the secondary link with its own label", () => {
+    const { html } = renderEmail("registration_confirmed", "S", null, {
+      url,
+      linkLabel: "Join the WhatsApp group",
+      secondaryUrl,
+      secondaryLabel: "View the event page",
+    });
+    expect(html).toContain(`href="${secondaryUrl}"`);
+    expect(html).toContain("View the event page");
+  });
+
+  it("puts the secondary link in the text part too", () => {
+    const { text } = renderEmail("registration_confirmed", "S", null, {
+      url,
+      secondaryUrl,
+      secondaryLabel: "View the event page",
+    });
+    expect(text).toContain(`View the event page: ${secondaryUrl}`);
+  });
+
+  it("renders nothing extra when there is no secondary link", () => {
+    const { html, text } = renderEmail("registration_confirmed", "S", null, { url });
+    const plain = renderEmail("registration_confirmed", "S", null, {
+      url,
+      secondaryUrl: null,
+    });
+    expect(plain.html).toBe(html);
+    expect(plain.text).toBe(text);
+  });
+
+  it("ignores a secondary link that is not an http(s) URL", () => {
+    const { html } = renderEmail("registration_confirmed", "S", null, {
+      url,
+      secondaryUrl: "javascript:alert(1)",
+      secondaryLabel: "Tap me",
+    });
+    expect(html).not.toContain("javascript:");
+    expect(html).not.toContain("Tap me");
+  });
+
+  it("escapes the secondary label", () => {
+    const { html } = renderEmail("registration_confirmed", "S", null, {
+      url,
+      secondaryUrl,
+      secondaryLabel: "<script>alert(1)</script>",
+    });
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("&lt;script&gt;");
+  });
+
+  it("falls back to a generic label when none is given", () => {
+    const { html } = renderEmail("registration_confirmed", "S", null, { url, secondaryUrl });
+    expect(html).toContain(`href="${secondaryUrl}"`);
+    expect(html).toContain("Open");
+  });
+
+  it("does not show a secondary link on its own, without a button", () => {
+    const { html } = renderEmail("registration_confirmed", "S", null, {
+      secondaryUrl,
+      secondaryLabel: "View the event page",
+    });
+    expect(html).not.toContain(secondaryUrl);
+  });
+});

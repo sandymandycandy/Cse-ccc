@@ -31,6 +31,8 @@ export interface EventFormInitial {
   registrationClosesAtLocal: string;
   waitlistEnabled: boolean;
   showOnAchievements: boolean;
+  /** The event's group chat, given to registrants only. "" when unset. */
+  whatsappUrl: string;
 }
 
 /** One labelled block of the form. The event form runs to thirteen fields plus
@@ -254,6 +256,25 @@ export function EventForm({
           public achievements page — untick to keep them off it.
         </span>
         <FieldError errors={state.fieldErrors} name="showOnAchievements" />
+      </div>
+
+      <div className={fieldClass(state.fieldErrors, "whatsappUrl")}>
+        <label htmlFor="whatsappUrl">WhatsApp group link (optional)</label>
+        <input
+          id="whatsappUrl"
+          name="whatsappUrl"
+          type="url"
+          inputMode="url"
+          maxLength={300}
+          defaultValue={initial?.whatsappUrl}
+          placeholder="https://chat.whatsapp.com/…"
+        />
+        <span className="hint">
+          Shown in a pop-up the moment someone registers, and again in their confirmation
+          email. Never shown on the public event page — only people who actually register
+          get it. Must start with https://
+        </span>
+        <FieldError errors={state.fieldErrors} name="whatsappUrl" />
       </div>
       </Section>
 

@@ -2883,6 +2883,63 @@
     .imged-output select { font-size: 16px; }
   }
 
+  /* ── the group-chat invite, after a student registers ────────────────────
+     Same centred-dialog idiom as .imged above, at public-page scale. It is the
+     last thing between finishing the form and joining the group, so it is
+     deliberately small and has exactly one obvious action. */
+  .wai-backdrop {
+    position: fixed;
+    inset: 0;
+    background: color-mix(in srgb, var(--ink) 42%, transparent);
+    z-index: 60;
+    animation: cal-fade 0.15s ease;
+  }
+  .wai {
+    position: fixed;
+    z-index: 61;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(420px, calc(100vw - 32px));
+    max-height: 92vh;
+    overflow-y: auto;
+    background: var(--paper-2);
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-lg);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+    animation: ccc-rise 0.25s var(--ease-out-quint) both;
+  }
+  .wai-body { padding: 22px 22px 18px; }
+  .wai-title { font: 400 22px var(--serif); margin: 6px 0 0; }
+  .wai-lede { margin-top: 8px; font-size: 14px; color: var(--ink-2); }
+  .wai-join {
+    display: block;
+    margin-top: 16px;
+    text-align: center;
+  }
+  /* The raw link is the fallback for a blocked pop-up or a tap that goes
+     nowhere, so it must stay readable rather than stretch the dialog. */
+  .wai-raw {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 8px 10px;
+    border: 1px solid var(--line-2b);
+    border-radius: var(--r-sm);
+    background: var(--paper);
+  }
+  .wai-url {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font: 400 12px var(--mono);
+    color: var(--ink-3);
+  }
+  .wai-later { display: block; width: 100%; margin-top: 10px; }
+
   /* ── certificate designer (/admin/events/[id]/certificates) ──────────────
      The editor needs a laptop-sized screen: below 1024px the Design tab shows
      a note instead (.cd-narrow), the Issue tab stays responsive. */

@@ -26,6 +26,7 @@ import { writeAudit } from "@/lib/admin/audit";
 import { handleImageUpload } from "@/lib/admin/image-upload";
 import { validateFormSchema, defaultFormFor } from "@/lib/registration-form/schema";
 import { parseSchedule } from "@/lib/registration/schedule";
+import { isGroupLink } from "@/lib/registration/whatsapp";
 import { istDateKey, istLocalToUTC } from "@/lib/datetime";
 import type { Json } from "@/lib/database.types";
 import type { AdminRole } from "@/lib/auth/capabilities";
@@ -80,6 +81,14 @@ const CreateSchema = z
     registrationClosesAt: z.string().optional(),
     waitlistEnabled: z.coerce.boolean().optional(),
     showOnAchievements: z.coerce.boolean().optional(),
+    // The group chat a registrant is shown after registering. Validated against
+    // the same rule the API and the email re-check before rendering an href —
+    // https only, so nothing else can reach a link on a public page.
+    whatsappUrl: z
+      .string()
+      .trim()
+      .refine(isGroupLink, "Paste the full invite link — it must start with https://")
+      .optional(),
   })
   .strict();
 
@@ -100,6 +109,7 @@ function parseEvent(formData: FormData) {
     registrationClosesAt: formData.get("registrationClosesAt") || undefined,
     waitlistEnabled: formData.get("waitlistEnabled") === "on",
     showOnAchievements: formData.get("showOnAchievements") === "on",
+    whatsappUrl: formData.get("whatsappUrl") || undefined,
   });
 }
 
@@ -222,6 +232,7 @@ export async function createEventAction(
       registration_closes_at: sched.closesAt,
       waitlist_enabled: parsed.data.waitlistEnabled ?? true,
       show_on_achievements: parsed.data.showOnAchievements ?? true,
+      whatsapp_url: parsed.data.whatsappUrl ?? null,
       status: "published",
       approval_status: autoApproved ? "approved" : "pending",
       approved_by: autoApproved ? session.id : null,
@@ -423,6 +434,7 @@ export async function updateEventAction(
     registration_closes_at: string | null;
     waitlist_enabled: boolean;
     show_on_achievements: boolean;
+    whatsapp_url: string | null;
     poster_path?: string;
   } = {
     title,
@@ -437,6 +449,7 @@ export async function updateEventAction(
     registration_closes_at: sched.closesAt,
     waitlist_enabled: parsed.data.waitlistEnabled ?? true,
     show_on_achievements: parsed.data.showOnAchievements ?? true,
+    whatsapp_url: parsed.data.whatsappUrl ?? null,
   };
   if (poster.path) update.poster_path = poster.path;
 
@@ -551,7 +564,7 @@ export async function duplicateEventAction(formData: FormData): Promise<void> {
   const { data: srcRaw } = await admin
     .from("events")
     .select(
-      "title, description, starts_at, ends_at, venue_text, capacity, event_clubs ( club_id, is_primary )",
+      "title, description, starts_at, ends_at, venue_text, capacity, whatsapp_url, event_clubs ( club_id, is_primary )",
     )
     .eq("id", eventId)
     .maybeSingle();
@@ -563,6 +576,7 @@ export async function duplicateEventAction(formData: FormData): Promise<void> {
     ends_at: string;
     venue_text: string | null;
     capacity: number | null;
+    whatsapp_url: string | null;
     event_clubs: { club_id: string; is_primary: boolean }[];
   };
   const hosts = hostsFromLinks(src.event_clubs);
@@ -585,6 +599,7 @@ export async function duplicateEventAction(formData: FormData): Promise<void> {
       ends_at: src.ends_at,
       venue_text: src.venue_text,
       capacity: src.capacity,
+      whatsapp_url: src.whatsapp_url,
       status: "draft",
       approval_status: "pending",
       created_by: session.id,

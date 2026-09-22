@@ -60,3 +60,65 @@ describe("registrationMail", () => {
     expect(registrationMail({ ...base, status: "registered" }).body).toMatch(/team/i);
   });
 });
+
+/**
+ * The group link is the one thing a registrant has to act on, so it takes the
+ * button; the event page keeps its place as the quieter link underneath.
+ */
+describe("registrationMail — the event's group chat", () => {
+  const group = "https://chat.whatsapp.com/ABCdef123";
+  const eventUrl = "https://cse-ccc.vercel.app/events/e1";
+
+  it("makes the group the primary button when the event has one", () => {
+    const m = registrationMail({ ...base, status: "registered", group, eventUrl });
+    expect(m.link).toEqual({ url: group, label: "Join the WhatsApp group" });
+  });
+
+  it("keeps the event page as the secondary link", () => {
+    const m = registrationMail({ ...base, status: "registered", group, eventUrl });
+    expect(m.secondary).toEqual({ url: eventUrl, label: "View the event page" });
+  });
+
+  it("tells them to join, in the body", () => {
+    const m = registrationMail({ ...base, status: "registered", group, eventUrl });
+    expect(m.body).toMatch(/whatsapp group/i);
+  });
+
+  it("invites a waitlisted entry to the group too", () => {
+    const m = registrationMail({ ...base, status: "waitlisted", position: 4, group, eventUrl });
+    expect(m.link).toEqual({ url: group, label: "Join the WhatsApp group" });
+    // Still no promise of a seat.
+    expect(m.body).toMatch(/waitlist/i);
+  });
+
+  it("invites a shortlist application to the group too", () => {
+    const m = registrationMail({ ...base, status: "submitted", group, eventUrl });
+    expect(m.link).toEqual({ url: group, label: "Join the WhatsApp group" });
+    expect(m.body).toMatch(/shortlisted/i);
+  });
+
+  it("falls back to the event page as the button when there is no group", () => {
+    const m = registrationMail({ ...base, status: "registered", eventUrl });
+    expect(m.link).toEqual({ url: eventUrl, label: "View the event" });
+    expect(m.secondary).toBeNull();
+    expect(m.body).not.toMatch(/whatsapp/i);
+  });
+
+  it("still offers the group when the site URL is not configured", () => {
+    const m = registrationMail({ ...base, status: "registered", group });
+    expect(m.link).toEqual({ url: group, label: "Join the WhatsApp group" });
+    expect(m.secondary).toBeNull();
+  });
+
+  it("has no links at all when neither is known", () => {
+    const m = registrationMail({ ...base, status: "registered" });
+    expect(m.link).toBeNull();
+    expect(m.secondary).toBeNull();
+  });
+
+  it("refuses a group link that is not safe to mail", () => {
+    const m = registrationMail({ ...base, status: "registered", group: "http://x.example/g", eventUrl });
+    expect(m.link).toEqual({ url: eventUrl, label: "View the event" });
+    expect(m.body).not.toMatch(/whatsapp/i);
+  });
+});

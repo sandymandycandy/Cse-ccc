@@ -158,6 +158,8 @@ export interface EventForEdit {
   registrationClosesAt: string | null;
   waitlistEnabled: boolean;
   showOnAchievements: boolean;
+  /** The event's group chat, given only to registrants. */
+  whatsappUrl: string | null;
 }
 
 /**
@@ -176,7 +178,7 @@ export async function getEventForEdit(
       "id, title, description, starts_at, ends_at, venue_text, poster_path, capacity, status, " +
         "approval_status, rejection_reason, selection_mode, registration_form, " +
         "registration_opens_at, registration_closes_at, waitlist_enabled, " +
-        "show_on_achievements, " +
+        "show_on_achievements, whatsapp_url, " +
         "event_clubs ( club_id, is_primary )",
     )
     .eq("id", eventId)
@@ -202,6 +204,7 @@ export async function getEventForEdit(
     registration_closes_at: string | null;
     waitlist_enabled: boolean | null;
     show_on_achievements: boolean | null;
+    whatsapp_url: string | null;
     event_clubs: { club_id: string; is_primary: boolean }[];
   };
   const hosts = hostsFromLinks(row.event_clubs);
@@ -232,6 +235,7 @@ export async function getEventForEdit(
     // Opt-out, matching the column default: an event is on the board unless
     // someone unticks it.
     showOnAchievements: row.show_on_achievements ?? true,
+    whatsappUrl: row.whatsapp_url,
   };
 }
 

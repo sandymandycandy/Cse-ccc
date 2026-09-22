@@ -5,12 +5,16 @@ import { Button } from "./ui/Button";
 import { defaultFormFor, LAYOUT_KINDS, type FormField } from "@/lib/registration-form/schema";
 import { shouldRetry, nextDelay, MAX_ATTEMPTS, type RetryOutcome } from "@/lib/registration/retry";
 import { leaderLabel } from "@/lib/registration-form/team-labels";
+import { ResultMessage } from "./registration/ResultMessage";
+import { WhatsAppInvite } from "./registration/WhatsAppInvite";
 
 type Result = {
   status?: string;
   error?: string;
   fields?: Record<string, string>;
   position?: number | null;
+  /** The event's group chat. Only ever sent back on a registration that landed. */
+  whatsapp?: string | null;
 };
 const TERMINAL = new Set(["registered", "submitted", "waitlisted", "duplicate"]);
 
@@ -72,6 +76,9 @@ export function RegisterForm({
     return init;
   });
   const [otherText, setOtherText] = useState<Record<string, string>>({});
+  // The invite pops up once per registration; dismissing it leaves the same
+  // link on the success panel rather than taking it away.
+  const [inviteDismissed, setInviteDismissed] = useState(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -130,7 +137,19 @@ export function RegisterForm({
   }
 
   if (result && result.status && TERMINAL.has(result.status)) {
-    return <ResultMessage status={result.status} mode={mode} position={result.position} />;
+    return (
+      <>
+        <ResultMessage
+          status={result.status}
+          mode={mode}
+          position={result.position}
+          group={result.whatsapp}
+        />
+        {inviteDismissed ? null : (
+          <WhatsAppInvite url={result.whatsapp ?? null} onClose={() => setInviteDismissed(true)} />
+        )}
+      </>
+    );
   }
 
   // On a team event the person filling this in IS the team leader, so the
@@ -324,48 +343,6 @@ function FieldInput({
       ) : field.help ? (
         <span className="hint">{field.help}</span>
       ) : null}
-    </div>
-  );
-}
-
-function ResultMessage({
-  status,
-  mode,
-  position,
-}: {
-  status: string;
-  mode: "seats" | "shortlist";
-  position?: number | null;
-}) {
-  if (status === "registered" || status === "submitted") {
-    return (
-      <div>
-        <h3 style={{ fontSize: 22 }}>{mode === "shortlist" ? "Submitted ✓" : "You're registered ✓"}</h3>
-        <p className="body-text" style={{ marginTop: 8 }}>
-          {mode === "shortlist"
-            ? "Thanks — the club will review submissions and email you if you're selected."
-            : "Your spot is confirmed. See you there!"}
-        </p>
-      </div>
-    );
-  }
-  if (status === "waitlisted") {
-    return (
-      <div>
-        <h3 style={{ fontSize: 22 }}>You&rsquo;re on the waitlist</h3>
-        <p className="body-text" style={{ marginTop: 8 }}>
-          {typeof position === "number" ? `You're #${position} in line. ` : ""}
-          This event is full — the organiser may pull you in if a seat opens up.
-        </p>
-      </div>
-    );
-  }
-  return (
-    <div>
-      <h3 style={{ fontSize: 22 }}>Already registered</h3>
-      <p className="body-text" style={{ marginTop: 8 }}>
-        You&rsquo;ve already submitted this form for this event.
-      </p>
     </div>
   );
 }

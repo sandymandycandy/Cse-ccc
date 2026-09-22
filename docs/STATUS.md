@@ -20,6 +20,58 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-16)
 
+> ### ⚠️ UNCOMMITTED, NOT DEPLOYED 2026-09-22 — the event WhatsApp group link
+> An event can carry a **group-chat invite**, set on the event form. A student
+> who registers gets it in a **pop-up** the moment their registration lands, and
+> again in their **confirmation email**. Working tree only — nothing is
+> committed and nothing is deployed, but **the migration is already live**.
+> Gate on the tree: typecheck ✓ lint ✓ **1393 tests** ✓ build ✓,
+> `npm ci --dry-run` clean.
+>
+> ⚠️ **ONE MIGRATION WAS APPLIED LIVE** — `event_whatsapp_link`, applied to
+> `jisahccdnthzgibszwnq` on 2026-09-22, recorded there as version
+> **`20260922080901`** (repo file `20260922000000_...`, the usual rounded-name
+> convention). It adds `events.whatsapp_url` (`text`, nullable, no default) plus
+> a check constraint `events_whatsapp_url_https` (`https://` prefix, ≤300 chars).
+> **Additive and nullable, so the OLD code is unaffected** — that is why it was
+> safe to apply before the code ships. **Rollback:** the column can stay (nothing
+> else reads it) or go with
+> `alter table public.events drop column whatsapp_url;`.
+>
+> - ⚠️ **The invite NEVER reaches the public event page.** A `chat.whatsapp.com`
+>   link is a bearer token — anyone holding it can join. `getEventDetail` does
+>   **not** select the column, so it is not in the page's HTML source; the only
+>   way to see it is to POST a registration that lands. **Anything new that
+>   renders an event must not add it to a public query.**
+> - **Who gets it:** `registered`, `submitted` and `waitlisted` — every outcome
+>   that lands. **Not `duplicate`** (they were given it on the visit that
+>   registered them) and not `full`/`closed`. One place decides, for both the
+>   API response and the email: `groupLinkFor()` in
+>   `src/lib/registration/whatsapp.ts`. If the two ever disagreed, a student
+>   would see a group in one channel and not the other.
+> - **https is checked three times on purpose** — the admin form's zod refine,
+>   the API/email before rendering an `href`, and the DB constraint. The value
+>   ends up in an `href` on a public page, so a `javascript:` value written by
+>   any other route (SQL console, script, importer) still cannot become a link.
+> - **`renderEmail` gained an optional secondary link** (`secondaryUrl` +
+>   `secondaryLabel`), rendered only alongside the button. The confirmation mail
+>   puts the **group on the button** and drops the event page to the quieter line
+>   beneath it. Every other template is unchanged — they send neither key.
+> - **`ResultMessage` moved out of `RegisterForm.tsx`** to
+>   `src/components/registration/ResultMessage.tsx` so it could be tested
+>   directly; it keeps an inline group link, so dismissing the pop-up is not the
+>   same as losing the invite.
+> - **`database.types.ts` was hand-patched, not regenerated** (3 lines: Row,
+>   Insert, Update). The column is `text`/nullable/no-default, which is exactly
+>   `whatsapp_url: string | null`, and the shape was confirmed against
+>   `information_schema` on the live project. The Supabase CLI is still not
+>   logged in here, so `npm run types:gen` fails until someone runs
+>   `supabase login`.
+> - ⏳ **OWED — no signed-in walkthrough.** The pop-up, the copy-link fallback
+>   and the admin field have not been exercised by a human against a real
+>   registration; a registration POST cannot be curled past Turnstile. **First
+>   real event with a group link is the test.**
+
 > ### 🚀 SHIPPED TO PRODUCTION 2026-09-20 — admin layout + interaction upgrade
 > **`d27c4d9`** on `main`. Implements the design handoff in
 > `design_handoff_admin_uiux/` (`Admin.dc.html` + `README.md`, high-fidelity).

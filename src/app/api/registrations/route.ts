@@ -5,6 +5,7 @@ import { validateFormSchema, defaultFormFor, type FormField } from "@/lib/regist
 import { validateAnswers } from "@/lib/registration-form/answers";
 import { teamRecipients } from "@/lib/registration-form/recipients";
 import { registrationMail, type RegistrationStatus } from "@/lib/registration/confirm-email";
+import { groupLinkFor } from "@/lib/registration/whatsapp";
 import { enqueueEmail } from "@/lib/email";
 import { istDayNum, istDateLabel, istTime } from "@/lib/datetime";
 
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
   // 4) load the event's stored schema (service role) — the validation authority
   const { data: ev } = await admin
     .from("events")
-    .select("id, title, starts_at, is_all_day, venue_text, registration_form")
+    .select("id, title, starts_at, is_all_day, venue_text, registration_form, whatsapp_url")
     .eq("id", eventId)
     .maybeSingle();
   if (!ev) return Response.json({ error: "Event not found." }, { status: 404 });
@@ -126,6 +127,11 @@ export async function POST(request: Request) {
     position = pos?.waitlist_position ?? null;
   }
 
+  // The event's group chat, handed back only to a registration that landed.
+  // The invite deliberately never reaches the public event page: it is a bearer
+  // token, so the only way to see it is to have registered.
+  const group = groupLinkFor(status, ev.whatsapp_url);
+
   // Tell the whole team it worked. Best-effort by design: the registration is
   // already committed, so a mail failure must never turn a successful sign-up
   // into an error the student sees and retries.
@@ -140,15 +146,16 @@ export async function POST(request: Request) {
         leaderName: identity.student_name ?? null,
         teamName: identity.team_name ?? null,
         position,
+        group,
       });
     } catch (err) {
       console.error("registration confirmation email failed", err);
     }
   }
 
-  if (status === "waitlisted") return Response.json({ status, position });
+  if (status === "waitlisted") return Response.json({ status, position, whatsapp: group });
   // registered | submitted | duplicate | full → the client renders the message
-  return Response.json({ status });
+  return Response.json({ status, whatsapp: group });
 }
 
 /**
@@ -166,8 +173,11 @@ async function notifyTeam(input: {
   leaderName: string | null;
   teamName: string | null;
   position: number | null;
+  /** The event's group chat, already filtered for this outcome. */
+  group: string | null;
 }): Promise<void> {
-  const { status, event, schema, customAnswers, leaderEmail, leaderName, teamName, position } = input;
+  const { status, event, schema, customAnswers, leaderEmail, leaderName, teamName, position, group } =
+    input;
 
   const recipients = teamRecipients(schema, customAnswers, leaderEmail);
   if (recipients.length === 0) return;
@@ -175,6 +185,7 @@ async function notifyTeam(input: {
   const when = event.is_all_day
     ? `${istDayNum(event.starts_at)} ${istDateLabel(event.starts_at)}`
     : `${istDayNum(event.starts_at)} ${istDateLabel(event.starts_at)} · ${istTime(event.starts_at)}`;
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
   const mail = registrationMail({
     status,
     eventTitle: event.title,
@@ -182,9 +193,10 @@ async function notifyTeam(input: {
     venue: event.venue_text ?? "",
     teamName,
     position,
+    group,
+    eventUrl: base ? `${base}/events/${event.id}` : null,
   });
 
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
   for (const to of recipients) {
     await enqueueEmail({
       template: "registration_confirmed",
@@ -196,7 +208,12 @@ async function notifyTeam(input: {
       payload: {
         details: mail.details,
         body: mail.body,
-        url: base ? `${base}/events/${event.id}` : undefined,
+        // The group chat takes the button when the event has one; the event
+        // page drops to the quieter link beneath it.
+        url: mail.link?.url,
+        linkLabel: mail.link?.label,
+        secondaryUrl: mail.secondary?.url,
+        secondaryLabel: mail.secondary?.label,
       },
       priority: 2,
     });

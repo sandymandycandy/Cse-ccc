@@ -31,6 +31,23 @@ function linkLabel(payload: Record<string, unknown> | null): string {
   return t ? t.slice(0, LABEL_MAX) : "Open";
 }
 
+/**
+ * `payload.secondaryUrl` + `secondaryLabel` — a second, quieter link rendered
+ * under the button. A registration confirmation needs two: the group chat to
+ * join now, and the event page to come back to. Only ever shown alongside the
+ * button, so a payload carrying nothing but a secondary link renders no link
+ * at all rather than a stray one.
+ */
+function secondaryLink(
+  payload: Record<string, unknown> | null,
+): { url: string; label: string } | null {
+  const v = payload?.secondaryUrl;
+  if (typeof v !== "string" || !/^https?:\/\//i.test(v)) return null;
+  const raw = payload?.secondaryLabel;
+  const t = typeof raw === "string" ? raw.trim() : "";
+  return { url: v, label: t ? t.slice(0, LABEL_MAX) : "Open" };
+}
+
 /** First http(s) URL found under a known payload key, else null. */
 function actionUrl(payload: Record<string, unknown> | null): string | null {
   if (!payload) return null;
@@ -102,9 +119,14 @@ export function renderEmail(
     : "";
 
   const label = linkLabel(payload);
+  const second = url ? secondaryLink(payload) : null;
   const button = url
     ? `<p style="margin:24px 0"><a href="${esc(url)}" style="display:inline-block;background:#1f4d3a;color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font:600 15px sans-serif">${esc(label)}</a></p>
-       <p style="color:#666;font-size:13px;word-break:break-all">Or open this link:<br><a href="${esc(url)}" style="color:#1f4d3a">${esc(url)}</a></p>`
+       <p style="color:#666;font-size:13px;word-break:break-all">Or open this link:<br><a href="${esc(url)}" style="color:#1f4d3a">${esc(url)}</a></p>${
+         second
+           ? `\n       <p style="margin:12px 0 0;font-size:13px"><a href="${esc(second.url)}" style="color:#1f4d3a">${esc(second.label)}</a></p>`
+           : ""
+       }`
     : "";
 
   const html = `<div style="max-width:520px;margin:0 auto;font:400 15px/1.6 -apple-system,Segoe UI,Roboto,sans-serif;color:#1a1a1a">
@@ -125,6 +147,7 @@ export function renderEmail(
     ...(rows.length ? ["", ...rows.map((r) => `${r.label}: ${r.value}`)] : []),
     ...(body ? ["", body] : []),
     url ? `\n${label}: ${url}` : "",
+    ...(second ? [`${second.label}: ${second.url}`] : []),
     "",
     "— CSE Club Council",
   ].join("\n");
