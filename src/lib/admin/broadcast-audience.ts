@@ -54,6 +54,23 @@ export function shouldQueue(count: number): boolean {
   return count > INLINE_MAX;
 }
 
+/**
+ * The line the composer shows BEFORE the send, naming which of the two
+ * behaviours this audience will get.
+ *
+ * `shouldQueue` decides it; this says it out loud while the audience can still
+ * be changed. Finding out that a mail was queued — and will trickle out over
+ * more than a day — only after pressing send is how a "tomorrow, 9am" notice
+ * arrives the day after the event.
+ */
+export function sendPlan(count: number): string {
+  if (count <= 0) return "";
+  const addresses = `${count} ${count === 1 ? "address" : "addresses"}`;
+  return shouldQueue(count)
+    ? `${addresses} — over the ${INLINE_MAX}-address inline limit, so this is queued and goes out from the Outbox.`
+    : `${addresses} — at or under the ${INLINE_MAX}-address inline limit, so this sends straight away rather than queueing.`;
+}
+
 export function audienceLabel(a: Audience): string {
   switch (a.kind) {
     case "heads":

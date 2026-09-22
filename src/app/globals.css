@@ -2883,6 +2883,227 @@
     .imged-output select { font-size: 16px; }
   }
 
+  /* Outbox view chips + row count: this table predates AdminTable and never
+     inherited either. */
+  .outbox-views { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 22px; }
+  .outbox-view-n { font: 400 11px var(--mono); opacity: 0.65; margin-left: 6px; }
+  .outbox-rows {
+    margin-top: 10px;
+    font: 500 10px var(--mono);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  /* An address is read character by character, so it stays monospaced and
+     cased rather than taking the small-caps .label treatment. */
+  .contact-email { font: 400 12px var(--mono); color: var(--ink-3); word-break: break-all; }
+  /* What pressing send will actually do, shown before it is pressed. */
+  .compose-plan {
+    margin-top: 16px;
+    font: 400 12.5px/1.6 var(--mono);
+    color: var(--clay);
+  }
+
+  /* ── event form: five tabs, one form ─────────────────────────────────────
+     The form runs to sixteen fields plus a question builder and an image
+     editor. Stacked, that was a ~2,000px scroll with no sense of place; split
+     across tabs, only the dots say whether the four panels you cannot see are
+     finished. */
+  .ef { margin-top: 20px; }
+  /* Sticky, because Save used to sit at the very bottom of that scroll. */
+  .ef-bar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 12px 0;
+    background: var(--paper);
+    border-bottom: 1px solid var(--line);
+  }
+  .ef-savenote {
+    margin-right: auto;
+    font: 500 10px var(--mono);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--clay);
+  }
+  .ef-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding-top: 18px;
+    margin-bottom: 22px;
+  }
+  .ef-tab {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 16px 14px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--ink-3);
+    font: 600 13.5px var(--sans);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .ef-tab:hover { color: var(--ink); }
+  .ef-tab[data-active="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+  .ef-tab-n {
+    font: 500 10px var(--mono);
+    letter-spacing: 0.1em;
+    color: var(--ink-4);
+  }
+  .ef-tab[data-active="true"] .ef-tab-n { color: var(--forest); }
+  .ef-tab-meta {
+    font: 500 10px var(--mono);
+    letter-spacing: 0.06em;
+    color: var(--ink-4);
+  }
+  /* Amber while the panel still wants something, green once it doesn't. */
+  .ef-tab-dot {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: var(--r-pill);
+    background: var(--forest);
+  }
+  .ef-tab-dot[data-gap="true"] { background: var(--clay); }
+  .ef-panel[hidden] { display: none; }
+  /* Reads the computed span back, so a PM/AM slip shows up as "11 hours"
+     rather than waiting to surface as a validation error. */
+  .ef-runs {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 14px 18px;
+    margin-top: 14px;
+    border-left: 3px solid var(--forest);
+    border-radius: 0 var(--r-sm) var(--r-sm) 0;
+    background: var(--sand);
+  }
+  .ef-runs-n { font: 400 15px var(--sans); color: var(--ink); }
+  .ef-runs-day { font: 400 13px var(--sans); color: var(--ink-3); }
+  .ef-legend {
+    font: 500 12px var(--sans);
+    color: var(--ink-2);
+    display: block;
+    margin-bottom: 8px;
+  }
+  /* Two cards rather than a <select>: the choice changes what capacity means,
+     so both options and their consequences stay visible at once. */
+  .ef-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ef-mode {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 14px 16px;
+    border: 1px solid var(--line-3);
+    border-radius: var(--r-sm);
+    cursor: pointer;
+  }
+  .ef-mode[data-on="true"] { border-color: var(--forest); background: var(--forest-tint); }
+  .ef-mode input { position: absolute; opacity: 0; pointer-events: none; }
+  .ef-mode:focus-within { outline: 2px solid var(--forest); outline-offset: 2px; }
+  .ef-mode-title { font: 600 14px var(--sans); color: var(--ink); }
+  .ef-mode-body { font: 400 12.5px/1.5 var(--sans); color: var(--ink-3); }
+  /* The checkbox IS the track — `appearance: none` keeps the native control,
+     its focus ring and its label association rather than faking one. */
+  .ef-switch {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 400;
+    cursor: pointer;
+  }
+  .ef-switch input {
+    appearance: none;
+    flex: none;
+    width: 38px;
+    height: 22px;
+    border-radius: var(--r-pill);
+    background: var(--line-3);
+    position: relative;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .ef-switch input::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: var(--r-pill);
+    background: var(--paper-2);
+    transition: transform 0.15s;
+  }
+  .ef-switch input:checked { background: var(--forest); }
+  .ef-switch input:checked::after { transform: translateX(16px); }
+  .ef-steps {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 28px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+  }
+  .ef-steps .btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+  /* Question search: the default form is six questions and a club that adds
+     its own routinely passes fifteen. */
+  .rfb-find {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .rfb-search {
+    flex: 1 1 240px;
+    min-height: 38px;
+    padding: 0 15px;
+    border: 1px solid var(--line-3);
+    border-radius: var(--r-pill);
+    background: var(--paper);
+    color: var(--ink);
+    font: 400 13px var(--sans);
+  }
+  .rfb-search::-webkit-search-cancel-button { -webkit-appearance: none; }
+  .rfb-count {
+    font: 500 10px var(--mono);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .rfb-nomatch {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 18px;
+    margin-top: 10px;
+    border: 1px dashed var(--line-3);
+    border-radius: var(--r-sm);
+  }
+  .rfb-nomatch strong { font: 400 20px var(--serif); color: var(--ink); }
+  .rfb-num {
+    font: 500 10px var(--mono);
+    letter-spacing: 0.1em;
+    color: var(--ink-4);
+    flex: none;
+  }
+  .rfb-card[hidden] { display: none; }
+  @media (max-width: 599px) {
+    .ef-modes { grid-template-columns: 1fr; }
+    .ef-tabs { gap: 2px; }
+    .ef-tab { padding: 9px 11px 12px; font-size: 12.5px; gap: 6px; }
+  }
+
   /* ── the group-chat invite, after a student registers ────────────────────
      Same centred-dialog idiom as .imged above, at public-page scale. It is the
      last thing between finishing the form and joining the group, so it is

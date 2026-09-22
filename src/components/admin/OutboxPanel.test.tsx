@@ -132,3 +132,56 @@ describe("OutboxPanel", () => {
     expect(clubHead).toContain("84 of about 500");
   });
 });
+
+/**
+ * This table predates AdminTable, so it never inherited the view chips and the
+ * count line every other admin list has. "Which of these failed?" was a manual
+ * scan of a list that can run to hundreds of rows after a large send.
+ */
+describe("OutboxPanel — views and the row count", () => {
+  const rows = [
+    row({ id: "a", status: "sent" }),
+    row({ id: "b", status: "sent" }),
+    row({ id: "c", status: "pending" }),
+    row({ id: "d", status: "failed", error: "Mailbox full" }),
+  ];
+
+  it("derives a chip per status the rows actually hold, plus All", () => {
+    const html = panel({ recent: rows });
+    for (const label of ["All", "sent", "pending", "failed"]) expect(html).toContain(label);
+  });
+
+  it("counts each view", () => {
+    const html = panel({ recent: rows });
+    // All 4, sent 2, pending 1, failed 1.
+    expect(html).toMatch(/All[\s\S]{0,80}?>4</);
+  });
+
+  /** Just the chip row — "failed" also appears in the stat tile and the Retry button. */
+  const chipRow = (html: string) =>
+    html.match(/<div class="outbox-views">[\s\S]*?<\/div>\s*<p class="outbox-rows">/)?.[0] ?? "";
+
+  it("offers no chip for a status nothing has", () => {
+    // A chip that always reads zero is worse than no chip.
+    const chips = chipRow(panel({ recent: [row({ status: "sent" })] }));
+    expect(chips).toContain("sent");
+    expect(chips).not.toContain("failed");
+    expect(chips).not.toContain("pending");
+  });
+
+  it("counts the rows", () => {
+    expect(panel({ recent: rows })).toContain("4 rows");
+  });
+
+  it("says row in the singular", () => {
+    expect(panel({ recent: [row()] })).toContain("1 row");
+  });
+
+  it("names the timezone on the When column, as the audit log does", () => {
+    expect(panel({ recent: rows })).toContain("When (IST)");
+  });
+
+  it("shows no chips at all when nothing has been sent", () => {
+    expect(panel({ recent: [] })).not.toContain("outbox-views");
+  });
+});

@@ -20,9 +20,12 @@ export default async function AdminContactPage() {
       cells: [
         <span key="from" style={{ fontWeight: open ? 600 : 400 }}>
           {m.name}
-          <span className="label" style={{ color: "var(--ink-3)", display: "block" }}>
-            {m.email}
-          </span>
+        </span>,
+        // Its own column rather than a sub-line under the name: it is the thing
+        // you copy to reply, and it was previously wrapped in the label style,
+        // which small-caps an address that has to be read character by character.
+        <span key="email" className="contact-email">
+          {m.email}
         </span>,
         <span key="subj" style={{ color: "var(--ink-2)" }}>
           {m.subject ?? "—"}
@@ -65,6 +68,7 @@ export default async function AdminContactPage() {
           noun="message"
           columns={[
             { label: "From" },
+            { label: "Email" },
             { label: "Subject", wrap: true },
             { label: "Received" },
             { label: "Status" },

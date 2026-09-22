@@ -48,6 +48,17 @@ export function OutboxPanel({
   const [note, setNote] = useState<string | null>(null);
   const used = ceilingPercent(sentToday);
 
+  // Chips are derived from the rows' own statuses, exactly as AdminTable does
+  // it — nobody configures them, and a status that never appears never gets a
+  // chip that always reads zero.
+  const [view, setView] = useState("all");
+  const kinds = Array.from(new Set(recent.map((r) => r.status)));
+  const views = [
+    { key: "all", label: "All", n: recent.length },
+    ...kinds.map((k) => ({ key: k, label: k, n: recent.filter((r) => r.status === k).length })),
+  ];
+  const shown = view === "all" ? recent : recent.filter((r) => r.status === view);
+
   return (
     <div>
       <div className="admin-stats outbox-tiles">
@@ -130,7 +141,30 @@ export function OutboxPanel({
           to one club.
         </p>
       ) : recent.length > 0 ? (
-        <div className="tablewrap cards" style={{ marginTop: 22 }}>
+        <>
+          {/* The same view chips every AdminTable screen has. This table is a
+              raw one — it has no rename column and no bulk actions — so it did
+              not inherit them, and "which of these failed?" was a manual scan. */}
+          <div className="outbox-views">
+            {views.map((v) => (
+              <button
+                type="button"
+                key={v.key}
+                className="chip"
+                aria-pressed={view === v.key}
+                onClick={() => setView(v.key)}
+              >
+                {v.label}
+                <span className="outbox-view-n">{v.n}</span>
+              </button>
+            ))}
+          </div>
+          <p className="outbox-rows">
+            {shown.length === recent.length
+              ? `${recent.length} ${recent.length === 1 ? "row" : "rows"}`
+              : `${shown.length} of ${recent.length} rows`}
+          </p>
+        <div className="tablewrap cards" style={{ marginTop: 14 }}>
           {/* ⚠️ `admin` is load-bearing, not decoration: every th/td rule and
               the `.tablewrap.cards` phone collapse are scoped to `table.admin`.
               Without it the header falls back to centred, the cells lose their
@@ -141,11 +175,11 @@ export function OutboxPanel({
                 <th>To</th>
                 <th>Subject</th>
                 <th>Status</th>
-                <th>When</th>
+                <th>When (IST)</th>
               </tr>
             </thead>
             <tbody>
-              {recent.map((r) => (
+              {shown.map((r) => (
                 <tr key={r.id}>
                   <td data-label="To" data-primary className="outbox-to">
                     {r.toEmail}
@@ -158,12 +192,13 @@ export function OutboxPanel({
                     <span className={`badge badge-${statusTone(r.status)}`}>{r.status}</span>
                     {r.error ? <span className="hint outbox-error">{r.error}</span> : null}
                   </td>
-                  <td data-label="When" className="outbox-when">{r.when}</td>
+                  <td data-label="When (IST)" className="outbox-when">{r.when}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        </>
       ) : (
         <p className="body-text" style={{ marginTop: 22 }}>
           Nothing has been sent yet.

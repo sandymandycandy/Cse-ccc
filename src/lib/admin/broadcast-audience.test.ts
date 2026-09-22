@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   INLINE_MAX,
+  sendPlan,
   audienceLabel,
   applyExclusions,
   dedupeRecipients,
@@ -262,5 +263,41 @@ describe("applyExclusions", () => {
 
   it("can empty the list, which the caller must treat as nobody to email", () => {
     expect(applyExclusions(list, ["a@x.test", "b@x.test", "c@x.test"])).toEqual([]);
+  });
+});
+
+/**
+ * What the composer says BEFORE you press send. `shouldQueue` already decides
+ * the behaviour; this is the sentence that tells the sender which of the two
+ * they are about to get, while they can still change the audience.
+ */
+describe("sendPlan", () => {
+  it("says an inline send goes straight away", () => {
+    const t = sendPlan(41);
+    expect(t).toContain("41 addresses");
+    expect(t).toContain(String(INLINE_MAX));
+    expect(t).toMatch(/straight away/i);
+  });
+
+  it("says a large send is queued and leaves from the Outbox", () => {
+    const t = sendPlan(248);
+    expect(t).toContain("248 addresses");
+    expect(t).toMatch(/queued/i);
+    expect(t).toMatch(/outbox/i);
+  });
+
+  it("agrees with shouldQueue exactly at the boundary", () => {
+    expect(shouldQueue(INLINE_MAX)).toBe(false);
+    expect(sendPlan(INLINE_MAX)).toMatch(/straight away/i);
+    expect(shouldQueue(INLINE_MAX + 1)).toBe(true);
+    expect(sendPlan(INLINE_MAX + 1)).toMatch(/queued/i);
+  });
+
+  it("uses the singular for one address", () => {
+    expect(sendPlan(1)).toContain("1 address —");
+  });
+
+  it("says nothing when no audience is chosen yet", () => {
+    expect(sendPlan(0)).toBe("");
   });
 });

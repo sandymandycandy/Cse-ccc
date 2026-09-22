@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CHOICE_KINDS,
   defaultFormFor,
@@ -37,7 +37,14 @@ const CUSTOM_KINDS: { kind: FieldKind; label: string }[] = [
 let counter = 0;
 const newId = () => `q${Date.now().toString(36)}${(counter++).toString(36)}`;
 
-export function RegistrationFormBuilder({ initialJson }: { initialJson: string }) {
+export function RegistrationFormBuilder({
+  initialJson,
+  onCountChange,
+}: {
+  initialJson: string;
+  /** Reports the question count up to the form's tab strip. */
+  onCountChange?: (count: number) => void;
+}) {
   const [fields, setFields] = useState<FormField[]>(() => {
     try {
       const parsed = JSON.parse(initialJson);
@@ -53,6 +60,23 @@ export function RegistrationFormBuilder({ initialJson }: { initialJson: string }
     [fields],
   );
   const json = useMemo(() => JSON.stringify(fields), [fields]);
+  // The Form tab shows this count and goes amber at zero, so it has to follow
+  // every add and remove — not just the schema this mounted with.
+  useEffect(() => {
+    onCountChange?.(fields.length);
+  }, [fields.length, onCountChange]);
+
+  /* Search, because the default form is six questions and a club that adds its
+     own routinely runs past fifteen — at which point renaming one means
+     scrolling a wall of near-identical cards. Matching is on the label, the
+     kind and the identity, so "email" finds the identity block as well as any
+     question that mentions it. */
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const matches = (f: FormField) =>
+    !q ||
+    `${f.label} ${f.kind} ${f.identity ?? ""}`.toLowerCase().includes(q);
+  const hitCount = fields.filter(matches).length;
 
   function update(i: number, patch: Partial<FormField>) {
     setFields((f) => f.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
@@ -125,10 +149,39 @@ export function RegistrationFormBuilder({ initialJson }: { initialJson: string }
       </span>
       <input type="hidden" name="registrationForm" value={json} readOnly />
 
+      <div className="rfb-find">
+        <input
+          type="search"
+          className="rfb-search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search questions…"
+          aria-label="Search questions"
+        />
+        <span className="rfb-count">
+          {hitCount === fields.length
+            ? `${fields.length} ${fields.length === 1 ? "question" : "questions"}`
+            : `${hitCount} of ${fields.length} questions`}
+        </span>
+      </div>
+
+      {hitCount === 0 ? (
+        <div className="rfb-nomatch">
+          <strong>No question matches</strong>
+          <span className="hint">Try part of a question label.</span>
+        </div>
+      ) : null}
+
       <div className="stack rfb-list" style={{ gap: 10, marginTop: 10 }}>
         {fields.map((field, i) => (
-          <div key={field.id} className="card rfb-card" style={{ padding: 12 }}>
+          /* Filtered out, not unmounted: every question still has to reach the
+             hidden JSON, and a card that vanished from the DOM would drop the
+             edit you made to it before searching. */
+          <div key={field.id} className="card rfb-card" style={{ padding: 12 }} hidden={!matches(field)}>
             <div className="rfb-row">
+              <span className="rfb-num" aria-hidden="true">
+                {String(i + 1).padStart(2, "0")}
+              </span>
               <input
                 aria-label="Label"
                 value={field.label}

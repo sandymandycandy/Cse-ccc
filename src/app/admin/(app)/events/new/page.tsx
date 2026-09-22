@@ -16,7 +16,7 @@ export default async function NewEventPage() {
       : null;
 
   return (
-    <div className="admin-page" style={{ maxWidth: 640 }}>
+    <div className="admin-page" style={{ maxWidth: 940 }}>
       <div className="eyebrow">Events</div>
       <h1 style={{ margin: "6px 0 0" }}>New event</h1>
       <p className="lead" style={{ marginTop: 8 }}>

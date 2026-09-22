@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { sendBroadcastAction } from "@/app/admin/(app)/email/actions";
 import type { ComposerState } from "@/lib/admin/form-state";
-import { CUSTOM_MAX, parseEmailList } from "@/lib/admin/broadcast-audience";
+import { CUSTOM_MAX, parseEmailList, sendPlan } from "@/lib/admin/broadcast-audience";
 import { FieldError, fieldClass, fieldProps } from "./FieldError";
 import { AudienceOption } from "./compose/AudienceOption";
 import { CharCount } from "./compose/CharCount";
@@ -425,6 +425,16 @@ function ComposerForm({
         linkLabel={linkLabel}
         fallbackTarget="the council site"
       />
+
+      {/* Which of the two send behaviours this audience gets, said while the
+          audience can still be changed. Finding out only afterwards that a mail
+          was queued — and trickles out over more than a day — is how a
+          "tomorrow, 9am" notice reaches people the day after. */}
+      {sendPlan(kind === "custom" ? typed.length : (selected ?? 0)) ? (
+        <p className="compose-plan">
+          {sendPlan(kind === "custom" ? typed.length : (selected ?? 0))}
+        </p>
+      ) : null}
 
       <div className="compose-actions">
         <button type="submit" className="btn btn-primary" disabled={pending || overCap}>

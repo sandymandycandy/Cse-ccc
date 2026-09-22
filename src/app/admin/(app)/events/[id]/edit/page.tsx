@@ -36,7 +36,7 @@ export default async function EditEventPage({
   const canCancel = canCancelEvent(session, event.hosts);
 
   return (
-    <div className="admin-page" style={{ maxWidth: 640 }}>
+    <div className="admin-page" style={{ maxWidth: 940 }}>
       <div className="eyebrow">Events</div>
       <h1 style={{ margin: "6px 0 0" }}>Edit event</h1>
       {event.approvalStatus === "rejected" ? (
