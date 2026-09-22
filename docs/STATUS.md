@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-20 (admin layout/interaction upgrade SHIPPED (d27c4d9), migration `attendance_absent_mark` APPLIED LIVE — club attendance is now tri-state; 2026-09-18: new `/team` page + its CMS SHIPPED (73058ce), migration team_profiles applied live and still empty; 2026-09-17: co-host dropdown + sectioned event form SHIPPED; session history search + sortable date SHIPPED; co-hosted events shipped earlier the same day; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed).**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-22 (three deploys: event WhatsApp group link SHIPPED (81753d6) with migration `event_whatsapp_link` APPLIED LIVE; tabbed event form + three design-handoff gaps SHIPPED (543f89c); rebuilt maintenance page SHIPPED DARK (a97c311); 2026-09-20: admin layout/interaction upgrade SHIPPED (d27c4d9), migration `attendance_absent_mark` APPLIED LIVE — club attendance is now tri-state; 2026-09-18: new `/team` page + its CMS SHIPPED (73058ce), migration team_profiles applied live and still empty; 2026-09-17: co-host dropdown + sectioned event form SHIPPED; session history search + sortable date SHIPPED; co-hosted events shipped earlier the same day; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed).**
 
 ## What this is
 
@@ -18,15 +18,96 @@ end-to-end**, not a checklist of components.
 
 ---
 
-## 🚦 START HERE — current git/deploy state (2026-09-16)
+## 🚦 START HERE — current git/deploy state (2026-09-22)
 
-> ### ⚠️ UNCOMMITTED, NOT DEPLOYED 2026-09-22 — the event WhatsApp group link
-> An event can carry a **group-chat invite**, set on the event form. A student
-> who registers gets it in a **pop-up** the moment their registration lands, and
-> again in their **confirmation email**. Working tree only — nothing is
-> committed and nothing is deployed, but **the migration is already live**.
-> Gate on the tree: typecheck ✓ lint ✓ **1393 tests** ✓ build ✓,
+> ### 🚀 SHIPPED DARK 2026-09-22 — the rebuilt under-maintenance page
+> **`a97c311`** on `main`. Replaces the holding page with the designed one:
+> wordmark, a rotating phrase, Try again, the drag-and-throw club element and
+> emergency contacts. Gate: typecheck ✓ lint ✓ **1443 tests** ✓ build ✓.
+>
+> - **It is DARK.** `DEFAULT_MAINTENANCE` in `src/lib/maintenance.ts` is still
+>   `false` and `MAINTENANCE_MODE` is not set in Vercel, so nothing about the
+>   live site changed — verified after the deploy: every public route still
+>   returns 200 and serves real content, not the page. **That constant IS the
+>   switch**; flipping it to `true` takes the public site down on the next
+>   deploy.
+> - 🐞 **KNOWN BUG, dormant until the switch is flipped.** The page's emergency
+>   line links to `/team` and `/contact`, but `isExemptPath()` exempts only
+>   `/admin` and `/admin/*` — so while maintenance is ON both links serve the
+>   maintenance page again. The one escape hatch on the page is a loop. Fix is
+>   either a `mailto:` or adding those paths to `isExemptPath`, but the second
+>   fights the design rule that the page issues **zero database queries** while
+>   the site is down, and both routes hit the database.
+> - Copy nit on the same line: "Something emergency?" reads like a slip for
+>   "Something urgent?".
+> - **The page is served for EVERY public URL**, so a relative asset reference
+>   would 404 on any nested route (`/events/123` would fetch `/events/app.css`).
+>   Everything but the web fonts is inline. **`PAGE` is a template literal** — a
+>   backtick, a backslash or a `${...}` in the HTML is silently swallowed on the
+>   way out, which is why the page's own JS avoids regex escapes. There is a
+>   test pinning exactly that; do not "tidy" it away.
+> - The theme toggle writes the **same `theme` cookie** `ThemeToggle.tsx` writes,
+>   so a theme picked while the site is down survives into it coming back.
+
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-22 — tabbed event form + three handoff gaps
+> **`543f89c`** on `main`. From the `CSE Council Admin.html` design bundle
+> (a design-code prototype, not plain HTML — unpack the `__bundler/manifest`
+> script and gunzip the `text/html` entry to read its Edit Event sub-page).
+> Gate: typecheck ✓ lint ✓ **1441 tests** ✓ build ✓.
+>
+> - ⚠️ **The rest of that bundle already matched what was live.** Tokens (40
+>   values, both themes), nav groups, rail width, headings, leads and table
+>   columns were checked one by one against `d27c4d9` and were identical. **The
+>   only redesigned screen in it was the event form.** Do not re-audit the whole
+>   panel against that file again.
+> - **The event form is five tabs now**, not five stacked sections, in a 940px
+>   column (was 640px). Each tab carries a completion dot — amber while that
+>   panel wants something, green when it does not — because the dots are the
+>   only thing reporting the four panels you cannot see.
+> - ⚠️ **The form is `noValidate`, deliberately.** Four of five panels are
+>   `hidden` at any moment and a browser refuses to report a constraint on a
+>   control it cannot focus — it silently blocks submit instead. The server
+>   action is the validation authority, and `tabWithFirstError()` opens the tab
+>   holding the first rejected field. **Do not put browser validation back**
+>   without solving the hidden-control problem first.
+> - ⚠️ **Panels are `hidden`, NEVER unmounted.** A value typed on one tab has to
+>   still be in the FormData when you save from another. The same rule applies
+>   to the question builder's search, which hides non-matching cards rather than
+>   filtering the array. **An unmount here silently drops data on save.**
+> - Tab rules live in `src/lib/admin/event-form-progress.ts` (pure, 28 tests):
+>   duration text, the per-tab gap rule, and the field→tab map. **A new field on
+>   the form needs an entry in `FIELD_TABS`** or its rejection renders on a
+>   panel nobody can see.
+> - **The prototype's save toast and "Saved" button state were dropped on
+>   purpose** — both event actions `redirect()` on success, so neither could
+>   ever render.
+> - **Co-host chips were NOT taken.** The searchable dropdown is the considered
+>   rewrite from 2026-09-17 with tests pinning it; a flat eleven-club chip list
+>   loses the search. Revisit only on a deliberate call.
+> - Three smaller gaps from the same bundle: the composer now says what send
+>   will do **before** it is pressed (`sendPlan()` in `broadcast-audience.ts`);
+>   the Outbox gained view chips + a row count and its When column now names
+>   IST; Contact gives the email address its own column.
+> - ⏳ **OWED — no signed-in walkthrough.** Nothing here has been clicked by a
+>   human. **The riskiest path is saving from a tab other than the one holding
+>   the error**, since that auto-switch is new.
+
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-22 — the event WhatsApp group link
+> **`81753d6`** on `main`, live on cse-ccc.vercel.app. An event can carry a
+> **group-chat invite**, set on the event form. A student who registers gets it
+> in a **pop-up** the moment their registration lands, and again in their
+> **confirmation email**. Gate: typecheck ✓ lint ✓ **1391 tests** ✓ build ✓,
 > `npm ci --dry-run` clean.
+>
+> ⚠️ **The promotion is slow, not broken.** This deploy sat on the old build
+> long enough to look like a failure — it was not. Vercel reported success
+> within a minute and the production alias moved a couple of minutes later.
+> **Do not go hunting for a broken pipeline before waiting.** Without the Vercel
+> CLI installed the only way to tell which build is live is to grep the served
+> CSS bundle for a class the new commit added, e.g.
+> `curl -s https://cse-ccc.vercel.app/events | grep -oE '/_next/static/immutable/chunks/[a-z0-9-]+\.css'`
+> then curl that chunk and grep it. **Install the CLI** (`npm i -g vercel`) and
+> this becomes `vercel ls`.
 >
 > ⚠️ **ONE MIGRATION WAS APPLIED LIVE** — `event_whatsapp_link`, applied to
 > `jisahccdnthzgibszwnq` on 2026-09-22, recorded there as version
@@ -34,9 +115,12 @@ end-to-end**, not a checklist of components.
 > convention). It adds `events.whatsapp_url` (`text`, nullable, no default) plus
 > a check constraint `events_whatsapp_url_https` (`https://` prefix, ≤300 chars).
 > **Additive and nullable, so the OLD code is unaffected** — that is why it was
-> safe to apply before the code ships. **Rollback:** the column can stay (nothing
-> else reads it) or go with
-> `alter table public.events drop column whatsapp_url;`.
+> safe to apply before the code ships. **Rollback:** `git revert 81753d6 && git push`;
+> the column can then stay harmlessly, or go with
+> `alter table public.events drop column whatsapp_url;` — but only once no
+> organiser's saved invite matters, because dropping it discards every one.
+> ⚠️ Do NOT drop the column while `81753d6` is deployed: the registration API
+> and `getEventForEdit` both select it, and the select fails once it is gone.
 >
 > - ⚠️ **The invite NEVER reaches the public event page.** A `chat.whatsapp.com`
 >   link is a bearer token — anyone holding it can join. `getEventDetail` does
