@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeClubAnalytics, pctOfStrength } from "./attendance-analytics";
+import { averageTurnout, computeClubAnalytics, pctOfStrength } from "./attendance-analytics";
 import type { AnalyticsMember, AnalyticsSession } from "./attendance-analytics";
 
 const m = (
@@ -118,5 +118,32 @@ describe("computeClubAnalytics", () => {
     expect(a.rates).toMatchObject({ overallPct: 0, avgPresentPerSession: 0, sessionsHeld: 0 });
     expect(a.sessions.most).toBeNull();
     expect(a.watchlist.members).toHaveLength(0);
+  });
+});
+
+describe("averageTurnout", () => {
+  it("averages the per-session percentages", () => {
+    // 50% and 100% of a strength of 4.
+    expect(averageTurnout([{ presentCount: 2 }, { presentCount: 4 }], 4)).toBe(75);
+    expect(averageTurnout([{ presentCount: 1 }, { presentCount: 10 }], 10)).toBe(55);
+  });
+
+  it("rounds the mean, not each session", () => {
+    // 33% + 33% + 67% = 133 / 3 = 44.33 → 44. Rounding per session first and
+    // then averaging would give the same here; rounding the total to 133 and
+    // dividing is what must not drift as sessions accumulate.
+    expect(averageTurnout(
+      [{ presentCount: 1 }, { presentCount: 1 }, { presentCount: 2 }],
+      3,
+    )).toBe(44);
+  });
+
+  it("is 0 with no sessions and with no roster", () => {
+    expect(averageTurnout([], 12)).toBe(0);
+    expect(averageTurnout([{ presentCount: 3 }], 0)).toBe(0);
+  });
+
+  it("never exceeds 100 when more people are marked than the roster holds", () => {
+    expect(averageTurnout([{ presentCount: 30 }], 10)).toBe(100);
   });
 });

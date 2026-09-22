@@ -5,7 +5,6 @@ import {
   saveAndCloseAction,
   saveAttendanceAction,
   autosaveAttendanceAction,
-  reopenSessionAction,
 } from "@/app/admin/(app)/attendance/actions";
 import { matchesQuery } from "@/lib/admin/roster-filter";
 import { tallyMarks, type MarkState } from "@/lib/admin/attendance-marks";
@@ -86,6 +85,33 @@ export function SessionRoster({
 
   const dirty = !sameMarks(saved, marks);
 
+  /**
+   * Flush the pending marks now, from the floating bar.
+   *
+   * A second ENTRY POINT to the autosave mutation, not a second write path — it
+   * calls exactly what the timer below calls. Deliberately not the form's
+   * `saveAttendanceAction`: that redirects, and losing your place two thirds of
+   * the way down a 200-name roll call is the whole reason this bar floats.
+   */
+  async function saveNow() {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setSaveState("saving");
+    const sending = new Map(marks);
+    try {
+      const res = await autosaveAttendanceAction(sessionId, [...sending]);
+      if (res.ok) {
+        setSaved(sending);
+        setSaveState("saved");
+        toast("Attendance saved");
+      } else setSaveState("error");
+    } catch {
+      setSaveState("error");
+    } finally {
+      inFlight.current = false;
+    }
+  }
+
   // Autosave. Re-runs whenever the marks change AND whenever a save lands (via
   // `saved`), which is what picks up the taps made while a request was open.
   useEffect(() => {
@@ -114,7 +140,7 @@ export function SessionRoster({
 
   if (total === 0) {
     return (
-      <p className="body-text" style={{ color: "var(--ink-3)" }}>
+      <p className="body-text att-muted">
         No approved members yet.
       </p>
     );
@@ -142,13 +168,13 @@ export function SessionRoster({
       : saveState === "saving"
         ? "Saving…"
         : dirty
-          ? "Unsaved changes"
+          ? "not saved yet"
           : saveState === "saved"
             ? "All changes saved"
             : null;
 
   return (
-    <form action={closed ? reopenSessionAction : saveAndCloseAction}>
+    <form action={saveAndCloseAction}>
       <input type="hidden" name="sessionId" value={sessionId} />
       {/* Hidden inputs for the FULL roster (not just filtered rows) so a search
           filter never drops a mark on save. Unmarked members are submitted
@@ -166,7 +192,7 @@ export function SessionRoster({
             <strong>{present}</strong>
             <span>/ {total}</span>
           </span>
-          <div className="label" style={{ marginTop: 9 }}>
+          <div className="label sroster-figure-label">
             Marked present
           </div>
         </div>
@@ -179,7 +205,7 @@ export function SessionRoster({
           <div className="sroster-stats">
             <span>{turnout}% turnout</span>
             <span>{absent} absent</span>
-            <span style={unmarked > 0 ? { color: "var(--clay)" } : undefined}>
+            <span className="sroster-unmarked" data-any={unmarked > 0}>
               {unmarked} unmarked
             </span>
           </div>
@@ -234,7 +260,7 @@ export function SessionRoster({
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => markAll(null)}>
             Clear marks
           </button>
-          <span className="label" style={{ color: "var(--ink-4)", marginLeft: 6 }}>
+          <span className="label sroster-bulk-count">
             {shown.length === total
               ? `${total} on the roster`
               : `${shown.length} of ${total} shown`}
@@ -292,17 +318,7 @@ export function SessionRoster({
                     </button>
                   </span>
                 ) : (
-                  <span
-                    className="label"
-                    style={{
-                      color:
-                        m === "present"
-                          ? "var(--forest)"
-                          : m === "absent"
-                            ? "var(--rust)"
-                            : "var(--clay)",
-                    }}
-                  >
+                  <span className="label sroster-mark" data-mark={m ?? "unmarked"}>
                     {m === "present" ? "Present" : m === "absent" ? "Absent" : "Unmarked"}
                   </span>
                 )}
@@ -317,16 +333,14 @@ export function SessionRoster({
         as you go — “Save draft” keeps the session open, “Save &amp; close” finalises it.
       </p>
 
-      {canEdit ? (
+      {/* Reopening a closed session now lives in the page head, beside Export —
+          so this row is only ever the two ways to finish an OPEN one. */}
+      {canEdit && !closed ? (
         <div className="sroster-actions">
-          <button className="btn btn-primary">
-            {closed ? "Reopen session" : "Save & close session"}
+          <button className="btn btn-primary">Save &amp; close session</button>
+          <button type="submit" formAction={saveAttendanceAction} className="btn">
+            Save draft
           </button>
-          {closed ? null : (
-            <button type="submit" formAction={saveAttendanceAction} className="btn">
-              Save draft
-            </button>
-          )}
         </div>
       ) : null}
 
@@ -347,6 +361,14 @@ export function SessionRoster({
             }}
           >
             Revert
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            disabled={!dirty || saveState === "saving"}
+            onClick={saveNow}
+          >
+            {saveState === "saving" ? "Saving…" : "Save attendance"}
           </button>
         </div>
       ) : null}

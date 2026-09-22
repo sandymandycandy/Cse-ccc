@@ -2604,6 +2604,17 @@
     font: 600 13px var(--sans);
     white-space: nowrap;
   }
+  .sroster-figure-label { margin-top: 9px; }
+  .sroster-bulk-count { color: var(--ink-4); margin-left: 6px; }
+  /* The unmarked count only earns a colour while there ARE unmarked people —
+     otherwise every finished register ends on a warning tint. */
+  .sroster-unmarked[data-any="true"] { color: var(--clay); }
+  /* Read-only marks, for a closed session or a viewer who cannot edit. The
+     colours match the .seg buttons they stand in for. */
+  .sroster-mark[data-mark="present"] { color: var(--forest); }
+  .sroster-mark[data-mark="absent"] { color: var(--rust); }
+  .sroster-mark[data-mark="unmarked"] { color: var(--clay); }
+
   .att-qr {
     background: #fff; /* stays scannable in night mode */
     padding: 12px;

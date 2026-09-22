@@ -1,0 +1,65 @@
+/* Attendance screens. Extends the locked paper system; mirrors the panel,
+   tile and toolbar shapes the rest of the workspace already uses, so the
+   register reads as the same product as Events and the Outbox. */
+@layer components {
+  .att-title { margin: 8px 0 0; }
+  .att-session-title { margin: 8px 0 0; overflow-wrap: anywhere; }
+  .att-head-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .att-head-actions form { display: contents; }
+  .att-notice { margin-top: 16px; }
+  .att-form-page { max-width: 620px; }
+
+  /* The club switcher. Sits between the lead and the numbers, because changing
+     it changes every number below it. */
+  .att-clubpick { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 18px; }
+  .att-clubpick .select-input { max-width: 260px; }
+  .att-clubpick .label { color: var(--ink-2); }
+
+  .att-tiles { margin-top: 22px; }
+  .att-tiles .hint { margin-top: 4px; }
+
+  /* Same shell as .dashboard-panel, which owns the workspace's "a thing you do"
+     surface. Not reusing the class itself: that one is laid out by
+     .dashboard-columns and would inherit a grid track that does not exist here. */
+  .att-panel { border: 1px solid var(--line-2); background: var(--card); border-radius: 14px; overflow: hidden; margin-top: 28px; }
+  .att-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 22px 24px; border-bottom: 1px solid var(--line); }
+  .att-panel-head > svg { color: var(--forest); }
+  .att-panel h2 { font: 500 17px/1.3 var(--sans); letter-spacing: -.025em; }
+  .att-panel > form, .att-panel > .body-text { padding: 24px; }
+
+  .att-section-title { font: 400 18px var(--serif); margin: 34px 0 10px; }
+  .att-sub-title { font: 400 15px var(--serif); margin: 28px 0 8px; }
+  .att-muted { color: var(--ink-3); }
+  .att-empty { margin-top: 22px; }
+
+  .att-analytics { margin-top: 22px; }
+  .att-cards { margin-top: 12px; }
+  .att-card-title { font: 400 17px var(--serif); margin: 4px 0 2px; }
+  .att-card .hint { margin-top: 4px; }
+
+  .att-threshold { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0 14px; }
+  .att-threshold .label { color: var(--ink-2); }
+  .att-threshold-select { max-width: 104px; }
+
+  .att-rank-col { width: 44px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .att-row-title { font-weight: 500; }
+
+  /* The percentage carries the judgement, so it is the thing that changes
+     colour — not the whole row, which would shout on a table of forty. */
+  .att-pct { font-variant-numeric: tabular-nums; }
+  .att-pct[data-risk="true"] { color: var(--rust); font-weight: 500; }
+
+  .att-decide { display: flex; gap: 8px; flex-wrap: wrap; }
+  .att-reject { color: var(--rust); border-color: var(--rust); }
+  .att-reject:hover { background: var(--rust-tint); }
+
+  .att-danger { margin-top: 24px; padding-top: 24px; }
+  .att-danger-label { margin-bottom: 6px; color: var(--rust); }
+
+  @media (max-width: 720px) {
+    .att-panel > form, .att-panel > .body-text { padding: 20px; }
+    .att-panel-head { padding: 20px; }
+    .att-head-actions { width: 100%; }
+    .att-head-actions .btn { flex: 1 1 auto; justify-content: center; }
+  }
+}

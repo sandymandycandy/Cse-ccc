@@ -5,6 +5,7 @@ import { rosterWithPercent, listSessions, membershipCounts } from "@/lib/admin/a
 import { computeClubAnalytics } from "@/lib/admin/attendance-analytics";
 import { AttendanceAnalytics } from "@/components/admin/AttendanceAnalytics";
 import { AttendanceRoster } from "@/components/admin/AttendanceRoster";
+import { ClubPicker } from "@/components/admin/ClubPicker";
 
 const WATCHLIST_THRESHOLDS = [50, 60, 75, 85];
 
@@ -24,7 +25,16 @@ export default async function AttendanceAnalyticsPage({
   const { clubId, clubs, councilWide } = await resolveAttendanceScope(session, club);
 
   if (clubId == null) {
-    return <div className="admin-page"><h1>Attendance analytics</h1><p className="lead">No club to show.</p></div>;
+    return (
+      <div className="admin-page">
+        <div className="eyebrow">People</div>
+        <h1 className="att-title">Attendance analytics</h1>
+        <div className="table-empty att-empty">
+          <h2>No club to show</h2>
+          <p>You are not attached to a club yet, so there are no numbers to read.</p>
+        </div>
+      </div>
+    );
   }
   const clubQuery = councilWide ? `?club=${clubId}` : "";
   const clubName = clubs.find((c) => c.id === clubId)?.name ?? null;
@@ -45,34 +55,35 @@ export default async function AttendanceAnalyticsPage({
   });
 
   return (
-    <div className="admin-page">
-      <Link href={`/admin/attendance${clubQuery}`} className="label" style={{ color: "var(--forest)" }}>
+    <div className="admin-page att-page">
+      <Link href={`/admin/attendance${clubQuery}`} className="admin-back">
         ← Attendance
       </Link>
-      <div className="admin-page-head" style={{ marginTop: 14 }}>
+      <div className="admin-page-head">
         <div>
           <div className="eyebrow">Attendance</div>
-          <h1 style={{ margin: "6px 0 0" }}>Analytics</h1>
-          {clubName ? <p className="body-text" style={{ marginTop: 6 }}>{clubName}</p> : null}
+          <h1 className="att-title">Analytics</h1>
         </div>
-        <a href={`/api/admin/attendance/export?club=${clubId}`} className="btn">Export attendance (CSV)</a>
+        <a href={`/api/admin/attendance/export?club=${clubId}`} className="btn btn-ghost">
+          Export CSV
+        </a>
       </div>
+      {clubName ? <p className="admin-lead">{clubName}</p> : null}
 
       {/* The club picker has to be here too: this page is reached with ?club= and
           the threshold form below re-submits to it, so switching club from the
-          dashboard alone would strand the reader on the wrong club's numbers. */}
-      {councilWide && clubs.length > 0 ? (
-        <form method="get" style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <select name="club" defaultValue={clubId} className="select-input" style={{ maxWidth: 260 }}>
-            {clubs.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <button className="btn btn-sm">View</button>
-        </form>
-      ) : null}
+          dashboard alone would strand the reader on the wrong club's numbers.
+          The threshold rides along so changing club does not reset it. */}
+      <ClubPicker
+        clubs={clubs}
+        clubId={clubId}
+        show={councilWide}
+        hidden={{ below: String(belowThreshold) }}
+      />
 
       <AttendanceAnalytics analytics={analytics} clubParam={councilWide ? clubId : null} />
 
-      <h2 style={{ font: "400 18px var(--serif)", margin: "28px 0 8px" }}>Roster attendance</h2>
+      <h2 className="att-section-title">Roster attendance</h2>
       <AttendanceRoster rows={roster} />
     </div>
   );

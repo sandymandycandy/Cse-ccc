@@ -15,9 +15,9 @@ export default async function EditMemberPage({ params }: { params: Promise<{ id:
   if (!canManage(session, "manage:members", member.clubId)) redirect("/admin/attendance/members");
   const clubs = grantFor(session.role, "manage:members") === "all" ? await listClubsBrief() : undefined;
   return (
-    <div className="admin-page" style={{ maxWidth: 620 }}>
+    <div className="admin-page att-form-page">
       <div className="eyebrow">Attendance{member.approvedAt ? "" : " · pending"}</div>
-      <h1 style={{ margin: "6px 0 0" }}>Edit member</h1>
+      <h1 className="att-title">Edit member</h1>
       <MemberForm
         action={updateMemberAction}
         submitLabel="Save changes"
@@ -29,8 +29,8 @@ export default async function EditMemberPage({ params }: { params: Promise<{ id:
           sort: member.sort, isActive: member.isActive, clubId: member.clubId,
         }}
       />
-      <section className="rule" style={{ marginTop: 24, paddingTop: 24 }}>
-        <div className="label" style={{ marginBottom: 6, color: "var(--rust)" }}>Remove</div>
+      <section className="rule att-danger">
+        <div className="label att-danger-label">Remove</div>
         <DeleteMemberForm id={member.id} />
       </section>
     </div>

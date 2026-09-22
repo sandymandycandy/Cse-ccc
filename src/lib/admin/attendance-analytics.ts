@@ -78,6 +78,26 @@ export function pctOfStrength(present: number, strength: number): number {
   return Math.min(100, Math.round((present / strength) * 100));
 }
 
+/**
+ * Mean turnout across sessions, measured against CURRENT roster strength.
+ *
+ * ⚠️ Not the same number as `rates.overallPct` from `computeClubAnalytics`, and
+ * the dashboard tile and the analytics page will disagree. That one divides
+ * attendance by per-member ELIGIBILITY, so someone who joined in week nine is
+ * only counted for the sessions held after they joined. This one is a flat mean
+ * over sessions against today's strength, which is the question the dashboard
+ * asks — "how full is the room lately" — and is why it belongs to the tile
+ * rather than replacing the analytics figure.
+ */
+export function averageTurnout(
+  sessions: readonly { presentCount: number }[],
+  strength: number,
+): number {
+  if (sessions.length === 0 || strength <= 0) return 0;
+  const total = sessions.reduce((sum, s) => sum + pctOfStrength(s.presentCount, strength), 0);
+  return Math.round(total / sessions.length);
+}
+
 export function computeClubAnalytics(input: {
   membership: MembershipCounts;
   roster: readonly AnalyticsMember[];
