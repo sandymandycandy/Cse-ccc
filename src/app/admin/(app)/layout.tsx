@@ -2,6 +2,8 @@ import { cookies } from "next/headers";
 import { requireAdminPage } from "@/lib/auth/guards";
 import { canView, canManage, adminHomePath } from "@/lib/auth/capabilities";
 import { AdminNav } from "@/components/admin/AdminNav";
+import { AdminWorkspaceHeader } from "@/components/admin/AdminWorkspaceHeader";
+import "./admin-workspace.css";
 import { ToastProvider } from "@/components/admin/Toaster";
 import type { NavLink } from "@/lib/admin/nav";
 
@@ -96,13 +98,17 @@ export default async function AdminAppLayout({
   return (
     <ToastProvider>
       <div className="admin-shell">
+        <a href="#admin-content" className="admin-skip-link">Skip to content</a>
         <AdminNav
           name={session.name}
           role={session.role}
           links={links}
           initialTheme={theme}
         />
-        <div className="admin-main">{children}</div>
+        <div className="admin-workspace">
+          <AdminWorkspaceHeader links={links} />
+          <main className="admin-main" id="admin-content" tabIndex={-1}>{children}</main>
+        </div>
       </div>
     </ToastProvider>
   );

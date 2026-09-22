@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { Inbox, Search, X } from "lucide-react";
 import { matchesAny } from "@/lib/admin/roster-filter";
 import { ALL_VIEW, deriveViews, describeCount, isWideTable } from "@/lib/admin/table-views";
 import { useToast } from "./Toaster";
@@ -72,6 +73,7 @@ export function AdminTable({
   const [view, setView] = useState(ALL_VIEW);
   const [editing, setEditing] = useState<{ key: string; value: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
   // Escape fires before blur, so without this the discard would be immediately
   // undone by the blur handler committing the same input.
   const discarded = useRef(false);
@@ -118,14 +120,16 @@ export function AdminTable({
       <div className="listbar">
         <div className="listbar-row">
           <div className="listbar-search">
-            <span aria-hidden="true">⌕</span>
+            <span aria-hidden="true"><Search size={17} /></span>
             <input
+              ref={searchRef}
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={`Search ${heading.toLowerCase()}…`}
               aria-label={`Search ${heading.toLowerCase()}`}
             />
+            {query ? <button type="button" className="listbar-clear" aria-label="Clear search" onClick={() => { setQuery(""); searchRef.current?.focus(); }}><X size={16} aria-hidden="true" /></button> : null}
           </div>
           {views.length > 0 ? (
             <div className="view-chips">
@@ -144,7 +148,7 @@ export function AdminTable({
             </div>
           ) : null}
         </div>
-        <p className="count-note" aria-live="polite">
+        <div className="listbar-meta"><p className="count-note" aria-live="polite">
           {describeCount({
             shown: shown.length,
             total: rows.length,
@@ -154,12 +158,15 @@ export function AdminTable({
             query,
           })}
         </p>
+        {filtered ? <button type="button" className="listbar-reset" onClick={clearFilters}>Reset filters <X size={13} aria-hidden="true" /></button> : null}
+        </div>
       </div>
 
       {shown.length === 0 ? (
         <div className="table-empty">
-          <h2>Nothing matches</h2>
-          <p>Try a shorter search, or go back to every row.</p>
+          <span className="table-empty-icon">{filtered ? <Search size={24} aria-hidden="true" /> : <Inbox size={24} aria-hidden="true" />}</span>
+          <h2>{filtered ? "No matching results" : `No ${nounPlural ?? `${noun}s`} yet`}</h2>
+          <p>{filtered ? "Try another search or reset your filters to see everything." : `Your ${heading.toLowerCase()} will appear here when added.`}</p>
           {filtered ? (
             <button type="button" className="btn btn-ghost" onClick={clearFilters}>
               Clear filters
@@ -171,14 +178,17 @@ export function AdminTable({
           <div
             className={`tablewrap cards${wrapClassName ? ` ${wrapClassName}` : ""}`}
             style={wrapStyle}
+            tabIndex={0}
+            role="region"
+            aria-label={`${heading} table`}
           >
-            <table className="admin" data-density={density}>
+            <table className="admin" data-density={density} aria-label={heading}>
               <thead>
                 <tr>
                   {/* Keyed by position, not label: two columns can legitimately
                       share a heading (the feedback summary has "Club" twice). */}
                   {columns.map((c, i) => (
-                    <th key={i}>{c.label}</th>
+                    <th key={i} scope="col">{c.label}</th>
                   ))}
                 </tr>
               </thead>

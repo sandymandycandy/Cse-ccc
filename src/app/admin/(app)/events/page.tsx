@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
+import { EventRowActions } from "@/components/admin/EventRowActions";
 import { requireViewPage } from "@/lib/auth/guards";
 import { listEventsForAdmin } from "@/lib/admin/queries";
 import { ApprovalBadge } from "@/components/admin/ApprovalBadge";
@@ -26,62 +28,32 @@ export default async function AdminEventsPage() {
       rename: e.title,
       values: [e.title, e.club, when, status],
       cells: [
-        <Link key="t" href={`/admin/events/${e.id}/registrations`} style={{ color: "var(--ink)" }}>
+        <Link key="t" href={`/admin/events/${e.id}/edit`} className="event-title-link">
           {e.title}
         </Link>,
         e.club,
-        <span key="w">
+        <span key="w" className="event-schedule">
           {when}
-          <span style={{ color: "var(--ink-3)" }}> · {istTime(e.startsAt)}</span>
+          <small>{istTime(e.startsAt)} IST</small>
         </span>,
         <ApprovalBadge key="a" status={e.approvalStatus} />,
-        <Link
-          key="p"
-          href={`/admin/events/${e.id}/participants`}
-          className="label"
-          style={{ color: "var(--forest)" }}
-        >
-          People →
-        </Link>,
-        <Link
-          key="m"
-          href={`/admin/events/${e.id}/registrations`}
-          className="label"
-          style={{ color: "var(--forest)" }}
-        >
-          Mark →
-        </Link>,
-        <Link
-          key="r"
-          href={`/admin/events/${e.id}/results`}
-          className="label"
-          style={{ color: "var(--forest)" }}
-        >
-          Standings →
-        </Link>,
-        <Link
-          key="e"
-          href={`/admin/events/${e.id}/edit`}
-          className="label"
-          style={{ color: "var(--forest)" }}
-        >
-          Edit →
-        </Link>,
+        <EventRowActions key="actions" id={e.id} title={e.title} />,
       ],
     };
   });
 
   return (
-    <div className="admin-page">
+    <div className="admin-page admin-events-page">
       <div className="admin-page-head">
         <div>
-          <div className="eyebrow">Events</div>
+          <div className="eyebrow">Programme</div>
           <h1 style={{ margin: "8px 0 0" }}>Events</h1>
         </div>
         <Link href="/admin/events/new" className="btn btn-primary">
-          New event
+          <Plus size={17} aria-hidden="true" /> New event
         </Link>
       </div>
+      <p className="admin-lead">Manage your events, follow approvals and keep registration details up to date.</p>
 
       {events.length === 0 ? (
         <div className="cal-empty">No events yet. Create the first one.</div>
@@ -90,14 +62,11 @@ export default async function AdminEventsPage() {
           heading="Events"
           noun="event"
           columns={[
-            { label: "Event" },
+            { label: "Event", wrap: true },
             { label: "Club" },
-            { label: "When" },
+            { label: "Schedule" },
             { label: "Approval" },
-            { label: "Registered" },
-            { label: "Attendance" },
-            { label: "Results" },
-            { label: "Edit" },
+            { label: "Actions", action: true },
           ]}
           rows={rows}
           onRename={renameEventAction}

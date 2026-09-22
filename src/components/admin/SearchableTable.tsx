@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { Inbox, Search, X } from "lucide-react";
 import { matchesAny } from "@/lib/admin/roster-filter";
 import { describeCount } from "@/lib/admin/table-views";
 
@@ -43,6 +44,7 @@ export function SearchableTable({
   wrapStyle?: CSSProperties;
 }) {
   const [q, setQ] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
   const shown = rows.filter((r) => matchesAny(r.values, q));
 
   return (
@@ -50,14 +52,16 @@ export function SearchableTable({
       <div className="listbar">
         <div className="listbar-row">
           <div className="listbar-search">
-            <span aria-hidden="true">⌕</span>
+            <span aria-hidden="true"><Search size={17} /></span>
             <input
+              ref={searchRef}
               type="search"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder={placeholder}
               aria-label={ariaLabel}
             />
+            {q ? <button type="button" className="listbar-clear" aria-label="Clear search" onClick={() => { setQ(""); searchRef.current?.focus(); }}><X size={16} aria-hidden="true" /></button> : null}
           </div>
         </div>
         <p className="count-note" aria-live="polite">
@@ -67,8 +71,9 @@ export function SearchableTable({
 
       {shown.length === 0 ? (
         <div className="table-empty">
-          <h2>Nothing matches</h2>
-          <p>Try a shorter search, or go back to every row.</p>
+          <span className="table-empty-icon">{q.trim() ? <Search size={24} aria-hidden="true" /> : <Inbox size={24} aria-hidden="true" />}</span>
+          <h2>{q.trim() ? "No matching results" : "Nothing here yet"}</h2>
+          <p>{q.trim() ? "Try another search or clear it to see everything." : "New entries will appear here when added."}</p>
           {q.trim() !== "" ? (
             <button type="button" className="btn btn-ghost" onClick={() => setQ("")}>
               Clear filters
@@ -76,8 +81,8 @@ export function SearchableTable({
           ) : null}
         </div>
       ) : (
-        <div className="tablewrap cards" style={wrapStyle}>
-          <table className="admin" data-density="comfortable">
+        <div className="tablewrap cards" style={wrapStyle} tabIndex={0} role="region" aria-label="Search results">
+          <table className="admin" data-density="comfortable" aria-label="Search results">
             <thead>{head}</thead>
             <tbody>{shown.map((r) => r.row)}</tbody>
           </table>

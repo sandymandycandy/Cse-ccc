@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
+import { ArrowUpRight, CalendarDays, Check, ClipboardList, Clock3, Image as ImageIcon, MapPin, Save, Settings2, Users } from "lucide-react";
 import { defaultFormFor } from "@/lib/registration-form/schema";
 import { RegistrationFormBuilder } from "./RegistrationFormBuilder";
 import { ImageEditor } from "./ImageEditor";
 import type { EventFormState } from "@/lib/admin/form-state";
-import { FieldError, fieldClass } from "@/components/admin/FieldError";
+import { FieldError, fieldClass, fieldProps } from "@/components/admin/FieldError";
 import { CohostPicker } from "@/components/admin/CohostPicker";
 import {
   EVENT_FORM_TABS,
@@ -50,6 +51,14 @@ type EventAction = (
 ) => Promise<EventFormState>;
 
 const emptyState: EventFormState = {};
+
+const SECTION_INFO = {
+  basics: { title: "Give your event a clear identity", description: "Introduce the event and choose the clubs bringing it to life.", icon: ClipboardList },
+  when: { title: "Set the time and place", description: "Keep the schedule clear. All dates and times are in Indian Standard Time (IST).", icon: CalendarDays },
+  registration: { title: "Choose how students join", description: "Set your registration window, capacity and what happens after someone signs up.", icon: Settings2 },
+  form: { title: "Build the registration form", description: "Choose the information you need from each participant. Your changes are saved with the event.", icon: ClipboardList },
+  cover: { title: "Add a cover for your event", description: "A poster helps students recognise your event. This step is optional.", icon: ImageIcon },
+};
 
 /** How many questions a stored form schema holds, for the Form tab's count. */
 function countFields(json: string | undefined): number {
@@ -96,10 +105,13 @@ export function EventForm({
   const [mode, setMode] = useState<"seats" | "shortlist">(initial?.selectionMode ?? "seats");
   const [fieldCount, setFieldCount] = useState(() => countFields(initial?.registrationForm));
   const [dirty, setDirty] = useState(false);
+  const tabRefs = useRef<Partial<Record<EventFormTab, HTMLButtonElement | null>>>({});
 
   const gaps = tabGaps({ ...vals, fieldCount });
   const idx = EVENT_FORM_TABS.findIndex((t) => t.key === tab);
   const set = (patch: Partial<typeof vals>) => setVals((v) => ({ ...v, ...patch }));
+  const section = SECTION_INFO[tab];
+  const SectionIcon = section.icon;
 
   /* A rejected save names a field, and with five tabs that field is usually not
      the one on screen. Without this the complaint renders on a hidden panel and
@@ -136,9 +148,9 @@ export function EventForm({
           It carries the unsaved-changes note so leaving a half-filled tab is a
           decision rather than an accident. */}
       <div className="ef-bar">
-        <span className="ef-savenote" aria-live="polite">
-          {dirty ? "Unsaved changes" : ""}
-        </span>
+        <div className="ef-save-status"><span className="ef-savenote" data-dirty={dirty} aria-live="polite">
+          {dirty ? "Unsaved changes" : eventId ? "Editing event" : "New event"}
+        </span><span className="ef-save-help">Save applies to all five sections</span></div>
         {eventId ? (
           <a
             className="btn btn-sm"
@@ -146,14 +158,16 @@ export function EventForm({
             target="_blank"
             rel="noopener noreferrer"
           >
-            View event
+            View event <ArrowUpRight size={14} aria-hidden="true" />
           </a>
         ) : null}
         <button type="submit" className="btn btn-primary" disabled={pending}>
+          <Save size={16} aria-hidden="true" />
           {pending ? savingLabel : submitLabel}
         </button>
       </div>
 
+      <div className="ef-editor-layout"><div className="ef-editor-content">
       {/* Each tab carries a dot: amber while that panel still wants something,
           green once it doesn't. It is the only thing reporting the four panels
           you cannot see. */}
@@ -169,9 +183,23 @@ export function EventForm({
               id={`ef-tab-${t.key}`}
               aria-selected={active}
               aria-controls={`ef-panel-${t.key}`}
+              tabIndex={active ? 0 : -1}
+              ref={(node) => { tabRefs.current[t.key] = node; }}
               className="ef-tab"
               data-active={active}
               onClick={() => setTab(t.key)}
+              onKeyDown={(event) => {
+                let next = idx;
+                if (event.key === "ArrowRight") next = (idx + 1) % EVENT_FORM_TABS.length;
+                else if (event.key === "ArrowLeft") next = (idx + EVENT_FORM_TABS.length - 1) % EVENT_FORM_TABS.length;
+                else if (event.key === "Home") next = 0;
+                else if (event.key === "End") next = EVENT_FORM_TABS.length - 1;
+                else return;
+                event.preventDefault();
+                const key = EVENT_FORM_TABS[next].key;
+                setTab(key);
+                tabRefs.current[key]?.focus();
+              }}
             >
               <span className="ef-tab-n">{t.n}</span>
               <span>{t.label}</span>
@@ -186,8 +214,10 @@ export function EventForm({
         })}
       </div>
 
+      <div className="ef-section-heading"><span><SectionIcon size={21} aria-hidden="true" /></span><div><h2>{section.title}</h2><p>{section.description}</p></div></div>
+
       {state.error ? (
-        <div className="note" style={{ borderLeftColor: "var(--rust)", marginBottom: 16 }}>
+        <div className="note" role="alert" style={{ borderLeftColor: "var(--rust)", marginBottom: 16 }}>
           {state.error}
         </div>
       ) : null}
@@ -205,6 +235,7 @@ export function EventForm({
           <label htmlFor="title">Title</label>
           <input
             id="title"
+            {...fieldProps(state.fieldErrors, "title")}
             name="title"
             required
             maxLength={140}
@@ -219,6 +250,7 @@ export function EventForm({
           <label htmlFor="description">Description</label>
           <textarea
             id="description"
+            {...fieldProps(state.fieldErrors, "description")}
             name="description"
             rows={4}
             maxLength={4000}
@@ -242,6 +274,7 @@ export function EventForm({
             <label htmlFor="clubId">Hosting club</label>
             <select
               id="clubId"
+              {...fieldProps(state.fieldErrors, "clubId")}
               name="clubId"
               required
               defaultValue={initial?.clubId ?? ""}
@@ -279,6 +312,7 @@ export function EventForm({
           <label htmlFor="venueText">Venue</label>
           <input
             id="venueText"
+            {...fieldProps(state.fieldErrors, "venueText")}
             name="venueText"
             maxLength={120}
             defaultValue={initial?.venueText}
@@ -294,6 +328,7 @@ export function EventForm({
             <label htmlFor="startsAt">Starts (IST)</label>
             <input
               id="startsAt"
+              {...fieldProps(state.fieldErrors, "startsAt")}
               name="startsAt"
               type="datetime-local"
               required
@@ -306,6 +341,7 @@ export function EventForm({
             <label htmlFor="endsAt">Ends (IST)</label>
             <input
               id="endsAt"
+              {...fieldProps(state.fieldErrors, "endsAt")}
               name="endsAt"
               type="datetime-local"
               required
@@ -345,6 +381,7 @@ export function EventForm({
                 <input
                   type="radio"
                   name="selectionMode"
+                  {...fieldProps(state.fieldErrors, "selectionMode")}
                   value={m.key}
                   checked={mode === m.key}
                   onChange={() => setMode(m.key)}
@@ -361,6 +398,7 @@ export function EventForm({
           <label htmlFor="capacity">Capacity (optional)</label>
           <input
             id="capacity"
+            {...fieldProps(state.fieldErrors, "capacity")}
             name="capacity"
             type="number"
             min={0}
@@ -378,6 +416,7 @@ export function EventForm({
             <label htmlFor="registrationOpensAt">Registration opens (IST) — optional</label>
             <input
               id="registrationOpensAt"
+              {...fieldProps(state.fieldErrors, "registrationOpensAt")}
               name="registrationOpensAt"
               type="datetime-local"
               defaultValue={initial?.registrationOpensAtLocal}
@@ -389,6 +428,7 @@ export function EventForm({
             <label htmlFor="registrationClosesAt">Registration closes (IST) — optional</label>
             <input
               id="registrationClosesAt"
+              {...fieldProps(state.fieldErrors, "registrationClosesAt")}
               name="registrationClosesAt"
               type="datetime-local"
               defaultValue={initial?.registrationClosesAtLocal}
@@ -403,6 +443,7 @@ export function EventForm({
             <input
               type="checkbox"
               name="waitlistEnabled"
+              {...fieldProps(state.fieldErrors, "waitlistEnabled")}
               defaultChecked={initial ? initial.waitlistEnabled : true}
             />
             <span>Allow a waitlist when the seats fill</span>
@@ -418,6 +459,7 @@ export function EventForm({
             <input
               type="checkbox"
               name="showOnAchievements"
+              {...fieldProps(state.fieldErrors, "showOnAchievements")}
               defaultChecked={initial ? initial.showOnAchievements : true}
             />
             <span>Show this event&rsquo;s podium on the achievements board</span>
@@ -433,6 +475,7 @@ export function EventForm({
           <label htmlFor="whatsappUrl">WhatsApp group link (optional)</label>
           <input
             id="whatsappUrl"
+            {...fieldProps(state.fieldErrors, "whatsappUrl")}
             name="whatsappUrl"
             type="url"
             inputMode="url"
@@ -459,7 +502,9 @@ export function EventForm({
         <RegistrationFormBuilder
           initialJson={initial?.registrationForm ?? JSON.stringify(defaultFormFor())}
           onCountChange={setFieldCount}
+          onEdit={() => setDirty(true)}
         />
+        <FieldError errors={state.fieldErrors} name="registrationForm" />
       </div>
 
       <div
@@ -492,6 +537,7 @@ export function EventForm({
         >
           ← {idx > 0 ? EVENT_FORM_TABS[idx - 1].label : "Back"}
         </button>
+        <span className="ef-step-count">Section {idx + 1} of {EVENT_FORM_TABS.length}</span>
         <button
           type="button"
           className="btn btn-ghost btn-sm"
@@ -500,6 +546,19 @@ export function EventForm({
         >
           {idx < EVENT_FORM_TABS.length - 1 ? EVENT_FORM_TABS[idx + 1].label : "Done"} →
         </button>
+      </div>
+      </div>
+      <aside className="ef-summary" aria-label="Event summary">
+        <span className="dashboard-kicker">As you edit</span><h2>Event overview</h2>
+        <h3>{vals.title.trim() || "Your event title"}</h3>
+        <dl>
+          <div><dt><Users size={15} aria-hidden="true" /> Hosting club</dt><dd>{fixedClub?.name ?? clubs.find((club) => club.id === primaryId)?.name ?? "Choose a club"}</dd></div>
+          <div><dt><CalendarDays size={15} aria-hidden="true" /> Date</dt><dd>{dayText(vals.startsAtLocal) || "Set a start date"}</dd></div>
+          <div><dt><Clock3 size={15} aria-hidden="true" /> Duration</dt><dd>{durationText(vals.startsAtLocal, vals.endsAtLocal)}</dd></div>
+          <div><dt><MapPin size={15} aria-hidden="true" /> Venue</dt><dd>{vals.venue.trim() || "To be confirmed"}</dd></div>
+        </dl>
+        <div className="ef-summary-note"><Check size={15} aria-hidden="true" /><p>Move between sections freely. Save when you’re ready to apply your changes.</p></div>
+      </aside>
       </div>
     </form>
   );

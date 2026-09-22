@@ -1,16 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, Check, ChevronDown, ListPlus, Plus, Search, ShieldCheck, Trash2, Undo2, X } from "lucide-react";
+import { canRestoreField, moveFormField, restoreFormField } from "@/lib/registration-form/builder";
 import {
   CHOICE_KINDS,
   defaultFormFor,
   MAX_MEMBERS,
+  MAX_FIELDS,
+  MAX_SUBFIELDS,
   type FieldKind,
   type FormField,
   type Identity,
   type MemberSubfield,
 } from "@/lib/registration-form/schema";
 import { DEPARTMENTS } from "@/lib/departments";
+import "./registration-form-builder.css";
 
 const IDENTITY_BLOCKS: { identity: Identity; kind: FieldKind; label: string; options?: string[]; allowOther?: boolean }[] = [
   { identity: "name", kind: "short_text", label: "Full name" },
@@ -40,274 +45,175 @@ const newId = () => `q${Date.now().toString(36)}${(counter++).toString(36)}`;
 export function RegistrationFormBuilder({
   initialJson,
   onCountChange,
+  onEdit,
 }: {
   initialJson: string;
-  /** Reports the question count up to the form's tab strip. */
   onCountChange?: (count: number) => void;
+  /** Only schema edits, not searching or opening a card, mark the event dirty. */
+  onEdit?: () => void;
 }) {
   const [fields, setFields] = useState<FormField[]>(() => {
     try {
       const parsed = JSON.parse(initialJson);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed as FormField[];
-    } catch {
-      /* fall through */
-    }
+    } catch { /* Use the existing default schema for a new event. */ }
     return defaultFormFor();
   });
-
+  const [query, setQuery] = useState("");
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [removed, setRemoved] = useState<{ field: FormField; index: number } | null>(null);
+  const [announcement, setAnnouncement] = useState("");
+  const summaryRefs = useRef<Record<string, HTMLElement | null>>({});
+  const searchRef = useRef<HTMLInputElement>(null);
   const usedIdentities = useMemo(
-    () => new Set(fields.map((f) => f.identity).filter(Boolean) as Identity[]),
-    [fields],
+    () => new Set(fields.map((f) => f.identity).filter(Boolean) as Identity[]), [fields],
   );
   const json = useMemo(() => JSON.stringify(fields), [fields]);
-  // The Form tab shows this count and goes amber at zero, so it has to follow
-  // every add and remove — not just the schema this mounted with.
-  useEffect(() => {
-    onCountChange?.(fields.length);
-  }, [fields.length, onCountChange]);
+  useEffect(() => { onCountChange?.(fields.length); }, [fields.length, onCountChange]);
 
-  /* Search, because the default form is six questions and a club that adds its
-     own routinely runs past fifteen — at which point renaming one means
-     scrolling a wall of near-identical cards. Matching is on the label, the
-     kind and the identity, so "email" finds the identity block as well as any
-     question that mentions it. */
-  const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
-  const matches = (f: FormField) =>
-    !q ||
-    `${f.label} ${f.kind} ${f.identity ?? ""}`.toLowerCase().includes(q);
+  const typeLabel = (kind: FieldKind) => CUSTOM_KINDS.find((item) => item.kind === kind)?.label
+    ?? (kind === "team" ? "Team members" : "Section heading");
+  const matches = (field: FormField) => !q ||
+    (field.label + " " + typeLabel(field.kind) + " " + (field.identity ?? "")).toLowerCase().includes(q);
   const hitCount = fields.filter(matches).length;
+  const atLimit = fields.length >= MAX_FIELDS;
+  const requiredCount = fields.filter((field) => field.required && field.kind !== "section").length;
+  const sectionCount = fields.filter((field) => field.kind === "section").length;
 
-  function update(i: number, patch: Partial<FormField>) {
-    setFields((f) => f.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
+  function commit(next: FormField[]) {
+    setFields(next);
+    onEdit?.();
   }
-  function move(i: number, dir: -1 | 1) {
-    setFields((f) => {
-      const j = i + dir;
-      if (j < 0 || j >= f.length) return f;
-      const copy = [...f];
-      [copy[i], copy[j]] = [copy[j], copy[i]];
-      return copy;
+  function focusCard(id: string) {
+    requestAnimationFrame(() => {
+      summaryRefs.current[id]?.focus();
+      summaryRefs.current[id]?.scrollIntoView({ block: "nearest" });
     });
   }
-  function remove(i: number) {
-    setFields((f) => f.filter((_, idx) => idx !== i));
+  function update(index: number, patch: Partial<FormField>) {
+    commit(fields.map((field, i) => i === index ? { ...field, ...patch } : field));
   }
-  function addIdentity(b: (typeof IDENTITY_BLOCKS)[number]) {
-    setFields((f) => [
-      ...f,
-      {
-        id: b.identity,
-        kind: b.kind,
-        identity: b.identity,
-        label: b.label,
-        required: true,
-        options: b.options ? [...b.options] : undefined,
-        allowOther: b.allowOther,
-      },
-    ]);
+  function move(index: number, direction: -1 | 1) {
+    const next = moveFormField(fields, index, direction);
+    if (next === fields) return;
+    commit(next);
+    setAnnouncement(fields[index].label + " moved to position " + (index + direction + 1) + ".");
+  }
+  function remove(index: number) {
+    setRemoved({ field: fields[index], index });
+    commit(fields.filter((_, i) => i !== index));
+    setAnnouncement(fields[index].label + " removed. Use Undo to restore it.");
+    const next = fields[index + 1] ?? fields[index - 1];
+    if (next) focusCard(next.id);
+    else searchRef.current?.focus();
+  }
+  function undo() {
+    if (!removed || !canRestoreField(fields, removed.field)) return;
+    commit(restoreFormField(fields, removed.field, removed.index));
+    setQuery("");
+    setAnnouncement(removed.field.label + " restored.");
+    focusCard(removed.field.id);
+    setRemoved(null);
+  }
+  function append(field: FormField) {
+    if (atLimit || (field.identity && usedIdentities.has(field.identity))) return;
+    commit([...fields, field]);
+    setQuery("");
+    setExpanded((current) => new Set([...current, field.id]));
+    setPickerOpen(false);
+    setAnnouncement(field.label + " added.");
+    focusCard(field.id);
+  }
+  function addIdentity(block: (typeof IDENTITY_BLOCKS)[number]) {
+    append({ id: block.identity, kind: block.kind, identity: block.identity, label: block.label,
+      required: true, options: block.options ? [...block.options] : undefined, allowOther: block.allowOther });
   }
   function addCustom(kind: FieldKind) {
-    setFields((f) => [
-      ...f,
-      {
-        id: newId(),
-        kind,
-        identity: null,
-        label: "Untitled question",
-        required: false,
-        options: CHOICE_KINDS.has(kind) ? ["Option 1"] : undefined,
-      },
-    ]);
+    append({ id: newId(), kind, identity: null, label: "Untitled question", required: false,
+      options: CHOICE_KINDS.has(kind) ? ["Option 1"] : undefined });
   }
-  function addSection() {
-    setFields((f) => [
-      ...f,
-      { id: newId(), kind: "section", identity: null, label: "Section title", required: false, description: "" },
-    ]);
-  }
-  function addTeam() {
-    setFields((f) => [
-      ...f,
-      {
-        id: newId(), kind: "team", identity: null, label: "Team members", required: false,
-        minMembers: 1, maxMembers: 4,
-        members: [
-          { key: "name", label: "Name", kind: "short_text", required: true },
-          { key: "email", label: "Email", kind: "email", required: true },
-        ],
-      },
-    ]);
+  function toggleCard(id: string) {
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
   }
 
   return (
-    <div className="field">
-      <label>Registration form</label>
-      <span className="hint">
-        Build the questions applicants answer. Identity blocks power duplicate-check, attendance and
-        the shortlist email.
-      </span>
+    <div className="rfb-builder" onChange={(event) => event.stopPropagation()}>
       <input type="hidden" name="registrationForm" value={json} readOnly />
-
-      <div className="rfb-find">
-        <input
-          type="search"
-          className="rfb-search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search questions…"
-          aria-label="Search questions"
-        />
-        <span className="rfb-count">
-          {hitCount === fields.length
-            ? `${fields.length} ${fields.length === 1 ? "question" : "questions"}`
-            : `${hitCount} of ${fields.length} questions`}
-        </span>
+      <span className="sr-only" role="status">{announcement}</span>
+      <div className="rfb-overview">
+        <div><strong>{fields.length - sectionCount} questions</strong><span>{requiredCount} required{sectionCount ? " ? " + sectionCount + " sections" : ""}</span></div>
+        <button type="button" className="btn btn-primary btn-sm" aria-expanded={pickerOpen} aria-controls="rfb-picker" onClick={() => setPickerOpen(!pickerOpen)}><Plus size={16} aria-hidden="true" /> Add question</button>
       </div>
-
-      {hitCount === 0 ? (
-        <div className="rfb-nomatch">
-          <strong>No question matches</strong>
-          <span className="hint">Try part of a question label.</span>
+      <div className="rfb-picker" id="rfb-picker" hidden={!pickerOpen}>
+        <div className="rfb-picker-heading"><h3>Add to your form</h3><button type="button" className="rfb-icon-btn" aria-label="Close question picker" onClick={() => setPickerOpen(false)}><X size={16} aria-hidden="true" /></button></div>
+        {atLimit ? <p className="rfb-limit" role="status">This form has reached its limit of {MAX_FIELDS} items. Remove an item before adding another.</p> : null}
+        <fieldset><legend>Participant details</legend><p>These fields connect registrations to attendance and email.</p><div className="rfb-palette">
+          {IDENTITY_BLOCKS.map((block) => <button key={block.identity} type="button" disabled={atLimit || usedIdentities.has(block.identity)} onClick={() => addIdentity(block)}>
+            {usedIdentities.has(block.identity) ? <Check size={14} aria-hidden="true" /> : <Plus size={14} aria-hidden="true" />}{block.label}{usedIdentities.has(block.identity) ? <span className="sr-only"> (already added)</span> : null}
+          </button>)}
+        </div></fieldset>
+        <fieldset><legend>Custom questions</legend><div className="rfb-palette">
+          {CUSTOM_KINDS.map((item) => <button key={item.kind} type="button" disabled={atLimit} onClick={() => addCustom(item.kind)}><Plus size={14} aria-hidden="true" />{item.label}</button>)}
+        </div></fieldset>
+        <fieldset><legend>Structure & teams</legend><div className="rfb-palette">
+          <button type="button" disabled={atLimit} onClick={() => append({ id: newId(), kind: "section", identity: null, label: "Section title", required: false, description: "" })}><ListPlus size={15} aria-hidden="true" />Section heading</button>
+          <button type="button" disabled={atLimit} onClick={() => append({ id: newId(), kind: "team", identity: null, label: "Team members", required: false, minMembers: 1, maxMembers: 4, members: [
+            { key: "name", label: "Name", kind: "short_text", required: true },
+            { key: "email", label: "Email", kind: "email", required: true },
+          ] })}><Plus size={14} aria-hidden="true" />Team members</button>
+        </div></fieldset>
+      </div>
+      <div className="rfb-toolbar">
+        <div className="rfb-search-wrap"><Search size={16} aria-hidden="true" /><input ref={searchRef} type="search" className="rfb-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a question?" aria-label="Search questions" />
+          {query ? <button type="button" className="rfb-icon-btn" aria-label="Clear question search" onClick={() => { setQuery(""); searchRef.current?.focus(); }}><X size={15} aria-hidden="true" /></button> : null}
         </div>
-      ) : null}
-
-      <div className="stack rfb-list" style={{ gap: 10, marginTop: 10 }}>
-        {fields.map((field, i) => (
-          /* Filtered out, not unmounted: every question still has to reach the
-             hidden JSON, and a card that vanished from the DOM would drop the
-             edit you made to it before searching. */
-          <div key={field.id} className="card rfb-card" style={{ padding: 12 }} hidden={!matches(field)}>
-            <div className="rfb-row">
-              <span className="rfb-num" aria-hidden="true">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <input
-                aria-label="Label"
-                value={field.label}
-                onChange={(e) => update(i, { label: e.target.value })}
-                disabled={!!field.identity}
-              />
-              <button type="button" className="btn btn-sm btn-ghost" onClick={() => move(i, -1)}>
-                ↑
-              </button>
-              <button type="button" className="btn btn-sm btn-ghost" onClick={() => move(i, 1)}>
-                ↓
-              </button>
-              <button type="button" className="btn btn-sm btn-ghost" onClick={() => remove(i)}>
-                ✕
-              </button>
+        <button type="button" className="rfb-text-btn" onClick={() => { setQuery(""); setExpanded(expanded.size ? new Set() : new Set(fields.map((field) => field.id))); }}>{expanded.size ? "Collapse all" : "Expand all"}</button>
+      </div>
+      {q ? <p className="rfb-results" role="status">{hitCount} of {fields.length} items match</p> : null}
+      {removed ? <div className="rfb-undo"><span>Removed ?{removed.field.label}?</span><button type="button" className="rfb-text-btn" disabled={!canRestoreField(fields, removed.field)} onClick={undo}><Undo2 size={14} aria-hidden="true" /> Undo</button>
+        {!canRestoreField(fields, removed.field) ? <small>That field is already present, or the form is full.</small> : null}
+      </div> : null}
+      {hitCount === 0 ? <div className="rfb-nomatch"><ListPlus size={24} aria-hidden="true" /><strong>{fields.length ? "No matching questions" : "Start your registration form"}</strong><p>{fields.length ? "Try a different name or clear your search." : "Add participant details, custom questions or a team block."}</p>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => fields.length ? setQuery("") : setPickerOpen(true)}>{fields.length ? "Clear search" : "Add your first question"}</button>
+      </div> : null}
+      <div className="rfb-question-list">
+        {fields.map((field, index) => (
+          <details key={field.id} className="rfb-question" open={!!q || expanded.has(field.id)} hidden={!matches(field)}>
+            <summary ref={(node) => { summaryRefs.current[field.id] = node; }} onClick={(event) => { event.preventDefault(); if (!q) toggleCard(field.id); }}>
+              <span className="rfb-position">{String(index + 1).padStart(2, "0")}</span>
+              <span className="rfb-question-title"><strong>{field.label || "Untitled question"}</strong><small>{field.identity ? "Participant detail" : typeLabel(field.kind)}</small></span>
+              {field.required && field.kind !== "section" ? <span className="rfb-required-tag">Required</span> : null}
+              <ChevronDown size={16} className="rfb-chevron" aria-hidden="true" />
+            </summary>
+            <div className="rfb-question-body field">
+              <div className="rfb-question-tools"><span>{typeLabel(field.kind)}</span><div>
+                <button type="button" className="rfb-icon-btn" disabled={index === 0} aria-label={"Move " + field.label + " up"} title="Move up" onClick={() => move(index, -1)}><ArrowUp size={16} aria-hidden="true" /></button>
+                <button type="button" className="rfb-icon-btn" disabled={index === fields.length - 1} aria-label={"Move " + field.label + " down"} title="Move down" onClick={() => move(index, 1)}><ArrowDown size={16} aria-hidden="true" /></button>
+                <button type="button" className="rfb-icon-btn rfb-remove" aria-label={"Remove " + field.label} title="Remove question" onClick={() => remove(index)}><Trash2 size={16} aria-hidden="true" /></button>
+              </div></div>
+              <label htmlFor={"rfb-label-" + field.id}>{field.kind === "section" ? "Section title" : "Question title"}</label>
+              <input id={"rfb-label-" + field.id} value={field.label} maxLength={120} onChange={(event) => update(index, { label: event.target.value })} disabled={!!field.identity} />
+              {field.identity ? <p className="rfb-identity-note"><ShieldCheck size={15} aria-hidden="true" />The title is fixed so this field stays linked to participant records.</p> : null}
+              {field.kind !== "section" ? <label className="rfb-check"><input type="checkbox" checked={field.required} onChange={(event) => update(index, { required: event.target.checked })} />Answer required</label> : null}
+              {!field.identity && CHOICE_KINDS.has(field.kind) ? <div className="rfb-options"><span className="rfb-control-label">Answer options</span>
+                {(field.options ?? []).map((option, optionIndex) => <div className="rfb-option" key={optionIndex}><span>{optionIndex + 1}</span><input aria-label={"Option " + (optionIndex + 1) + " for " + field.label} value={option} onChange={(event) => update(index, { options: (field.options ?? []).map((value, i) => i === optionIndex ? event.target.value : value) })} /><button type="button" className="rfb-icon-btn" disabled={(field.options?.length ?? 0) <= 1} aria-label={"Remove option " + (optionIndex + 1) + " from " + field.label} onClick={() => update(index, { options: field.options?.filter((_, i) => i !== optionIndex) })}><X size={15} aria-hidden="true" /></button></div>)}
+                <button type="button" className="rfb-text-btn" disabled={(field.options?.length ?? 0) >= 20} onClick={() => update(index, { options: [...(field.options ?? []), ""] })}><Plus size={14} aria-hidden="true" /> Add option</button><span className="rfb-option-count">{field.options?.length ?? 0} / 20</span>
+                <label className="rfb-check"><input type="checkbox" checked={!!field.allowOther} onChange={(event) => update(index, { allowOther: event.target.checked })} />Allow an ?Other? answer</label>
+              </div> : null}
+              {field.kind === "section" ? <label className="rfb-extra">Description <span>(optional)</span><textarea rows={2} maxLength={500} value={field.description ?? ""} onChange={(event) => update(index, { description: event.target.value })} placeholder="Introduce the next group of questions" /></label> : null}
+              {field.kind === "team" ? <TeamEditor field={field} onChange={(patch) => update(index, patch)} /> : null}
+              {!field.identity && field.kind !== "section" ? <label className="rfb-extra">Help text <span>(optional)</span><input value={field.help ?? ""} maxLength={300} onChange={(event) => update(index, { help: event.target.value })} placeholder="Add a short instruction for participants" /></label> : null}
             </div>
-            <div className="rfb-meta" style={{ marginTop: 8 }}>
-              <span className="label">
-                {field.identity ? `${field.identity} · ${field.kind}` : field.kind}
-              </span>
-              {field.kind !== "section" ? (
-                <label style={{ display: "flex", gap: 6, alignItems: "center", fontWeight: 400 }}>
-                  <input
-                    type="checkbox"
-                    checked={field.required}
-                    onChange={(e) => update(i, { required: e.target.checked })}
-                  />{" "}
-                  Required
-                </label>
-              ) : null}
-            </div>
-            {!field.identity && CHOICE_KINDS.has(field.kind) ? (
-              <textarea
-                style={{ marginTop: 8 }}
-                rows={3}
-                aria-label="Options (one per line)"
-                value={(field.options ?? []).join("\n")}
-                onChange={(e) =>
-                  update(i, {
-                    options: e.target.value
-                      .split("\n")
-                      .map((s) => s.trim())
-                      .filter(Boolean),
-                  })
-                }
-                placeholder="One option per line"
-              />
-            ) : null}
-            {field.kind === "section" ? (
-              <textarea
-                style={{ marginTop: 8 }}
-                rows={2}
-                aria-label="Section description"
-                value={field.description ?? ""}
-                onChange={(e) => update(i, { description: e.target.value })}
-                placeholder="Description (optional)"
-              />
-            ) : null}
-            {!field.identity && CHOICE_KINDS.has(field.kind) ? (
-              <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 8, fontWeight: 400 }}>
-                <input
-                  type="checkbox"
-                  checked={!!field.allowOther}
-                  onChange={(e) => update(i, { allowOther: e.target.checked })}
-                />{" "}
-                Allow an &ldquo;Other&rdquo; write-in
-              </label>
-            ) : null}
-            {field.kind === "team" ? (
-              <TeamEditor field={field} onChange={(patch) => update(i, patch)} />
-            ) : null}
-            {!field.identity && field.kind !== "section" ? (
-              <input
-                style={{ marginTop: 8 }}
-                aria-label="Help text"
-                value={field.help ?? ""}
-                onChange={(e) => update(i, { help: e.target.value })}
-                placeholder="Help text (optional)"
-              />
-            ) : null}
-          </div>
+          </details>
         ))}
       </div>
-
-      <div style={{ marginTop: 12 }}>
-        <div className="label">Add identity block</div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
-          {IDENTITY_BLOCKS.map((b) => (
-            <button
-              key={b.identity}
-              type="button"
-              className="btn btn-sm btn-ghost"
-              disabled={usedIdentities.has(b.identity)}
-              onClick={() => addIdentity(b)}
-            >
-              + {b.label}
-            </button>
-          ))}
-        </div>
-        <div className="label" style={{ marginTop: 10 }}>
-          Add question
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
-          {CUSTOM_KINDS.map((c) => (
-            <button
-              key={c.kind}
-              type="button"
-              className="btn btn-sm btn-ghost"
-              onClick={() => addCustom(c.kind)}
-            >
-              + {c.label}
-            </button>
-          ))}
-        </div>
-        <div className="label" style={{ marginTop: 10 }}>
-          Add layout
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
-          <button type="button" className="btn btn-sm btn-ghost" onClick={() => addSection()}>
-            + Section heading
-          </button>
-          <button type="button" className="btn btn-sm btn-ghost" onClick={() => addTeam()}>
-            + Team members
-          </button>
-        </div>
-      </div>
+      <p className="rfb-footer-note">Question order matches the registration form. Save the event to publish your changes.</p>
     </div>
   );
 }
@@ -335,7 +241,7 @@ function TeamEditor({
     <div style={{ marginTop: 8 }}>
       <div className="rfb-minmax">
         <label style={{ fontWeight: 400 }}>
-          Min
+          Minimum members
           <select
             value={field.minMembers ?? 1}
             onChange={(e) => {
@@ -352,7 +258,7 @@ function TeamEditor({
           </select>
         </label>
         <label style={{ fontWeight: 400 }}>
-          Max
+          Maximum members
           <select
             value={field.maxMembers ?? 4}
             onChange={(e) => {
@@ -376,16 +282,17 @@ function TeamEditor({
       <div className="label" style={{ marginTop: 8 }}>
         Per-member fields
       </div>
-      <div className="stack" style={{ gap: 6, marginTop: 4 }}>
+      <div className="rfb-member-list">
         {members.map((m, idx) => (
-          <div key={idx} className="rfb-member">
+          <div key={m.key} className="rfb-member">
             <input
-              aria-label="Member field label"
+              aria-label={"Member field " + (idx + 1) + " label"}
+              maxLength={80}
               value={m.label}
               onChange={(e) => setMember(idx, { label: e.target.value })}
             />
             <select
-              aria-label="Member field type"
+              aria-label={"Member field " + (idx + 1) + " type"}
               value={m.kind}
               onChange={(e) => setMember(idx, { kind: e.target.value as MemberSubfield["kind"] })}
             >
@@ -402,13 +309,13 @@ function TeamEditor({
               />{" "}
               Req
             </label>
-            <button type="button" className="btn btn-sm btn-ghost" onClick={() => removeMember(idx)}>
-              ✕
+            <button type="button" className="rfb-icon-btn rfb-remove" aria-label={"Remove member field " + m.label} disabled={members.length <= 1} onClick={() => removeMember(idx)}>
+              <Trash2 size={15} aria-hidden="true" />
             </button>
           </div>
         ))}
       </div>
-      <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 6 }} onClick={addMember}>
+      <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 6 }} disabled={members.length >= MAX_SUBFIELDS} onClick={addMember}>
         + Member field
       </button>
     </div>

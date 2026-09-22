@@ -1,4 +1,7 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, ClipboardCheck } from "lucide-react";
+import { ApprovalBadge } from "@/components/admin/ApprovalBadge";
 import { requireViewPage } from "@/lib/auth/guards";
 import { grantFor } from "@/lib/auth/capabilities";
 import { canCancelEvent } from "@/lib/admin/event-hosts";
@@ -36,9 +39,12 @@ export default async function EditEventPage({
   const canCancel = canCancelEvent(session, event.hosts);
 
   return (
-    <div className="admin-page" style={{ maxWidth: 940 }}>
-      <div className="eyebrow">Events</div>
-      <h1 style={{ margin: "6px 0 0" }}>Edit event</h1>
+    <div className="admin-page event-editor-page">
+      <Link href="/admin/events" className="event-back"><ArrowLeft size={15} aria-hidden="true" /> All events</Link>
+      <div className="admin-page-head"><div><div className="eyebrow">Event editor</div>
+      <h1 style={{ margin: "6px 0 0" }}>Edit event</h1></div>
+      <Link href={`/admin/events/${id}/registrations`} className="btn btn-ghost btn-sm"><ClipboardCheck size={16} aria-hidden="true" /> Registrations & attendance</Link></div>
+      <div className="event-editor-identity"><span>{event.title}</span><ApprovalBadge status={event.approvalStatus} /></div>
       {event.approvalStatus === "rejected" ? (
         <div className="note" style={{ marginTop: 12, borderLeftColor: "var(--rust)" }}>
           <strong>Not approved.</strong>
@@ -46,7 +52,7 @@ export default async function EditEventPage({
           event is <strong>resubmitted for approval</strong>.
         </div>
       ) : null}
-      <p className="lead" style={{ marginTop: 8 }}>
+      <p className="event-save-notice">
         {event.approvalStatus === "rejected"
           ? "Saving resends this event to the approval queue. Confirmed registrants are emailed whenever you change the details."
           : "Changes save immediately and don’t change the event’s approval status. Confirmed registrants are emailed whenever you change the details."}
@@ -77,7 +83,7 @@ export default async function EditEventPage({
         }}
       />
 
-      <section className="rule" style={{ marginTop: 32, paddingTop: 24 }}>
+      <section className="event-lifecycle">
         <h2 style={{ font: "400 20px var(--serif)", margin: 0 }}>More actions</h2>
 
         {isCancelled ? (

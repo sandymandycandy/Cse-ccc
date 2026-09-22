@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { ChevronDown, LogOut, Menu, Search, X } from "lucide-react";
+import { AdminIcon } from "./AdminIcon";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOutAction } from "@/app/admin/(app)/actions";
@@ -72,6 +74,20 @@ export function AdminNav({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [navQuery, setNavQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setOpen(true);
+        requestAnimationFrame(() => searchRef.current?.focus());
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const rawCollapse = useSyncExternalStore(subscribeCollapse, readCollapse, serverCollapse);
   const collapsed = useMemo<Record<string, boolean>>(() => {
@@ -100,15 +116,21 @@ export function AdminNav({
   const navEmpty = sections.length === 0;
 
   return (
-    <aside className="admin-nav" data-open={open ? "true" : "false"}>
+    <aside className="admin-nav" data-open={open ? "true" : "false"} onKeyDown={(event) => {
+      if (event.key === "Escape") {
+        if (navQuery) { setNavQuery(""); searchRef.current?.focus(); }
+        else if (open) { setOpen(false); menuRef.current?.focus(); }
+      }
+    }}>
       <div className="admin-nav-bar">
         <div className="admin-brand">
           CSE Council
-          <span>Admin</span>
+          <span>Admin workspace</span>
         </div>
         {here ? <span className="admin-here">{here}</span> : null}
         <ThemeToggle initialTheme={initialTheme} variant="rail" />
         <button
+          ref={menuRef}
           type="button"
           className="admin-nav-toggle"
           aria-expanded={open}
@@ -116,19 +138,25 @@ export function AdminNav({
           aria-label={open ? "Close menu" : "Open menu"}
           onClick={() => setOpen((o) => !o)}
         >
-          <span aria-hidden="true">{open ? "✕" : "☰"}</span>
+          {open ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
         </button>
       </div>
 
       <div className="admin-nav-panel" id="admin-nav-panel">
+        <div className="admin-nav-search">
+        <Search size={16} aria-hidden="true" />
         <input
+          ref={searchRef}
           className="admin-nav-filter"
           type="search"
           value={navQuery}
           onChange={(e) => setNavQuery(e.target.value)}
-          placeholder="Filter menu…"
+          placeholder="Find a page…"
           aria-label="Filter menu"
+          aria-keyshortcuts="Control+k Meta+k"
         />
+        {navQuery ? <button type="button" aria-label="Clear menu search" onClick={() => { setNavQuery(""); searchRef.current?.focus(); }}><X size={14} aria-hidden="true" /></button> : <kbd title="Control or Command + K">⌘ K</kbd>}
+        </div>
 
         <nav aria-label="Admin">
           {sections.map((section, i) => {
@@ -143,9 +171,7 @@ export function AdminNav({
                     onClick={() => toggleGroup(section.label as string)}
                   >
                     <span>{section.label}</span>
-                    <span className="admin-nav-caret" data-open={expanded} aria-hidden="true">
-                      ▼
-                    </span>
+                    <ChevronDown size={12} className="admin-nav-caret" data-open={expanded} aria-hidden="true" />
                   </button>
                 ) : null}
                 {expanded
@@ -154,9 +180,9 @@ export function AdminNav({
                         key={l.href}
                         href={l.href}
                         aria-current={l.href === current ? "page" : undefined}
-                        onClick={() => setOpen(false)}
+                        onClick={() => { setOpen(false); setNavQuery(""); }}
                       >
-                        {l.label}
+                        <AdminIcon href={l.href} /><span>{l.label}</span>
                       </Link>
                     ))
                   : null}
@@ -169,13 +195,16 @@ export function AdminNav({
         </nav>
 
         <div className="admin-nav-foot">
+          <div className="admin-profile">
+          <span className="admin-avatar" aria-hidden="true">{name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("")}</span>
           <div className="admin-who">
             <strong>{name}</strong>
             <span>{role.replace(/_/g, " ")}</span>
           </div>
+          </div>
           <form action={signOutAction}>
             <button type="submit" className="btn btn-ghost btn-sm w-full">
-              Sign out
+              <LogOut size={15} aria-hidden="true" /> Sign out
             </button>
           </form>
         </div>

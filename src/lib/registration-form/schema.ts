@@ -63,7 +63,7 @@ export function defaultFormFor(): FormField[] {
   return DEFAULT_FORM.map((f) => ({ ...f, options: f.options ? [...f.options] : undefined }));
 }
 
-const MAX_FIELDS = 40;
+export const MAX_FIELDS = 40;
 
 function validateMembers(
   f: Record<string, unknown>,
