@@ -62,6 +62,7 @@ import {
 } from "@/lib/certificates/bases";
 import { loadBases } from "./certificate-bases";
 import { getEventFormSchema, listRegistrations, type RegistrationRow } from "./registrations";
+import { presentOf, presentPositions } from "./team-attendance";
 
 /**
  * Data layer for the certificate designer (spec §4). Service-role reads and
@@ -592,31 +593,38 @@ export async function listAllRecipients(event: CertEvent, groups: CertificateGro
   if (participants) {
     for (const registration of registrations.filter((r) => r.attended)) {
       const team = teamOf(registration, event.schema);
+      // Per-person attendance: the leader is position 0; solo entries have no team.
+      const present = presentOf(team, true, registration.absentMembers);
+      const leaderPresent = team.length === 0 || present.some((p) => p.isLeader);
       const leaderEmail = registration.email.trim() || null;
       const teamLabel = registration.teamName?.trim() || (team.length > 0 ? `Team ${out.length + 1}` : null);
       const key = registrationKey(registration.id);
-      taken.add(key);
-      out.push({
-        key,
-        groupId: participants.id,
-        groupLabel: PARTICIPATION_LABEL,
-        kind: "registration",
-        registrationId: registration.id,
-        name: registration.name.trim(),
-        teamLabel: team.length > 0 ? teamLabel : null,
-        email: leaderEmail,
-        deliverTo: leaderEmail,
-        viaLeader: false,
-        values: registrantValues({
-          event: event.info,
-          schema: event.schema,
-          registration,
+      if (leaderPresent) {
+        taken.add(key);
+        out.push({
+          key,
+          groupId: participants.id,
           groupLabel: PARTICIPATION_LABEL,
-        }),
-        status: status.get(key) ?? { state: "pending" },
-      });
+          kind: "registration",
+          registrationId: registration.id,
+          name: registration.name.trim(),
+          teamLabel: team.length > 0 ? teamLabel : null,
+          email: leaderEmail,
+          deliverTo: leaderEmail,
+          viaLeader: false,
+          values: registrantValues({
+            event: event.info,
+            schema: event.schema,
+            registration,
+            groupLabel: PARTICIPATION_LABEL,
+          }),
+          status: status.get(key) ?? { state: "pending" },
+        });
+      }
 
-      for (const member of team.filter((p) => !p.isLeader)) {
+      // An absent leader's email may still carry a present member's certificate —
+      // that is only a delivery address, not a certificate for the leader.
+      for (const member of present.filter((p) => !p.isLeader)) {
         const memberK = memberKey(registration.id, member, taken);
         out.push({
           key: memberK,
@@ -922,8 +930,8 @@ export async function listCertificateEvents(): Promise<CertificateEventRow[]> {
   const admin = createAdminClient();
 
   const [attendedRows, groupRows, certRows] = await Promise.all([
-    selectAll<{ event_id: string | null }>((from, to) =>
-      admin.from("registrations").select("event_id").eq("attended", true).range(from, to),
+    selectAll<{ event_id: string | null; custom_answers: Json | null; absent_members: number[] | null }>((from, to) =>
+      admin.from("registrations").select("event_id, custom_answers, absent_members").eq("attended", true).range(from, to),
     ),
     selectAll<{ id: string; event_id: string; kind: "participants" | "sheet" | "results" }>((from, to) =>
       admin.from("certificate_groups").select("id, event_id, kind").range(from, to),
@@ -957,11 +965,8 @@ export async function listCertificateEvents(): Promise<CertificateEventRow[]> {
   ]);
 
   const eventIds = new Set<string>();
-  const attendedPerEvent = new Map<string, number>();
   for (const row of attendedRows) {
-    if (!row.event_id) continue;
-    eventIds.add(row.event_id);
-    attendedPerEvent.set(row.event_id, (attendedPerEvent.get(row.event_id) ?? 0) + 1);
+    if (row.event_id) eventIds.add(row.event_id);
   }
   const sheetPerEvent = new Map<string, number>();
   for (const { eventId, count } of [...sheetCounts, ...winnerCounts]) {
@@ -979,12 +984,9 @@ export async function listCertificateEvents(): Promise<CertificateEventRow[]> {
   // Team members are recipients too, so the attendee count alone would be wrong
   // for a team event. Expand them here, once for every event, rather than per row.
   const ids = [...eventIds];
-  const [events, forms, teamRegistrations] = await Promise.all([
+  const [events, forms] = await Promise.all([
     admin.from("events").select("id, title, starts_at").in("id", ids),
     admin.from("events").select("id, registration_form").in("id", ids),
-    selectAll<{ event_id: string | null; custom_answers: Json | null }>((from, to) =>
-      admin.from("registrations").select("event_id, custom_answers").eq("attended", true).range(from, to),
-    ),
   ]);
 
   const schemas = new Map<string, FormField[]>();
@@ -992,16 +994,23 @@ export async function listCertificateEvents(): Promise<CertificateEventRow[]> {
     const parsed = row.registration_form ? validateFormSchema(row.registration_form) : null;
     schemas.set(row.id, parsed?.ok ? parsed.fields : []);
   }
-  const membersPerEvent = new Map<string, number>();
-  for (const row of teamRegistrations) {
-    const schema = row.event_id ? schemas.get(row.event_id) : undefined;
-    if (!row.event_id || !schema?.length) continue;
-    const team = teamOf(
-      { name: "", roll: "", department: null, year: null, email: "", phone: null, teamName: null, customAnswers: row.custom_answers as Record<string, unknown> | null },
-      schema,
-    );
-    const members = team.filter((p) => !p.isLeader).length;
-    if (members > 0) membersPerEvent.set(row.event_id, (membersPerEvent.get(row.event_id) ?? 0) + members);
+  // Everyone present on each attended entry: the registrant alone on a solo
+  // event, otherwise the team minus its per-person absences.
+  const presentPerEvent = new Map<string, number>();
+  for (const row of attendedRows) {
+    if (!row.event_id) continue;
+    const schema = schemas.get(row.event_id) ?? [];
+    // `teamOf` drops people with neither name nor roll, so the stub leader needs
+    // a name to keep position 0 — absences are indexed with the leader included.
+    const team = schema.length
+      ? teamOf(
+          { name: "leader", roll: "", department: null, year: null, email: "", phone: null, teamName: null, customAnswers: row.custom_answers as Record<string, unknown> | null },
+          schema,
+        )
+      : [];
+    const size = team.length || 1;
+    const n = presentPositions(size, true, team.length > 0 ? row.absent_members ?? [] : []).length;
+    presentPerEvent.set(row.event_id, (presentPerEvent.get(row.event_id) ?? 0) + n);
   }
 
   return ((events.data ?? []) as { id: string; title: string; starts_at: string }[])
@@ -1010,7 +1019,7 @@ export async function listCertificateEvents(): Promise<CertificateEventRow[]> {
       title: e.title,
       startsAt: e.starts_at,
       people:
-        (attendedPerEvent.get(e.id) ?? 0) + (membersPerEvent.get(e.id) ?? 0) + (sheetPerEvent.get(e.id) ?? 0),
+        (presentPerEvent.get(e.id) ?? 0) + (sheetPerEvent.get(e.id) ?? 0),
       issued: issuedPerEvent.get(e.id) ?? 0,
     }))
     .sort((a, b) => b.startsAt.localeCompare(a.startsAt));

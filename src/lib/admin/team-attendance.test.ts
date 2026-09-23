@@ -53,4 +53,11 @@ describe("team attendance", () => {
     expect(presentOf(["a", "b", "c"], true, [1])).toEqual(["a", "c"]);
     expect(presentOf(["a", "b"], false, [])).toEqual([]);
   });
+
+  it("skips an absent leader but keeps their present teammates (certificate rule)", () => {
+    const team = [{ name: "Lead", isLeader: true }, { name: "Asha", isLeader: false }, { name: "Ravi", isLeader: false }];
+    const present = presentOf(team, true, [0, 2]);
+    expect(present.some((p) => p.isLeader)).toBe(false);
+    expect(present.map((p) => p.name)).toEqual(["Asha"]);
+  });
 });
