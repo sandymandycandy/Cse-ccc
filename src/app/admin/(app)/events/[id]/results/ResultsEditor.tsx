@@ -12,9 +12,10 @@ import {
 
 const inp: CSSProperties = {
   font: "400 13px var(--sans)",
-  padding: "4px 7px",
+  padding: "9px 10px",
+  minHeight: 42,
   border: "1px solid var(--line-4)",
-  borderRadius: 6,
+  borderRadius: 8,
   background: "var(--paper)",
   color: "var(--ink)",
   width: "100%",
@@ -94,8 +95,8 @@ export function ResultsEditor(props: {
         Seeded from: {props.seededFrom} · {props.published ? "published" : "draft"}
       </p>
 
-      <div className="tablewrap">
-        <table className="admin">
+      <div className="tablewrap" tabIndex={0} role="region" aria-label="Results table">
+        <table className="admin" aria-label="Round results">
           <thead>
             <tr>
               <th>Roll</th>
@@ -120,6 +121,7 @@ export function ResultsEditor(props: {
                   <td>
                     <input
                       style={{ ...inp, width: 110 }}
+                      aria-label={`Roll number for row ${i + 1}`}
                       value={r.roll_no}
                       disabled={locked}
                       placeholder="vtuxxxxx"
@@ -129,6 +131,7 @@ export function ResultsEditor(props: {
                   <td>
                     <input
                       style={{ ...inp, width: 160 }}
+                      aria-label={`Name for row ${i + 1}`}
                       value={r.display_name ?? ""}
                       disabled={locked}
                       placeholder="Full name"
@@ -142,6 +145,7 @@ export function ResultsEditor(props: {
                     <input
                       type="number"
                       style={{ ...inp, width: 80 }}
+                      aria-label={`Score for row ${i + 1}`}
                       value={r.score ?? ""}
                       disabled={locked}
                       onChange={(e) => {
@@ -155,6 +159,7 @@ export function ResultsEditor(props: {
                     <input
                       type="number"
                       style={{ ...inp, width: 64 }}
+                      aria-label={`Rank for row ${i + 1}`}
                       value={r.rank ?? ""}
                       disabled={locked}
                       onChange={(e) =>
@@ -166,6 +171,7 @@ export function ResultsEditor(props: {
                     <input
                       type="checkbox"
                       checked={r.advanced}
+                      aria-label={`Advance row ${i + 1}`}
                       disabled={locked || r.score === null}
                       title={r.score === null ? "Enter a score before advancing" : undefined}
                       onChange={(e) => update(i, { advanced: e.target.checked })}
@@ -175,6 +181,7 @@ export function ResultsEditor(props: {
                     <input
                       style={{ ...inp, width: 160 }}
                       value={r.remarks ?? ""}
+                      aria-label={`Remarks for row ${i + 1}`}
                       disabled={locked}
                       placeholder="Optional note"
                       onChange={(e) => update(i, { remarks: e.target.value })}

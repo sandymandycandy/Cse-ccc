@@ -32,36 +32,27 @@ export default async function AdminGalleryPage() {
       {visible.length === 0 ? (
         <div className="cal-empty" style={{ marginTop: 18 }}>No photos yet.</div>
       ) : (
-        <div
-          style={{
-            marginTop: 18,
-            display: "grid",
-            gap: 16,
-            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-          }}
-        >
+        <div className="admin-gallery-grid">
           {visible.map((g) => (
-            <div key={g.id} className="rule" style={{ paddingBottom: 12 }}>
+            <div key={g.id} className="admin-gallery-card">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={g.imageUrl}
                 alt={g.caption ?? ""}
-                style={{ width: "100%", aspectRatio: "3 / 2", objectFit: "cover", borderRadius: 6 }}
               />
-              <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between", gap: 8 }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {g.caption || <span style={{ color: "var(--ink-3)" }}>No caption</span>}
-                  </div>
-                  <div className="label" style={{ color: "var(--ink-3)" }}>
+              <div className="admin-gallery-caption">
+                <div>
+                  <strong title={g.caption ?? undefined}>
+                    {g.caption || "No caption"}
+                  </strong>
+                  <small>
                     {g.clubName ?? "Council-wide"} · #{g.sort}
-                  </div>
+                  </small>
                 </div>
                 {canManage(session, "manage:gallery", g.clubId) ? (
                   <Link
                     href={`/admin/gallery/${g.id}/edit`}
-                    className="label"
-                    style={{ color: "var(--forest)", whiteSpace: "nowrap" }}
+                    aria-label={`Edit ${g.caption || "photo"}`}
                   >
                     Edit →
                   </Link>

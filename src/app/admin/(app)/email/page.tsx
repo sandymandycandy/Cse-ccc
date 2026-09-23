@@ -5,6 +5,8 @@ import { listEventsForAdmin } from "@/lib/admin/queries";
 import { audienceCounts } from "@/lib/admin/broadcast-recipients";
 import { INLINE_MAX } from "@/lib/admin/broadcast-audience";
 import { BroadcastComposer } from "@/components/admin/BroadcastComposer";
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 
 /**
  * Compose a mail to a chosen audience. Gated on `manage:broadcast`; an `own`
@@ -28,17 +30,16 @@ export default async function BroadcastPage() {
     : clubs.filter((c) => c.id === session.clubId);
 
   return (
-    <div className="admin-page">
+    <div className="admin-page email-page">
       <div className="admin-page-head">
         <div>
-          <div className="eyebrow">Email</div>
+          <div className="eyebrow">Communications</div>
           <h1 style={{ margin: "6px 0 0" }}>Write to a group</h1>
-          <p className="body-text" style={{ marginTop: 6 }}>
-            Anything over {INLINE_MAX} addresses is queued rather than sent at
-            once, and goes out from the Outbox.
-          </p>
         </div>
+        <Link href="/admin/outbox" className="btn btn-ghost">View outbox <ArrowUpRight size={16} aria-hidden="true" /></Link>
       </div>
+      <p className="admin-lead">Choose your audience, write a message and review it before sending.</p>
+      <p className="email-delivery-note">Messages to more than {INLINE_MAX} addresses are queued in the <Link href="/admin/outbox">Outbox</Link>.</p>
 
       <BroadcastComposer
         councilWide={councilWide}

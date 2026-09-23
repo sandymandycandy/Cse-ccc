@@ -79,10 +79,11 @@ export async function listSessions(clubId: string): Promise<SessionRow[]> {
 /** Flip a session open⇄closed. Closing stamps `closed_at`; reopening clears it. */
 export async function setSessionStatus(sessionId: string, status: "open" | "closed"): Promise<void> {
   const admin = createAdminClient();
-  await admin
+  const { error } = await admin
     .from("club_attendance_sessions")
     .update({ status, closed_at: status === "closed" ? new Date().toISOString() : null })
     .eq("id", sessionId);
+  if (error) throw error;
 }
 
 export async function createSession(input: {
@@ -105,23 +106,26 @@ export async function getSessionMarking(
   sessionId: string,
 ): Promise<{ session: SessionRow; roster: RosterMark[] } | null> {
   const admin = createAdminClient();
-  const { data: s } = await admin
+  const { data: s, error: sessionError } = await admin
     .from("club_attendance_sessions").select(SESSION_COLS).eq("id", sessionId).maybeSingle();
+  if (sessionError) throw sessionError;
   if (!s) return null;
 
-  const { data: marks } = await admin
+  const { data: marks, error: marksError } = await admin
     .from("club_attendance").select("member_id, status").eq("session_id", sessionId);
   // A member with no row at all is UNMARKED — not absent. That distinction is
   // the whole point of the roster screen, so it is preserved all the way up.
+  if (marksError) throw marksError;
   const markOf = new Map((marks ?? []).map((m) => [m.member_id, m.status]));
   const presentCount = (marks ?? []).filter((m) => m.status === "present").length;
 
-  const { data: members } = await admin
+  const { data: members, error: membersError } = await admin
     .from("club_members")
     .select("id, name, roll_no")
     .eq("club_id", s.club_id).eq("is_active", true).not("approved_at", "is", null)
     .order("name");
 
+  if (membersError) throw membersError;
   const roster = (members ?? []).map((m) => ({
     memberId: m.id,
     name: m.name,
@@ -148,15 +152,16 @@ export async function saveMarks(
   markedBy: string,
 ): Promise<void> {
   const admin = createAdminClient();
-  const { data: marks } = await admin
+  const { data: marks, error: marksError } = await admin
     .from("club_attendance").select("member_id, status").eq("session_id", sessionId);
+  if (marksError) throw marksError;
   const current = new Map<string, Mark>(
     (marks ?? []).map((m) => [m.member_id, m.status as Mark]),
   );
 
   const { toUpsert, toRemove } = diffMarks(current, desired);
   if (toUpsert.length > 0) {
-    await admin.from("club_attendance").upsert(
+    const { error } = await admin.from("club_attendance").upsert(
       toUpsert.map(({ memberId, status }) => ({
         session_id: sessionId,
         member_id: memberId,
@@ -165,9 +170,11 @@ export async function saveMarks(
       })),
       { onConflict: "session_id,member_id" },
     );
+    if (error) throw error;
   }
   if (toRemove.length > 0) {
-    await admin.from("club_attendance").delete().eq("session_id", sessionId).in("member_id", toRemove);
+    const { error } = await admin.from("club_attendance").delete().eq("session_id", sessionId).in("member_id", toRemove);
+    if (error) throw error;
   }
 }
 

@@ -9,6 +9,7 @@ import { AudienceOption } from "./compose/AudienceOption";
 import { CharCount } from "./compose/CharCount";
 import { EmailPreview } from "./compose/EmailPreview";
 import { RecipientPicker } from "./compose/RecipientPicker";
+import { Mail, Send, Users } from "lucide-react";
 
 const initial: ComposerState = {};
 
@@ -158,7 +159,7 @@ function ComposerForm({
     .join(" · ");
 
   return (
-    <form action={action} className="compose">
+    <form action={action} className="compose broadcast-workspace">
       {state.error ? (
         <div role="alert" className="note" style={{ borderLeftColor: "var(--rust)", marginBottom: 16 }}>
           {state.error}
@@ -173,8 +174,10 @@ function ComposerForm({
         </div>
       ) : null}
 
+      <section className="broadcast-audience" aria-labelledby="broadcast-audience-title">
+        <div className="broadcast-section-head"><span className="broadcast-step">01</span><div><h2 id="broadcast-audience-title">Choose recipients</h2><p>Select a group and review who receives it.</p></div><Users size={19} aria-hidden="true" /></div>
       <fieldset className="audience">
-        <legend className="label">Who receives it</legend>
+        <legend className="sr-only">Who receives it</legend>
 
         {councilWide ? (
           <>
@@ -345,7 +348,11 @@ function ComposerForm({
           </AudienceOption>
         ) : null}
       </fieldset>
+      </section>
 
+      <section className="broadcast-message" aria-labelledby="broadcast-message-title">
+        <div className="broadcast-section-head"><span className="broadcast-step">02</span><div><h2 id="broadcast-message-title">Write your message</h2><p>One message, delivered to each selected recipient.</p></div><Mail size={19} aria-hidden="true" /></div>
+        <div className="broadcast-message-body">
       <div className={fieldClass(state.fieldErrors, "subject")}>
         <label htmlFor="subject">Subject</label>
         <input
@@ -384,6 +391,7 @@ function ComposerForm({
         </div>
       </div>
 
+      <div className="broadcast-link-fields">
       <div className={fieldClass(state.fieldErrors, "link")}>
         <label htmlFor="link">Link (optional)</label>
         <input
@@ -417,6 +425,7 @@ function ComposerForm({
         <FieldError errors={state.fieldErrors} name="linkLabel" />
         <span className="hint">Used only when there is a link to label.</span>
       </div>
+      </div>
 
       <EmailPreview
         subject={subject}
@@ -438,6 +447,7 @@ function ComposerForm({
 
       <div className="compose-actions">
         <button type="submit" className="btn btn-primary" disabled={pending || overCap}>
+          <Send size={16} aria-hidden="true" />
           {pending
             ? "Sending…"
             : state.confirm
@@ -448,9 +458,12 @@ function ComposerForm({
                   // be the audience total, which is a different claim.
                   selected != null
                   ? `Send to ${selected}`
-                  : "Send"}
+                  : "Send message"}
         </button>
+        <span className="hint">Review your audience and preview before sending.</span>
       </div>
+        </div>
+      </section>
     </form>
   );
 }

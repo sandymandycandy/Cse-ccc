@@ -10,7 +10,7 @@ import { resolveOwningClub } from "@/lib/admin/club-scope";
 import { writeAudit } from "@/lib/admin/audit";
 import { getMemberForEdit } from "@/lib/admin/members";
 import { createSession, saveMarks, getSessionMarking, setSessionStatus } from "@/lib/admin/attendance-club";
-import type { MarkState } from "@/lib/admin/attendance-marks";
+import { finaliseMarks, type MarkState } from "@/lib/admin/attendance-marks";
 import { toFieldErrors } from "@/lib/admin/field-errors";
 import type { MemberFormState, SessionFormState } from "@/lib/admin/form-state";
 
@@ -270,7 +270,9 @@ export async function saveAttendanceAction(formData: FormData): Promise<void> {
   if (!detail) redirect("/admin/attendance");
   if (!canManage(session, "manage:members", detail.session.clubId)) redirect("/admin/attendance");
 
-  const marks = marksFromForm(formData);
+  if (detail.session.status === "closed") redirect(`/admin/attendance/sessions/${sessionId}`);
+  const ids = new Set(detail.roster.map((r) => r.memberId));
+  const marks = new Map([...marksFromForm(formData)].filter(([id]) => ids.has(id)));
   await saveMarks(sessionId, marks, session.id);
   await writeAudit({
     actorId: session.id, action: "update", entity: "club_attendance_session",
@@ -312,8 +314,9 @@ export async function autosaveAttendanceAction(
   // A closed session is finalised; autosave must not quietly reopen its marks.
   if (detail.session.status === "closed") return { ok: false };
 
+  const ids = new Set(detail.roster.map((r) => r.memberId));
   const marks = new Map<string, MarkState>(
-    entries.filter(([id]) => z.string().uuid().safeParse(id).success),
+    entries.filter(([id, mark]) => ids.has(id) && (mark === null || mark === "present" || mark === "absent")),
   );
   await saveMarks(sessionId, marks, session.id);
   return { ok: true };
@@ -330,7 +333,8 @@ export async function saveAndCloseAction(formData: FormData): Promise<void> {
   if (!detail) redirect("/admin/attendance");
   if (!canManage(session, "manage:members", detail.session.clubId)) redirect("/admin/attendance");
 
-  const marks = marksFromForm(formData);
+  if (detail.session.status === "closed") redirect(`/admin/attendance/sessions/${sessionId}`);
+  const marks = finaliseMarks(detail.roster, marksFromForm(formData));
   await saveMarks(sessionId, marks, session.id);
   await setSessionStatus(sessionId, "closed");
   await writeAudit({
@@ -338,6 +342,7 @@ export async function saveAndCloseAction(formData: FormData): Promise<void> {
     entityId: sessionId,
     after: {
       present: [...marks.values()].filter((m) => m === "present").length,
+      absent: [...marks.values()].filter((m) => m === "absent").length,
       closed: true,
     },
   });

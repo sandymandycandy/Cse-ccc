@@ -66,6 +66,7 @@ export function RegistrationFormBuilder({
   const [announcement, setAnnouncement] = useState("");
   const summaryRefs = useRef<Record<string, HTMLElement | null>>({});
   const searchRef = useRef<HTMLInputElement>(null);
+  const addRef = useRef<HTMLButtonElement>(null);
   const usedIdentities = useMemo(
     () => new Set(fields.map((f) => f.identity).filter(Boolean) as Identity[]), [fields],
   );
@@ -81,6 +82,8 @@ export function RegistrationFormBuilder({
   const atLimit = fields.length >= MAX_FIELDS;
   const requiredCount = fields.filter((field) => field.required && field.kind !== "section").length;
   const sectionCount = fields.filter((field) => field.kind === "section").length;
+  const questionCount = fields.length - sectionCount;
+  const hasExpanded = fields.some((field) => expanded.has(field.id));
 
   function commit(next: FormField[]) {
     setFields(next);
@@ -93,6 +96,8 @@ export function RegistrationFormBuilder({
     });
   }
   function update(index: number, patch: Partial<FormField>) {
+    // Renaming a search result must not hide its input halfway through typing.
+    if (patch.label !== undefined) setQuery("");
     commit(fields.map((field, i) => i === index ? { ...field, ...patch } : field));
   }
   function move(index: number, direction: -1 | 1) {
@@ -105,7 +110,12 @@ export function RegistrationFormBuilder({
     setRemoved({ field: fields[index], index });
     commit(fields.filter((_, i) => i !== index));
     setAnnouncement(fields[index].label + " removed. Use Undo to restore it.");
-    const next = fields[index + 1] ?? fields[index - 1];
+    setExpanded((current) => {
+      const next = new Set(current);
+      next.delete(fields[index].id);
+      return next;
+    });
+    const next = fields.slice(index + 1).find(matches) ?? fields.slice(0, index).reverse().find(matches);
     if (next) focusCard(next.id);
     else searchRef.current?.focus();
   }
@@ -113,6 +123,7 @@ export function RegistrationFormBuilder({
     if (!removed || !canRestoreField(fields, removed.field)) return;
     commit(restoreFormField(fields, removed.field, removed.index));
     setQuery("");
+    setExpanded((current) => new Set([...current, removed.field.id]));
     setAnnouncement(removed.field.label + " restored.");
     focusCard(removed.field.id);
     setRemoved(null);
@@ -142,16 +153,23 @@ export function RegistrationFormBuilder({
     });
   }
 
+  function closePicker() {
+    setPickerOpen(false);
+    addRef.current?.focus();
+  }
+
   return (
     <div className="rfb-builder" onChange={(event) => event.stopPropagation()}>
       <input type="hidden" name="registrationForm" value={json} readOnly />
       <span className="sr-only" role="status">{announcement}</span>
       <div className="rfb-overview">
-        <div><strong>{fields.length - sectionCount} questions</strong><span>{requiredCount} required{sectionCount ? " ? " + sectionCount + " sections" : ""}</span></div>
-        <button type="button" className="btn btn-primary btn-sm" aria-expanded={pickerOpen} aria-controls="rfb-picker" onClick={() => setPickerOpen(!pickerOpen)}><Plus size={16} aria-hidden="true" /> Add question</button>
+        <div><strong>{questionCount} {questionCount === 1 ? "question" : "questions"}</strong><span>{requiredCount} required{sectionCount ? " · " + sectionCount + (sectionCount === 1 ? " section" : " sections") : ""}</span></div>
+        <button ref={addRef} type="button" className="btn btn-primary btn-sm" aria-expanded={pickerOpen} aria-controls="rfb-picker" onClick={() => setPickerOpen(!pickerOpen)}><Plus size={16} aria-hidden="true" /> Add question</button>
       </div>
-      <div className="rfb-picker" id="rfb-picker" hidden={!pickerOpen}>
-        <div className="rfb-picker-heading"><h3>Add to your form</h3><button type="button" className="rfb-icon-btn" aria-label="Close question picker" onClick={() => setPickerOpen(false)}><X size={16} aria-hidden="true" /></button></div>
+      <div className="rfb-picker" id="rfb-picker" hidden={!pickerOpen} onKeyDown={(event) => {
+        if (event.key === "Escape") { event.stopPropagation(); closePicker(); }
+      }}>
+        <div className="rfb-picker-heading"><h3>Add to your form</h3><button type="button" className="rfb-icon-btn" aria-label="Close question picker" onClick={closePicker}><X size={16} aria-hidden="true" /></button></div>
         {atLimit ? <p className="rfb-limit" role="status">This form has reached its limit of {MAX_FIELDS} items. Remove an item before adding another.</p> : null}
         <fieldset><legend>Participant details</legend><p>These fields connect registrations to attendance and email.</p><div className="rfb-palette">
           {IDENTITY_BLOCKS.map((block) => <button key={block.identity} type="button" disabled={atLimit || usedIdentities.has(block.identity)} onClick={() => addIdentity(block)}>
@@ -170,13 +188,13 @@ export function RegistrationFormBuilder({
         </div></fieldset>
       </div>
       <div className="rfb-toolbar">
-        <div className="rfb-search-wrap"><Search size={16} aria-hidden="true" /><input ref={searchRef} type="search" className="rfb-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a question?" aria-label="Search questions" />
+        <div className="rfb-search-wrap"><Search size={16} aria-hidden="true" /><input ref={searchRef} type="search" className="rfb-search" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.preventDefault(); }} placeholder="Find a question…" aria-label="Search questions" />
           {query ? <button type="button" className="rfb-icon-btn" aria-label="Clear question search" onClick={() => { setQuery(""); searchRef.current?.focus(); }}><X size={15} aria-hidden="true" /></button> : null}
         </div>
-        <button type="button" className="rfb-text-btn" onClick={() => { setQuery(""); setExpanded(expanded.size ? new Set() : new Set(fields.map((field) => field.id))); }}>{expanded.size ? "Collapse all" : "Expand all"}</button>
+        <button type="button" className="rfb-text-btn" disabled={fields.length === 0} onClick={() => { setQuery(""); setExpanded(hasExpanded ? new Set() : new Set(fields.map((field) => field.id))); }}>{hasExpanded ? "Collapse all" : "Expand all"}</button>
       </div>
       {q ? <p className="rfb-results" role="status">{hitCount} of {fields.length} items match</p> : null}
-      {removed ? <div className="rfb-undo"><span>Removed ?{removed.field.label}?</span><button type="button" className="rfb-text-btn" disabled={!canRestoreField(fields, removed.field)} onClick={undo}><Undo2 size={14} aria-hidden="true" /> Undo</button>
+      {removed ? <div className="rfb-undo"><span>Removed “{removed.field.label}”</span><button type="button" className="rfb-text-btn" disabled={!canRestoreField(fields, removed.field)} onClick={undo}><Undo2 size={14} aria-hidden="true" /> Undo</button>
         {!canRestoreField(fields, removed.field) ? <small>That field is already present, or the form is full.</small> : null}
       </div> : null}
       {hitCount === 0 ? <div className="rfb-nomatch"><ListPlus size={24} aria-hidden="true" /><strong>{fields.length ? "No matching questions" : "Start your registration form"}</strong><p>{fields.length ? "Try a different name or clear your search." : "Add participant details, custom questions or a team block."}</p>
@@ -184,8 +202,8 @@ export function RegistrationFormBuilder({
       </div> : null}
       <div className="rfb-question-list">
         {fields.map((field, index) => (
-          <details key={field.id} className="rfb-question" open={!!q || expanded.has(field.id)} hidden={!matches(field)}>
-            <summary ref={(node) => { summaryRefs.current[field.id] = node; }} onClick={(event) => { event.preventDefault(); if (!q) toggleCard(field.id); }}>
+          <details key={field.id} className="rfb-question" open={expanded.has(field.id)} hidden={!matches(field)}>
+            <summary ref={(node) => { summaryRefs.current[field.id] = node; }} onClick={(event) => { event.preventDefault(); toggleCard(field.id); }}>
               <span className="rfb-position">{String(index + 1).padStart(2, "0")}</span>
               <span className="rfb-question-title"><strong>{field.label || "Untitled question"}</strong><small>{field.identity ? "Participant detail" : typeLabel(field.kind)}</small></span>
               {field.required && field.kind !== "section" ? <span className="rfb-required-tag">Required</span> : null}
@@ -204,7 +222,7 @@ export function RegistrationFormBuilder({
               {!field.identity && CHOICE_KINDS.has(field.kind) ? <div className="rfb-options"><span className="rfb-control-label">Answer options</span>
                 {(field.options ?? []).map((option, optionIndex) => <div className="rfb-option" key={optionIndex}><span>{optionIndex + 1}</span><input aria-label={"Option " + (optionIndex + 1) + " for " + field.label} value={option} onChange={(event) => update(index, { options: (field.options ?? []).map((value, i) => i === optionIndex ? event.target.value : value) })} /><button type="button" className="rfb-icon-btn" disabled={(field.options?.length ?? 0) <= 1} aria-label={"Remove option " + (optionIndex + 1) + " from " + field.label} onClick={() => update(index, { options: field.options?.filter((_, i) => i !== optionIndex) })}><X size={15} aria-hidden="true" /></button></div>)}
                 <button type="button" className="rfb-text-btn" disabled={(field.options?.length ?? 0) >= 20} onClick={() => update(index, { options: [...(field.options ?? []), ""] })}><Plus size={14} aria-hidden="true" /> Add option</button><span className="rfb-option-count">{field.options?.length ?? 0} / 20</span>
-                <label className="rfb-check"><input type="checkbox" checked={!!field.allowOther} onChange={(event) => update(index, { allowOther: event.target.checked })} />Allow an ?Other? answer</label>
+                <label className="rfb-check"><input type="checkbox" checked={!!field.allowOther} onChange={(event) => update(index, { allowOther: event.target.checked })} />Allow an “Other” answer</label>
               </div> : null}
               {field.kind === "section" ? <label className="rfb-extra">Description <span>(optional)</span><textarea rows={2} maxLength={500} value={field.description ?? ""} onChange={(event) => update(index, { description: event.target.value })} placeholder="Introduce the next group of questions" /></label> : null}
               {field.kind === "team" ? <TeamEditor field={field} onChange={(patch) => update(index, patch)} /> : null}

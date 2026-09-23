@@ -8,6 +8,8 @@ import { pctOfStrength } from "@/lib/admin/attendance-analytics";
 import { ALL_VIEW, deriveViews, describeCount } from "@/lib/admin/table-views";
 import { sortSessions, type SortDir } from "@/lib/admin/session-sort";
 import { istNumericDate } from "@/lib/datetime";
+import { SessionTitle } from "./SessionTitle";
+import type { RenameResult } from "./AdminTable";
 
 /** Structurally the `SessionRow` the page hands over. Declared here rather than
  *  imported because `attendance-club.ts` is `server-only`; `page.tsx` passes the
@@ -25,19 +27,14 @@ interface Row {
 
 const STATUS_LABEL: Record<Row["status"], string> = { open: "Open", closed: "Closed" };
 
-/**
- * Session history: the club's past roll calls, with the same toolbar every other
- * admin list screen has — search, derived Open/Closed chips, a count line and a
- * real empty state.
- *
- * ⚠️ Deliberately NOT on `AdminTable`, which every other list screen uses.
- * `AdminTable` has no column sorting, and this table's Date header toggles
- * newest ⇄ oldest — a feature added on purpose in `7e96f6f`. Adopting the shared
- * component would have silently dropped it. The toolbar markup below is
- * therefore a copy of `AdminTable`'s by necessity; if sorting ever lands there,
- * this should collapse into it.
- */
-export function SessionHistory({ sessions, strength }: { sessions: Row[]; strength: number }) {
+/** Shared club and Council history, with search, status filters and date sorting. */
+export function SessionHistory({ sessions, strength, scope = "attendance", onRename }: {
+  sessions: Row[];
+  strength: number;
+  scope?: "attendance" | "council";
+  onRename?: (id: string, title: string) => Promise<RenameResult>;
+}) {
+  const noun = scope === "council" ? "meeting" : "session";
   const [q, setQ] = useState("");
   const [view, setView] = useState(ALL_VIEW);
   const [dir, setDir] = useState<SortDir>("newest");
@@ -47,7 +44,7 @@ export function SessionHistory({ sessions, strength }: { sessions: Row[]; streng
     return (
       <div className="table-empty">
         <span className="table-empty-icon"><CalendarX size={24} aria-hidden="true" /></span>
-        <h2>No sessions yet</h2>
+        <h2>No {noun}s yet</h2>
         <p>Create one above and it will show up here once you have taken the register.</p>
       </div>
     );
@@ -79,8 +76,8 @@ export function SessionHistory({ sessions, strength }: { sessions: Row[]; streng
               type="search"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search sessions…"
-              aria-label="Search session history by title, date or status"
+              placeholder={`Search ${noun}s…`}
+              aria-label={`Search ${noun} history by title, date or status`}
             />
             {q ? (
               <button
@@ -110,50 +107,48 @@ export function SessionHistory({ sessions, strength }: { sessions: Row[]; streng
             </div>
           ) : null}
         </div>
-        <p className="count-note" aria-live="polite">
-          {describeCount({ shown: rows.length, total: sessions.length, noun: "session", view, query: q })}
+        <div className="listbar-meta"><p className="count-note" aria-live="polite">
+          {describeCount({ shown: rows.length, total: sessions.length, noun, view, query: q })}
         </p>
+        {q.trim() || view !== ALL_VIEW ? <button type="button" className="listbar-reset" onClick={clearFilters}>Reset filters <X size={13} aria-hidden="true" /></button> : null}
+        <button type="button" className="listbar-reset session-sort" onClick={() => setDir((d) => d === "newest" ? "oldest" : "newest")}
+          aria-label={dir === "newest" ? "Sorted newest first — sort oldest first" : "Sorted oldest first — sort newest first"}>
+          {dir === "newest" ? "Newest first ↓" : "Oldest first ↑"}
+        </button>
+        </div>
       </div>
 
       {rows.length === 0 ? (
         <div className="table-empty">
           <span className="table-empty-icon"><Search size={24} aria-hidden="true" /></span>
-          <h2>No matching sessions</h2>
+          <h2>No matching {noun}s</h2>
           <p>Try another search, or clear the filters to see every session.</p>
           <button type="button" className="btn btn-ghost" onClick={clearFilters}>
             Clear filters
           </button>
         </div>
       ) : (
-        <div className="tablewrap cards" tabIndex={0} role="region" aria-label="Session history">
-          <table className="admin" data-density="comfortable" aria-label="Session history">
-            <thead><tr>
-              <th>Session</th>
-              <th aria-sort={dir === "newest" ? "descending" : "ascending"}>
-                <button
-                  type="button"
-                  className="th-sort"
-                  onClick={() => setDir((d) => (d === "newest" ? "oldest" : "newest"))}
-                  aria-label={dir === "newest" ? "Sorted newest first — sort oldest first" : "Sorted oldest first — sort newest first"}
-                >
-                  Date <span aria-hidden="true">{dir === "newest" ? "▼" : "▲"}</span>
-                </button>
-              </th>
-              <th>Slot</th><th>Status</th><th>Present</th><th>% strength</th><th></th>
-            </tr></thead>
-            <tbody>{rows.map((s) => (
-              <tr key={s.id}>
-                <td data-primary="" className="att-row-title">{s.title}</td>
-                <td data-label="Date">{istNumericDate(s.sessionDate ?? s.openedAt)}</td>
-                <td data-label="Slot">{s.startTime && s.endTime ? `${s.startTime.slice(0, 5)}–${s.endTime.slice(0, 5)}` : "—"}</td>
-                <td data-label="Status"><span className={`abadge${s.status === "closed" ? "" : " abadge-approved"}`}>{STATUS_LABEL[s.status]}</span></td>
-                <td data-label="Present">{s.presentCount}</td>
-                <td data-label="% strength">{pctOfStrength(s.presentCount, strength)}%</td>
-                <td data-action=""><Link href={`/admin/attendance/sessions/${s.id}`} className="btn btn-sm">Open</Link></td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </div>
+        <ul className="session-history-list" aria-label={`${scope === "council" ? "Meeting" : "Session"} history`}>
+          {rows.map((s) => {
+            const pct = pctOfStrength(s.presentCount, strength);
+            return <li key={s.id} className="session-history-row">
+              <div className="session-history-name">
+                <SessionTitle id={s.id} title={s.title} onRename={onRename} />
+                <span className={`abadge${s.status === "closed" ? "" : " abadge-approved"}`}>{STATUS_LABEL[s.status]}</span>
+              </div>
+              <div className="session-history-date">
+                <time dateTime={(s.sessionDate ?? s.openedAt).slice(0, 10)}>{istNumericDate(s.sessionDate ?? s.openedAt)}</time>
+                <span>{s.startTime && s.endTime ? `${s.startTime.slice(0, 5)}–${s.endTime.slice(0, 5)}` : "—"}</span>
+              </div>
+              <div className="session-turnout" title={`${s.presentCount} present · ${strength} current members`}>
+                <span>{pct}% present</span>
+                <progress value={Math.min(pct, 100)} max={100} aria-label={`Turnout for ${s.title}: ${pct}% of current roster`} />
+                <small>{s.presentCount} of {strength} members</small>
+              </div>
+              <Link href={`/admin/${scope}/sessions/${s.id}`} className="session-open" aria-label={`Open ${s.title}`}>Open <span aria-hidden="true">→</span></Link>
+            </li>;
+          })}
+        </ul>
       )}
     </>
   );

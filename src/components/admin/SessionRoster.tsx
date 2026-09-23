@@ -10,6 +10,7 @@ import { matchesQuery } from "@/lib/admin/roster-filter";
 import { tallyMarks, type MarkState } from "@/lib/admin/attendance-marks";
 import type { RosterMark } from "@/lib/admin/attendance-club";
 import { useToast } from "./Toaster";
+import { Search, X } from "lucide-react";
 
 /** How long to wait after the last tap before saving. Long enough that marking a
  *  run of members is one request, short enough that little is ever at risk. */
@@ -54,6 +55,7 @@ export function SessionRoster({
   const [saveState, setSaveState] = useState<"clean" | "saving" | "saved" | "error">("clean");
   const inFlight = useRef(false);
   const [q, setQ] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const toast = useToast();
 
@@ -119,6 +121,8 @@ export function SessionRoster({
     if (!dirty || inFlight.current) return;
 
     const timer = setTimeout(async () => {
+      // A manual save can start after this timer was scheduled.
+      if (inFlight.current) return;
       inFlight.current = true;
       setSaveState("saving");
       const sending = new Map(marks);
@@ -136,7 +140,7 @@ export function SessionRoster({
       }
     }, AUTOSAVE_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [marks, dirty, canEdit, closed, sessionId]);
+  }, [marks, saved, dirty, canEdit, closed, sessionId]);
 
   if (total === 0) {
     return (
@@ -220,8 +224,9 @@ export function SessionRoster({
       <div className="listbar">
         <div className="listbar-row">
           <div className="listbar-search">
-            <span aria-hidden="true">⌕</span>
+            <span aria-hidden="true"><Search size={17} /></span>
             <input
+              ref={searchRef}
               type="search"
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -231,6 +236,7 @@ export function SessionRoster({
               placeholder="Search name or roll…"
               aria-label="Search members by name or roll number"
             />
+            {q ? <button type="button" className="listbar-clear" aria-label="Clear search" onClick={() => { setQ(""); searchRef.current?.focus(); }}><X size={16} aria-hidden="true" /></button> : null}
           </div>
           <div className="view-chips">
             {FILTERS.map((f) => (
@@ -330,7 +336,8 @@ export function SessionRoster({
 
       <p className="sroster-foot">
         Turnout counts a member only from their join date. Marks save on their own
-        as you go — “Save draft” keeps the session open, “Save &amp; close” finalises it.
+        as you go. Save draft keeps the session open. Save &amp; close automatically marks
+        every remaining unmarked student absent.
       </p>
 
       {/* Reopening a closed session now lives in the page head, beside Export —

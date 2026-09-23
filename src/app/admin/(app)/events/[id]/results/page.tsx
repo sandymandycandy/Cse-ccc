@@ -70,24 +70,29 @@ export default async function AdminResultsPage({
           <form
             action={createRoundAction}
             className="stack"
-            style={{ flexDirection: "row", gap: 6, alignItems: "center" }}
+            style={{ flexDirection: "row", flexWrap: "nowrap", gap: 8, alignItems: "center", width: 320, maxWidth: "100%" }}
           >
             <input type="hidden" name="eventId" value={id} />
             <input
               name="name"
+              aria-label="New round name"
               placeholder="New round…"
               required
               maxLength={60}
               style={{
                 font: "400 13px var(--sans)",
-                padding: "5px 9px",
+                padding: "9px 10px",
+                minHeight: 42,
+                minWidth: 0,
+                flex: "1 1 180px",
+                width: 180,
                 border: "1px solid var(--line-4)",
                 borderRadius: 7,
                 background: "var(--paper)",
                 color: "var(--ink)",
               }}
             />
-            <button type="submit" className="btn btn-ghost btn-sm">
+            <button type="submit" className="btn btn-ghost btn-sm" style={{ minHeight: 42, flexShrink: 0 }}>
               Add round
             </button>
           </form>

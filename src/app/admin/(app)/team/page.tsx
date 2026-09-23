@@ -5,7 +5,8 @@ import { canManage, canView } from "@/lib/auth/capabilities";
 import { getClub, layers, objectPosition, portraitOf, type LayerId } from "@/data/ccc";
 import { listTeamProfiles } from "@/lib/admin/team-profiles";
 import { publicPhotoUrl } from "@/lib/team/profiles";
-import { TeamProfileRow, type TeamProfileRowData } from "@/components/admin/TeamProfileRow";
+import { type TeamProfileRowData } from "@/components/admin/TeamProfileRow";
+import { TeamDirectory } from "@/components/admin/TeamDirectory";
 import { saveTeamProfileAction, syncTeamProfilesAction } from "./profile-actions";
 
 /**
@@ -66,11 +67,10 @@ export default async function AdminTeamPage() {
         on <code>/team</code> straight away.
       </p>
       <p className="body-text" style={{ marginTop: 8, maxWidth: 640, color: "var(--ink-3)" }}>
-        Who is on the page, and which section they appear in, is set in code — adding or
-        removing a person needs a change to the site. This is a separate list from the
-        attendance roster in <Link href="/admin/council/members">Council → Members</Link>.
+        To manage the attendance roster, use <Link href="/admin/council/members">Council → Members</Link>.
       </p>
 
+      <TeamDirectory rows={rows} layers={layers.map(({ id, title }) => ({ id, title }))} saveAction={saveTeamProfileAction} canEdit={canEdit}>
       {canEdit && unsaved > 0 ? (
         <form
           action={syncTeamProfilesAction}
@@ -98,25 +98,7 @@ export default async function AdminTeamPage() {
         </form>
       ) : null}
 
-      {layers.map((layer) => {
-        const inLayer = rows.filter((r) => r.layer === layer.id);
-        if (inLayer.length === 0) return null;
-        return (
-          <section key={layer.id} style={{ marginTop: 28 }}>
-            <div className="sec-head">
-              <h2 style={{ margin: 0 }}>{layer.title}</h2>
-              <span className="label">
-                {inLayer.length} {inLayer.length === 1 ? "person" : "people"}
-              </span>
-            </div>
-            <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
-              {inLayer.map((row) => (
-                <TeamProfileRow key={row.memberId} row={row} saveAction={saveTeamProfileAction} canEdit={canEdit} />
-              ))}
-            </div>
-          </section>
-        );
-      })}
+      </TeamDirectory>
     </div>
   );
 }

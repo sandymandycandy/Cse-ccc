@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Search } from "lucide-react";
 import {
   saveAndCloseAction,
   reopenSessionAction,
@@ -42,8 +43,9 @@ export function CouncilSessionRoster({
         <span><strong>{present.size}</strong> of {roster.length} present</span>
         <span className={`abadge${closed ? "" : " abadge-approved"}`}>{closed ? "Closed" : "Open"}</span>
       </div>
+      <div className="listbar"><div className="listbar-search">
+      <span aria-hidden="true"><Search size={17} /></span>
       <input
-        className="search-input"
         type="search"
         value={q}
         onChange={(e) => setQ(e.target.value)}
@@ -51,7 +53,8 @@ export function CouncilSessionRoster({
         placeholder="Search name or roll…"
         aria-label="Search members by name or roll number"
       />
-      {canEdit ? (
+      </div></div>
+      {canEdit && !closed ? (
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
           <button type="button" className="btn btn-sm" onClick={() => setAll(true)}>Mark all present</button>
           <button type="button" className="btn btn-sm" onClick={() => setAll(false)}>Clear</button>
@@ -73,7 +76,7 @@ export function CouncilSessionRoster({
                   </span>
                 </span>
                 <span className="sroster-roll">{r.rollNo ?? "—"}</span>
-                {canEdit ? (
+                {canEdit && !closed ? (
                   <button type="button" className="btn btn-sm"
                     onClick={() => toggle(r.memberId)}
                     style={on ? { background: "var(--forest)", color: "#fff", borderColor: "var(--forest)" } : undefined}
@@ -94,7 +97,7 @@ export function CouncilSessionRoster({
           <span className="hint">
             {closed
               ? "Reopen to edit this meeting again."
-              : "Saves the marked attendance and closes the meeting."}
+              : "Everyone not marked present will be recorded as absent when you close this meeting."}
           </span>
         </div>
       ) : null}

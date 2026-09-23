@@ -46,8 +46,8 @@ describe("SessionHistory", () => {
 
   it("keeps the newest-first sort toggle the shared table cannot offer", () => {
     const html = history([row()]);
-    expect(html).toContain("th-sort");
-    expect(html).toContain('aria-sort="descending"');
+    expect(html).toContain('aria-label="Sorted newest first — sort oldest first"');
+    expect(html).toContain("Newest first");
   });
 
   it("counts sessions by name, not as generic rows", () => {
@@ -67,5 +67,13 @@ describe("SessionHistory", () => {
 
   it("survives a session with no slot", () => {
     expect(history([row({ startTime: null, endTime: null })])).toContain("—");
+  });
+
+  it("routes Council history to Council meetings and retains rename", () => {
+    const html = renderToStaticMarkup(<SessionHistory sessions={[row()]} strength={10} scope="council" onRename={async () => ({ ok: true })} />);
+    expect(html).toContain('href="/admin/council/sessions/s1"');
+    expect(html).toContain("1 meeting");
+    expect(html).toContain('aria-label="Rename Weekly sync"');
+    expect(html).not.toContain('/admin/attendance/sessions/');
   });
 });

@@ -16,6 +16,18 @@ export type Mark = "present" | "absent";
 /** `null` = not yet marked, which is stored as the absence of a row. */
 export type MarkState = Mark | null;
 
+/** Finalise only the authorised roster. Omitted saved marks survive; unmarked
+ * members become absent when the session is explicitly closed. */
+export function finaliseMarks(
+  roster: readonly { memberId: string; mark: MarkState }[],
+  submitted: ReadonlyMap<string, MarkState>,
+): Map<string, Mark> {
+  return new Map(roster.map(({ memberId, mark }) => [
+    memberId,
+    (submitted.has(memberId) ? submitted.get(memberId) : mark) ?? "absent",
+  ]));
+}
+
 export interface MarkDiff {
   /** Rows to insert or update, because the mark is new or has changed. */
   toUpsert: { memberId: string; status: Mark }[];

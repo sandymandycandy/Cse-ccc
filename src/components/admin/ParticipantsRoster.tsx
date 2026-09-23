@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Search } from "lucide-react";
 import { matchesAny } from "@/lib/admin/roster-filter";
 import {
   teamLabel,
@@ -43,26 +44,32 @@ export function ParticipantsRoster({
 
   return (
     <>
-      <input
-        className="search-input"
-        type="search"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Search name, roll, email, phone, department, team…"
-        aria-label="Search registered participants by any detail"
-      />
+      <div className="listbar">
+        <div className="listbar-row">
+          <div className="listbar-search">
+            <span aria-hidden="true"><Search size={17} /></span>
+            <input
+              type="search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search name, roll, email, phone, department, team…"
+              aria-label="Search registered participants by any detail"
+            />
+          </div>
+        </div>
 
-      {searching ? (
-        <p className="label" style={{ color: "var(--ink-3)", marginTop: 2 }} aria-live="polite">
-          {found === 0
-            ? `Nothing matches “${q.trim()}”`
-            : hasTeams
-              ? `${found} of ${total} ${total === 1 ? "entry" : "entries"} · ${people} ${
-                  people === 1 ? "person" : "people"
-                }`
-              : `${found} of ${total} matching`}
-        </p>
-      ) : null}
+        {searching ? (
+          <p className="count-note" aria-live="polite">
+            {found === 0
+              ? `Nothing matches “${q.trim()}”`
+              : hasTeams
+                ? `${found} of ${total} ${total === 1 ? "entry" : "entries"} · ${people} ${
+                    people === 1 ? "person" : "people"
+                  }`
+                : `${found} of ${total} matching`}
+          </p>
+        ) : null}
+      </div>
 
       {found === 0 ? null : (
         <>

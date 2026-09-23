@@ -254,7 +254,10 @@ export async function saveAttendanceAction(formData: FormData): Promise<void> {
   const detail = await getSessionMarking(sessionId);
   if (!detail) redirect("/admin/council");
 
-  const present = formData.getAll("present").map(String).filter((v) => z.string().uuid().safeParse(v).success);
+  if (detail.session.status === "closed") redirect(`/admin/council/sessions/${sessionId}`);
+  const ids = new Set(detail.roster.map((r) => r.memberId));
+  // Council stores presence rows; everyone else is absent in the closed register.
+  const present = [...new Set(formData.getAll("present").map(String))].filter((id) => ids.has(id));
   await savePresence(sessionId, present, session.id);
   await writeAudit({
     actorId: session.id, action: "update", entity: "council_attendance_session",
@@ -272,12 +275,15 @@ export async function saveAndCloseAction(formData: FormData): Promise<void> {
   const detail = await getSessionMarking(sessionId);
   if (!detail) redirect("/admin/council");
 
-  const present = formData.getAll("present").map(String).filter((v) => z.string().uuid().safeParse(v).success);
+  if (detail.session.status === "closed") redirect(`/admin/council/sessions/${sessionId}`);
+  const ids = new Set(detail.roster.map((r) => r.memberId));
+  // Council stores presence rows; everyone else is absent in the closed register.
+  const present = [...new Set(formData.getAll("present").map(String))].filter((id) => ids.has(id));
   await savePresence(sessionId, present, session.id);
   await setSessionStatus(sessionId, "closed");
   await writeAudit({
     actorId: session.id, action: "close", entity: "council_attendance_session",
-    entityId: sessionId, after: { present: present.length, closed: true },
+    entityId: sessionId, after: { present: present.length, absent: detail.roster.length - present.length, closed: true },
   });
   redirect(`/admin/council/sessions/${sessionId}?closed=1`);
 }

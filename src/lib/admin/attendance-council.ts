@@ -152,23 +152,27 @@ export async function createSession(input: {
 
 export async function setSessionStatus(sessionId: string, status: "open" | "closed"): Promise<void> {
   const admin = createAdminClient();
-  await admin.from("council_attendance_sessions")
+  const { error } = await admin.from("council_attendance_sessions")
     .update({ status, closed_at: status === "closed" ? new Date().toISOString() : null })
     .eq("id", sessionId);
+  if (error) throw error;
 }
 
 export async function getSessionMarking(
   sessionId: string,
 ): Promise<{ session: CouncilSession; roster: { memberId: string; name: string; rollNo: string | null; designation: string; present: boolean }[] } | null> {
   const admin = createAdminClient();
-  const { data: s } = await admin
+  const { data: s, error: sessionError } = await admin
     .from("council_attendance_sessions").select(SESSION_COLS).eq("id", sessionId).maybeSingle();
+  if (sessionError) throw sessionError;
   if (!s) return null;
-  const { data: marks } = await admin.from("council_attendance").select("member_id").eq("session_id", sessionId);
+  const { data: marks, error: marksError } = await admin.from("council_attendance").select("member_id").eq("session_id", sessionId);
+  if (marksError) throw marksError;
   const present = new Set((marks ?? []).map((m) => m.member_id));
-  const { data: members } = await admin
+  const { data: members, error: membersError } = await admin
     .from("council_members").select("id, full_name, roll_no, designation")
     .eq("is_active", true).not("approved_at", "is", null).order("full_name");
+  if (membersError) throw membersError;
   const roster = (members ?? []).map((m) => ({
     memberId: m.id, name: m.full_name, rollNo: m.roll_no, designation: m.designation, present: present.has(m.id),
   }));
@@ -177,15 +181,18 @@ export async function getSessionMarking(
 
 export async function savePresence(sessionId: string, desiredIds: string[], markedBy: string): Promise<void> {
   const admin = createAdminClient();
-  const { data: marks } = await admin.from("council_attendance").select("member_id").eq("session_id", sessionId);
+  const { data: marks, error: marksError } = await admin.from("council_attendance").select("member_id").eq("session_id", sessionId);
+  if (marksError) throw marksError;
   const current = new Set((marks ?? []).map((m) => m.member_id));
   const { toAdd, toRemove } = diffPresence(current, new Set(desiredIds));
   if (toAdd.length > 0) {
-    await admin.from("council_attendance")
+    const { error } = await admin.from("council_attendance")
       .insert(toAdd.map((memberId) => ({ session_id: sessionId, member_id: memberId, marked_by: markedBy })));
+    if (error) throw error;
   }
   if (toRemove.length > 0) {
-    await admin.from("council_attendance").delete().eq("session_id", sessionId).in("member_id", toRemove);
+    const { error } = await admin.from("council_attendance").delete().eq("session_id", sessionId).in("member_id", toRemove);
+    if (error) throw error;
   }
 }
 

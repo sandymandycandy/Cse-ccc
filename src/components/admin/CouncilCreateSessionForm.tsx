@@ -10,7 +10,7 @@ const initial: SessionFormState = {};
 export function CouncilCreateSessionForm() {
   const [state, action, pending] = useActionState(createSessionAction, initial);
   return (
-    <form action={action} style={{ display: "grid", gap: 10, maxWidth: 460 }}>
+    <form action={action} className="session-create-form">
       <div className={fieldClass(state.fieldErrors, "title")} style={{ margin: 0 }}>
         <label htmlFor="title">Meeting name</label>
         <input id="title" name="title" required maxLength={140} placeholder="Council sync" />
@@ -21,7 +21,7 @@ export function CouncilCreateSessionForm() {
         <input id="sessionDate" name="sessionDate" type="date" required />
         <FieldError errors={state.fieldErrors} name="sessionDate" />
       </div>
-      <div style={{ display: "flex", gap: 10 }}>
+      <div className="session-time-fields">
         <div className={fieldClass(state.fieldErrors, "startTime")} style={{ margin: 0, flex: 1 }}>
           <label htmlFor="startTime">Start</label>
           <input id="startTime" name="startTime" type="time" required />

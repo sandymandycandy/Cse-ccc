@@ -73,13 +73,13 @@ export function TeamProfileRow({
   const id = (field: string) => `${field}-${row.memberId}`;
 
   return (
-    <div className="panel" style={{ padding: 16, borderRadius: "var(--r-md)", display: "grid", gap: 12 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+    <details className="panel team-profile">
+      <summary className="team-profile-summary">
         <div
           style={{
-            width: 56,
-            aspectRatio: "4 / 5",
-            borderRadius: "var(--r-sm)",
+            width: 46,
+            height: 46,
+            borderRadius: "50%",
             overflow: "hidden",
             background: "var(--sand)",
             flex: "none",
@@ -98,15 +98,14 @@ export function TeamProfileRow({
         </div>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 500 }}>{row.name}</div>
-          <div className="label" style={{ marginTop: 4 }}>
-            {row.role} · {row.placement}
-            {row.hasRow ? null : (
-              <span style={{ color: "var(--ink-3)" }}> · showing the form&rsquo;s answers</span>
-            )}
-          </div>
+          <div className="team-profile-role">{row.role}</div>
         </div>
-      </div>
+        <span className="team-profile-placement">{row.placement}</span>
+        <span className={`abadge ${row.hasRow || state.saved ? "abadge-approved" : "abadge-pending"}`}>{row.hasRow || state.saved ? "Saved" : "Unsaved"}</span>
+        <span className="team-profile-toggle"><span className="team-open-label">{canEdit ? "Edit" : "View"}</span><span className="team-close-label">Close</span> <span aria-hidden="true">→</span></span>
+      </summary>
 
+      <div className="team-profile-editor">
       {canEdit ? (
         <form action={formAction} style={{ display: "grid", gap: 10 }}>
           <input type="hidden" name="memberId" value={row.memberId} />
@@ -264,6 +263,7 @@ export function TeamProfileRow({
       ) : (
         <div className="label">{row.email}</div>
       )}
-    </div>
+      </div>
+    </details>
   );
 }

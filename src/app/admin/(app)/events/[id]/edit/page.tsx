@@ -54,8 +54,9 @@ export default async function EditEventPage({
       ) : null}
       <p className="event-save-notice">
         {event.approvalStatus === "rejected"
-          ? "Saving resends this event to the approval queue. Confirmed registrants are emailed whenever you change the details."
-          : "Changes save immediately and don’t change the event’s approval status. Confirmed registrants are emailed whenever you change the details."}
+          ? "Select Save changes to resubmit this event for approval."
+          : "Select Save changes to apply your edits. The event’s approval status stays the same."}
+        {event.status === "published" ? " Saving changes to the title, description, schedule, venue or capacity emails confirmed registrants." : ""}
       </p>
       <EventForm
         action={updateEventAction}
