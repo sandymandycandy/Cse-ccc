@@ -16,20 +16,37 @@ const chosen = (html: string) => {
 
 const form = (over: Partial<Parameters<typeof BroadcastForm>[0]> = {}) =>
   renderToStaticMarkup(
-    <BroadcastForm eventId="e1" confirmedCount={18} allCount={24} {...over} />,
+    <BroadcastForm eventId="e1" confirmedAddresses={18} allAddresses={24} {...over} />,
   );
 
 describe("BroadcastForm", () => {
-  it("shows both audiences with their entry counts", () => {
+  it("shows both audiences with the addresses each one reaches", () => {
     const html = form();
     expect(html).toContain("Confirmed participants");
-    expect(html).toContain("18 entries");
+    expect(html).toContain("18 addresses");
     expect(html).toContain("Everyone, including the waitlist");
-    expect(html).toContain("24 entries");
+    expect(html).toContain("24 addresses");
   });
 
-  it("counts a single entry in the singular", () => {
-    expect(form({ confirmedCount: 1 })).toContain("1 entry");
+  it("counts a single address in the singular", () => {
+    expect(form({ confirmedAddresses: 1 })).toContain("1 address<");
+  });
+
+  it("lays out recipients and message as two numbered panels", () => {
+    const html = form();
+    expect(html).toContain("broadcast-workspace");
+    expect(html).toMatch(/broadcast-step">01<[\s\S]*Choose recipients/);
+    expect(html).toMatch(/broadcast-step">02<[\s\S]*Write your message/);
+  });
+
+  // Mail cannot be recalled, so the button says how many it is about to reach.
+  it("names the default audience's address count on the send button", () => {
+    expect(form()).toContain("Send to 18 addresses");
+    expect(form({ confirmedAddresses: 1 })).toContain("Send to 1 address<");
+  });
+
+  it("does not offer to send to nobody", () => {
+    expect(form({ confirmedAddresses: 0 })).toMatch(/<button type="submit"[^>]*disabled/);
   });
 
   it("defaults to the confirmed list, not the waitlist", () => {

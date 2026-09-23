@@ -10,6 +10,7 @@ import { reminderText } from "@/lib/admin/reminder-text";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { istDateMedium, istTime } from "@/lib/datetime";
 import { BroadcastForm } from "@/components/admin/BroadcastForm";
+import { ArrowUpRight } from "lucide-react";
 
 /**
  * Email an event's participants. Reading and writing are both gated on
@@ -67,9 +68,12 @@ export default async function EmailParticipantsPage({
     for (const r of rows) for (const to of teamRecipients(schema, r.customAnswers, r.email)) seen.add(to);
     return seen.size;
   };
+  const confirmedAddresses = addresses(confirmed);
+  const allAddresses = addresses(regs);
+  const plural = (n: number) => (n === 1 ? "address" : "addresses");
 
   return (
-    <div className="admin-page">
+    <div className="admin-page email-page">
       <Link href={`/admin/events/${id}/registrations`} className="label" style={{ color: "var(--forest)" }}>
         ← Registrations
       </Link>
@@ -77,24 +81,27 @@ export default async function EmailParticipantsPage({
         <div>
           <div className="eyebrow">Email participants</div>
           <h1 style={{ margin: "6px 0 0" }}>{ev.title}</h1>
-          <p className="body-text" style={{ marginTop: 6 }}>
-            {addresses(confirmed)} confirmed{" "}
-            {addresses(confirmed) === 1 ? "address" : "addresses"} ·{" "}
-            {addresses(regs)} including the waitlist.
-          </p>
-          {lastEmail ? (
-            <p className="hint" style={{ marginTop: 8 }}>
-              Last emailed {istDateMedium(lastEmail.at)} at {istTime(lastEmail.at)}
-              {typeof lastRecipients === "number" ? ` — ${lastRecipients} addresses` : ""}.
-            </p>
-          ) : null}
         </div>
+        <Link href="/admin/outbox" className="btn btn-ghost">
+          View outbox <ArrowUpRight size={16} aria-hidden="true" />
+        </Link>
       </div>
+      <p className="admin-lead">
+        {confirmedAddresses} confirmed {plural(confirmedAddresses)} · {allAddresses} including the waitlist.
+      </p>
+      <p className="email-delivery-note">
+        {lastEmail
+          ? `Last emailed ${istDateMedium(lastEmail.at)} at ${istTime(lastEmail.at)}${
+              typeof lastRecipients === "number" ? ` — ${lastRecipients} ${plural(lastRecipients)}` : ""
+            }. `
+          : "Not emailed yet. "}
+        Every message is delivered in the background — follow it in the <Link href="/admin/outbox">Outbox</Link>.
+      </p>
 
       <BroadcastForm
         eventId={id}
-        confirmedCount={confirmed.length}
-        allCount={regs.length}
+        confirmedAddresses={confirmedAddresses}
+        allAddresses={allAddresses}
         reminder={reminder}
       />
     </div>
