@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-23 (registrations team list + per-person attendance MERGED into local `main` (NOT pushed), migration NOT applied; admin refresh follow-up — Email/Audit/Team/attendance screens + attendance close semantics — SHIPPED (454f244); 2026-09-22: three deploys: event WhatsApp group link SHIPPED (81753d6) with migration `event_whatsapp_link` APPLIED LIVE; tabbed event form + three design-handoff gaps SHIPPED (543f89c); rebuilt maintenance page SHIPPED DARK (a97c311); 2026-09-20: admin layout/interaction upgrade SHIPPED (d27c4d9), migration `attendance_absent_mark` APPLIED LIVE — club attendance is now tri-state; 2026-09-18: new `/team` page + its CMS SHIPPED (73058ce), migration team_profiles applied live and still empty; 2026-09-17: co-host dropdown + sectioned event form SHIPPED; session history search + sortable date SHIPPED; co-hosted events shipped earlier the same day; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed).**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-23 (registrations team list + per-person attendance MERGED into local `main` (NOT pushed), migration `registration_absent_members` APPLIED LIVE; admin refresh follow-up — Email/Audit/Team/attendance screens + attendance close semantics — SHIPPED (454f244); 2026-09-22: three deploys: event WhatsApp group link SHIPPED (81753d6) with migration `event_whatsapp_link` APPLIED LIVE; tabbed event form + three design-handoff gaps SHIPPED (543f89c); rebuilt maintenance page SHIPPED DARK (a97c311); 2026-09-20: admin layout/interaction upgrade SHIPPED (d27c4d9), migration `attendance_absent_mark` APPLIED LIVE — club attendance is now tri-state; 2026-09-18: new `/team` page + its CMS SHIPPED (73058ce), migration team_profiles applied live and still empty; 2026-09-17: co-host dropdown + sectioned event form SHIPPED; session history search + sortable date SHIPPED; co-hosted events shipped earlier the same day; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed).**
 
 ## What this is
 
@@ -21,15 +21,15 @@ end-to-end**, not a checklist of components.
 ## 🚦 START HERE — current git/deploy state (2026-09-23)
 
 > ### ⛔ MERGED LOCALLY, NOT PUSHED — registrations team list + per-person attendance
-> Merged into local `main` from `feat/registrations-team-attendance`, **DO NOT
-> PUSH `main` until the migration below is applied** — Vercel deploys on push. (spec
+> Merged into local `main` from `feat/registrations-team-attendance`; migration
+> applied live 2026-09-23, so `main` is safe to push once the owner says so. (spec
 > `docs/superpowers/specs/2026-09-23-registrations-team-attendance-design.md`,
 > plan in `docs/superpowers/plans/`). Gate: typecheck ✓ lint ✓ **1524 tests /
 > 130 files** ✓ build ✓. **Not browser-checked yet.**
 >
-> - ⚠️ **Migration `20260923000000_registration_absent_members.sql` is NOT
->   applied live.** The owner said "not yet" on 2026-09-23. **Apply it before
->   pushing.** The branch's page, export and certificates all select
+> - ✅ **Migration `20260923000000_registration_absent_members.sql` APPLIED
+>   LIVE 2026-09-23** (owner-approved), verified: `smallint[] not null default
+>   '{}'`, 24 rows, none non-empty. The branch's page, export and certificates all select
 >   `absent_members`, so deploying without it breaks them. It is additive
 >   (`smallint[] not null default '{}'`, no backfill).
 > - `/admin/events/[id]/registrations` is now one compact row per team: team
