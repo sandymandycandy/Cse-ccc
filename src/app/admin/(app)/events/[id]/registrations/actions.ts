@@ -12,12 +12,16 @@ import { isAttendanceEligible } from "@/lib/admin/attendance-eligibility";
 import { teamRecipients } from "@/lib/registration-form/recipients";
 import { enqueueEmail } from "@/lib/email";
 import { writeAudit } from "@/lib/admin/audit";
+import { teamOf } from "@/lib/certificates/fields";
+import { setPerson } from "@/lib/admin/team-attendance";
+import { getRegistrationForMarking, writeRegistrationAttendance } from "@/lib/admin/registration-attendance";
 
 const uuid = z.string().uuid();
 
 /**
  * Manual attendance toggle — the walk-in / dead-phone fallback (§13.8). Marks or
- * clears `attended` with checkin_method='manual' and records the actor, audited.
+ * clears the whole team (`attended`) with checkin_method='manual' and records the
+ * actor, audited. Either way every per-person absence is cleared.
  */
 export async function toggleAttendanceAction(formData: FormData): Promise<void> {
   const session = await getAdminSession();
@@ -50,16 +54,18 @@ export async function toggleAttendanceAction(formData: FormData): Promise<void> 
     }
   }
 
-  await admin
+  const { error } = await admin
     .from("registrations")
     .update({
       attended: attend,
+      absent_members: [],
       checked_in_at: attend ? new Date().toISOString() : null,
       checked_in_by: attend ? session.id : null,
       checkin_method: attend ? "manual" : null,
     })
     .eq("id", registrationId)
     .eq("event_id", eventId);
+  if (error) throw error;
 
   await writeAudit({
     actorId: session.id,
@@ -219,4 +225,58 @@ export async function unshortlistAction(formData: FormData): Promise<void> {
     after: { registrationId: regId },
   });
   redirect(`/admin/events/${eventId}/registrations`);
+}
+
+export type MemberAttendanceResult =
+  | { ok: true; attended: boolean; absent: number[] }
+  | { ok: false; error: string };
+
+/**
+ * One person on a team, present or absent (spec 2026-09-23). Present is the
+ * default, so this records exceptions; the rules live in team-attendance.ts.
+ */
+export async function setMemberAttendanceAction(input: {
+  eventId: string;
+  registrationId: string;
+  position: number;
+  present: boolean;
+}): Promise<MemberAttendanceResult> {
+  const denied = { ok: false as const, error: "You can't mark attendance for this entry." };
+  const session = await getAdminSession();
+  if (!session) return denied;
+  if (!uuid.safeParse(input.eventId).success || !uuid.safeParse(input.registrationId).success) return denied;
+
+  const ev = await getEventForAttendance(input.eventId);
+  if (!ev || !canManageEvent(session, "manage:registrations", ev.hosts)) return denied;
+
+  const [{ schema, selectionMode }, reg] = await Promise.all([
+    getEventFormSchema(input.eventId),
+    getRegistrationForMarking(input.eventId, input.registrationId),
+  ]);
+  if (!reg || !isAttendanceEligible(reg, selectionMode)) return denied;
+
+  const team = teamOf(reg, schema);
+  const people = team.length > 0 ? team.map((p) => p.name || p.roll) : [reg.name];
+  const next = setPerson(people.length, { attended: reg.attended, absent: reg.absent }, input.position, input.present);
+  if (!next) return { ok: false, error: "Could not save — refresh and try again." };
+
+  // Solo entries never carry per-person absences.
+  const absent = team.length > 0 ? next.absent : [];
+  await writeRegistrationAttendance({
+    eventId: input.eventId,
+    registrationId: input.registrationId,
+    attended: next.attended,
+    absent,
+    actorId: session.id,
+    stampCheckIn: next.attended !== reg.attended,
+  });
+  await writeAudit({
+    actorId: session.id,
+    action: "attend_member",
+    entity: "registration",
+    entityId: input.registrationId,
+    after: { position: input.position, name: people[input.position], present: input.present },
+  });
+  revalidatePath(`/admin/events/${input.eventId}/registrations`);
+  return { ok: true, attended: next.attended, absent };
 }
