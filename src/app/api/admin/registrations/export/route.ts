@@ -5,6 +5,8 @@ import { listRegistrations, getEventFormSchema } from "@/lib/admin/registrations
 import { answerColumns } from "@/lib/registration-form/columns";
 import { toCsv } from "@/lib/csv";
 import { writeAudit } from "@/lib/admin/audit";
+import { teamOf } from "@/lib/certificates/fields";
+import { absentNames, attendanceCell } from "@/lib/admin/team-attendance";
 
 /** Registrations CSV export — manage:registrations, own-club scoped, audited (§14). */
 export async function GET(request: Request) {
@@ -32,24 +34,30 @@ export async function GET(request: Request) {
     "Phone",
     "Confirmed",
     "Attended",
+    "Absent members",
     "Method",
     "Shortlisted",
     ...columns.map((c) => c.label),
   ];
-  const rows = regs.map((r) => [
-    r.name,
-    r.teamName ?? "",
-    r.roll,
-    r.department,
-    r.year,
-    r.email,
-    r.phone,
-    r.confirmed ? "yes" : "no",
-    r.attended ? "yes" : "no",
-    r.method ?? "",
-    r.shortlistedAt ? "yes" : "no",
-    ...columns.map((c) => c.get(r.customAnswers)),
-  ]);
+  const rows = regs.map((r) => {
+    // Per-person attendance: yes / partial / no, and who on the team was absent.
+    const team = teamOf(r, schema);
+    return [
+      r.name,
+      r.teamName ?? "",
+      r.roll,
+      r.department,
+      r.year,
+      r.email,
+      r.phone,
+      r.confirmed ? "yes" : "no",
+      attendanceCell(team.length || 1, r.attended, r.absentMembers),
+      absentNames(team, r.attended, r.absentMembers),
+      r.method ?? "",
+      r.shortlistedAt ? "yes" : "no",
+      ...columns.map((c) => c.get(r.customAnswers)),
+    ];
+  });
   const csv = toCsv(headers, rows);
 
   await writeAudit({

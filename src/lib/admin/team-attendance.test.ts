@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normaliseAbsent, presentOf, presentPositions, setPerson, teamMark } from "./team-attendance";
+import { absentNames, attendanceCell, normaliseAbsent, presentOf, presentPositions, setPerson, teamMark } from "./team-attendance";
 
 describe("team attendance", () => {
   it("reads an attended team with no absentees as everyone present", () => {
@@ -59,5 +59,14 @@ describe("team attendance", () => {
     const present = presentOf(team, true, [0, 2]);
     expect(present.some((p) => p.isLeader)).toBe(false);
     expect(present.map((p) => p.name)).toEqual(["Asha"]);
+  });
+
+  it("formats the export cells", () => {
+    expect(attendanceCell(3, true, [])).toBe("yes");
+    expect(attendanceCell(3, true, [1])).toBe("partial");
+    expect(attendanceCell(3, false, [])).toBe("no");
+    const people = [{ name: "Lead", roll: "L1" }, { name: "Asha", roll: "A2" }, { name: "", roll: "R3" }];
+    expect(absentNames(people, true, [1, 2])).toBe("Asha (A2); R3");
+    expect(absentNames(people, false, [1])).toBe("");
   });
 });

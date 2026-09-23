@@ -45,3 +45,24 @@ export function presentOf<T>(people: readonly T[], attended: boolean, absent: re
   const keep = new Set(presentPositions(people.length, attended, absent));
   return people.filter((_, i) => keep.has(i));
 }
+
+/** The export's Attended cell: yes / partial / no. */
+export function attendanceCell(size: number, attended: boolean, absent: readonly number[]): "yes" | "partial" | "no" {
+  const mark = teamMark(size, attended, absent);
+  return mark === "present" ? "yes" : mark === "partial" ? "partial" : "no";
+}
+
+/** The export's Absent members cell: "Name (roll); …". */
+export function absentNames(
+  people: readonly { name: string; roll: string }[],
+  attended: boolean,
+  absent: readonly number[],
+): string {
+  if (!attended) return "";
+  return normaliseAbsent(people.length, absent)
+    .map((i) => {
+      const { name, roll } = people[i];
+      return name && roll ? `${name} (${roll})` : name || roll;
+    })
+    .join("; ");
+}
