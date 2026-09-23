@@ -440,3 +440,47 @@
     .audit-pagination .btn { flex: 1; }
   }
 }
+
+/* Registrations board: one compact row per team, everyone on it in a card. */
+.regboard { list-style: none; margin: 12px 0 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+.regboard-row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--line); }
+.regboard-row:first-child { border-top: 0; }
+.regboard-lead:empty { display: none; }
+.regboard-open { all: unset; cursor: pointer; display: grid; gap: 2px; flex: 1 1 220px; min-width: 0; }
+.regboard-open strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.regboard-open:hover strong { color: var(--forest); }
+.regboard-open:focus-visible { outline: 2px solid var(--forest); outline-offset: 4px; border-radius: 4px; }
+.regboard-count { color: var(--ink-3); font-size: 13px; white-space: nowrap; }
+.regboard-count:empty { display: none; }
+.regboard-action { display: inline-flex; gap: 8px; align-items: center; margin-left: auto; }
+@media (max-width: 640px) {
+  .regboard-action { margin-left: 0; width: 100%; }
+  .regboard-action > .btn { flex: 1; }
+}
+
+.regcard-backdrop { position: fixed; inset: 0; z-index: 60; background: rgb(0 0 0 / .35); }
+.regcard { position: fixed; z-index: 61; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(640px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow: auto; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 24px 60px rgb(0 0 0 / .25); }
+.regcard-head { position: sticky; top: 0; z-index: 1; display: flex; gap: 12px; align-items: flex-start; padding: 18px 20px; background: var(--paper); border-bottom: 1px solid var(--line); }
+.regcard-head > div { flex: 1; min-width: 0; }
+.regcard-head h2 { margin: 0; font-size: 20px; overflow-wrap: anywhere; }
+.regcard-head .hint { margin: 4px 0 0; }
+.regcard-close { all: unset; cursor: pointer; display: grid; place-items: center; padding: 6px; border-radius: 8px; color: var(--ink-2); }
+.regcard-close:focus-visible { outline: 2px solid var(--forest); }
+.regcard-body { display: grid; gap: 12px; padding: 16px 20px 22px; }
+.regcard-body h3 { margin: 6px 0 0; }
+.regcard-people { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.regcard-people li { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
+.regcard-person { display: grid; gap: 2px; min-width: 0; flex: 1 1 200px; }
+.regcard-person .hint { overflow-wrap: anywhere; }
+.regcard-toggle { display: inline-flex; flex: none; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.regcard-toggle button { padding: 6px 12px; border: 0; background: transparent; color: var(--ink-2); font: inherit; font-size: 13px; cursor: pointer; }
+.regcard-toggle button + button { border-left: 1px solid var(--line); }
+.regcard-toggle button[data-kind="present"][aria-pressed="true"] { background: var(--forest); color: var(--paper); }
+.regcard-toggle button[data-kind="absent"][aria-pressed="true"] { background: var(--rust); color: var(--paper); }
+.regcard-toggle button:focus-visible { outline: 2px solid var(--forest); outline-offset: -2px; }
+.regcard-toggle button:disabled { opacity: .55; cursor: default; }
+.regcard-error { margin: 8px 0 0; color: var(--rust); }
+.regcard-answers { margin: 0; display: grid; gap: 10px; }
+.regcard-answers dt { color: var(--ink-3); font-size: 12px; }
+.regcard-answers dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+.regcard-answers a { color: var(--forest); }
