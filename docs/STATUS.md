@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-23 (admin refresh follow-up — Email/Audit/Team/attendance screens + attendance close semantics — SHIPPED (454f244); 2026-09-22: three deploys: event WhatsApp group link SHIPPED (81753d6) with migration `event_whatsapp_link` APPLIED LIVE; tabbed event form + three design-handoff gaps SHIPPED (543f89c); rebuilt maintenance page SHIPPED DARK (a97c311); 2026-09-20: admin layout/interaction upgrade SHIPPED (d27c4d9), migration `attendance_absent_mark` APPLIED LIVE — club attendance is now tri-state; 2026-09-18: new `/team` page + its CMS SHIPPED (73058ce), migration team_profiles applied live and still empty; 2026-09-17: co-host dropdown + sectioned event form SHIPPED; session history search + sortable date SHIPPED; co-hosted events shipped earlier the same day; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed).**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-23 (registrations team list + per-person attendance BUILT on branch `feat/registrations-team-attendance`, migration NOT applied, not merged; admin refresh follow-up — Email/Audit/Team/attendance screens + attendance close semantics — SHIPPED (454f244); 2026-09-22: three deploys: event WhatsApp group link SHIPPED (81753d6) with migration `event_whatsapp_link` APPLIED LIVE; tabbed event form + three design-handoff gaps SHIPPED (543f89c); rebuilt maintenance page SHIPPED DARK (a97c311); 2026-09-20: admin layout/interaction upgrade SHIPPED (d27c4d9), migration `attendance_absent_mark` APPLIED LIVE — club attendance is now tri-state; 2026-09-18: new `/team` page + its CMS SHIPPED (73058ce), migration team_profiles applied live and still empty; 2026-09-17: co-host dropdown + sectioned event form SHIPPED; session history search + sortable date SHIPPED; co-hosted events shipped earlier the same day; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed).**
 
 ## What this is
 
@@ -19,6 +19,34 @@ end-to-end**, not a checklist of components.
 ---
 
 ## 🚦 START HERE — current git/deploy state (2026-09-23)
+
+> ### 🌿 BUILT ON A BRANCH, NOT MERGED — registrations team list + per-person attendance
+> Branch **`feat/registrations-team-attendance`** (spec
+> `docs/superpowers/specs/2026-09-23-registrations-team-attendance-design.md`,
+> plan in `docs/superpowers/plans/`). Gate: typecheck ✓ lint ✓ **1524 tests /
+> 130 files** ✓ build ✓. **Not browser-checked yet.**
+>
+> - ⚠️ **Migration `20260923000000_registration_absent_members.sql` is NOT
+>   applied live.** The owner said "not yet" on 2026-09-23. **Apply it before
+>   merging.** The branch's page, export and certificates all select
+>   `absent_members`, so deploying without it breaks them. It is additive
+>   (`smallint[] not null default '{}'`, no backfill).
+> - `/admin/events/[id]/registrations` is now one compact row per team: team
+>   name, leader, "N people · X present", a Not marked / Present / Partly present
+>   badge, and **Mark full team present**. Clicking a row opens a card with
+>   everyone on the team (Present / Absent each) and the other answers. Search
+>   reaches any member's name or roll number.
+> - **Present by default.** `attended` still means "the team came";
+>   `absent_members` lists team positions (index into `teamOf()`, leader = 0)
+>   that did not. Empty = everyone present, so past events are unchanged. All
+>   the rules live in `src/lib/admin/team-attendance.ts`: all absent → back to
+>   unmarked, and marking anyone on an unmarked team attends it.
+> - **Certificates skip absent people**, including an absent leader. Their email
+>   can still carry teammates' certificates. **Certificates already issued are
+>   NOT revoked.** Export: `Attended` = yes/partial/no, plus `Absent members`.
+> - New action `setMemberAttendanceAction` has the same authorisation and
+>   eligibility as the row button and is audited as `attend_member`. The
+>   full-team toggle now also clears absences.
 
 > ### 🚀 SHIPPED TO PRODUCTION 2026-09-23 — admin refresh follow-up
 > **`454f244`** on `main` (32 modified + 8 new files). Vercel reported
