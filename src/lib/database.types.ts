@@ -1938,6 +1938,7 @@ export type Database = {
       }
       registrations: {
         Row: {
+          absent_members: number[]
           attended: boolean
           checked_in_at: string | null
           checked_in_by: string | null
@@ -1961,6 +1962,7 @@ export type Database = {
           year: number | null
         }
         Insert: {
+          absent_members?: number[]
           attended?: boolean
           checked_in_at?: string | null
           checked_in_by?: string | null
@@ -1984,6 +1986,7 @@ export type Database = {
           year?: number | null
         }
         Update: {
+          absent_members?: number[]
           attended?: boolean
           checked_in_at?: string | null
           checked_in_by?: string | null

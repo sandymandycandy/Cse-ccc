@@ -13,6 +13,7 @@ const row = (over: Partial<RegistrationRow>): RegistrationRow => ({
   teamName: null,
   confirmed: true,
   attended: false,
+  absentMembers: [],
   method: null,
   customAnswers: null,
   shortlistedAt: null,

@@ -13,6 +13,8 @@ export interface RegistrationRow {
   phone: string | null;
   confirmed: boolean;
   attended: boolean;
+  /** Team positions (leader = 0) marked absent on an attended entry. Empty = all present. */
+  absentMembers: number[];
   method: string | null;
   customAnswers: Record<string, unknown> | null;
   /** The team's own name; null on solo events and on rows predating the field. */
@@ -26,7 +28,7 @@ export async function listRegistrations(eventId: string): Promise<RegistrationRo
   const { data, error } = await admin
     .from("registrations")
     .select(
-      "id, student_name, roll_no, department, year, email, phone, confirmed_at, attended, checkin_method, custom_answers, team_name, shortlisted_at, waitlist_position",
+      "id, student_name, roll_no, department, year, email, phone, confirmed_at, attended, absent_members, checkin_method, custom_answers, team_name, shortlisted_at, waitlist_position",
     )
     .eq("event_id", eventId)
     .order("student_name", { ascending: true });
@@ -42,6 +44,7 @@ export async function listRegistrations(eventId: string): Promise<RegistrationRo
       phone: string | null;
       confirmed_at: string | null;
       attended: boolean;
+      absent_members: number[] | null;
       checkin_method: string | null;
       custom_answers: Record<string, unknown> | null;
       team_name: string | null;
@@ -58,6 +61,7 @@ export async function listRegistrations(eventId: string): Promise<RegistrationRo
     phone: r.phone,
     confirmed: !!r.confirmed_at,
     attended: r.attended,
+    absentMembers: r.absent_members ?? [],
     method: r.checkin_method,
     customAnswers: r.custom_answers ?? null,
     teamName: r.team_name ?? null,
