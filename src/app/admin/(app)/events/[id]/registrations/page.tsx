@@ -8,9 +8,10 @@ import { answerColumns } from "@/lib/registration-form/columns";
 import { isSafeHttpUrl } from "@/lib/url";
 import { isAttendanceEligible } from "@/lib/admin/attendance-eligibility";
 import { splitRegistrations } from "@/lib/registration/waitlist";
-import { SearchableTable } from "@/components/admin/SearchableTable";
+import { teamOf } from "@/lib/certificates/fields";
+import { presentPositions } from "@/lib/admin/team-attendance";
+import { RegistrationsBoard, type BoardEntry } from "@/components/admin/RegistrationsBoard";
 import {
-  toggleAttendanceAction,
   shortlistAction,
   unshortlistAction,
   promoteWaitlistAction,
@@ -38,12 +39,53 @@ export default async function RegistrationsPage({
   const columns = answerColumns(schema);
   const hasTeam = schema.some((f) => f.kind === "team");
   const isShortlist = selectionMode === "shortlist";
-  const attended = regs.filter((r) => r.attended).length;
   const shortlisted = regs.filter((r) => r.shortlistedAt).length;
   // Seats mode splits confirmed (the main table) from the waitlist; shortlist
   // mode has no waitlist, so the main table shows everything.
   const { confirmed: confirmedRows, waitlist: waitlistRows } = splitRegistrations(regs);
   const rows = isShortlist ? regs : confirmedRows;
+
+  // One compact entry per registration: its people for the card, and the
+  // answers other than the team block (which the people list already shows).
+  const teamIds = schema.filter((f) => f.kind === "team").map((f) => f.id);
+  const answerCols = columns.filter((c) => !teamIds.some((tid) => c.key.startsWith(`${tid}.`)));
+  const deptYear = (d: string | null, y: string | number | null) =>
+    [d, y].filter((v) => v != null && v !== "").join(" · ");
+  const entries: BoardEntry[] = rows.map((r) => {
+    const team = teamOf(r, schema);
+    const people =
+      team.length > 0
+        ? team.map((p, position) => ({
+            position,
+            name: p.name,
+            role: p.isLeader ? ("Leader" as const) : ("Member" as const),
+            roll: p.roll,
+            deptYear: deptYear(p.department, p.year),
+            email: p.email,
+            phone: p.phone,
+          }))
+        : [{ position: 0, name: r.name, role: null, roll: r.roll, deptYear: deptYear(r.department, r.year), email: r.email || null, phone: r.phone }];
+    return {
+      id: r.id,
+      title: (hasTeam && r.teamName?.trim()) || r.name || r.roll || "Registrant",
+      leader: hasTeam ? r.name : null,
+      people,
+      attended: r.attended,
+      absent: r.absentMembers,
+      eligible: isAttendanceEligible(r, selectionMode),
+      answers: answerCols.map((c) => {
+        const value = c.get(r.customAnswers);
+        return { label: c.label, value, href: c.kind === "link" && isSafeHttpUrl(value) ? value : null };
+      }),
+      // Findable by anything — including details the row never shows (email,
+      // phone) and every team member nested inside the custom answers.
+      search: [r.name, r.teamName, r.roll, r.department, r.year, r.email, r.phone, r.customAnswers],
+    };
+  });
+  const peoplePresent = entries.reduce(
+    (n, e) => n + presentPositions(e.people.length, e.attended, e.absent).length,
+    0,
+  );
 
   return (
     <div className="admin-page">
@@ -57,7 +99,7 @@ export default async function RegistrationsPage({
           <p className="body-text" style={{ marginTop: 6 }}>
             {isShortlist
               ? `${regs.length} submitted · ${shortlisted} shortlisted`
-              : `${confirmedRows.length} registered · ${attended} attended${
+              : `${confirmedRows.length} ${hasTeam ? (confirmedRows.length === 1 ? "team" : "teams") : "registered"} · ${peoplePresent} ${peoplePresent === 1 ? "person" : "people"} present${
                   waitlistRows.length ? ` · ${waitlistRows.length} waitlisted` : ""
                 }`}
           </p>
@@ -107,90 +149,35 @@ export default async function RegistrationsPage({
               </span>
             </form>
           ) : null}
-          <SearchableTable
-            wrapStyle={{ marginTop: 12 }}
-            noun="registration"
-            placeholder="Search name, roll, email, phone, department, any answer…"
-            ariaLabel="Search registrations by any detail"
-            head={
-                <tr>
-                  {isShortlist && canEdit ? <th aria-label="Select" /> : null}
-                  <th>Name</th>
-                  {hasTeam ? <th>Team</th> : null}
-                  <th>Roll</th>
-                  <th>Dept · Yr</th>
-                  {columns.map((c) => (
-                    <th key={c.key}>{c.label}</th>
-                  ))}
-                  {isShortlist ? <th>Shortlisted</th> : null}
-                  <th>Confirmed</th>
-                  <th>Attended</th>
-                  {canEdit ? <th>Mark</th> : null}
-                </tr>
+          <RegistrationsBoard
+            eventId={id}
+            entries={entries}
+            canEdit={canEdit}
+            isTeamEvent={hasTeam}
+            rowLead={
+              isShortlist && canEdit
+                ? Object.fromEntries(
+                    rows.map((r) => [
+                      r.id,
+                      <input
+                        key="select"
+                        type="checkbox"
+                        name="selected"
+                        form="shortlist-form"
+                        value={r.id}
+                        aria-label={`Select ${r.name || r.roll || "registrant"}`}
+                      />,
+                    ]),
+                  )
+                : undefined
             }
-            rows={rows.map((r) => ({
-              key: r.id,
-              // Findable by anything on the row — including details the table
-              // never shows (email, phone) and every team member nested inside
-              // the custom answers, which matchesAny walks into.
-              values: [r.name, r.teamName, r.roll, r.department, r.year, r.email, r.phone, r.customAnswers],
-              row: (
-                  <tr key={r.id}>
-                    {isShortlist && canEdit ? (
-                      <td data-label="Select">
-                        <input
-                          type="checkbox"
-                          name="selected"
-                          form="shortlist-form"
-                          value={r.id}
-                          aria-label={`Select ${r.name || r.roll || "registrant"}`}
-                        />
-                      </td>
-                    ) : null}
-                    <td data-primary="" style={{ fontWeight: 500 }}>
-                      {r.name}
-                      {hasTeam ? (
-                        <span className="label" style={{ marginLeft: 6, fontWeight: 400 }}>
-                          · 👥 {teamSize(r.customAnswers, schema)}
-                        </span>
-                      ) : null}
-                    </td>
-                    {hasTeam ? (
-                      <td data-label="Team">{r.teamName || "—"}</td>
-                    ) : null}
-                    <td data-label="Roll">{r.roll}</td>
-                    <td data-label="Dept · Yr">
-                      {r.department ?? "—"}
-                      {r.year ? ` · ${r.year}` : ""}
-                    </td>
-                    {columns.map((c) => {
-                      const v = c.get(r.customAnswers);
-                      if (c.kind === "link" && isSafeHttpUrl(v)) {
-                        return (
-                          <td key={c.key} data-label={c.label}>
-                            <a
-                              href={v}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ color: "var(--forest)" }}
-                            >
-                              link ↗
-                            </a>
-                          </td>
-                        );
-                      }
-                      return (
-                        <td key={c.key} data-label={c.label}>
-                          {v || "—"}
-                        </td>
-                      );
-                    })}
-                  {isShortlist ? (
-                    <td data-label="Shortlisted">
-                      {r.shortlistedAt ? (
-                        <span
-                          style={{ display: "inline-flex", gap: 8, alignItems: "center" }}
-                        >
+            rowTail={
+              isShortlist
+                ? Object.fromEntries(
+                    rows.map((r) => [
+                      r.id,
+                      r.shortlistedAt ? (
+                        <span key="shortlisted" style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
                           <span className="abadge abadge-approved">Shortlisted</span>
                           {canEdit ? (
                             <form action={unshortlistAction} style={{ display: "inline" }}>
@@ -202,41 +189,11 @@ export default async function RegistrationsPage({
                             </form>
                           ) : null}
                         </span>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                  ) : null}
-                    <td data-label="Confirmed">{r.confirmed ? "Yes" : "—"}</td>
-                    <td data-label="Attended">
-                      {r.attended ? (
-                        <span className="abadge abadge-approved">Present</span>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    {canEdit ? (
-                      isAttendanceEligible(r, selectionMode) ? (
-                        <td data-action="">
-                          <form action={toggleAttendanceAction}>
-                            <input type="hidden" name="registrationId" value={r.id} />
-                            <input type="hidden" name="eventId" value={id} />
-                            <input type="hidden" name="attend" value={r.attended ? "0" : "1"} />
-                            <button
-                              type="submit"
-                              className={`btn btn-sm ${r.attended ? "btn-ghost" : "btn-accent"}`}
-                            >
-                              {r.attended ? "Undo" : hasTeam ? "Mark team present" : "Mark present"}
-                            </button>
-                          </form>
-                        </td>
-                      ) : (
-                        <td data-label="Mark">—</td>
-                      )
-                    ) : null}
-                </tr>
-              ),
-            }))}
+                      ) : null,
+                    ]),
+                  )
+                : undefined
+            }
           />
 
           {!isShortlist && waitlistRows.length > 0 ? (
@@ -290,14 +247,4 @@ export default async function RegistrationsPage({
       )}
     </div>
   );
-}
-
-/** Number of members captured in the first team block of this registration. */
-function teamSize(
-  custom: Record<string, unknown> | null,
-  schema: { id: string; kind: string }[],
-): number {
-  const team = schema.find((f) => f.kind === "team");
-  const list = team ? custom?.[team.id] : undefined;
-  return Array.isArray(list) ? list.length : 0;
 }
