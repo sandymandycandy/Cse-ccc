@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-23 (admin refresh follow-up — Email/Audit/Team/attendance screens + attendance close semantics — built + verified, AWAITING PUSH; 2026-09-22: three deploys: event WhatsApp group link SHIPPED (81753d6) with migration `event_whatsapp_link` APPLIED LIVE; tabbed event form + three design-handoff gaps SHIPPED (543f89c); rebuilt maintenance page SHIPPED DARK (a97c311); 2026-09-20: admin layout/interaction upgrade SHIPPED (d27c4d9), migration `attendance_absent_mark` APPLIED LIVE — club attendance is now tri-state; 2026-09-18: new `/team` page + its CMS SHIPPED (73058ce), migration team_profiles applied live and still empty; 2026-09-17: co-host dropdown + sectioned event form SHIPPED; session history search + sortable date SHIPPED; co-hosted events shipped earlier the same day; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed).**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-23 (admin refresh follow-up — Email/Audit/Team/attendance screens + attendance close semantics — SHIPPED (454f244); 2026-09-22: three deploys: event WhatsApp group link SHIPPED (81753d6) with migration `event_whatsapp_link` APPLIED LIVE; tabbed event form + three design-handoff gaps SHIPPED (543f89c); rebuilt maintenance page SHIPPED DARK (a97c311); 2026-09-20: admin layout/interaction upgrade SHIPPED (d27c4d9), migration `attendance_absent_mark` APPLIED LIVE — club attendance is now tri-state; 2026-09-18: new `/team` page + its CMS SHIPPED (73058ce), migration team_profiles applied live and still empty; 2026-09-17: co-host dropdown + sectioned event form SHIPPED; session history search + sortable date SHIPPED; co-hosted events shipped earlier the same day; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed).**
 
 ## What this is
 
@@ -20,9 +20,9 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-23)
 
-> ### ⏳ READY, NOT YET PUSHED 2026-09-23 — admin refresh follow-up
-> Uncommitted on `main` (32 modified + 8 new files), on top of `dae2dd5`, which
-> matches `origin/main`. Full write-up: `docs/admin-ui-refresh.md`. Gate:
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-23 — admin refresh follow-up
+> **`454f244`** on `main` (32 modified + 8 new files). Vercel reported
+> "Deployment has completed"; `/`, `/events`, `/team`, `/admin/login` return 200. Full write-up: `docs/admin-ui-refresh.md`. Gate:
 > typecheck ✓ lint ✓ **1499 tests / 127 files** ✓ build ✓ `git diff --check` ✓.
 > **No migrations.**
 >
@@ -41,7 +41,7 @@ end-to-end**, not a checklist of components.
 > - Attendance actions (club + Council) now keep marks to the authorised roster.
 >   They refuse writes to an already-closed session, and they **throw on Supabase
 >   errors**, which the lib layer used to ignore.
-> - 🐞 Caught on 2026-09-23 before the push: the Email redesign had dropped the
+> - 🐞 Caught before the push: the Email redesign had dropped the
 >   "— layer 2" / "— layer 3" audience labels that `BroadcastComposer.test.tsx`
 >   pins. Restored.
 
