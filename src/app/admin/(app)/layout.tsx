@@ -6,6 +6,7 @@ import { AdminWorkspaceHeader } from "@/components/admin/AdminWorkspaceHeader";
 import "./admin-workspace.css";
 import { ToastProvider } from "@/components/admin/Toaster";
 import type { NavLink } from "@/lib/admin/nav";
+import { getSiteStatus } from "@/lib/admin/site-status";
 
 export default async function AdminAppLayout({
   children,
@@ -23,6 +24,7 @@ export default async function AdminAppLayout({
   // A role whose home isn't the dashboard has no business on it — it's an
   // events surface — so it gets no Dashboard link at all.
   const home = adminHomePath(session.role);
+  const site = await getSiteStatus();
 
   // Each link carries the section it belongs to. Whether those sections are
   // actually rendered as headings is `groupNavLinks`'s call, not this file's —
@@ -107,7 +109,14 @@ export default async function AdminAppLayout({
         />
         <div className="admin-workspace">
           <AdminWorkspaceHeader links={links} />
-          <main className="admin-main" id="admin-content" tabIndex={-1}>{children}</main>
+          <main className="admin-main" id="admin-content" tabIndex={-1}>
+            {site.maintenance ? (
+              <p className="admin-maintenance-banner" role="status">
+                The public site is in maintenance mode — visitors see the maintenance page.
+              </p>
+            ) : null}
+            {children}
+          </main>
         </div>
       </div>
     </ToastProvider>

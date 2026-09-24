@@ -4,13 +4,15 @@ import type { ReactNode } from "react";
 import type { DocketItem, GlanceTile, QuickAction } from "@/lib/admin/dashboard";
 import { AdminIcon } from "./AdminIcon";
 
-export function AdminDashboardView({ name, summary, docket, glance, actions, feedbackControl }: {
+export function AdminDashboardView({ name, summary, docket, glance, actions, feedbackControl, siteControl }: {
   name: string;
   summary: string;
   docket: DocketItem[];
   glance: GlanceTile[];
   actions: QuickAction[];
   feedbackControl?: ReactNode;
+  /** The public-site maintenance card — only passed for TH / President / VP. */
+  siteControl?: ReactNode;
 }) {
   const hasActions = actions.length > 0 || !!feedbackControl;
   return (
@@ -23,6 +25,8 @@ export function AdminDashboardView({ name, summary, docket, glance, actions, fee
         </div>
         <span className="dashboard-context"><span aria-hidden="true" /> CSE Club Council</span>
       </div>
+
+      {siteControl}
 
       <div className="dashboard-columns" data-actions={hasActions}>
         <section className="dashboard-panel" aria-labelledby="attention-title">

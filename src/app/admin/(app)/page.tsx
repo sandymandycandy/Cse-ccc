@@ -1,4 +1,6 @@
 import { AdminDashboardView } from "@/components/admin/AdminDashboardView";
+import { MaintenanceCard } from "@/components/admin/MaintenanceCard";
+import { canToggleMaintenance, getSiteStatus } from "@/lib/admin/site-status";
 import { redirect } from "next/navigation";
 import { requireAdminPage } from "@/lib/auth/guards";
 import { adminHomePath } from "@/lib/auth/capabilities";
@@ -25,6 +27,7 @@ export default async function AdminDashboard() {
   const docket = buildDocket(signals, reach);
   const glance = glanceTiles(signals, reach);
   const actions = quickActions(reach);
+  const siteStatus = canToggleMaintenance(session.role) ? await getSiteStatus() : null;
   return (
     <AdminDashboardView
       name={session.name}
@@ -32,6 +35,7 @@ export default async function AdminDashboard() {
       docket={docket}
       glance={glance}
       actions={actions}
+      siteControl={siteStatus ? <MaintenanceCard status={siteStatus} /> : null}
       feedbackControl={reach.canFeedback ? (
         <form action={signals.feedbackOpen ? closeFeedbackAction : openFeedbackAction}>
           <button type="submit" className="btn btn-ghost">

@@ -201,6 +201,13 @@
   .dashboard-feedback { margin-top: 6px; padding: 16px 10px 12px; border-top: 1px solid var(--line); }
   .dashboard-feedback .btn { width: 100%; border-radius: 9px; font-size: 12px; }
   .dashboard-feedback p { color: var(--ink-2); font: 400 11px/1.5 var(--sans); margin-top: 9px; }
+  .dashboard-site { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 0 0 18px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 12px; }
+  .dashboard-site[data-state="maintenance"] { border-color: var(--forest); background: var(--forest-tint); }
+  .dashboard-site h2 { font: 400 20px/1.2 var(--serif); margin-top: 4px; }
+  .dashboard-site p { color: var(--ink-2); font: 400 12px/1.5 var(--sans); margin-top: 4px; }
+  .dashboard-site-confirm { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .dashboard-site-confirm p { flex-basis: 100%; margin: 0 0 4px; color: var(--ink); }
+  .admin-maintenance-banner { margin: 0 0 16px; padding: 8px 12px; border-radius: 8px; background: var(--forest-tint); color: var(--ink); font: 500 12.5px/1.5 var(--sans); }
   .dashboard-glance { margin-top: 30px; }
   .dashboard-section-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 16px; }
   .dashboard-section-head h2 { font: 500 16px var(--sans); }
