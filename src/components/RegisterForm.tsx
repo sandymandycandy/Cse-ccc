@@ -7,6 +7,7 @@ import { shouldRetry, nextDelay, MAX_ATTEMPTS, type RetryOutcome } from "@/lib/r
 import { leaderLabel } from "@/lib/registration-form/team-labels";
 import { ResultMessage } from "./registration/ResultMessage";
 import { WhatsAppInvite } from "./registration/WhatsAppInvite";
+import { ChoiceGroup } from "./registration/ChoiceGroup";
 
 type Result = {
   status?: string;
@@ -158,7 +159,7 @@ export function RegisterForm({
   const hasTeam = fields.some((f) => f.kind === "team");
 
   return (
-    <form onSubmit={onSubmit} noValidate>
+    <form className="rf" onSubmit={onSubmit} noValidate>
       {result?.error ? (
         <div className="field err" style={{ marginBottom: 14 }}>
           <span className="hint" role="alert">
@@ -246,12 +247,18 @@ function FieldInput({
 }) {
   const id = `rf-${field.id}`;
   const common = { id, name: field.id, required: field.required } as const;
+  // A choice question is a group of inputs, not one — it takes a legend.
+  const isChoice = field.kind === "radio" || field.kind === "checkboxes";
+  const Wrap = isChoice ? "fieldset" : "div";
+  const heading = (
+    <>
+      {label ?? field.label}
+      {field.required ? "" : " (optional)"}
+    </>
+  );
   return (
-    <div className={`field${error ? " err" : ""}`}>
-      <label htmlFor={id}>
-        {label ?? field.label}
-        {field.required ? "" : " (optional)"}
-      </label>
+    <Wrap className={`field${error ? " err" : ""}`}>
+      {isChoice ? <legend>{heading}</legend> : <label htmlFor={id}>{heading}</label>}
       {field.kind === "paragraph" ? (
         <textarea {...common} rows={4} maxLength={4000} />
       ) : field.kind === "dropdown" ? (
@@ -278,46 +285,16 @@ function FieldInput({
             />
           ) : null}
         </>
-      ) : field.kind === "radio" ? (
-        <div className="stack" style={{ gap: 6 }}>
-          {(field.options ?? []).map((o) => (
-            <label key={o} style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 400 }}>
-              <input type="radio" name={field.id} value={o} required={field.required} /> {o}
-            </label>
-          ))}
-          {field.allowOther ? (
-            <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 400 }}>
-              <input type="radio" name={field.id} value="__other__" /> Other:
-              <input
-                type="text"
-                aria-label="Other"
-                value={otherText ?? ""}
-                onChange={(e) => onOther?.(e.target.value)}
-                style={{ marginLeft: 6 }}
-              />
-            </label>
-          ) : null}
-        </div>
-      ) : field.kind === "checkboxes" ? (
-        <div className="stack" style={{ gap: 6 }}>
-          {(field.options ?? []).map((o) => (
-            <label key={o} style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 400 }}>
-              <input type="checkbox" name={field.id} value={o} /> {o}
-            </label>
-          ))}
-          {field.allowOther ? (
-            <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 400 }}>
-              <input type="checkbox" name={field.id} value="__other__" /> Other:
-              <input
-                type="text"
-                aria-label="Other"
-                value={otherText ?? ""}
-                onChange={(e) => onOther?.(e.target.value)}
-                style={{ marginLeft: 6 }}
-              />
-            </label>
-          ) : null}
-        </div>
+      ) : field.kind === "radio" || field.kind === "checkboxes" ? (
+        <ChoiceGroup
+          name={field.id}
+          type={field.kind === "radio" ? "radio" : "checkbox"}
+          options={field.options ?? []}
+          required={field.required}
+          allowOther={field.allowOther}
+          otherText={otherText}
+          onOther={onOther}
+        />
       ) : field.kind === "date" ? (
         <input {...common} type="date" />
       ) : field.kind === "number" ? (
@@ -343,7 +320,7 @@ function FieldInput({
       ) : field.help ? (
         <span className="hint">{field.help}</span>
       ) : null}
-    </div>
+    </Wrap>
   );
 }
 
@@ -388,19 +365,21 @@ function TeamField({
                   </button>
                 ) : null}
               </div>
-              {subs.map((sf) => (
-                <div className="field" key={sf.key} style={{ marginTop: 6 }}>
-                  <label>
-                    {sf.label}
-                    {sf.required ? "" : " (optional)"}
-                  </label>
-                  <input
-                    type={sf.kind === "email" ? "email" : sf.kind === "phone" ? "tel" : "text"}
-                    value={row[sf.key] ?? ""}
-                    onChange={(e) => setCell(idx, sf.key, e.target.value)}
-                  />
-                </div>
-              ))}
+              <div className="team-row-fields">
+                {subs.map((sf) => (
+                  <div className="field" key={sf.key} style={{ marginTop: 6 }}>
+                    <label>
+                      {sf.label}
+                      {sf.required ? "" : " (optional)"}
+                    </label>
+                    <input
+                      type={sf.kind === "email" ? "email" : sf.kind === "phone" ? "tel" : "text"}
+                      value={row[sf.key] ?? ""}
+                      onChange={(e) => setCell(idx, sf.key, e.target.value)}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           );
         })}

@@ -9,6 +9,7 @@ import { RegisterForm } from "@/components/RegisterForm";
 import { RegistrationCountdown } from "@/components/RegistrationCountdown";
 import { getEventDetail, getPublishedResults } from "@/lib/queries";
 import { eventCta } from "@/lib/event-cta";
+import { isLongForm } from "@/lib/registration-form/choice-display";
 import {
   istDateLabel,
   istDayNum,
@@ -49,6 +50,9 @@ export default async function EventDetailPage({ params }: Params) {
     event.description && event.description.trim() !== (event.blurb ?? "").trim()
       ? event.description
       : null;
+  // A team roster or a list of wordy themes is cramped in the 400px sidebar;
+  // on a desktop those forms get the wider column (see .evd-grid.wide-form).
+  const wideForm = phase !== "before" && phase !== "closed" && isLongForm(event.registrationForm);
 
   return (
     <section className="section" style={{ paddingTop: 56 }}>
@@ -129,7 +133,7 @@ export default async function EventDetailPage({ params }: Params) {
           Add to calendar
         </a>
 
-        <div className="evd-grid">
+        <div className={`evd-grid${wideForm ? " wide-form" : ""}`}>
           {/* main */}
           <div>
             {event.posterUrl ? (

@@ -1122,6 +1122,129 @@
     .evd-grid { grid-template-columns: 1fr; gap: 26px; }
     .evd-rule { display: none; }
   }
+  /* A long form (team roster, wordy theme list) takes the wider column on a
+     desktop, so its choice cards and member fields can go two-up (the .rf
+     container query below) instead of one long narrow scroll. */
+  @media (min-width: 1100px) {
+    .evd-grid.wide-form { grid-template-columns: minmax(0, 1fr) minmax(0, 640px); }
+    .evd-grid.wide-form > .panel { padding: 28px; }
+  }
+
+  /* ── registration form ──────────────────────────────────────────────────
+     Sized by its own width, not the viewport: the same form sits in a 400px
+     sidebar, a 640px desktop column and a full-width phone screen. */
+  .rf { container-type: inline-size; }
+  .rf fieldset.field { border: 0; min-width: 0; }
+  .rf .field legend {
+    padding: 0;
+    margin-bottom: 7px;
+    font: 500 12px var(--sans);
+    color: var(--ink-2);
+  }
+
+  /* choice cards — a radio / checkbox question. The native input stays in the
+     card (visually hidden) so the form data, `required` and keyboard use are
+     unchanged; the card is its label. */
+  .choice-grid { display: grid; gap: 8px; }
+  .field .choice {
+    position: relative;
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+    padding: 13px 15px;
+    border: 1px solid var(--line-3);
+    border-radius: var(--r-sm);
+    background: var(--paper-2);
+    color: var(--ink);
+    font: 400 13.5px / 1.5 var(--sans);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  }
+  .field .choice:hover { border-color: var(--ink-3); }
+  .field .choice:has(.choice-input:checked) {
+    border-color: var(--forest);
+    background: var(--forest-tint);
+    box-shadow: inset 0 0 0 1px var(--forest);
+  }
+  .field .choice:has(.choice-input:focus-visible) {
+    outline: 2px solid var(--forest);
+    outline-offset: 2px;
+  }
+  .field.err .choice:not(:has(.choice-input:checked)) { border-color: var(--rust); }
+  .field .choice .choice-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* the drawn indicator: a ring that fills with a forest dot (radio) or a
+     rounded box that fills with a tick (checkbox) */
+  .choice-mark {
+    position: relative;
+    width: 20px;
+    height: 20px;
+    margin-top: 1px;
+    border: 1.5px solid var(--line-4);
+    border-radius: 50%;
+    background: var(--card);
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .choice-mark::after {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    background: var(--forest);
+    transform: scale(0);
+    transition: transform 0.15s ease-out;
+  }
+  .choice:has(.choice-input:checked) .choice-mark { border-color: var(--forest); }
+  .choice:has(.choice-input:checked) .choice-mark::after { transform: scale(1); }
+  .is-multi .choice-mark { border-radius: 6px; }
+  .is-multi .choice-mark::after {
+    inset: 3px 6px 5px;
+    border-radius: 0;
+    background: none;
+    border: solid var(--paper-2);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) scale(0);
+  }
+  .is-multi .choice:has(.choice-input:checked) .choice-mark { background: var(--forest); }
+  .is-multi .choice:has(.choice-input:checked) .choice-mark::after { transform: rotate(45deg) scale(1); }
+
+  .choice-body { display: grid; gap: 3px; min-width: 0; }
+  .choice-tag {
+    font: 500 9.5px var(--mono);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .choice:has(.choice-input:checked) .choice-tag { color: var(--forest); }
+  .choice-title { font: 500 14px / 1.4 var(--sans); color: var(--ink); }
+  .choice-text { font: 400 12.5px / 1.5 var(--sans); color: var(--ink-2); }
+  /* a whole sentence with no lead phrase to pull out — bold would shout it */
+  .choice-long { font: 400 13.5px / 1.5 var(--sans); color: var(--ink); }
+  .field .choice .choice-other {
+    margin-top: 6px;
+    min-height: 38px;
+    padding: 8px 11px;
+    font-size: 13px;
+    cursor: text;
+  }
+
+  .team-row-fields { display: grid; column-gap: 12px; }
+
+  @container (min-width: 520px) {
+    .choice-grid { grid-template-columns: 1fr 1fr; }
+    .team-row-fields { grid-template-columns: 1fr 1fr; }
+  }
 
   /* ── admin: registered participants, grouped as teams ─────────────────────
      Each registration is one card: its people (leader first) and the answers it
