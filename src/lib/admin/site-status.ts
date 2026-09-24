@@ -46,6 +46,17 @@ export function describeSiteStatus(
 }
 
 /**
+ * Use as the MaintenanceCard's `key` (see page.tsx). The action redirects back
+ * to the same /admin URL and React keeps client state across that re-render,
+ * so without a new key the confirm step would stay open — now offering the
+ * opposite flip. Kept here, not in the "use client" card file: page.tsx calls it
+ * on the server, where a client module's exports are references that throw.
+ */
+export function maintenanceCardKey(status: SiteStatus): string {
+  return `${status.maintenance}-${status.updatedAt ?? "never"}`;
+}
+
+/**
  * Fresh, uncached-by-TTL read for the admin panel (the dashboard card and the
  * banner). Never throws: an unreadable row reports `available: false`.
  */

@@ -1,6 +1,6 @@
 import { AdminDashboardView } from "@/components/admin/AdminDashboardView";
-import { MaintenanceCard, maintenanceCardKey } from "@/components/admin/MaintenanceCard";
-import { canToggleMaintenance, getSiteStatus } from "@/lib/admin/site-status";
+import { MaintenanceCard } from "@/components/admin/MaintenanceCard";
+import { canToggleMaintenance, getSiteStatus, maintenanceCardKey } from "@/lib/admin/site-status";
 import { redirect } from "next/navigation";
 import { requireAdminPage } from "@/lib/auth/guards";
 import { adminHomePath } from "@/lib/auth/capabilities";
