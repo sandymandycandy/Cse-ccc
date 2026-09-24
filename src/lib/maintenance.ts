@@ -177,7 +177,14 @@ const PAGE = `<!doctype html>
     padding-top: max(20px, env(safe-area-inset-top)); padding-bottom: 12px;
   }
   .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
-  .brand svg { width: 30px; height: 30px; flex: none; }
+  /* Same mark as the site header (globals.css .brand-mark). Root-absolute so it
+     resolves from any nested URL; proxy.ts's matcher excludes .png, so it is
+     still served while maintenance is on. */
+  .brand-mark {
+    flex: none; width: 30px; height: 34px; background-color: currentColor;
+    -webkit-mask: url(/logo-mark.png) center / contain no-repeat;
+    mask: url(/logo-mark.png) center / contain no-repeat;
+  }
   .brand span { font-family: var(--serif); font-size: 20px; line-height: 1; white-space: nowrap; }
   .icon-btn {
     display: grid; place-items: center; width: 44px; height: 44px; flex: none;
@@ -365,11 +372,7 @@ const PAGE = `<!doctype html>
 
   <header class="top wrap">
     <span class="brand" aria-label="CSE Club Council">
-      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true">
-        <path d="M24.5 8.5A11 11 0 1 0 24.5 23.5" />
-        <path d="M20.5 11.5A6 6 0 1 0 20.5 20.5" />
-        <path d="M16 5v4M16 23v4M5 16h4" />
-      </svg>
+      <i class="brand-mark" aria-hidden="true"></i>
       <span>CSE Club Council</span>
     </span>
     <button class="icon-btn" type="button" id="theme" aria-label="Switch between day and night theme">
