@@ -380,6 +380,22 @@
     outline: none;
     box-shadow: 0 0 0 3px var(--forest-tint);
   }
+  /* Browser autofill paints its own pale-blue box with dark text over the
+     field, which in night mode reads like a disabled or rejected input
+     ("it's not accepting my link"). The fill can't be unset, only covered:
+     an inset shadow in the theme colour, plus the theme ink for the text. */
+  .field input:-webkit-autofill,
+  .field input:autofill {
+    -webkit-box-shadow: 0 0 0 1000px var(--paper-2) inset;
+    box-shadow: 0 0 0 1000px var(--paper-2) inset;
+    -webkit-text-fill-color: var(--ink);
+    caret-color: var(--ink);
+  }
+  .field input:-webkit-autofill:focus,
+  .field input:autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px var(--paper-2) inset, 0 0 0 3px var(--forest-tint);
+    box-shadow: 0 0 0 1000px var(--paper-2) inset, 0 0 0 3px var(--forest-tint);
+  }
   /* Native <option> popups don't inherit the theme background on Windows/Chrome,
      so in dark mode the pale --ink text lands on a white system popup and turns
      invisible. Pin option colours to the theme so every select stays readable. */
