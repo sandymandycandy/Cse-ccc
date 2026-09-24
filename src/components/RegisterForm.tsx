@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "./ui/Button";
 import { defaultFormFor, LAYOUT_KINDS, type FormField } from "@/lib/registration-form/schema";
 import { shouldRetry, nextDelay, MAX_ATTEMPTS, type RetryOutcome } from "@/lib/registration/retry";
@@ -9,6 +9,7 @@ import { ResultMessage } from "./registration/ResultMessage";
 import { WhatsAppInvite } from "./registration/WhatsAppInvite";
 import { ChoiceGroup } from "./registration/ChoiceGroup";
 import { isCompactChoice } from "@/lib/registration-form/choice-display";
+import { errorSummary } from "@/lib/registration-form/error-summary";
 
 type Result = {
   status?: string;
@@ -80,6 +81,17 @@ export function RegisterForm({
   // The invite pops up once per registration; dismissing it leaves the same
   // link on the success panel rather than taking it away.
   const [inviteDismissed, setInviteDismissed] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const problems = result?.fields ? errorSummary(fields, result.fields) : [];
+
+  // A rejected answer is usually far above the Register button on a long form;
+  // take the student to the first one instead of leaving the button looking dead.
+  useEffect(() => {
+    if (!result?.fields) return;
+    const first = formRef.current?.querySelector<HTMLElement>(".field.err");
+    first?.scrollIntoView({ behavior: "smooth", block: "center" });
+    first?.querySelector<HTMLElement>("input, select, textarea")?.focus({ preventScroll: true });
+  }, [result]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -159,7 +171,7 @@ export function RegisterForm({
   const hasTeam = fields.some((f) => f.kind === "team");
 
   return (
-    <form className="rf" onSubmit={onSubmit} noValidate>
+    <form ref={formRef} className="rf" onSubmit={onSubmit} noValidate>
       {result?.error ? (
         <div className="field err" style={{ marginBottom: 14 }}>
           <span className="hint" role="alert">
@@ -217,6 +229,20 @@ export function RegisterForm({
         aria-hidden="true"
         style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
       />
+
+      {/* Said again beside the button, where the student is looking when it fails. */}
+      {result?.error ? (
+        <div className="rf-problems" role="alert">
+          <strong>{problems.length > 0 ? "Please fix these and register again:" : result.error}</strong>
+          {problems.length > 0 ? (
+            <ul>
+              {problems.map((p) => (
+                <li key={p.id}>{p.text}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
 
       <Button
         type="submit"

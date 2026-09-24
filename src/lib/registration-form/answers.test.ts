@@ -237,3 +237,16 @@ describe("forgiving the way students actually type", () => {
     expect(validateAnswers(schema, { doc: "my ppt" }).ok).toBe(false);
   });
 });
+
+describe("phone numbers as students type them", () => {
+  const schema = [f({ id: "ph", kind: "short_text", identity: "phone", required: true })];
+  it("accepts +91, spaces, dashes and a leading 0, stored as 10 digits", () => {
+    for (const ph of ["+91 98765 43210", "98765-43210", "09876543210", "919876543210"]) {
+      const r = validateAnswers(schema, { ph });
+      expect(r.ok && r.data.identity.phone, ph).toBe("9876543210");
+    }
+  });
+  it("still rejects a number that is not a mobile", () => {
+    expect(validateAnswers(schema, { ph: "12345" }).ok).toBe(false);
+  });
+});

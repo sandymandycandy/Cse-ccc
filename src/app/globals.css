@@ -1286,6 +1286,19 @@
     pointer-events: none;
   }
 
+  /* what to fix, right above the Register button */
+  .rf-problems {
+    margin: 4px 0 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--rust);
+    border-radius: var(--r-sm);
+    background: var(--rust-tint);
+    color: var(--rust);
+    font: 400 13px / 1.5 var(--sans);
+  }
+  .rf-problems strong { font-weight: 600; }
+  .rf-problems ul { margin: 6px 0 0 18px; display: grid; gap: 3px; }
+
   .team-row-fields { display: grid; column-gap: 12px; }
 
   @container (min-width: 520px) {

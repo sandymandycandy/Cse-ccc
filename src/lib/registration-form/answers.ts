@@ -26,6 +26,11 @@ const normRoll = (s: string) => s.toUpperCase().replace(/[\s-]/g, "");
 const normLink = (s: string) =>
   /^[a-z][a-z0-9+.-]*:/i.test(s) || !/^[^\s/]+\.[^\s/]+/.test(s) ? s : `https://${s}`;
 const PHONE_RE = /^[6-9]\d{9}$/;
+/** "+91 98765-43210" / "09876543210" → "9876543210": keep the 10-digit mobile. */
+const normPhone = (s: string) => {
+  const d = s.replace(/[\s()-]/g, "").replace(/^\+?91(?=\d{10}$)/, "").replace(/^0(?=\d{10}$)/, "");
+  return d;
+};
 const NAME_RE = /^[\p{L}\p{M} .'-]+$/u;
 
 export function validateAnswers(
@@ -147,9 +152,11 @@ function applyIdentity(
       if (lo.length > 120 || !EMAIL_RE.test(lo)) return "Enter a valid email";
       out.email = lo; return null;
     }
-    case "phone":
-      if (!PHONE_RE.test(v)) return "Enter a 10-digit mobile number";
-      out.phone = v; return null;
+    case "phone": {
+      const ph = normPhone(v);
+      if (!PHONE_RE.test(ph)) return "Enter a 10-digit mobile number";
+      out.phone = ph; return null;
+    }
     case "team_name":
       if (v.length < TEAM_NAME_MIN) return "Give your team a name";
       if (v.length > TEAM_NAME_MAX) return `Keep it under ${TEAM_NAME_MAX} characters`;
@@ -166,7 +173,7 @@ function cleanMember(kind: MemberSubfield["kind"], raw: unknown): string | null 
   switch (kind) {
     case "email": { const lo = s.toLowerCase(); return lo.length <= 120 && EMAIL_RE.test(lo) ? lo : null; }
     case "roll": { const up = normRoll(s); return ROLL_RE.test(up) ? up : null; }
-    case "phone": return PHONE_RE.test(s) ? s : null;
+    case "phone": { const ph = normPhone(s); return PHONE_RE.test(ph) ? ph : null; }
     default: return s.slice(0, 200);
   }
 }
