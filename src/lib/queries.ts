@@ -58,13 +58,15 @@ async function registeredCounts(ids: string[]): Promise<Map<string, number>> {
 }
 
 const EVENT_SELECT =
-  "id, title, description, starts_at, ends_at, capacity, is_all_day, venue_text, " +
+  "id, title, description, summary, starts_at, ends_at, capacity, is_all_day, venue_text, " +
   "venues ( name ), event_clubs ( is_primary, clubs ( name, short_name ) )";
 
 type EventJoinRow = {
   id: string;
   title: string;
   description: string | null;
+  /** The card one-liner; null → the cards fall back to the description. */
+  summary: string | null;
   starts_at: string;
   ends_at: string;
   capacity: number | null;
@@ -107,7 +109,7 @@ function toSummary(
   return {
     id: row.id,
     title: row.title,
-    blurb: row.description ?? "",
+    blurb: row.summary?.trim() || row.description || "",
     club: hostLabel(hostNames(row)) || "CSE Council",
     day: istDayNum(row.starts_at),
     dateLabel: istDateLabel(row.starts_at),
@@ -181,7 +183,7 @@ export async function getEventDetail(id: string): Promise<EventDetail | null> {
   const supabase = createPublicClient();
   const { data, error } = await supabase
     .from("events")
-    .select("id, title, description, rules, starts_at, ends_at, capacity, is_all_day, venue_text, poster_path, selection_mode, registration_form, " +
+    .select("id, title, description, summary, rules, starts_at, ends_at, capacity, is_all_day, venue_text, poster_path, selection_mode, registration_form, " +
       "registration_opens_at, registration_closes_at, " +
       "venues ( name ), event_clubs ( is_primary, clubs ( name, short_name ) )")
     .eq("id", id)

@@ -81,6 +81,7 @@ export default async function EditEventPage({
           waitlistEnabled: event.waitlistEnabled,
           showOnAchievements: event.showOnAchievements,
           whatsappUrl: event.whatsappUrl ?? "",
+          summary: event.summary ?? "",
         }}
       />
 

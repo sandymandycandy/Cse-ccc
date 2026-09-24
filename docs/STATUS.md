@@ -20,6 +20,17 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-24)
 
+> ### 2026-09-24 — event short description + description line breaks
+> - ✅ **Migration `20260924120000_event_summary.sql` APPLIED LIVE** (owner-approved):
+>   `events.summary text`, nullable, `length <= 200`. Applied BEFORE the code —
+>   the public event queries select `summary`, so code without the column 500s.
+> - **Short description** — optional field under Description in the admin event
+>   form. Cards show `summary`, else `description` as before; the event page shows
+>   it as the intro and the full description below. Carried over by Duplicate.
+>   AI FORGE EXPO's was set by direct SQL (not in the audit log).
+> - **`FormattedText`** keeps organiser line breaks in the event description and
+>   rules (a paragraph per blank-line block, `pre-line` within).
+
 > ### 🚀 SHIPPED TO PRODUCTION 2026-09-24 — registration form: choice cards, pills, wide desktop form
 > **`4a6ba8a`** + **`0fa16f9`** on `main` (Vercel "Deployment has completed"
 > for both), plus a follow-up commit (Yes/No radios as pills; full-width

@@ -56,6 +56,8 @@ const CreateSchema = z
       .trim()
       .max(4000, "Keep the description to 4000 characters or fewer.")
       .optional(),
+    // The one-liner on the event cards; matches the DB check on events.summary.
+    summary: z.string().trim().max(200, "Keep the short description to 200 characters or fewer.").optional(),
     clubId: z.string().uuid("Choose which club is hosting."),
     cohostIds: z
       .array(z.string().uuid("Pick co-hosts from the list."))
@@ -96,6 +98,7 @@ function parseEvent(formData: FormData) {
   return CreateSchema.safeParse({
     title: formData.get("title"),
     description: formData.get("description") || undefined,
+    summary: formData.get("summary") || undefined,
     clubId: formData.get("clubId"),
     // One entry per ticked checkbox; none ticked is an empty list.
     cohostIds: formData.getAll("cohostIds").map(String),
@@ -233,6 +236,7 @@ export async function createEventAction(
       waitlist_enabled: parsed.data.waitlistEnabled ?? true,
       show_on_achievements: parsed.data.showOnAchievements ?? true,
       whatsapp_url: parsed.data.whatsappUrl ?? null,
+      summary: parsed.data.summary || null,
       status: "published",
       approval_status: autoApproved ? "approved" : "pending",
       approved_by: autoApproved ? session.id : null,
@@ -435,6 +439,7 @@ export async function updateEventAction(
     waitlist_enabled: boolean;
     show_on_achievements: boolean;
     whatsapp_url: string | null;
+    summary: string | null;
     poster_path?: string;
   } = {
     title,
@@ -450,6 +455,7 @@ export async function updateEventAction(
     waitlist_enabled: parsed.data.waitlistEnabled ?? true,
     show_on_achievements: parsed.data.showOnAchievements ?? true,
     whatsapp_url: parsed.data.whatsappUrl ?? null,
+    summary: parsed.data.summary || null,
   };
   if (poster.path) update.poster_path = poster.path;
 
@@ -564,7 +570,7 @@ export async function duplicateEventAction(formData: FormData): Promise<void> {
   const { data: srcRaw } = await admin
     .from("events")
     .select(
-      "title, description, starts_at, ends_at, venue_text, capacity, whatsapp_url, event_clubs ( club_id, is_primary )",
+      "title, description, summary, starts_at, ends_at, venue_text, capacity, whatsapp_url, event_clubs ( club_id, is_primary )",
     )
     .eq("id", eventId)
     .maybeSingle();
@@ -577,6 +583,7 @@ export async function duplicateEventAction(formData: FormData): Promise<void> {
     venue_text: string | null;
     capacity: number | null;
     whatsapp_url: string | null;
+    summary: string | null;
     event_clubs: { club_id: string; is_primary: boolean }[];
   };
   const hosts = hostsFromLinks(src.event_clubs);
@@ -600,6 +607,7 @@ export async function duplicateEventAction(formData: FormData): Promise<void> {
       venue_text: src.venue_text,
       capacity: src.capacity,
       whatsapp_url: src.whatsapp_url,
+      summary: src.summary,
       status: "draft",
       approval_status: "pending",
       created_by: session.id,

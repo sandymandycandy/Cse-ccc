@@ -27,6 +27,8 @@ interface Option {
 export interface EventFormInitial {
   title: string;
   description: string;
+  /** The one-liner on event cards. "" when unset. */
+  summary: string;
   clubId: string;
   /** Co-hosting clubs, not including the primary. */
   cohostIds: string[];
@@ -259,6 +261,23 @@ export function EventForm({
             placeholder="What's this event about? Who should come?"
           />
           <FieldError errors={state.fieldErrors} name="description" />
+        </div>
+
+        <div className={fieldClass(state.fieldErrors, "summary")}>
+          <label htmlFor="summary">Short description (optional)</label>
+          <input
+            id="summary"
+            {...fieldProps(state.fieldErrors, "summary")}
+            name="summary"
+            maxLength={200}
+            defaultValue={initial?.summary}
+            placeholder="One line for the event cards — e.g. A one-day AI hackathon with ₹10,000 in prizes."
+          />
+          <span className="hint">
+            Shown on the home and events pages, and as the intro on the event page. Leave empty to use
+            the start of the description.
+          </span>
+          <FieldError errors={state.fieldErrors} name="summary" />
         </div>
 
         {fixedClub ? (

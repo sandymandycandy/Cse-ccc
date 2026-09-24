@@ -23,6 +23,7 @@ const initial = (over: Partial<EventFormInitial> = {}): EventFormInitial => ({
   waitlistEnabled: false,
   showOnAchievements: false,
   whatsappUrl: "",
+  summary: "",
   ...over,
 });
 
@@ -52,6 +53,20 @@ describe("EventForm — the event's WhatsApp group", () => {
       initial: initial({ whatsappUrl: "https://chat.whatsapp.com/ABCdef123" }),
     });
     expect(inputFor(html, "whatsappUrl")).toContain('value="https://chat.whatsapp.com/ABCdef123"');
+  });
+});
+
+describe("EventForm — the short description", () => {
+  it("offers an optional one-liner capped at the DB limit", () => {
+    const tag = inputFor(render(), "summary");
+    expect(tag).not.toBeNull();
+    expect(tag).not.toContain("required");
+    expect(tag).toContain('maxLength="200"');
+  });
+
+  it("prefills the saved one when editing", () => {
+    const html = render({ eventId: "e1", initial: initial({ summary: "A one-day AI hackathon." }) });
+    expect(inputFor(html, "summary")).toContain('value="A one-day AI hackathon."');
   });
 });
 

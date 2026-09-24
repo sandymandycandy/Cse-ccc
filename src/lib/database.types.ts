@@ -1468,6 +1468,7 @@ export type Database = {
           venue_text: string | null
           waitlist_enabled: boolean
           whatsapp_url: string | null
+          summary: string | null
         }
         Insert: {
           approval_status?: Database["public"]["Enums"]["approval_status"]
@@ -1501,6 +1502,7 @@ export type Database = {
           venue_text?: string | null
           waitlist_enabled?: boolean
           whatsapp_url?: string | null
+          summary?: string | null
         }
         Update: {
           approval_status?: Database["public"]["Enums"]["approval_status"]
@@ -1534,6 +1536,7 @@ export type Database = {
           venue_text?: string | null
           waitlist_enabled?: boolean
           whatsapp_url?: string | null
+          summary?: string | null
         }
         Relationships: [
           {

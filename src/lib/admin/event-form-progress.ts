@@ -122,6 +122,7 @@ export function capacityHint(mode: "seats" | "shortlist"): string {
 const FIELD_TABS: Record<string, EventFormTab> = {
   title: "basics",
   description: "basics",
+  summary: "basics",
   clubId: "basics",
   cohostIds: "basics",
   venueText: "when",
