@@ -1,38 +1,47 @@
 import { describe, expect, it } from "vitest";
-import { isMaintenanceMode, isExemptPath, maintenanceResponse } from "./maintenance";
+import {
+  parseMaintenanceFlag,
+  resolveMaintenance,
+  isExemptPath,
+  maintenanceResponse,
+} from "./maintenance";
 
-describe("isMaintenanceMode", () => {
-  // The committed default is the switch; these tests assert the OVERRIDE
-  // behaviour, which is what has to keep working whichever way the default is
-  // currently set. Reading it here rather than hard-coding true/false means
-  // flipping the switch does not require editing this file.
-  const fallback = isMaintenanceMode(undefined);
-
-  it("falls back to the committed default when the variable is absent", () => {
-    expect(isMaintenanceMode(null)).toBe(fallback);
-    expect(isMaintenanceMode("")).toBe(fallback);
-    expect(isMaintenanceMode("   ")).toBe(fallback);
-  });
-
-  it("an affirmative value forces maintenance on", () => {
+describe("parseMaintenanceFlag", () => {
+  it("reads affirmative values as on", () => {
     for (const v of ["1", "true", "TRUE", "on", "yes", " true "]) {
-      expect(isMaintenanceMode(v)).toBe(true);
+      expect(parseMaintenanceFlag(v)).toBe(true);
     }
   });
 
-  it("a negative value forces maintenance off", () => {
+  it("reads negative values as off", () => {
     for (const v of ["0", "false", "FALSE", "off", "no", " 0 "]) {
-      expect(isMaintenanceMode(v)).toBe(false);
+      expect(parseMaintenanceFlag(v)).toBe(false);
     }
   });
 
-  // A typo must not silently answer the question. Falling through to the
-  // committed default means a mistyped variable cannot quietly un-maintenance
-  // a site that was deliberately taken down.
-  it("ignores unrecognised values rather than guessing", () => {
-    for (const v of ["maybe", "MAINTENANCE", "enabled", "2"]) {
-      expect(isMaintenanceMode(v)).toBe(fallback);
+  // A typo must not answer the question — it means "no override".
+  it("treats absent or unrecognised values as no answer", () => {
+    for (const v of [undefined, null, "", "   ", "maybe", "MAINTENANCE", "enabled", "2"]) {
+      expect(parseMaintenanceFlag(v)).toBeNull();
     }
+  });
+});
+
+describe("resolveMaintenance", () => {
+  it("lets a recognised env value override the switch both ways", () => {
+    expect(resolveMaintenance("on", false)).toBe(true);
+    expect(resolveMaintenance("off", true)).toBe(false);
+  });
+
+  it("uses the admin switch when the env var says nothing", () => {
+    expect(resolveMaintenance(undefined, true)).toBe(true);
+    expect(resolveMaintenance("typo", false)).toBe(false);
+  });
+
+  // Cold instance, database unreachable: the committed default decides, and
+  // that default is now "live" — the switch is the source of truth.
+  it("falls back to the committed default (live) when nothing is known", () => {
+    expect(resolveMaintenance(undefined, null)).toBe(false);
   });
 });
 

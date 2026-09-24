@@ -1,39 +1,42 @@
 // Maintenance mode for the public site.
 //
-// Flipped with the MAINTENANCE_MODE environment variable and enforced in
-// src/proxy.ts, which runs before any page renders — so while it is on, the
-// public site makes no database queries at all. That is deliberate: the whole
-// point of a maintenance page is that it still works when the thing behind it
-// does not.
+// Flipped from the admin dashboard (the `site_settings` row, read through
+// src/lib/maintenance-switch.ts) and enforced in src/proxy.ts, which runs
+// before any page renders. The MAINTENANCE_MODE environment variable still
+// overrides the switch as a break-glass control.
 //
 // /admin/* is exempt. Locking the council out of their own admin panel during
 // maintenance is exactly backwards — maintenance is usually when they most
 // need to get in.
 
 /**
- * The committed default, used when MAINTENANCE_MODE is not set.
- *
- * This exists because changing a Vercel environment variable needs a redeploy
- * anyway, so a code constant is no slower to flip than the dashboard — and it
- * keeps the site's current state visible in git rather than hidden in project
- * settings where nobody thinks to look when the site is "down".
- *
- * ⚠️ THIS IS THE SWITCH. `true` = the public site shows the maintenance page.
+ * Used only when neither the env var nor the switch gives an answer — a cold
+ * server instance that cannot reach the database. The switch is the source of
+ * truth; this is its last-resort fallback, so it stays `false`.
  */
-const DEFAULT_MAINTENANCE = true;
+const DEFAULT_MAINTENANCE = false;
 
 /**
- * MAINTENANCE_MODE wins when it says something recognisable; otherwise the
- * committed default applies. An unrecognised value (a typo, a stray space) is
- * not treated as an answer — it falls through to the default rather than
- * silently meaning "off", so a mistyped variable can't quietly un-maintenance
- * a site you deliberately took down.
+ * MAINTENANCE_MODE as an override: `true`/`false` when it says something
+ * recognisable, `null` otherwise. A typo or stray space is not an answer — it
+ * falls through rather than silently meaning "off".
  */
-export function isMaintenanceMode(value: string | undefined | null): boolean {
+export function parseMaintenanceFlag(value: string | undefined | null): boolean | null {
   const v = value?.trim().toLowerCase() ?? "";
   if (v === "1" || v === "true" || v === "on" || v === "yes") return true;
   if (v === "0" || v === "false" || v === "off" || v === "no") return false;
-  return DEFAULT_MAINTENANCE;
+  return null;
+}
+
+/**
+ * Env override → admin switch → committed default. `switchValue` is `null`
+ * when the switch could not be read and no earlier value is cached.
+ */
+export function resolveMaintenance(
+  envValue: string | undefined | null,
+  switchValue: boolean | null,
+): boolean {
+  return parseMaintenanceFlag(envValue) ?? switchValue ?? DEFAULT_MAINTENANCE;
 }
 
 /** Paths that stay reachable while maintenance is on. */
