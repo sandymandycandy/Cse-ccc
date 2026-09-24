@@ -168,8 +168,8 @@ export default async function EventDetailPage({ params }: Params) {
             {description ? (
               <FormattedText
                 text={description}
-                className="body-text"
-                style={{ marginTop: 16, maxWidth: 680, fontSize: 15 }}
+                className="body-text evd-desc"
+                style={{ marginTop: 16, maxWidth: 680 }}
               />
             ) : null}
 

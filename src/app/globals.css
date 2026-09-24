@@ -1114,6 +1114,8 @@
   /* organiser text with its line breaks kept (FormattedText) */
   .formatted-text { display: grid; gap: 0.75em; }
   .formatted-text > p { white-space: pre-line; }
+  /* the event page's long description reads a step up from .body-text */
+  .evd-desc { font-size: 15px; }
 
   .evd-grid {
     display: grid;
