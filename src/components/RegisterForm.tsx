@@ -363,7 +363,7 @@ function TeamField({
         {field.label}
         {field.required ? "" : " (optional)"}
       </label>
-      <div className="stack" style={{ gap: 10 }}>
+      <div style={{ display: "grid", gap: 10 }}>
         {rows.map((row, idx) => {
           return (
             <div key={idx} className="card team-row">

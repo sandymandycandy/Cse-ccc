@@ -30,15 +30,16 @@ export function splitChoice(option: string): ChoiceDisplay {
 }
 
 /**
- * A dropdown short enough to lay out in full: a few one-word options (Year:
- * 1–5) read faster as a row of pills than behind a click. Long lists
- * (Department) and "Other" dropdowns stay a <select>. Same answer either way —
- * the pills are radios carrying the option value.
+ * A single-choice question short enough for a row of pills: a few one-word
+ * options (Year: 1–5, Yes/No). As a dropdown they hide behind a click; as
+ * cards, two full-width boxes for "Yes" and "No" are clumsy. Long lists
+ * (Department) and "Other" questions keep their usual control. Same answer
+ * either way — the pills are radios carrying the option value.
  */
 export function isCompactChoice(field: FormField): boolean {
   const opts = field.options ?? [];
   return (
-    field.kind === "dropdown" &&
+    (field.kind === "dropdown" || field.kind === "radio") &&
     !field.allowOther &&
     opts.length >= 2 &&
     opts.length <= 6 &&

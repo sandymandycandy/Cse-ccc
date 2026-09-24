@@ -20,6 +20,31 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-24)
 
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-24 — registration form: choice cards, pills, wide desktop form
+> **`4a6ba8a`** + **`0fa16f9`** on `main` (Vercel "Deployment has completed"
+> for both), plus a follow-up commit (Yes/No radios as pills; full-width
+> team member cards). Gate: typecheck ✓ lint ✓ **1577 tests** ✓.
+>
+> - **Radio / checkbox questions are cards** (`components/registration/ChoiceGroup.tsx`).
+>   `splitChoice()` (`lib/registration-form/choice-display.ts`) pulls a
+>   numbered tag ("Theme-1") and a short lead title out of the option text —
+>   **display only**, the submitted value is the untouched option string.
+>   Native inputs stay in the card (visually hidden), so `FormData`, `required`
+>   and arrow keys are unchanged; choice questions use `fieldset`/`legend`.
+> - **Short single-choice questions are pills** — `isCompactChoice()`: a
+>   dropdown or radio with 2–6 options, each ≤14 chars, no "Other" (Year 1–5,
+>   Yes/No). Department (9 options + Other) stays a `<select>`.
+> - **Wide form on a desktop** — `isLongForm()` (team field, or ≥4 choice
+>   options with one >40 chars) adds `.evd-grid.wide-form`: the panel is
+>   640px at ≥1100px, and the `.rf` container query (≥520px) puts cards and
+>   team member fields two-up.
+> - **Checked only against real markup injected into a local page** — local
+>   is in maintenance, so no event page was exercised. First real use: **AI
+>   FORGE EXPO** (`da1fc5a7…`, registration opens 2026-09-24 18:00 IST) —
+>   look at it once on a PC.
+> - Gotcha hit: stopping `next dev` mid-write leaves truncated
+>   `.next/dev/types/*.ts` that break `tsc`; `rm -rf .next/dev/types` fixes it.
+
 > ### 🚀 SHIPPED TO PRODUCTION 2026-09-24 — maintenance switch in the admin panel
 > **`8906592`** on `main` (merged from `feat/maintenance-switch`). Spec
 > `docs/superpowers/specs/2026-09-24-maintenance-switch-design.md`, plan

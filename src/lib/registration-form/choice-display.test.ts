@@ -48,8 +48,15 @@ describe("isCompactChoice", () => {
     expect(isCompactChoice(dropdown(["CSE", "IT"], true))).toBe(false);
   });
 
-  it("only applies to dropdowns", () => {
-    expect(isCompactChoice({ ...dropdown(["1", "2"]), kind: "radio" } as FormField)).toBe(false);
+  it("also lays out a short radio question (Yes/No) as pills", () => {
+    expect(isCompactChoice({ ...dropdown(["Yes", "No"]), kind: "radio" } as FormField)).toBe(true);
+  });
+
+  it("never applies to checkboxes or wordy radios", () => {
+    expect(isCompactChoice({ ...dropdown(["1", "2"]), kind: "checkboxes" } as FormField)).toBe(false);
+    expect(
+      isCompactChoice({ ...dropdown(["Theme-1 - AI for Sustainability", "Theme-2"]), kind: "radio" } as FormField),
+    ).toBe(false);
   });
 });
 
