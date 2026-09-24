@@ -20,7 +20,7 @@
  *
  * ⚠️ THIS IS THE SWITCH. `true` = the public site shows the maintenance page.
  */
-const DEFAULT_MAINTENANCE = false;
+const DEFAULT_MAINTENANCE = true;
 
 /**
  * MAINTENANCE_MODE wins when it says something recognisable; otherwise the
