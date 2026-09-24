@@ -18,7 +18,30 @@ end-to-end**, not a checklist of components.
 
 ---
 
-## 🚦 START HERE — current git/deploy state (2026-09-23)
+## 🚦 START HERE — current git/deploy state (2026-09-24)
+
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-24 — maintenance switch in the admin panel
+> **`8906592`** on `main` (merged from `feat/maintenance-switch`). Spec
+> `docs/superpowers/specs/2026-09-24-maintenance-switch-design.md`, plan
+> `docs/superpowers/plans/2026-09-24-maintenance-switch.md`. Gate: typecheck ✓
+> lint ✓ **1565 tests** ✓ build ✓. Migration **`site_settings` APPLIED LIVE**
+> (seeded `maintenance = true`; anon = SELECT only, verified PATCH → 401).
+>
+> - **The site is IN MAINTENANCE** (switch ON). Flip it from the **"Public site"
+>   card** at the top of `/admin` — Tech Head / President / VP only (NOT the
+>   Faculty Advisor, owner decision). Confirm step; every flip is audited
+>   (`maintenance_on` / `maintenance_off`). Takes effect within ~10 s.
+> - **Precedence:** `MAINTENANCE_MODE` env (recognised value) → switch → the
+>   `DEFAULT_MAINTENANCE` fallback (`false`, used only on a cold instance that
+>   cannot read the DB). The constant is NO LONGER the switch.
+> - Proxy reads with the anon key, 10 s per-instance cache, 1.5 s timeout, 10 s
+>   back-off after a failure. `/admin/*` never reads it.
+> - ⚠️ Still gated during maintenance (pre-existing): `/api/admin/*` exports and
+>   `/api/cron/send-email` — queued mail (incl. admin password resets) waits.
+> - Deferred minors from the final review: no error toast on a failed flip;
+>   card shows "Live" (not "Unknown") when the row is unreadable; card focus
+>   management + emoji a11y; anon can read `updated_by`/`updated_at`; other
+>   admins' banner stale until reload; action tests match redirects by substring.
 
 > ### 🚀 SHIPPED TO PRODUCTION 2026-09-23 — registrations team list + per-person attendance, event email page
 > **`6bc7377`** on `main`. Vercel reported "Deployment has completed"; public
