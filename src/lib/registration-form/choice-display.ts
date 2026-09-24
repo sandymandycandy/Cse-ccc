@@ -30,6 +30,23 @@ export function splitChoice(option: string): ChoiceDisplay {
 }
 
 /**
+ * A dropdown short enough to lay out in full: a few one-word options (Year:
+ * 1–5) read faster as a row of pills than behind a click. Long lists
+ * (Department) and "Other" dropdowns stay a <select>. Same answer either way —
+ * the pills are radios carrying the option value.
+ */
+export function isCompactChoice(field: FormField): boolean {
+  const opts = field.options ?? [];
+  return (
+    field.kind === "dropdown" &&
+    !field.allowOther &&
+    opts.length >= 2 &&
+    opts.length <= 6 &&
+    opts.every((o) => o.length <= 14)
+  );
+}
+
+/**
  * A form too big for the 400px sidebar: a team roster, or a choice question
  * with enough long options that one narrow column turns into a scroll. The
  * event page gives these a wider column on a desktop.

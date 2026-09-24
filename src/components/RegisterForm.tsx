@@ -8,6 +8,7 @@ import { leaderLabel } from "@/lib/registration-form/team-labels";
 import { ResultMessage } from "./registration/ResultMessage";
 import { WhatsAppInvite } from "./registration/WhatsAppInvite";
 import { ChoiceGroup } from "./registration/ChoiceGroup";
+import { isCompactChoice } from "@/lib/registration-form/choice-display";
 
 type Result = {
   status?: string;
@@ -248,7 +249,8 @@ function FieldInput({
   const id = `rf-${field.id}`;
   const common = { id, name: field.id, required: field.required } as const;
   // A choice question is a group of inputs, not one — it takes a legend.
-  const isChoice = field.kind === "radio" || field.kind === "checkboxes";
+  const compact = isCompactChoice(field);
+  const isChoice = field.kind === "radio" || field.kind === "checkboxes" || compact;
   const Wrap = isChoice ? "fieldset" : "div";
   const heading = (
     <>
@@ -261,6 +263,14 @@ function FieldInput({
       {isChoice ? <legend>{heading}</legend> : <label htmlFor={id}>{heading}</label>}
       {field.kind === "paragraph" ? (
         <textarea {...common} rows={4} maxLength={4000} />
+      ) : compact ? (
+        <ChoiceGroup
+          name={field.id}
+          type="radio"
+          variant="pill"
+          options={field.options ?? []}
+          required={field.required}
+        />
       ) : field.kind === "dropdown" ? (
         <>
           <select {...common} defaultValue="">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isLongForm, splitChoice } from "./choice-display";
+import { isCompactChoice, isLongForm, splitChoice } from "./choice-display";
 import type { FormField } from "./schema";
 
 describe("splitChoice", () => {
@@ -31,6 +31,25 @@ describe("splitChoice", () => {
   it("does not invent a tag for a plain option", () => {
     expect(splitChoice("Yes - I agree")).toEqual({ tag: null, title: "Yes", text: "I agree" });
     expect(splitChoice("CSE")).toEqual({ tag: null, title: null, text: "CSE" });
+  });
+});
+
+describe("isCompactChoice", () => {
+  const dropdown = (options: string[], allowOther = false): FormField =>
+    ({ id: "d", kind: "dropdown", label: "D", required: true, options, allowOther }) as FormField;
+
+  it("lays out a few short options as pills", () => {
+    expect(isCompactChoice(dropdown(["1", "2", "3", "4", "5"]))).toBe(true);
+  });
+
+  it("keeps long lists, wordy options and Other as a dropdown", () => {
+    expect(isCompactChoice(dropdown(["a", "b", "c", "d", "e", "f", "g"]))).toBe(false);
+    expect(isCompactChoice(dropdown(["Computer Science", "IT"]))).toBe(false);
+    expect(isCompactChoice(dropdown(["CSE", "IT"], true))).toBe(false);
+  });
+
+  it("only applies to dropdowns", () => {
+    expect(isCompactChoice({ ...dropdown(["1", "2"]), kind: "radio" } as FormField)).toBe(false);
   });
 });
 
