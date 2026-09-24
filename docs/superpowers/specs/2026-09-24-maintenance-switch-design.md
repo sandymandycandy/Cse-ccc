@@ -96,8 +96,9 @@ The role check is repeated server-side; hiding the card is UX only.
 
 **Banner for every admin** while maintenance is on: a thin line at the top of
 `admin-main` in `src/app/admin/(app)/layout.tsx`: "The public site is in
-maintenance mode." Read with the same `getMaintenanceSwitch()` +
-`resolveMaintenance()` so it matches what visitors get.
+maintenance mode." Read fresh via `getSiteStatus()` (service role, same
+`resolveMaintenance()` precedence), so it can lead visitors by at most the
+proxy's 10 s cache.
 
 ## 4. Failure cases
 
