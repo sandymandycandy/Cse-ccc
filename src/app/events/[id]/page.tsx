@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Panel } from "@/components/ui/Surface";
 import { SeatBadge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { FormattedText } from "@/components/ui/FormattedText";
 import { RegisterForm } from "@/components/RegisterForm";
 import { RegistrationCountdown } from "@/components/RegistrationCountdown";
 import { getEventDetail, getPublishedResults } from "@/lib/queries";
@@ -157,23 +158,25 @@ export default async function EventDetailPage({ params }: Params) {
               />
             ) : null}
             {event.blurb ? (
-              <p className="lead" style={{ marginTop: event.posterUrl ? 24 : 0, maxWidth: 680 }}>
-                {event.blurb}
-              </p>
+              <FormattedText
+                text={event.blurb}
+                className="lead"
+                style={{ marginTop: event.posterUrl ? 24 : 0, maxWidth: 680 }}
+              />
             ) : null}
 
             {description ? (
-              <p className="body-text" style={{ marginTop: 16, maxWidth: 680, fontSize: 15 }}>
-                {description}
-              </p>
+              <FormattedText
+                text={description}
+                className="body-text"
+                style={{ marginTop: 16, maxWidth: 680, fontSize: 15 }}
+              />
             ) : null}
 
             {event.rules ? (
               <div style={{ marginTop: 28 }}>
                 <div className="label">Rules</div>
-                <p className="body-text" style={{ marginTop: 8, maxWidth: 680 }}>
-                  {event.rules}
-                </p>
+                <FormattedText text={event.rules} className="body-text" style={{ marginTop: 8, maxWidth: 680 }} />
               </div>
             ) : null}
 

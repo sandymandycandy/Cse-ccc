@@ -1111,6 +1111,10 @@
   .evd-cell.grow { flex: 1; min-width: 200px; }
   .evd-rule { align-self: stretch; width: 1px; background: var(--line-3); }
 
+  /* organiser text with its line breaks kept (FormattedText) */
+  .formatted-text { display: grid; gap: 0.75em; }
+  .formatted-text > p { white-space: pre-line; }
+
   .evd-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(330px, 400px);
