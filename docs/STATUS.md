@@ -20,6 +20,27 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-24)
 
+> ### 🔥 2026-09-24 evening — AI FORGE EXPO launch fixes (all LIVE)
+> Registration opened 18:00 IST and nobody could register. Causes, in order found:
+> - **Shared empty rate-limit bucket** — a form without roll/email identity sent
+>   `""`, so `reg:roll:` was ONE 3/hour bucket for everyone; the waiting room slept
+>   out an hour-long Retry-After. Now keyed only on collected values; waiting room
+>   gives up on Retry-After > 20 s; per-IP raised 5 → **30**/10 min (campus NAT).
+> - **Capacity 0** — the page reads 0 as "no limit", `register_for_event` as zero
+>   seats → `full` for everyone, and the form didn't treat `full` as terminal
+>   (Register "did nothing"). `full` now has its own message; saving capacity 0
+>   stores null. No other event had capacity 0.
+> - Answers now accepted as typed: 5-digit VTU / spaces / dashes in rolls, links
+>   without `https://`, phones with +91/spaces/leading 0. Rejections are listed
+>   above the Register button and the page scrolls to the first bad field.
+> - **One team name per event** — API check (before the rate limit) + unique index
+>   **`registrations_event_team_name_unique` APPLIED LIVE** (trimmed, whitespace-
+>   collapsed, case-insensitive); a 23505 on it maps to the same field error.
+> - WhatsApp pop-up: `ccc-rise` ends on `transform: none` and wiped its centring
+>   translate — now inset+margin:auto, a bottom sheet under 600px.
+> - Data edits on AI FORGE EXPO by direct SQL (not audit-logged): capacity → null,
+>   Year options 1–4, short description set.
+
 > ### 2026-09-24 — event short description + description line breaks
 > - ✅ **Migration `20260924120000_event_summary.sql` APPLIED LIVE** (owner-approved):
 >   `events.summary text`, nullable, `length <= 200`. Applied BEFORE the code —

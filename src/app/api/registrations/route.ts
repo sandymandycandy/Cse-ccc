@@ -125,6 +125,20 @@ export async function POST(request: Request) {
     p_team_name: identity.team_name,
   });
   if (error) {
+    // A unique index caught what the checks above could not: a same-instant
+    // double submit. Say it the way the checks would have, not as a crash.
+    if (error.code === "23505") {
+      if (error.message.includes("registrations_event_team_name_unique")) {
+        const teamField = schema.find((f) => f.identity === "team_name");
+        return Response.json(
+          { error: "Please check the form.", fields: { [teamField?.id ?? "team_name"]: TEAM_NAME_TAKEN } },
+          { status: 400 },
+        );
+      }
+      if (/registrations_event_(roll|email)_unique/.test(error.message)) {
+        return Response.json({ status: "duplicate", whatsapp: null });
+      }
+    }
     console.error("register_for_event failed", error);
     return Response.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
