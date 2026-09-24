@@ -70,17 +70,21 @@ function peek(key: string, max: number, windowMs: number): RateResult {
 const MIN = 60_000;
 const HOUR = 60 * MIN;
 
-/** The registration limits from SECURITY_SPEC §6. Returns the first that trips. */
+/** The registration limits (SECURITY_SPEC §6, per-IP raised — see below). Returns the first that trips. */
 export function checkRegistrationLimits(input: {
   ip: string;
   rollNo: string;
   email: string;
 }): RateResult {
-  const checks: RateResult[] = [
-    rateLimit(`reg:ip:${input.ip}`, 5, 10 * MIN),
-    rateLimit(`reg:roll:${input.rollNo}`, 3, HOUR),
-    rateLimit(`reg:email:${input.email}`, 10, HOUR),
-  ];
+  // ⚠️ Only key on a roll/email that was actually collected. A custom form
+  // without those fields sends "", and `reg:roll:` then became ONE bucket shared
+  // by every registrant — 3 per hour for the whole event (AI FORGE EXPO,
+  // 2026-09-24: nobody could register).
+  // Per-IP is 30, not SECURITY_SPEC's 5: a whole campus registers from behind
+  // one NAT address, so 5 meant the sixth student on college Wi-Fi was refused.
+  const checks: RateResult[] = [rateLimit(`reg:ip:${input.ip}`, 30, 10 * MIN)];
+  if (input.rollNo) checks.push(rateLimit(`reg:roll:${input.rollNo}`, 3, HOUR));
+  if (input.email) checks.push(rateLimit(`reg:email:${input.email}`, 10, HOUR));
   return checks.find((c) => !c.ok) ?? { ok: true, remaining: 0, retryAfterSeconds: 0 };
 }
 

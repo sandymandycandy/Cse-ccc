@@ -36,3 +36,12 @@ describe("nextDelay", () => {
     expect(MAX_ATTEMPTS).toBeLessThanOrEqual(12);
   });
 });
+
+describe("shouldRetry — a long Retry-After is not a queue", () => {
+  it("waits out a short Retry-After", () => {
+    expect(shouldRetry({ kind: "http", status: 429 }, 5)).toBe(true);
+  });
+  it("gives up on a long one instead of hanging the waiting room", () => {
+    expect(shouldRetry({ kind: "http", status: 429 }, 600)).toBe(false);
+  });
+});

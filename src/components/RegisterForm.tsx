@@ -40,10 +40,9 @@ async function submitOnce(
   const outcome: RetryOutcome = data.status
     ? { kind: "status", status: data.status }
     : { kind: "http", status: res.status };
-  if (shouldRetry(outcome)) {
-    const ra = Number(res.headers.get("retry-after") ?? "");
-    return { done: false, retryAfter: Number.isFinite(ra) && ra > 0 ? ra : undefined };
-  }
+  const ra = Number(res.headers.get("retry-after") ?? "");
+  const retryAfter = Number.isFinite(ra) && ra > 0 ? ra : undefined;
+  if (shouldRetry(outcome, retryAfter)) return { done: false, retryAfter };
   return {
     done: true,
     data: res.ok

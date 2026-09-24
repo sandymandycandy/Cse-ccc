@@ -5,6 +5,7 @@ import {
   peekLoginLimits,
   checkPasswordResetLimits,
   checkFeedbackLimits,
+  checkRegistrationLimits,
 } from "./rate-limit";
 
 // The limiter keeps state in a module-level Map, so each test uses a unique
@@ -165,5 +166,25 @@ describe("checkFeedbackLimits", () => {
     const blocked = checkFeedbackLimits({ ip });
     expect(blocked.ok).toBe(false);
     expect(blocked.retryAfterSeconds).toBeGreaterThan(0);
+  });
+});
+
+describe("checkRegistrationLimits — a form with no roll/email field", () => {
+  // A custom form without identity fields sends rollNo "" and email "". Keying
+  // on "" put every registrant in ONE shared 3-per-hour bucket, so the fourth
+  // student anywhere got an hour-long 429 (the "Holding your place" hang).
+  it("does not pool different students under an empty roll/email", () => {
+    for (let i = 0; i < 10; i++) {
+      const r = checkRegistrationLimits({ ip: `198.51.100.${i}`, rollNo: "", email: "" });
+      expect(r.ok).toBe(true);
+    }
+  });
+
+  it("still limits one roll number across IPs", () => {
+    const roll = "vtu-limit-check";
+    for (let i = 0; i < 3; i++) {
+      expect(checkRegistrationLimits({ ip: `198.51.101.${i}`, rollNo: roll, email: "" }).ok).toBe(true);
+    }
+    expect(checkRegistrationLimits({ ip: "198.51.101.9", rollNo: roll, email: "" }).ok).toBe(false);
   });
 });
