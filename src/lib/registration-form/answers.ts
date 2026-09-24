@@ -17,7 +17,14 @@ export interface ValidatedAnswers {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const ROLL_RE = /^[A-Z0-9]{6,15}$/;
+// 5 digits is a real VTU number here (vtu12345@veltech.edu.in) — it was 6+,
+// which rejected every student who typed just the digits.
+const ROLL_RE = /^[A-Z0-9]{5,15}$/;
+/** "vtu 12345" / "vtu-12345" → "VTU12345": spaces and dashes are not part of a roll. */
+const normRoll = (s: string) => s.toUpperCase().replace(/[\s-]/g, "");
+/** "drive.google.com/…" → "https://drive.google.com/…"; anything with a scheme is left alone. */
+const normLink = (s: string) =>
+  /^[a-z][a-z0-9+.-]*:/i.test(s) || !/^[^\s/]+\.[^\s/]+/.test(s) ? s : `https://${s}`;
 const PHONE_RE = /^[6-9]\d{9}$/;
 const NAME_RE = /^[\p{L}\p{M} .'-]+$/u;
 
@@ -79,7 +86,7 @@ export function validateAnswers(
     }
 
     if (field.kind === "link") {
-      const v = String(raw).trim();
+      const v = normLink(String(raw).trim());
       if (v.length > 2000 || !isSafeHttpUrl(v)) { fieldErrors[field.id] = "Enter a valid link (https)."; continue; }
       pushCustom(field, v, identity, customAnswers, fieldErrors);
       continue;
@@ -131,7 +138,7 @@ function applyIdentity(
       if (v.length < 2 || v.length > 80 || !NAME_RE.test(v)) return "Use letters, spaces, . ' - only";
       out.student_name = v; return null;
     case "roll": {
-      const up = v.toUpperCase();
+      const up = normRoll(v);
       if (!ROLL_RE.test(up)) return "Enter a valid roll number";
       out.roll_no = up; return null;
     }
@@ -158,7 +165,7 @@ function cleanMember(kind: MemberSubfield["kind"], raw: unknown): string | null 
   if (!s) return "";
   switch (kind) {
     case "email": { const lo = s.toLowerCase(); return lo.length <= 120 && EMAIL_RE.test(lo) ? lo : null; }
-    case "roll": { const up = s.toUpperCase(); return ROLL_RE.test(up) ? up : null; }
+    case "roll": { const up = normRoll(s); return ROLL_RE.test(up) ? up : null; }
     case "phone": return PHONE_RE.test(s) ? s : null;
     default: return s.slice(0, 200);
   }

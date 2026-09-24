@@ -200,3 +200,40 @@ describe("team name as an identity block", () => {
     if (r.ok) expect(r.data.identity.team_name).toBeUndefined();
   });
 });
+
+// AI FORGE EXPO, 2026-09-24: students were getting a bare 400 for inputs a
+// person would call correct.
+describe("forgiving the way students actually type", () => {
+  const team = f({
+    id: "team", kind: "team", required: true, minMembers: 1, maxMembers: 4,
+    members: [
+      { key: "name", kind: "short_text", label: "NAME", required: true },
+      { key: "vtu", kind: "roll", label: "VTU NUMBER", required: true },
+    ],
+  });
+
+  it("accepts a 5-digit VTU number, and one with spaces or a dash", () => {
+    for (const vtu of ["12345", "VTU 12345", "vtu-12345"]) {
+      const r = validateAnswers([team], { team: [{ name: "Asha", vtu }] });
+      expect(r.ok, vtu).toBe(true);
+    }
+    const r = validateAnswers([team], { team: [{ name: "Asha", vtu: "vtu 12345" }] });
+    expect(r.ok && r.data.customAnswers.team).toEqual([{ name: "Asha", vtu: "VTU12345" }]);
+  });
+
+  it("still rejects something that is not a roll number", () => {
+    expect(validateAnswers([team], { team: [{ name: "Asha", vtu: "12" }] }).ok).toBe(false);
+  });
+
+  it("accepts a link typed without https://, stored with it", () => {
+    const schema = [f({ id: "doc", kind: "link", required: true })];
+    const r = validateAnswers(schema, { doc: "drive.google.com/file/d/abc" });
+    expect(r.ok && r.data.customAnswers.doc).toBe("https://drive.google.com/file/d/abc");
+  });
+
+  it("still refuses a non-web scheme or plain words", () => {
+    const schema = [f({ id: "doc", kind: "link", required: true })];
+    expect(validateAnswers(schema, { doc: "javascript:alert(1)" }).ok).toBe(false);
+    expect(validateAnswers(schema, { doc: "my ppt" }).ok).toBe(false);
+  });
+});
