@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-23 (registrations team list + per-person attendance MERGED into local `main` (NOT pushed), migration `registration_absent_members` APPLIED LIVE; admin refresh follow-up — Email/Audit/Team/attendance screens + attendance close semantics — SHIPPED (454f244); 2026-09-22: three deploys: event WhatsApp group link SHIPPED (81753d6) with migration `event_whatsapp_link` APPLIED LIVE; tabbed event form + three design-handoff gaps SHIPPED (543f89c); rebuilt maintenance page SHIPPED DARK (a97c311); 2026-09-20: admin layout/interaction upgrade SHIPPED (d27c4d9), migration `attendance_absent_mark` APPLIED LIVE — club attendance is now tri-state; 2026-09-18: new `/team` page + its CMS SHIPPED (73058ce), migration team_profiles applied live and still empty; 2026-09-17: co-host dropdown + sectioned event form SHIPPED; session history search + sortable date SHIPPED; co-hosted events shipped earlier the same day; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed).**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-23 (registrations team list + per-person attendance + two-panel event email page SHIPPED (6bc7377), migration `registration_absent_members` APPLIED LIVE; admin refresh follow-up — Email/Audit/Team/attendance screens + attendance close semantics — SHIPPED (454f244); 2026-09-22: three deploys: event WhatsApp group link SHIPPED (81753d6) with migration `event_whatsapp_link` APPLIED LIVE; tabbed event form + three design-handoff gaps SHIPPED (543f89c); rebuilt maintenance page SHIPPED DARK (a97c311); 2026-09-20: admin layout/interaction upgrade SHIPPED (d27c4d9), migration `attendance_absent_mark` APPLIED LIVE — club attendance is now tri-state; 2026-09-18: new `/team` page + its CMS SHIPPED (73058ce), migration team_profiles applied live and still empty; 2026-09-17: co-host dropdown + sectioned event form SHIPPED; session history search + sortable date SHIPPED; co-hosted events shipped earlier the same day; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed).**
 
 ## What this is
 
@@ -20,9 +20,10 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-23)
 
-> ### ⛔ MERGED LOCALLY, NOT PUSHED — registrations team list + per-person attendance
-> Merged into local `main` from `feat/registrations-team-attendance`; migration
-> applied live 2026-09-23, so `main` is safe to push once the owner says so. (spec
+> ### 🚀 SHIPPED TO PRODUCTION 2026-09-23 — registrations team list + per-person attendance, event email page
+> **`6bc7377`** on `main`. Vercel reported "Deployment has completed"; public
+> routes 200, the two admin pages 307 → login when signed out. **Not yet
+> exercised signed-in on production** (no mark or send was pressed). (spec
 > `docs/superpowers/specs/2026-09-23-registrations-team-attendance-design.md`,
 > plan in `docs/superpowers/plans/`). Gate: typecheck ✓ lint ✓ **1524 tests /
 > 130 files** ✓ build ✓. **Not browser-checked yet.**
@@ -45,6 +46,12 @@ end-to-end**, not a checklist of components.
 > - **Certificates skip absent people**, including an absent leader. Their email
 >   can still carry teammates' certificates. **Certificates already issued are
 >   NOT revoked.** Export: `Attended` = yes/partial/no, plus `Absent members`.
+> - **Event email page** (`/admin/events/[id]/email`) now uses the Email page's
+>   two panels (01 recipients, 02 message). Audiences and the Send button show
+>   **address** counts (deduped, every team member), and Send is disabled at 0.
+>   ⚠️ Event emails **always** queue (`enqueueEmail` per address). The
+>   50-address `INLINE_MAX` rule belongs only to `/admin/email`, so do not copy
+>   its note here.
 > - New action `setMemberAttendanceAction` has the same authorisation and
 >   eligibility as the row button and is audited as `attend_member`. The
 >   full-team toggle now also clears absences.
