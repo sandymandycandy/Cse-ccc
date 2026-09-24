@@ -1,6 +1,7 @@
 import { CHOICE_KINDS, LAYOUT_KINDS, type FormField, type MemberSubfield } from "./schema";
 import { isSafeHttpUrl } from "@/lib/url";
 import { DEPARTMENTS } from "@/lib/departments";
+import { teamNameKey } from "@/lib/registration/team-name";
 
 export type AnswerValue = string | number | string[] | Record<string, string>[];
 
@@ -160,7 +161,8 @@ function applyIdentity(
     case "team_name":
       if (v.length < TEAM_NAME_MIN) return "Give your team a name";
       if (v.length > TEAM_NAME_MAX) return `Keep it under ${TEAM_NAME_MAX} characters`;
-      out.team_name = v; return null;
+      // Stored single-spaced so the one-name-per-event check compares like with like.
+      out.team_name = teamNameKey(v); return null;
     default:
       return null;
   }

@@ -6,6 +6,7 @@ import { validateAnswers } from "@/lib/registration-form/answers";
 import { teamRecipients } from "@/lib/registration-form/recipients";
 import { registrationMail, type RegistrationStatus } from "@/lib/registration/confirm-email";
 import { groupLinkFor } from "@/lib/registration/whatsapp";
+import { TEAM_NAME_TAKEN, teamNameIlike } from "@/lib/registration/team-name";
 import { enqueueEmail } from "@/lib/email";
 import { istDayNum, istDateLabel, istTime } from "@/lib/datetime";
 
@@ -75,6 +76,27 @@ export async function POST(request: Request) {
     return Response.json({ error: "Please check the form.", fields: result.fieldErrors }, { status: 400 });
   }
   const { identity, customAnswers } = result.data;
+
+  // 5b) one team name per event — said on the team-name field, like any other
+  // bad answer. BEFORE the rate limit on purpose: the roll limit is 3 an hour,
+  // and picking a taken name twice must not lock a student out. Team names are
+  // public anyway. A same-instant double submit can still slip past (no DB
+  // constraint yet).
+  if (identity.team_name) {
+    const { data: taken, error: takenErr } = await admin
+      .from("registrations")
+      .select("id")
+      .eq("event_id", eventId)
+      .ilike("team_name", teamNameIlike(identity.team_name))
+      .limit(1);
+    if (!takenErr && taken && taken.length > 0) {
+      const teamField = schema.find((f) => f.identity === "team_name");
+      return Response.json(
+        { error: "Please check the form.", fields: { [teamField?.id ?? "team_name"]: TEAM_NAME_TAKEN } },
+        { status: 400 },
+      );
+    }
+  }
 
   // 6) rate limit — by ip + roll/email when collected (dedup keys)
   const limit = checkRegistrationLimits({
