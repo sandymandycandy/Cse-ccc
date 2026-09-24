@@ -2,7 +2,13 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { makeIdleToken, readIdleToken, idleAction } from "@/lib/auth/idle";
-import { isMaintenanceMode, isExemptPath, maintenanceResponse } from "@/lib/maintenance";
+import {
+  parseMaintenanceFlag,
+  resolveMaintenance,
+  isExemptPath,
+  maintenanceResponse,
+} from "@/lib/maintenance";
+import { getMaintenanceSwitch } from "@/lib/maintenance-switch";
 
 const useSecureCookies = process.env.NODE_ENV === "production";
 
@@ -33,19 +39,26 @@ function clearCookie(res: NextResponse, name: string): void {
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Maintenance mode (MAINTENANCE_MODE env var). Answered here, before any page
-  // renders, so the public site issues zero database queries while it is on —
-  // a maintenance page that depends on the thing being maintained is no use.
-  // /admin/* stays open: maintenance is usually exactly when the council needs
-  // to get in.
-  if (isMaintenanceMode(process.env.MAINTENANCE_MODE) && !isExemptPath(pathname)) {
-    return maintenanceResponse();
+  // Public routes: maintenance gate, then straight through — they have no
+  // session to check, and running the JWT decode on them would be pure waste.
+  //
+  // The admin switch (site_settings, flipped from /admin) decides, unless
+  // MAINTENANCE_MODE holds a recognised value — then that wins and the
+  // database is not read at all. The read is cached for 10 s per instance and
+  // bounded by a 1.5 s timeout (src/lib/maintenance-switch.ts), so visitors
+  // never pay a round-trip each or hang on a dead database.
+  //
+  // /admin/* never reaches this block: maintenance is usually exactly when the
+  // council needs to get in, and the switch that ends it lives there.
+  if (!isExemptPath(pathname)) {
+    const envFlag = process.env.MAINTENANCE_MODE;
+    const switchValue =
+      parseMaintenanceFlag(envFlag) === null ? await getMaintenanceSwitch() : null;
+    if (resolveMaintenance(envFlag, switchValue)) return maintenanceResponse();
+    return NextResponse.next();
   }
 
-  // Everything below is the admin gate. The matcher now spans the whole site
-  // for maintenance, so public routes stop here — they have no session to
-  // check, and running the JWT decode on them would be pure waste.
-  if (!isExemptPath(pathname)) return NextResponse.next();
+  // Everything below is the admin gate.
 
   // Expose the path to the root layout so it can drop the public site chrome on
   // admin routes (Server Components can't otherwise read the current pathname).
