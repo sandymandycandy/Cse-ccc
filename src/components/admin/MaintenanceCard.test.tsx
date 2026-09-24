@@ -53,3 +53,22 @@ describe("MaintenanceConfirm", () => {
     expect(out).toContain('name="on" value="false"');
   });
 });
+
+// The action redirects to the same /admin URL, and React keeps client state
+// across that re-render — so the card must be remounted when the switch
+// changes, or the confirm step stays open offering the OPPOSITE flip.
+describe("maintenanceCardKey", () => {
+  it("changes when the switch flips, so the card remounts closed", async () => {
+    const { maintenanceCardKey } = await import("./MaintenanceCard");
+    const before = status({ maintenance: false, updatedAt: "2026-09-24T07:10:00Z" });
+    const after = status({ maintenance: true, updatedAt: "2026-09-24T07:11:00Z" });
+    expect(maintenanceCardKey(after)).not.toBe(maintenanceCardKey(before));
+  });
+
+  it("changes on a re-post of the same state (new updated_at)", async () => {
+    const { maintenanceCardKey } = await import("./MaintenanceCard");
+    const a = status({ maintenance: true, updatedAt: "2026-09-24T07:10:00Z" });
+    const b = status({ maintenance: true, updatedAt: "2026-09-24T07:12:00Z" });
+    expect(maintenanceCardKey(b)).not.toBe(maintenanceCardKey(a));
+  });
+});

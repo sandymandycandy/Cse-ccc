@@ -1,5 +1,5 @@
 import { AdminDashboardView } from "@/components/admin/AdminDashboardView";
-import { MaintenanceCard } from "@/components/admin/MaintenanceCard";
+import { MaintenanceCard, maintenanceCardKey } from "@/components/admin/MaintenanceCard";
 import { canToggleMaintenance, getSiteStatus } from "@/lib/admin/site-status";
 import { redirect } from "next/navigation";
 import { requireAdminPage } from "@/lib/auth/guards";
@@ -35,7 +35,7 @@ export default async function AdminDashboard() {
       docket={docket}
       glance={glance}
       actions={actions}
-      siteControl={siteStatus ? <MaintenanceCard status={siteStatus} /> : null}
+      siteControl={siteStatus ? <MaintenanceCard key={maintenanceCardKey(siteStatus)} status={siteStatus} /> : null}
       feedbackControl={reach.canFeedback ? (
         <form action={signals.feedbackOpen ? closeFeedbackAction : openFeedbackAction}>
           <button type="submit" className="btn btn-ghost">

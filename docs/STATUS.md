@@ -1064,10 +1064,11 @@ end-to-end**, not a checklist of components.
 > it was pasted into a chat transcript during the migration. (2) Delete the Seoul
 > project once satisfied, no earlier than ~2026-09-12.
 >
-> 🔧 **MAINTENANCE MODE IS CURRENTLY ON** — the public site answers 503 with a
-> maintenance page; `/admin/*` stays reachable. The switch is
-> `DEFAULT_MAINTENANCE` in `src/lib/maintenance.ts` (env `MAINTENANCE_MODE`
-> overrides it). **Turn it off by setting that constant to `false` and pushing.**
+> 🔧 **Maintenance mode** — flip it from the **"Public site" card on the /admin
+> dashboard** (Tech Head / President / VP; takes effect within ~10 s, no deploy).
+> The `MAINTENANCE_MODE` Vercel env var overrides the card (break-glass, needs a
+> redeploy). `DEFAULT_MAINTENANCE` in `src/lib/maintenance.ts` is NO LONGER the
+> switch — it is only the fallback when the database cannot be read (`false`).
 >
 > ---
 >

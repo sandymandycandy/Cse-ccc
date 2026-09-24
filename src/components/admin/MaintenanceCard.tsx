@@ -5,6 +5,15 @@ import type { SiteStatus } from "@/lib/admin/site-status";
 import { setMaintenanceAction } from "@/app/admin/(app)/maintenance/actions";
 import { istDateMedium, istTime } from "@/lib/datetime";
 
+/**
+ * Use as the card's `key`. The action redirects back to the same /admin URL and
+ * React keeps client state across that re-render, so without a new key the
+ * confirm step would stay open — now offering the opposite flip.
+ */
+export function maintenanceCardKey(status: SiteStatus): string {
+  return `${status.maintenance}-${status.updatedAt ?? "never"}`;
+}
+
 /** Dashboard control for the public site's maintenance switch (TH / President / VP only). */
 export function MaintenanceCard({ status }: { status: SiteStatus }) {
   const [confirming, setConfirming] = useState(false);
