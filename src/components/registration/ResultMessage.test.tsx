@@ -43,3 +43,11 @@ describe("ResultMessage", () => {
     expect(render({ status: "duplicate" })).toContain("Already registered");
   });
 });
+
+describe("ResultMessage — a full event", () => {
+  it("says it is full, not 'Already registered'", () => {
+    const html = render({ status: "full" });
+    expect(html).toContain("This event is full");
+    expect(html).not.toContain("Already registered");
+  });
+});

@@ -19,7 +19,9 @@ type Result = {
   /** The event's group chat. Only ever sent back on a registration that landed. */
   whatsapp?: string | null;
 };
-const TERMINAL = new Set(["registered", "submitted", "waitlisted", "duplicate"]);
+// Every final answer the API can give. "full" was missing, so a full event
+// re-rendered the untouched form — Register looked like it did nothing.
+const TERMINAL = new Set(["registered", "submitted", "waitlisted", "duplicate", "full"]);
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -134,7 +136,15 @@ export function RegisterForm({
     }
     setSubmitting(false);
     setWaiting(false);
-    setResult(final ?? { error: "It's very busy right now. Please try again in a moment." });
+    setResult(
+      !final
+        ? { error: "It's very busy right now. Please try again in a moment." }
+        : // An answer that is neither an error nor a known outcome must still say
+          // something — silence is exactly what made Register look broken.
+          !final.error && !(final.status && TERMINAL.has(final.status))
+          ? { error: "We couldn't complete your registration. Please try again." }
+          : final,
+    );
   }
 
   if (waiting) {

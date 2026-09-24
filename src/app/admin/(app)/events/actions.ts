@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { capacityValue } from "@/lib/admin/event-capacity";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -228,7 +229,7 @@ export async function createEventAction(
       ends_at: endsAt,
       venue_text: venue,
       poster_path: poster.path ?? null,
-      capacity: typeof capacity === "number" ? capacity : null,
+      capacity: capacityValue(capacity),
       selection_mode: selectionMode,
       registration_form: form.value,
       registration_opens_at: sched.opensAt,
@@ -447,7 +448,7 @@ export async function updateEventAction(
     starts_at: startsAt,
     ends_at: endsAt,
     venue_text: venue,
-    capacity: typeof capacity === "number" ? capacity : null,
+    capacity: capacityValue(capacity),
     selection_mode: selectionMode,
     registration_form: form.value,
     registration_opens_at: sched.opensAt,

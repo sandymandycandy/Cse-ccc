@@ -56,6 +56,17 @@ export function ResultMessage({
       </div>
     );
   }
+  if (status === "full") {
+    return (
+      <div>
+        <h3 style={{ fontSize: 22 }}>This event is full</h3>
+        <p className="body-text" style={{ marginTop: 8 }}>
+          Every seat is taken and there is no waitlist, so we couldn&rsquo;t register you. Your
+          answers were not saved.
+        </p>
+      </div>
+    );
+  }
   return (
     <div>
       <h3 style={{ fontSize: 22 }}>Already registered</h3>
