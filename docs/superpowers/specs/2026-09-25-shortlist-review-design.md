@@ -125,7 +125,9 @@ lesson from the original `shortlistAction`) → `writeAudit` →
    shortlist_decision = 'shortlist' and shortlisted_at is null returning id,
    email, student_name, custom_answers`. Only the **returned** rows are emailed
    (via existing `teamRecipients` + `enqueueEmail`, template
-   `registration_shortlisted`, same subject/payload as today) — so a double
+   `registration_shortlisted`, same subject/payload as today; above 50 recipients
+   they are queued with `enqueueEmailBatch` for the Outbox, like the broadcast
+   page) — so a double
    click or two admins at once can never email a team twice. Audit
    `shortlist_finalise` with the count. Returns `{ ok, emailed }`.
 
@@ -135,7 +137,7 @@ away with the checkboxes).
 ## CSV export
 
 The `Shortlisted` column becomes **Category** (`Not decided` / `Waiting list` /
-`Shortlisted` / `Shortlisted (emailed)`) on shortlist events.
+`Shortlisted` / `Shortlisted · emailed`) on shortlist events.
 
 ## Error handling
 
