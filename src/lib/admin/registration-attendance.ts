@@ -34,7 +34,12 @@ export async function getRegistrationForMarking(eventId: string, registrationId:
   };
 }
 
-/** Persist a team's attendance. Check-in stamps move only when `attended` flips. */
+/**
+ * Persist a team's attendance. Check-in stamps move only when `attended` flips.
+ * `onlyShortlisted` (shortlist events) makes the write itself require a finalised
+ * row, so a team moved off the shortlist mid-mark is not left attended. Returns
+ * whether a row was written.
+ */
 export async function writeRegistrationAttendance(input: {
   eventId: string;
   registrationId: string;
@@ -42,9 +47,10 @@ export async function writeRegistrationAttendance(input: {
   absent: number[];
   actorId: string;
   stampCheckIn: boolean;
-}): Promise<void> {
+  onlyShortlisted?: boolean;
+}): Promise<boolean> {
   const admin = createAdminClient();
-  const { error } = await admin
+  let q = admin
     .from("registrations")
     .update({
       attended: input.attended,
@@ -59,5 +65,8 @@ export async function writeRegistrationAttendance(input: {
     })
     .eq("id", input.registrationId)
     .eq("event_id", input.eventId);
+  if (input.onlyShortlisted && input.attended) q = q.not("shortlisted_at", "is", null);
+  const { data, error } = await q.select("id");
   if (error) throw error;
+  return (data?.length ?? 0) > 0;
 }

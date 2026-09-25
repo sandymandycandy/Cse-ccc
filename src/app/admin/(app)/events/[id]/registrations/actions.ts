@@ -35,12 +35,12 @@ export async function toggleAttendanceAction(formData: FormData): Promise<void> 
   if (!ev || !canManageEvent(session, "manage:registrations", ev.hosts)) return;
 
   const admin = createAdminClient();
+  const { selectionMode } = await getEventFormSchema(eventId);
 
   // Marking present is scoped: a shortlist event admits only shortlisted rows.
   // An undo (clearing `attended`) is always allowed so an unshortlisted-after-
   // marking row can still be corrected.
   if (attend) {
-    const { selectionMode } = await getEventFormSchema(eventId);
     const { data: reg } = await admin
       .from("registrations")
       .select("shortlisted_at")
@@ -53,7 +53,7 @@ export async function toggleAttendanceAction(formData: FormData): Promise<void> 
     }
   }
 
-  const { error } = await admin
+  let write = admin
     .from("registrations")
     .update({
       attended: attend,
@@ -64,7 +64,12 @@ export async function toggleAttendanceAction(formData: FormData): Promise<void> 
     })
     .eq("id", registrationId)
     .eq("event_id", eventId);
+  // Re-checked in the write: another admin may have moved the team off the
+  // shortlist since the read above.
+  if (attend && selectionMode === "shortlist") write = write.not("shortlisted_at", "is", null);
+  const { data: written, error } = await write.select("id");
   if (error) throw error;
+  if (!written?.length) return; // gone, or no longer shortlisted
 
   await writeAudit({
     actorId: session.id,
@@ -169,14 +174,16 @@ export async function setMemberAttendanceAction(input: {
 
   // Solo entries never carry per-person absences.
   const absent = team.length > 0 ? next.absent : [];
-  await writeRegistrationAttendance({
+  const written = await writeRegistrationAttendance({
     eventId: input.eventId,
     registrationId: input.registrationId,
     attended: next.attended,
     absent,
     actorId: session.id,
     stampCheckIn: next.attended !== reg.attended,
+    onlyShortlisted: selectionMode === "shortlist",
   });
+  if (!written) return denied;
   await writeAudit({
     actorId: session.id,
     action: "attend_member",

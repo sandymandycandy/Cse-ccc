@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   session: vi.fn(), event: vi.fn(), manage: vi.fn(), schema: vi.fn(),
-  row: vi.fn(), write: vi.fn(), audit: vi.fn(), update: vi.fn(),
+  row: vi.fn(), write: vi.fn(), audit: vi.fn(), update: vi.fn(), filter: vi.fn(),
+  shortlistedAt: null as string | null,
 }));
 vi.mock("@/lib/auth/guards", () => ({ getAdminSession: mocks.session }));
 vi.mock("@/lib/admin/event-hosts", () => ({ canManageEvent: mocks.manage }));
@@ -19,9 +20,19 @@ vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     from: () => ({
       // toggleAttendanceAction reads shortlisted_at before marking present…
-      select: () => ({ eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { shortlisted_at: null } }) }) }) }),
+      select: () => ({ eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { shortlisted_at: mocks.shortlistedAt } }) }) }) }),
       // …then writes the row.
-      update: (v: unknown) => { mocks.update(v); return { eq: () => ({ eq: async () => ({ error: null }) }) }; },
+      update: (v: unknown) => {
+        mocks.update(v);
+        // Every filter is recorded; the chain is awaitable at any point.
+        const chain = {
+          eq: (...a: unknown[]) => { mocks.filter("eq", ...a); return chain; },
+          not: (...a: unknown[]) => { mocks.filter("not", ...a); return chain; },
+          select: async () => ({ data: [{ id: "x" }], error: null }),
+          then: (ok: (v: { error: null }) => unknown) => ok({ error: null }),
+        };
+        return chain;
+      },
     }),
   }),
 }));
@@ -44,12 +55,14 @@ beforeEach(() => {
   mocks.manage.mockReturnValue(true);
   mocks.schema.mockResolvedValue({ schema: teamSchema, selectionMode: "seats" });
   mocks.row.mockResolvedValue(row());
+  mocks.write.mockResolvedValue(true);
+  mocks.shortlistedAt = null;
 });
 
 describe("per-person attendance action", () => {
   it("marks one member absent on an attended team and audits it", async () => {
     await expect(call(2, false)).resolves.toEqual({ ok: true, attended: true, absent: [2] });
-    expect(mocks.write).toHaveBeenCalledWith({ eventId, registrationId, attended: true, absent: [2], actorId: "admin", stampCheckIn: false });
+    expect(mocks.write).toHaveBeenCalledWith({ eventId, registrationId, attended: true, absent: [2], actorId: "admin", stampCheckIn: false, onlyShortlisted: false });
     expect(mocks.audit).toHaveBeenCalledWith(expect.objectContaining({
       action: "attend_member", entity: "registration", entityId: registrationId,
       after: { position: 2, name: "Ravi", present: false },
@@ -84,5 +97,31 @@ describe("per-person attendance action", () => {
     f.set("registrationId", registrationId); f.set("eventId", eventId); f.set("attend", "1");
     await toggleAttendanceAction(f);
     expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({ attended: true, absent_members: [] }));
+  });
+
+  // Another admin can move the team off the shortlist between the read and the
+  // write: the write itself must still require a finalised row.
+  it("full-team present on a shortlist event only writes a still-shortlisted row", async () => {
+    mocks.schema.mockResolvedValue({ schema: teamSchema, selectionMode: "shortlist" });
+    mocks.shortlistedAt = "2026-09-25T00:00:00Z";
+    const f = new FormData();
+    f.set("registrationId", registrationId); f.set("eventId", eventId); f.set("attend", "1");
+    await toggleAttendanceAction(f);
+    expect(mocks.filter).toHaveBeenCalledWith("not", "shortlisted_at", "is", null);
+  });
+
+  it("per-person marking on a shortlist event requires a still-shortlisted row", async () => {
+    mocks.schema.mockResolvedValue({ schema: teamSchema, selectionMode: "shortlist" });
+    mocks.row.mockResolvedValue(row({ attended: false, shortlistedAt: "2026-09-25T00:00:00Z" }));
+    await call(1, false);
+    expect(mocks.write).toHaveBeenCalledWith(expect.objectContaining({ onlyShortlisted: true }));
+  });
+
+  it("reports failure when the team left the shortlist before the write", async () => {
+    mocks.schema.mockResolvedValue({ schema: teamSchema, selectionMode: "shortlist" });
+    mocks.row.mockResolvedValue(row({ attended: false, shortlistedAt: "2026-09-25T00:00:00Z" }));
+    mocks.write.mockResolvedValue(false);
+    await expect(call(1, false)).resolves.toMatchObject({ ok: false });
+    expect(mocks.audit).not.toHaveBeenCalled();
   });
 });
