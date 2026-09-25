@@ -38,6 +38,11 @@ end-to-end**, not a checklist of components.
 > - Review minors all FIXED same day: attendance writes re-check `shortlisted_at` in the UPDATE itself (2-admin
 >   race); decision audit records before+after; chip counts follow the search ("N of M match"); the
 >   already-emailed warning can only be passed by its own Confirm (`segmentClick`). Gate: **1623 tests** ✓ build ✓.
+> - Review page **grouped by theme** + responsive (same day): sections per answer to a radio/dropdown question
+>   (`groupFields`/`groupReview`; default = label matching /theme|track/, "Group by" select to change or turn
+>   off; "Not answered" last), per-section counts, collapsible `<details>`. Full-width 3-way switch (44px on
+>   phones), card head keeps badge + count together, Finalise bar **fixed to the bottom under 640px**.
+>   Checked by headless-Chrome screenshots at 375px and 1280px (no horizontal overflow). **1627 tests** ✓.
 
 > ### 🔥 2026-09-24 evening — AI FORGE EXPO launch fixes (all LIVE)
 > Registration opened 18:00 IST and nobody could register. Causes, in order found:

@@ -9,9 +9,12 @@ import {
   STATE_LABEL,
   decisionOf,
   filterReview,
+  groupReview,
   pendingCount,
+  reviewCounts,
   searchedCounts,
   segmentClick,
+  type GroupField,
   type ReviewView,
   type ShortlistDecision,
   type ShortlistState,
@@ -24,6 +27,8 @@ export interface ReviewItem {
   team: TeamGroup;
   state: ShortlistState;
   search: unknown[];
+  /** Answer per groupable question id (see `groupFields`), null when unanswered. */
+  choices: Record<string, string | null>;
 }
 
 const CHOICES: { decision: ShortlistDecision; label: string }[] = [
@@ -40,14 +45,32 @@ const BADGE: Record<ShortlistState, string> = {
   finalised: "abadge abadge-approved",
 };
 
+/** "12 teams · 3 shortlisted · 2 waiting" for one theme section. */
+function groupSummary(items: ReviewItem[]): string {
+  const c = reviewCounts(items.map((i) => i.state));
+  return [
+    `${c.All} ${c.All === 1 ? "team" : "teams"}`,
+    c.Shortlisted ? `${c.Shortlisted} shortlisted` : "",
+    c["Waiting list"] ? `${c["Waiting list"]} waiting` : "",
+  ].filter(Boolean).join(" · ");
+}
+
 /**
  * Review every registration on a shortlist event: put each team in a category
- * (silent, saved at once), then Finalise to email the shortlisted. A finalised
- * team being moved out gets an inline confirm — it was already told.
+ * (silent, saved at once), then Finalise to email the shortlisted. Teams are
+ * sectioned by a choice question — the theme, by default. A finalised team
+ * being moved out gets an inline confirm — it was already told.
  */
-export function ShortlistReview({ eventId, items, canEdit }: { eventId: string; items: ReviewItem[]; canEdit: boolean }) {
+export function ShortlistReview({ eventId, items, canEdit, groupFields = [], defaultGroup = null }: {
+  eventId: string;
+  items: ReviewItem[];
+  canEdit: boolean;
+  groupFields?: GroupField[];
+  defaultGroup?: string | null;
+}) {
   const [q, setQ] = useState("");
   const [view, setView] = useState<ReviewView>("All");
+  const [groupBy, setGroupBy] = useState<string>(defaultGroup ?? "");
   const [confirmOut, setConfirmOut] = useState<{ id: string; decision: ShortlistDecision } | null>(null);
   const [confirmFinal, setConfirmFinal] = useState(false);
   const [notice, setNotice] = useState("");
@@ -62,6 +85,8 @@ export function ShortlistReview({ eventId, items, canEdit }: { eventId: string; 
   const searching = q.trim() !== "";
   const toSend = pendingCount(states);
   const rows = filterReview(shown, q, view);
+  const field = groupFields.find((f) => f.id === groupBy) ?? null;
+  const groups = groupReview(rows, field);
 
   function choose(item: ReviewItem, decision: ShortlistDecision) {
     const out = segmentClick(item.state, decision, confirmOut?.id === item.id);
@@ -106,9 +131,43 @@ export function ShortlistReview({ eventId, items, canEdit }: { eventId: string; 
 
   if (items.length === 0) return <div className="cal-empty">No registrations yet.</div>;
 
-  return (
-    <>
+  const card = (item: ReviewItem) => (
+    <TeamCard
+      key={item.id}
+      team={item.team}
+      badge={<span className={BADGE[item.state]}>{item.state === "finalised" ? "Emailed" : STATE_LABEL[item.state]}</span>}
+    >
       {canEdit ? (
+        <div className="shortlist-choice">
+          <div className="seg" role="radiogroup" aria-label={`Category for ${item.team.name ?? `team ${item.team.index}`}`}>
+            {CHOICES.map((c) => (
+              <button key={c.label} type="button" role="radio"
+                aria-checked={decisionOf(item.state) === c.decision}
+                data-on={decisionOf(item.state) === c.decision}
+                data-kind={c.decision ?? "none"}
+                onClick={() => choose(item, c.decision)}>
+                {c.label}
+              </button>
+            ))}
+          </div>
+          {confirmOut?.id === item.id ? (
+            <p className="shortlist-warn" role="alert">
+              This team was already told they&rsquo;re selected — you&rsquo;ll need to tell them yourself.
+              Their attendance will be cleared.{" "}
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => save(item, confirmOut.decision)}>Confirm</button>
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => setConfirmOut(null)}>Cancel</button>
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </TeamCard>
+  );
+
+  return (
+    <div className={canEdit ? "shortlist-review has-bar" : "shortlist-review"}>
+      {canEdit ? (
+        // On phones this bar pins to the bottom of the screen (CSS), so
+        // Finalise stays in reach after scrolling through every team.
         <div className="shortlist-bar">
           {confirmFinal ? (
             <span className="shortlist-confirm" role="alert">
@@ -121,7 +180,8 @@ export function ShortlistReview({ eventId, items, canEdit }: { eventId: string; 
               Finalise &amp; email ({toSend})
             </button>
           )}
-          <span className="hint">Choosing a category sends nothing. Finalise emails the shortlisted and adds them to attendance.</span>
+          <span className="hint shortlist-hint-long">Choosing a category sends nothing. Finalise emails the shortlisted and adds them to attendance.</span>
+          <span className="hint shortlist-hint-short">Categories save silently. Finalise sends the emails.</span>
         </div>
       ) : null}
       {notice ? (
@@ -140,6 +200,15 @@ export function ShortlistReview({ eventId, items, canEdit }: { eventId: string; 
             <input type="search" value={q} onChange={(e) => setQ(e.target.value)}
               placeholder="Search name, roll, email, team, answers…" aria-label="Search registrations" />
           </div>
+          {groupFields.length > 0 ? (
+            <label className="shortlist-groupby">
+              <span className="label">Group by</span>
+              <select value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
+                <option value="">No grouping</option>
+                {groupFields.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+              </select>
+            </label>
+          ) : null}
         </div>
         <div className="listbar-row" role="group" aria-label="Filter by category">
           {REVIEW_VIEWS.map((v) => (
@@ -159,41 +228,19 @@ export function ShortlistReview({ eventId, items, canEdit }: { eventId: string; 
 
       {rows.length === 0 ? (
         <div className="cal-empty">{searching ? "No matches in this category." : "Nothing here."}</div>
+      ) : field ? (
+        groups.map((g) => (
+          <details className="review-group" key={g.key} open>
+            <summary>
+              <span className="review-group-title">{g.label}</span>
+              <span className="review-group-count">{groupSummary(g.items)}</span>
+            </summary>
+            <div className="team-grid">{g.items.map(card)}</div>
+          </details>
+        ))
       ) : (
-        <div className="team-grid">
-          {rows.map((item) => (
-            <TeamCard
-              key={item.id}
-              team={item.team}
-              badge={<span className={BADGE[item.state]} style={{ marginRight: 8 }}>{item.state === "finalised" ? "Emailed" : STATE_LABEL[item.state]}</span>}
-            >
-              {canEdit ? (
-                <div className="shortlist-choice">
-                  <div className="seg" role="radiogroup" aria-label={`Category for ${item.team.name ?? `team ${item.team.index}`}`}>
-                    {CHOICES.map((c) => (
-                      <button key={c.label} type="button" role="radio"
-                        aria-checked={decisionOf(item.state) === c.decision}
-                        data-on={decisionOf(item.state) === c.decision}
-                        data-kind={c.decision ?? "none"}
-                        onClick={() => choose(item, c.decision)}>
-                        {c.label}
-                      </button>
-                    ))}
-                  </div>
-                  {confirmOut?.id === item.id ? (
-                    <p className="shortlist-warn" role="alert">
-                      This team was already told they&rsquo;re selected — you&rsquo;ll need to tell them yourself.
-                      Their attendance will be cleared.{" "}
-                      <button type="button" className="btn btn-sm btn-ghost" onClick={() => save(item, confirmOut.decision)}>Confirm</button>
-                      <button type="button" className="btn btn-sm btn-ghost" onClick={() => setConfirmOut(null)}>Cancel</button>
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-            </TeamCard>
-          ))}
-        </div>
+        <div className="team-grid">{rows.map(card)}</div>
       )}
-    </>
+    </div>
   );
 }

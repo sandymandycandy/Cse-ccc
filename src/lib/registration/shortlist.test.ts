@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   attendanceRows,
   decisionPatch,
+  defaultGroupField,
   filterReview,
+  groupFields,
+  groupReview,
   pendingCount,
   reviewCounts,
   searchedCounts,
@@ -10,6 +13,7 @@ import {
   shortlistState,
   type ShortlistState,
 } from "./shortlist";
+import type { FormField } from "@/lib/registration-form/schema";
 
 describe("shortlistState", () => {
   it("maps decision × finalised to four states", () => {
@@ -97,5 +101,39 @@ describe("segmentClick", () => {
   it("while the warning is open another segment only changes what is asked — it never saves", () => {
     expect(segmentClick("finalised", null, true)).toEqual({ kind: "ask", decision: null });
     expect(segmentClick("finalised", "shortlist", true)).toEqual({ kind: "cancel" });
+  });
+});
+
+describe("grouping by a choice question", () => {
+  const schema = [
+    { id: "team_name", kind: "short_text", identity: "team_name", label: "Team name", required: true },
+    { id: "year", kind: "dropdown", identity: "year", label: "Year", required: true, options: ["1", "2", "3", "4"] },
+    { id: "ieee", kind: "radio", identity: null, label: "Are u a IEEE member", required: true, options: ["Yes", "No"] },
+    { id: "th", kind: "radio", identity: null, label: "Choose the theme", required: true, options: ["Theme-1 - Green", "Theme-2 - Agents"] },
+    { id: "link", kind: "link", identity: null, label: "Idea", required: true },
+  ] as FormField[];
+
+  it("offers only choice questions, and defaults to the theme/track one", () => {
+    const fields = groupFields(schema);
+    expect(fields.map((f) => f.id)).toEqual(["year", "ieee", "th"]);
+    expect(defaultGroupField(fields)).toBe("th");
+    expect(defaultGroupField(fields.filter((f) => f.id !== "th"))).toBeNull();
+  });
+
+  const it_ = (id: string, th: string | null) => ({ id, choices: { th } });
+  const th = { id: "th", label: "Choose the theme", options: ["Theme-1 - Green", "Theme-2 - Agents"] };
+
+  it("groups in option order; unknown answers after; unanswered last; empty groups dropped", () => {
+    const groups = groupReview([it_("a", "Theme-2 - Agents"), it_("b", null), it_("c", "Theme-2 - Agents"), it_("d", "Something else")], th);
+    expect(groups.map((g) => [g.label, g.items.map((i) => i.id)])).toEqual([
+      ["Theme-2 - Agents", ["a", "c"]],
+      ["Something else", ["d"]],
+      ["Not answered", ["b"]],
+    ]);
+  });
+
+  it("no field → one unlabelled group of everything", () => {
+    const groups = groupReview([it_("a", "x"), it_("b", null)], null);
+    expect(groups).toEqual([{ key: "", label: "", items: [it_("a", "x"), it_("b", null)] }]);
   });
 });

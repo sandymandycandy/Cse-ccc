@@ -1,4 +1,5 @@
 import { matchesAny } from "@/lib/admin/roster-filter";
+import type { FormField } from "@/lib/registration-form/schema";
 
 /**
  * Shortlist review (spec 2026-09-25). Pure and client-safe: the review page's
@@ -129,4 +130,53 @@ export function segmentClick(
   if (decision === current) return { kind: "noop" };
   if (state === "finalised") return { kind: "ask", decision };
   return { kind: "save", decision };
+}
+
+/** A single-answer choice question the review page can group teams by. */
+export interface GroupField {
+  id: string;
+  label: string;
+  options: string[];
+}
+
+export function groupFields(schema: FormField[]): GroupField[] {
+  return schema
+    .filter((f) => (f.kind === "radio" || f.kind === "dropdown") && (f.options?.length ?? 0) > 0)
+    .map((f) => ({ id: f.id, label: f.label, options: f.options ?? [] }));
+}
+
+/** Group by the event's theme / track question when it has one; otherwise not at all. */
+export function defaultGroupField(fields: GroupField[]): string | null {
+  return fields.find((f) => /theme|track/i.test(f.label))?.id ?? null;
+}
+
+export interface ReviewGroup<T> {
+  key: string;
+  label: string;
+  items: T[];
+}
+
+/**
+ * Teams sectioned by their answer to one choice question: the form's options in
+ * order, then any other answer ("Other" free text), then the unanswered. Empty
+ * groups are dropped. With no field, everything is one unlabelled group.
+ */
+export function groupReview<T extends { choices: Record<string, string | null> }>(
+  items: T[],
+  field: GroupField | null,
+): ReviewGroup<T>[] {
+  if (!field) return [{ key: "", label: "", items }];
+  const byAnswer = new Map<string, T[]>();
+  const none: T[] = [];
+  for (const item of items) {
+    const answer = item.choices[field.id]?.trim();
+    if (!answer) none.push(item);
+    else byAnswer.set(answer, [...(byAnswer.get(answer) ?? []), item]);
+  }
+  const extras = [...byAnswer.keys()].filter((a) => !field.options.includes(a));
+  const groups: ReviewGroup<T>[] = [...field.options, ...extras]
+    .filter((a) => byAnswer.has(a))
+    .map((a) => ({ key: a, label: a, items: byAnswer.get(a) ?? [] }));
+  if (none.length) groups.push({ key: "\u0000none", label: "Not answered", items: none });
+  return groups;
 }

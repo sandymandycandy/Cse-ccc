@@ -17,6 +17,7 @@ const item = (id: string, state: ReviewItem["state"], name: string): ReviewItem 
     answers: [],
   },
   search: [name],
+  choices: { th: name === "Doves" ? null : name.length > 4 ? "Theme-2 - Agents" : "Theme-1 - Green" },
 });
 
 describe("ShortlistReview", () => {
@@ -44,5 +45,18 @@ describe("ShortlistReview", () => {
     expect(html).not.toContain("Finalise");
     expect(html).not.toContain('role="radiogroup"');
     expect(html).toContain("Shortlisted");
+  });
+
+  it("sections teams by the theme question, in option order, with per-theme counts", () => {
+    const html = renderToStaticMarkup(
+      <ShortlistReview eventId="e" canEdit defaultGroup="th"
+        groupFields={[{ id: "th", label: "Choose the theme", options: ["Theme-1 - Green", "Theme-2 - Agents"] }]}
+        items={[item("r1", "picked", "Owls"), item("r2", "waitlist", "Hawks"), item("r3", "undecided", "Crows"), item("r4", "undecided", "Doves")]} />,
+    );
+    const order = ["Theme-1 - Green", "Theme-2 - Agents", "Not answered"].map((l) => html.indexOf(`>${l}<`));
+    expect(order.every((i) => i > 0)).toBe(true);
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+    expect(html).toContain("1 team · 1 shortlisted");
+    expect(html).toContain("2 teams · 1 waiting");
   });
 });
