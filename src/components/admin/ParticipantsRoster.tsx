@@ -23,10 +23,13 @@ export function ParticipantsRoster({
   teams,
   waitingTeams,
   hasTeams,
+  badges,
 }: {
   teams: TeamGroup[];
   waitingTeams: TeamGroup[];
   hasTeams: boolean;
+  /** Per-team node in the card head (shortlist category), keyed by team index. */
+  badges?: Record<number, ReactNode>;
 }) {
   const [q, setQ] = useState("");
 
@@ -75,7 +78,7 @@ export function ParticipantsRoster({
         <>
           {shown.length > 0 ? (
             hasTeams ? (
-              <TeamGrid teams={shown} />
+              <TeamGrid teams={shown} badges={badges} />
             ) : (
               <SoloTable people={shown.flatMap((t) => t.people)} />
             )

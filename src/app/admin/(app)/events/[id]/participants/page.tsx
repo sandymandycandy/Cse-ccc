@@ -6,6 +6,7 @@ import { getEventForAttendance } from "@/lib/admin/attendance";
 import { listRegistrations, getEventFormSchema } from "@/lib/admin/registrations";
 import { listTeams } from "@/lib/registration-form/participants";
 import { splitRegistrations } from "@/lib/registration/waitlist";
+import { STATE_LABEL, shortlistState } from "@/lib/registration/shortlist";
 import { ParticipantsRoster } from "@/components/admin/ParticipantsRoster";
 
 /**
@@ -42,6 +43,20 @@ export default async function ParticipantsPage({
 
   const hasTeams = schema.some((f) => f.kind === "team");
   const teams = listTeams(rows, schema);
+  const badges = isShortlist
+    ? Object.fromEntries(
+        rows.map((r, i) => {
+          const s = shortlistState(r);
+          const cls = s === "waitlist" ? "abadge-pending" : s === "undecided" ? "abadge-past" : "abadge-approved";
+          return [
+            teams[i].index,
+            <span key="b" className={`abadge ${cls}`} style={{ marginRight: 8 }}>
+              {STATE_LABEL[s]}
+            </span>,
+          ];
+        }),
+      )
+    : undefined;
   const waitingTeams = listTeams(waitlist, schema);
   const headcount = teams.reduce((n, t) => n + t.people.length, 0);
   const waitingCount = waitingTeams.reduce((n, t) => n + t.people.length, 0);
@@ -65,6 +80,11 @@ export default async function ParticipantsPage({
           </p>
         </div>
         <div className="stack" style={{ gap: 10 }}>
+          {isShortlist ? (
+            <Link href={`/admin/events/${id}/shortlist`} className="btn btn-accent btn-sm">
+              Review &amp; shortlist
+            </Link>
+          ) : null}
           <Link href={`/admin/events/${id}/registrations`} className="btn btn-ghost btn-sm">
             Attendance
           </Link>
@@ -77,7 +97,7 @@ export default async function ParticipantsPage({
         </div>
       </div>
 
-      <ParticipantsRoster teams={teams} waitingTeams={waitingTeams} hasTeams={hasTeams} />
+      <ParticipantsRoster teams={teams} waitingTeams={waitingTeams} hasTeams={hasTeams} badges={badges} />
     </div>
   );
 }

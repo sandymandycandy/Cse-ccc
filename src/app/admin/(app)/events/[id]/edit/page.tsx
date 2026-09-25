@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ClipboardCheck } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, ListChecks } from "lucide-react";
 import { ApprovalBadge } from "@/components/admin/ApprovalBadge";
 import { requireViewPage } from "@/lib/auth/guards";
 import { grantFor } from "@/lib/auth/capabilities";
@@ -43,7 +43,10 @@ export default async function EditEventPage({
       <Link href="/admin/events" className="event-back"><ArrowLeft size={15} aria-hidden="true" /> All events</Link>
       <div className="admin-page-head"><div><div className="eyebrow">Event editor</div>
       <h1 style={{ margin: "6px 0 0" }}>Edit event</h1></div>
-      <Link href={`/admin/events/${id}/registrations`} className="btn btn-ghost btn-sm"><ClipboardCheck size={16} aria-hidden="true" /> Registrations & attendance</Link></div>
+      <div className="stack" style={{ gap: 10 }}>
+        {event.selectionMode === "shortlist" ? <Link href={`/admin/events/${id}/shortlist`} className="btn btn-ghost btn-sm"><ListChecks size={16} aria-hidden="true" /> Review &amp; shortlist</Link> : null}
+        <Link href={`/admin/events/${id}/registrations`} className="btn btn-ghost btn-sm"><ClipboardCheck size={16} aria-hidden="true" /> Registrations & attendance</Link>
+      </div></div>
       <div className="event-editor-identity"><span>{event.title}</span><ApprovalBadge status={event.approvalStatus} /></div>
       {event.approvalStatus === "rejected" ? (
         <div className="note" style={{ marginTop: 12, borderLeftColor: "var(--rust)" }}>

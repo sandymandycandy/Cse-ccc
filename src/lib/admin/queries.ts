@@ -29,10 +29,11 @@ export interface AdminEventRow {
   /** The primary (owning) club. */
   clubId: string | null;
   createdBy: string | null;
+  selectionMode: "seats" | "shortlist";
 }
 
 const EVENT_SELECT =
-  "id, title, starts_at, ends_at, status, approval_status, created_by, " +
+  "id, title, starts_at, ends_at, status, approval_status, created_by, selection_mode, " +
   "event_clubs ( club_id, is_primary, clubs ( short_name ) )";
 
 type EventRow = {
@@ -43,6 +44,7 @@ type EventRow = {
   status: string;
   approval_status: string;
   created_by: string | null;
+  selection_mode: "seats" | "shortlist" | null;
   event_clubs: { club_id: string; is_primary: boolean; clubs: { short_name: string } | null }[];
 };
 
@@ -57,6 +59,7 @@ function toRow(e: EventRow): AdminEventRow {
     club: hostLabel(orderHosts(e.event_clubs).map((c) => c.short_name)) || "—",
     clubId: hostsFromLinks(e.event_clubs).primaryClubId,
     createdBy: e.created_by,
+    selectionMode: e.selection_mode ?? "seats",
   };
 }
 

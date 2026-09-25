@@ -7,6 +7,7 @@ import { toCsv } from "@/lib/csv";
 import { writeAudit } from "@/lib/admin/audit";
 import { teamOf } from "@/lib/certificates/fields";
 import { absentNames, attendanceCell } from "@/lib/admin/team-attendance";
+import { STATE_LABEL, shortlistState } from "@/lib/registration/shortlist";
 
 /** Registrations CSV export — manage:registrations, own-club scoped, audited (§14). */
 export async function GET(request: Request) {
@@ -19,7 +20,7 @@ export async function GET(request: Request) {
     return Response.json({ error: "Not permitted." }, { status: 403 });
   }
 
-  const [regs, { schema }] = await Promise.all([
+  const [regs, { schema, selectionMode }] = await Promise.all([
     listRegistrations(eventId),
     getEventFormSchema(eventId),
   ]);
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
     "Attended",
     "Absent members",
     "Method",
-    "Shortlisted",
+    "Category",
     ...columns.map((c) => c.label),
   ];
   const rows = regs.map((r) => {
@@ -54,7 +55,7 @@ export async function GET(request: Request) {
       attendanceCell(team.length || 1, r.attended, r.absentMembers),
       absentNames(team, r.attended, r.absentMembers),
       r.method ?? "",
-      r.shortlistedAt ? "yes" : "no",
+      selectionMode === "shortlist" ? STATE_LABEL[shortlistState(r)] : "",
       ...columns.map((c) => c.get(r.customAnswers)),
     ];
   });

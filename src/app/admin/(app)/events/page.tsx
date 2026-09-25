@@ -37,7 +37,7 @@ export default async function AdminEventsPage() {
           <small>{istTime(e.startsAt)} IST</small>
         </span>,
         <ApprovalBadge key="a" status={e.approvalStatus} />,
-        <EventRowActions key="actions" id={e.id} title={e.title} />,
+        <EventRowActions key="actions" id={e.id} title={e.title} shortlist={e.selectionMode === "shortlist"} />,
       ],
     };
   });
