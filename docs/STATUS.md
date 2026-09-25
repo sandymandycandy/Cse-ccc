@@ -23,7 +23,10 @@ end-to-end**, not a checklist of components.
 > ### 🎓 2026-09-26 — Council certificate bases INSTALLED LIVE (data only, no code change)
 > - The owner's "Engraved" certificate (zip `Certificate (1).zip`: `cert.html` + 8 logo/signature PNGs) is now the
 >   **Participants, Volunteers and Winners base** in `certificate_bases` — every event without a custom design uses it.
-> - Static art (gold border, rosette, 6 crests, dept line, "Certificate of Participation/Appreciation/Achievement",
+> - **The 6 logos are separate image layers** ("Logo — Vel Tech", "Logo — CSI", …), so they can be swapped, moved or
+>   deleted in the designer (Customise → edit → Save as base). Their PNGs were made transparent (white knocked out),
+>   since image elements have no multiply blend. The background PNG leaves their spots empty.
+> - Remaining static art (gold border, rosette, dept line, "Certificate of Participation/Appreciation/Achievement",
 >   seal, both signatures, white QR tile, winners' ribbon pill) is baked into one 3508×2480 PNG per kind under
 >   `certificate-assets/00000000-…/`. Live fields on top: `{person.name}` (Crimson bold italic, shrink),
 >   the citation paragraph with `{event.title}` / `{event.date}` (+ `{winner.placeWords} Place` on Winners), QR, `{cert.serial}`.
