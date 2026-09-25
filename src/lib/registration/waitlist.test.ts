@@ -17,6 +17,7 @@ const row = (over: Partial<RegistrationRow>): RegistrationRow => ({
   method: null,
   customAnswers: null,
   shortlistedAt: null,
+  shortlistDecision: null,
   waitlistPosition: null,
   ...over,
 });

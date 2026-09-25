@@ -1958,6 +1958,7 @@ export type Database = {
           phone: string | null
           roll_no: string | null
           shortlisted_at: string | null
+          shortlist_decision: string | null
           student_name: string | null
           team_members: Json | null
           team_name: string | null
@@ -1982,6 +1983,7 @@ export type Database = {
           phone?: string | null
           roll_no?: string | null
           shortlisted_at?: string | null
+          shortlist_decision?: string | null
           student_name?: string | null
           team_members?: Json | null
           team_name?: string | null
@@ -2006,6 +2008,7 @@ export type Database = {
           phone?: string | null
           roll_no?: string | null
           shortlisted_at?: string | null
+          shortlist_decision?: string | null
           student_name?: string | null
           team_members?: Json | null
           team_name?: string | null

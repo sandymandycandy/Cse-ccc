@@ -20,6 +20,8 @@ export interface RegistrationRow {
   /** The team's own name; null on solo events and on rows predating the field. */
   teamName: string | null;
   shortlistedAt: string | null;
+  /** Shortlist-mode draft category; null = not decided. Finalised = shortlistedAt set. */
+  shortlistDecision: "shortlist" | "waitlist" | null;
   waitlistPosition: number | null;
 }
 
@@ -28,7 +30,7 @@ export async function listRegistrations(eventId: string): Promise<RegistrationRo
   const { data, error } = await admin
     .from("registrations")
     .select(
-      "id, student_name, roll_no, department, year, email, phone, confirmed_at, attended, absent_members, checkin_method, custom_answers, team_name, shortlisted_at, waitlist_position",
+      "id, student_name, roll_no, department, year, email, phone, confirmed_at, attended, absent_members, checkin_method, custom_answers, team_name, shortlisted_at, shortlist_decision, waitlist_position",
     )
     .eq("event_id", eventId)
     .order("student_name", { ascending: true });
@@ -49,6 +51,7 @@ export async function listRegistrations(eventId: string): Promise<RegistrationRo
       custom_answers: Record<string, unknown> | null;
       team_name: string | null;
       shortlisted_at: string | null;
+      shortlist_decision: "shortlist" | "waitlist" | null;
       waitlist_position: number | null;
     }[]
   ).map((r) => ({
@@ -66,6 +69,7 @@ export async function listRegistrations(eventId: string): Promise<RegistrationRo
     customAnswers: r.custom_answers ?? null,
     teamName: r.team_name ?? null,
     shortlistedAt: r.shortlisted_at ?? null,
+    shortlistDecision: r.shortlist_decision ?? null,
     waitlistPosition: r.waitlist_position ?? null,
   }));
 }
