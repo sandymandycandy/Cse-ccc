@@ -20,6 +20,24 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-24)
 
+> ### 🗂️ 2026-09-25 — Shortlist review (branch `feat/shortlist-review`, NOT yet merged/deployed)
+> Spec `docs/superpowers/specs/2026-09-25-shortlist-review-design.md`, plan `…/plans/2026-09-25-shortlist-review.md`.
+> - **Shortlist-mode events only.** New `/admin/events/[id]/shortlist` lists every registration; each team is
+>   **Not decided / Shortlisted / Waiting list** (silent, saved at once). **Finalise & email (N)** emails
+>   `registration_shortlisted` to shortlisted teams not yet emailed and admits them to attendance.
+>   Waiting list + undecided are **never emailed**; waiting list has no order.
+> - **Attendance (`/registrations`) = finalised teams only**; the old checkbox + "Shortlist selected & email"
+>   (`shortlistAction`/`unshortlistAction`) are **deleted**. Moving a team off Shortlist clears
+>   `shortlisted_at` + all attendance fields (certificates follow `attended`).
+> - Migration `registration_shortlist_decision` **APPLIED LIVE** (additive `shortlist_decision text`; the 2 existing
+>   shortlisted AI FORGE EXPO rows backfilled to `shortlist` so they are never re-emailed).
+> - Finalise is race-safe (one conditional UPDATE…RETURNING claims rows; verified in a rolled-back txn), sends team
+>   by team, un-claims teams it couldn't email; >50 recipients queue to the Outbox (`shouldQueue`).
+> - Seats mode untouched. Gate: typecheck ✓ lint ✓ **1614 tests** ✓ build ✓.
+> - **Owed:** owner browser walk (needs TOTP login): pick → finalise → attendance → move a finalised team out.
+>   Deferred minors: attendance write doesn't re-check `shortlisted_at` (2-admin race); decision audit lacks
+>   "before"; review chip counts ignore search; emailed-warning can be bypassed by clicking another segment.
+
 > ### 🔥 2026-09-24 evening — AI FORGE EXPO launch fixes (all LIVE)
 > Registration opened 18:00 IST and nobody could register. Causes, in order found:
 > - **Shared empty rate-limit bucket** — a form without roll/email identity sent
