@@ -2768,6 +2768,14 @@
     background: var(--rust-tint);
     color: var(--rust);
   }
+  .seg > button[data-kind="shortlist"][data-on="true"] { background: var(--forest-tint); color: var(--forest); }
+  .seg > button[data-kind="waitlist"][data-on="true"] { background: var(--clay-tint); color: var(--clay); }
+  .seg > button[data-kind="none"][data-on="true"] { background: var(--line-2); color: var(--ink-2); }
+  .shortlist-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 18px; }
+  .shortlist-confirm { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; font: 500 13px var(--sans); }
+  .shortlist-choice { margin-top: 12px; }
+  .shortlist-choice .seg { display: inline-flex; flex-wrap: wrap; }
+  .shortlist-warn { margin-top: 8px; font: 400 12.5px/1.5 var(--sans); color: var(--rust); }
 
   .sroster-foot {
     margin-top: 16px;

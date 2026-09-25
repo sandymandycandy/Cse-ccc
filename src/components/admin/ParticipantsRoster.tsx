@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Search } from "lucide-react";
 import { matchesAny } from "@/lib/admin/roster-filter";
 import {
@@ -99,63 +99,69 @@ export function ParticipantsRoster({
   );
 }
 
-function TeamGrid({ teams }: { teams: TeamGroup[] }) {
+export function TeamCard({ team, badge, children }: { team: TeamGroup; badge?: ReactNode; children?: ReactNode }) {
   return (
-    <div className="team-grid">
-      {teams.map((team) => (
-        <article className="team-card" key={team.index}>
-          <div className="team-card-head">
-            <span className="n">{teamLabel(team)}</span>
-            <span className="c">
-              {team.people.length} {team.people.length === 1 ? "person" : "people"}
+    <article className="team-card">
+      <div className="team-card-head">
+        <span className="n">{teamLabel(team)}</span>
+        <span className="c">
+          {badge}
+          {team.people.length} {team.people.length === 1 ? "person" : "people"}
+        </span>
+      </div>
+
+      {team.people.map((p) => (
+        <div
+          key={`${team.index}-${p.index}`}
+          className={`team-person${p.role === "leader" ? " is-leader" : ""}`}
+        >
+          <div className="team-person-top">
+            <span className="team-person-name">{p.name || "—"}</span>
+            <span className={`badge ${p.role === "leader" ? "badge-open" : "badge-fast"}`}>
+              {p.role === "leader" ? "Leader" : p.role === "member" ? "Member" : "Registered"}
             </span>
           </div>
+          <div className="team-person-meta">
+            {[p.roll, p.department, p.year].filter(Boolean).join(" · ") || "—"}
+          </div>
+          <div className="team-person-meta">
+            {[p.email, p.phone].filter(Boolean).join(" · ") || "—"}
+          </div>
+        </div>
+      ))}
 
-          {team.people.map((p) => (
-            <div
-              key={`${team.index}-${p.index}`}
-              className={`team-person${p.role === "leader" ? " is-leader" : ""}`}
-            >
-              <div className="team-person-top">
-                <span className="team-person-name">{p.name || "—"}</span>
-                <span className={`badge ${p.role === "leader" ? "badge-open" : "badge-fast"}`}>
-                  {p.role === "leader" ? "Leader" : p.role === "member" ? "Member" : "Registered"}
-                </span>
-              </div>
-              <div className="team-person-meta">
-                {[p.roll, p.department, p.year].filter(Boolean).join(" · ") || "—"}
-              </div>
-              <div className="team-person-meta">
-                {[p.email, p.phone].filter(Boolean).join(" · ") || "—"}
-              </div>
+      {team.answers.length > 0 ? (
+        <div className="team-answers">
+          {team.answers.map((a) => (
+            <div className="team-answer" key={a.key}>
+              <span className="k">{a.label}</span>
+              <span className="v">
+                {a.value && isSafeHttpUrl(a.value) ? (
+                  <a
+                    href={a.value}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: "var(--forest)" }}
+                  >
+                    {a.value} ↗
+                  </a>
+                ) : (
+                  a.value || "—"
+                )}
+              </span>
             </div>
           ))}
+        </div>
+      ) : null}
+      {children}
+    </article>
+  );
+}
 
-          {team.answers.length > 0 ? (
-            <div className="team-answers">
-              {team.answers.map((a) => (
-                <div className="team-answer" key={a.key}>
-                  <span className="k">{a.label}</span>
-                  <span className="v">
-                    {a.value && isSafeHttpUrl(a.value) ? (
-                      <a
-                        href={a.value}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: "var(--forest)" }}
-                      >
-                        {a.value} ↗
-                      </a>
-                    ) : (
-                      a.value || "—"
-                    )}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </article>
-      ))}
+function TeamGrid({ teams, badges }: { teams: TeamGroup[]; badges?: Record<number, ReactNode> }) {
+  return (
+    <div className="team-grid">
+      {teams.map((team) => <TeamCard key={team.index} team={team} badge={badges?.[team.index]} />)}
     </div>
   );
 }
