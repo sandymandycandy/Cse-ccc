@@ -20,7 +20,7 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-24)
 
-> ### 🗂️ 2026-09-25 — Shortlist review (branch `feat/shortlist-review`, NOT yet merged/deployed)
+> ### 🗂️ 2026-09-25 — Shortlist review SHIPPED (merged to `main`, Vercel auto-deploy)
 > Spec `docs/superpowers/specs/2026-09-25-shortlist-review-design.md`, plan `…/plans/2026-09-25-shortlist-review.md`.
 > - **Shortlist-mode events only.** New `/admin/events/[id]/shortlist` lists every registration; each team is
 >   **Not decided / Shortlisted / Waiting list** (silent, saved at once). **Finalise & email (N)** emails
