@@ -98,24 +98,41 @@ export async function finaliseShortlistAction(input: {
 
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
   const payload = { eventTitle: auth.ev.title, url: base ? `${base}/events/${eventId}` : undefined };
-  const mails: EnqueueEmailArgs[] = rows.flatMap((r) =>
-    teamRecipients(auth.schema, r.custom_answers as Record<string, unknown> | null, r.email).map((to) => ({
-      template: "registration_shortlisted",
-      toEmail: to,
-      toName: to === r.email?.toLowerCase() ? (r.student_name ?? "") : "",
-      subject: `You're selected — ${auth.ev.title}`,
-      payload,
-      priority: 2,
-    })),
-  );
+  const teams = rows.map((r) => ({
+    id: r.id,
+    mails: teamRecipients(auth.schema, r.custom_answers as Record<string, unknown> | null, r.email).map(
+      (to): EnqueueEmailArgs => ({
+        template: "registration_shortlisted",
+        toEmail: to,
+        toName: to === r.email?.trim().toLowerCase() ? (r.student_name ?? "") : "",
+        subject: `You're selected — ${auth.ev.title}`,
+        payload,
+        priority: 2,
+      }),
+    ),
+  }));
+  const mails = teams.flatMap((t) => t.mails);
 
   // Past INLINE_MAX, sequential SMTP sends would outrun the function limit —
-  // queue them for the Outbox instead, as the broadcast page does.
+  // queue them for the Outbox instead, as the broadcast page does. Sent team
+  // by team so a failure can hand back exactly the teams that got nothing:
+  // they were claimed above, and a claimed team is never picked up again.
   const queued = shouldQueue(mails.length);
-  if (queued) {
-    await enqueueEmailBatch(mails.map((m) => ({ ...m, priority: BULK_PRIORITY })));
-  } else {
-    for (const m of mails) await enqueueEmail(m);
+  const sent = new Set<string>();
+  try {
+    for (const t of teams) {
+      if (queued) await enqueueEmailBatch(t.mails.map((m) => ({ ...m, priority: BULK_PRIORITY })));
+      else for (const m of t.mails) await enqueueEmail(m);
+      sent.add(t.id);
+    }
+  } catch {
+    const unsent = teams.filter((t) => !sent.has(t.id)).map((t) => t.id);
+    await admin.from("registrations").update({ shortlisted_at: null }).eq("event_id", eventId).in("id", unsent);
+    revalidate(eventId);
+    return {
+      ok: false,
+      error: `Emailed ${sent.size} of ${teams.length} teams, then sending failed. Press Finalise again to send the rest.`,
+    };
   }
 
   await writeAudit({
