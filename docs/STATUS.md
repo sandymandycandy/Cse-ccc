@@ -20,6 +20,18 @@ end-to-end**, not a checklist of components.
 
 ## 🚦 START HERE — current git/deploy state (2026-09-24)
 
+> ### 🎓 2026-09-26 — Council certificate bases INSTALLED LIVE (data only, no code change)
+> - The owner's "Engraved" certificate (zip `Certificate (1).zip`: `cert.html` + 8 logo/signature PNGs) is now the
+>   **Participants, Volunteers and Winners base** in `certificate_bases` — every event without a custom design uses it.
+> - Static art (gold border, rosette, 6 crests, dept line, "Certificate of Participation/Appreciation/Achievement",
+>   seal, both signatures, white QR tile, winners' ribbon pill) is baked into one 3508×2480 PNG per kind under
+>   `certificate-assets/00000000-…/`. Live fields on top: `{person.name}` (Crimson bold italic, shrink),
+>   the citation paragraph with `{event.title}` / `{event.date}` (+ `{winner.placeWords} Place` on Winners), QR, `{cert.serial}`.
+> - Differences from the zip, forced by one design serving every event: no tagline or "One-day Technical Contest" line;
+>   the seal ring reads "CSE CLUBS COUNCIL · VEL TECH · SCHOOL OF COMPUTING" (not the event); ribbon is gold for all places;
+>   mono/Space Grotesk text on the live layer uses Montserrat (not bundled). `source_event_id`/`updated_by` are null.
+> - Changing the signatories or logos means re-rendering the PNG — or open any event → Customise → Save as base.
+
 > ### 📞 2026-09-25 — Contact form: required 10-digit contact number SHIPPED
 > - `ContactSchema.phone` = exactly 10 digits (required); the input strips non-digits, caps at 10, numeric keypad.
 > - Shown on `/admin/contact/[id]` (tel: link) and as a "Phone" row in the leadership notification.
