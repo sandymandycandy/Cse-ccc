@@ -5,6 +5,8 @@ import {
   filterReview,
   pendingCount,
   reviewCounts,
+  searchedCounts,
+  segmentClick,
   shortlistState,
   type ShortlistState,
 } from "./shortlist";
@@ -66,5 +68,34 @@ describe("attendanceRows", () => {
   });
   it("shortlist: finalised rows only", () => {
     expect(attendanceRows(rows, "shortlist").map((r) => r.id)).toEqual(["y"]);
+  });
+});
+
+describe("searchedCounts", () => {
+  const items = [
+    { id: "a", state: "picked" as ShortlistState, search: ["Owls"] },
+    { id: "b", state: "picked" as ShortlistState, search: ["Hawks"] },
+    { id: "c", state: "waitlist" as ShortlistState, search: ["Owlets"] },
+  ];
+  it("counts only what the search matches, per category", () => {
+    expect(searchedCounts(items, "owl")).toEqual({ All: 2, "Not decided": 0, Shortlisted: 1, "Waiting list": 1 });
+    expect(searchedCounts(items, "")).toEqual({ All: 3, "Not decided": 0, Shortlisted: 2, "Waiting list": 1 });
+  });
+});
+
+describe("segmentClick", () => {
+  it("a category already held does nothing", () => {
+    expect(segmentClick("picked", "shortlist", false)).toEqual({ kind: "noop" });
+  });
+  it("any change to an un-emailed team saves at once", () => {
+    expect(segmentClick("picked", "waitlist", false)).toEqual({ kind: "save", decision: "waitlist" });
+    expect(segmentClick("undecided", "shortlist", false)).toEqual({ kind: "save", decision: "shortlist" });
+  });
+  it("moving an emailed team away asks first", () => {
+    expect(segmentClick("finalised", "waitlist", false)).toEqual({ kind: "ask", decision: "waitlist" });
+  });
+  it("while the warning is open another segment only changes what is asked — it never saves", () => {
+    expect(segmentClick("finalised", null, true)).toEqual({ kind: "ask", decision: null });
+    expect(segmentClick("finalised", "shortlist", true)).toEqual({ kind: "cancel" });
   });
 });

@@ -7,9 +7,11 @@ import type { TeamGroup } from "@/lib/registration-form/participants";
 import {
   REVIEW_VIEWS,
   STATE_LABEL,
+  decisionOf,
   filterReview,
   pendingCount,
-  reviewCounts,
+  searchedCounts,
+  segmentClick,
   type ReviewView,
   type ShortlistDecision,
   type ShortlistState,
@@ -29,8 +31,6 @@ const CHOICES: { decision: ShortlistDecision; label: string }[] = [
   { decision: "shortlist", label: "Shortlist" },
   { decision: "waitlist", label: "Waiting list" },
 ];
-const decisionOf = (s: ShortlistState): ShortlistDecision =>
-  s === "picked" || s === "finalised" ? "shortlist" : s === "waitlist" ? "waitlist" : null;
 const stateFor = (d: ShortlistDecision): ShortlistState =>
   d === "shortlist" ? "picked" : d === "waitlist" ? "waitlist" : "undecided";
 const BADGE: Record<ShortlistState, string> = {
@@ -57,16 +57,21 @@ export function ShortlistReview({ eventId, items, canEdit }: { eventId: string; 
     rows.map((r) => (r.id === p.id ? { ...r, state: p.state } : r)));
 
   const states = shown.map((i) => i.state);
-  const counts = reviewCounts(states);
+  // Counts follow the search, so a chip never promises cards the search hides.
+  const counts = searchedCounts(shown, q);
+  const searching = q.trim() !== "";
   const toSend = pendingCount(states);
   const rows = filterReview(shown, q, view);
 
   function choose(item: ReviewItem, decision: ShortlistDecision) {
-    if (decisionOf(item.state) === decision) return;
-    if (item.state === "finalised" && confirmOut?.id !== item.id) {
-      setConfirmOut({ id: item.id, decision });
-      return;
-    }
+    const out = segmentClick(item.state, decision, confirmOut?.id === item.id);
+    if (out.kind === "noop") return;
+    if (out.kind === "cancel") return setConfirmOut(null);
+    if (out.kind === "ask") return setConfirmOut({ id: item.id, decision: out.decision });
+    save(item, out.decision);
+  }
+
+  function save(item: ReviewItem, decision: ShortlistDecision) {
     setConfirmOut(null);
     setError("");
     setNotice("");
@@ -143,10 +148,17 @@ export function ShortlistReview({ eventId, items, canEdit }: { eventId: string; 
             </button>
           ))}
         </div>
+        {searching ? (
+          <p className="count-note" aria-live="polite">
+            {counts.All === 0
+              ? `Nothing matches “${q.trim()}”`
+              : `${counts.All} of ${shown.length} ${shown.length === 1 ? "entry" : "entries"} match`}
+          </p>
+        ) : null}
       </div>
 
       {rows.length === 0 ? (
-        <div className="cal-empty">Nothing here.</div>
+        <div className="cal-empty">{searching ? "No matches in this category." : "Nothing here."}</div>
       ) : (
         <div className="team-grid">
           {rows.map((item) => (
@@ -172,7 +184,7 @@ export function ShortlistReview({ eventId, items, canEdit }: { eventId: string; 
                     <p className="shortlist-warn" role="alert">
                       This team was already told they&rsquo;re selected — you&rsquo;ll need to tell them yourself.
                       Their attendance will be cleared.{" "}
-                      <button type="button" className="btn btn-sm btn-ghost" onClick={() => choose(item, confirmOut.decision)}>Confirm</button>
+                      <button type="button" className="btn btn-sm btn-ghost" onClick={() => save(item, confirmOut.decision)}>Confirm</button>
                       <button type="button" className="btn btn-sm btn-ghost" onClick={() => setConfirmOut(null)}>Cancel</button>
                     </p>
                   ) : null}

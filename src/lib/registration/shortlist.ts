@@ -94,3 +94,39 @@ export function attendanceRows<T extends { shortlistedAt: string | null }>(
 ): T[] {
   return mode === "shortlist" ? rows.filter((r) => r.shortlistedAt != null) : rows;
 }
+
+/** The category a state was chosen as — what the three-way switch shows. */
+export function decisionOf(state: ShortlistState): ShortlistDecision {
+  return state === "picked" || state === "finalised" ? "shortlist" : state === "waitlist" ? "waitlist" : null;
+}
+
+/** Per-category counts over what the search box currently matches. */
+export function searchedCounts<T extends { state: ShortlistState; search: unknown[] }>(
+  items: T[],
+  query: string,
+): Record<ReviewView, number> {
+  return reviewCounts(filterReview(items, query, "All").map((i) => i.state));
+}
+
+export type SegmentOutcome =
+  | { kind: "noop" }
+  | { kind: "cancel" }
+  | { kind: "save"; decision: ShortlistDecision }
+  | { kind: "ask"; decision: ShortlistDecision };
+
+/**
+ * What a click on the three-way switch does. An emailed team is never moved
+ * out by the switch alone: it opens a warning, and while that warning is open
+ * another segment only changes what the warning asks (its own Confirm saves).
+ */
+export function segmentClick(
+  state: ShortlistState,
+  decision: ShortlistDecision,
+  warningOpen: boolean,
+): SegmentOutcome {
+  const current = decisionOf(state);
+  if (warningOpen) return decision === current ? { kind: "cancel" } : { kind: "ask", decision };
+  if (decision === current) return { kind: "noop" };
+  if (state === "finalised") return { kind: "ask", decision };
+  return { kind: "save", decision };
+}
