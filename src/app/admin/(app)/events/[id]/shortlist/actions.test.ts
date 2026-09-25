@@ -30,6 +30,8 @@ const claimed = [
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     from: () => ({
+      // setShortlistDecisionAction reads the current category before patching.
+      select: () => ({ eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { shortlist_decision: "waitlist" }, error: null }) }) }) }),
       update: (values: unknown) => {
         const rec: { values: unknown; ids?: string[] } = { values };
         updates.push(rec);
@@ -48,7 +50,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
-const { finaliseShortlistAction } = await import("./actions");
+const { finaliseShortlistAction, setShortlistDecisionAction } = await import("./actions");
 const EVENT = "00000000-0000-4000-8000-000000000001";
 
 beforeEach(() => {
@@ -72,5 +74,17 @@ describe("finaliseShortlistAction", () => {
     expect(res.ok).toBe(false);
     expect(updates).toHaveLength(2);
     expect(updates[1]).toEqual({ values: { shortlisted_at: null }, ids: ["t2", "t3"] });
+  });
+});
+
+describe("setShortlistDecisionAction", () => {
+  it("audits the category it replaced as well as the new one", async () => {
+    const res = await setShortlistDecisionAction({
+      eventId: EVENT, registrationId: "00000000-0000-4000-8000-000000000002", decision: "shortlist",
+    });
+    expect(res).toEqual({ ok: true });
+    expect(writeAudit).toHaveBeenCalledWith(expect.objectContaining({
+      action: "shortlist_decision", before: { decision: "waitlist" }, after: { decision: "shortlist" },
+    }));
   });
 });

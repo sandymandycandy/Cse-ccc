@@ -53,6 +53,12 @@ export async function setShortlistDecisionAction(input: {
   if (!auth) return DENIED;
 
   const admin = createAdminClient();
+  const { data: prior } = await admin
+    .from("registrations")
+    .select("shortlist_decision")
+    .eq("id", registrationId)
+    .eq("event_id", eventId)
+    .maybeSingle();
   const { data, error } = await admin
     .from("registrations")
     .update(decisionPatch(decision))
@@ -66,6 +72,7 @@ export async function setShortlistDecisionAction(input: {
     action: "shortlist_decision",
     entity: "registration",
     entityId: registrationId,
+    before: { decision: prior?.shortlist_decision ?? null },
     after: { decision },
   });
   revalidate(eventId);
