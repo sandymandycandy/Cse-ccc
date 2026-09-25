@@ -17,6 +17,7 @@ export function ContactForm() {
     const payload = {
       name: String(fd.get("name") ?? ""),
       email: String(fd.get("email") ?? ""),
+      phone: String(fd.get("phone") ?? ""),
       subject: String(fd.get("subject") ?? ""),
       message: String(fd.get("message") ?? ""),
       website: String(fd.get("website") ?? ""), // honeypot
@@ -85,6 +86,30 @@ export function ContactForm() {
             <span className="hint">We&rsquo;ll reply here.</span>
           )}
         </div>
+      </div>
+      <div className={rowClass("phone")}>
+        <label htmlFor="cf-phone">Contact number</label>
+        <input
+          id="cf-phone"
+          name="phone"
+          type="tel"
+          inputMode="numeric"
+          required
+          minLength={10}
+          maxLength={10}
+          pattern="[0-9]{10}"
+          autoComplete="tel-national"
+          placeholder="10-digit mobile number, e.g. 9876543210"
+          // digits only: anything else typed or pasted is dropped as it arrives
+          onChange={(e) => {
+            e.currentTarget.value = e.currentTarget.value.replace(/\D/g, "").slice(0, 10);
+          }}
+        />
+        {fieldErrors.phone ? (
+          <span className="hint" role="alert">{fieldErrors.phone}</span>
+        ) : (
+          <span className="hint">10 digits, no +91 or spaces.</span>
+        )}
       </div>
       <div className={rowClass("subject")}>
         <label htmlFor="cf-subject">Subject</label>

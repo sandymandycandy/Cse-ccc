@@ -35,6 +35,14 @@ export default async function ContactMessagePage({
         <a href={mailto} style={{ color: "var(--forest)" }}>
           {msg.email}
         </a>
+        {msg.phone ? (
+          <>
+            {" "}·{" "}
+            <a href={`tel:${msg.phone}`} style={{ color: "var(--forest)" }}>
+              {msg.phone}
+            </a>
+          </>
+        ) : null}
       </p>
       <div className="label" style={{ marginTop: 4, color: "var(--ink-3)" }}>
         {istDateMedium(msg.createdAt)} · {istTime(msg.createdAt)}

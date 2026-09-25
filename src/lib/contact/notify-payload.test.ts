@@ -34,6 +34,16 @@ describe("contactNotification", () => {
     ]);
   });
 
+  it("adds the contact number after the reply address when there is one", () => {
+    const { payload } = contactNotification({ ...base, phone: "9876543210" });
+    expect(payload.details).toEqual([
+      { label: "From", value: "Tarun S" },
+      { label: "Reply to", value: "vtu28651@veltech.edu.in" },
+      { label: "Phone", value: "9876543210" },
+      { label: "Subject", value: "Question about Pitch Desk" },
+    ]);
+  });
+
   it("omits the subject row when there is none", () => {
     const { payload } = contactNotification({ ...base, subject: null });
     expect(payload.details).toEqual([

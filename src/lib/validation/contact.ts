@@ -18,6 +18,10 @@ export const ContactSchema = z
       .toLowerCase()
       .email("Enter a valid email address.")
       .max(120, "Email is too long (max 120 characters)."),
+    phone: z
+      .string()
+      .trim()
+      .regex(/^\d{10}$/, "Enter a 10-digit contact number (digits only)."),
     subject: z
       .string()
       .trim()

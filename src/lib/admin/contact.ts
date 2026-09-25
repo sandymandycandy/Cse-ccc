@@ -8,6 +8,7 @@ export interface ContactMessageRow {
   id: string;
   name: string;
   email: string;
+  phone: string | null;
   subject: string | null;
   message: string;
   createdAt: string;
@@ -18,7 +19,7 @@ export async function listContactMessages(): Promise<ContactMessageRow[]> {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("contact_messages")
-    .select("id, name, email, subject, message, created_at, handled_at")
+    .select("id, name, email, phone, subject, message, created_at, handled_at")
     .order("created_at", { ascending: false })
     .limit(500);
   if (error) throw error;
@@ -29,7 +30,7 @@ export async function getContactMessage(id: string): Promise<ContactMessageRow |
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("contact_messages")
-    .select("id, name, email, subject, message, created_at, handled_at")
+    .select("id, name, email, phone, subject, message, created_at, handled_at")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
@@ -40,6 +41,7 @@ function toRow(r: {
   id: string;
   name: string;
   email: string;
+  phone: string | null;
   subject: string | null;
   message: string;
   created_at: string;
@@ -49,6 +51,7 @@ function toRow(r: {
     id: r.id,
     name: r.name,
     email: r.email,
+    phone: r.phone,
     subject: r.subject,
     message: r.message,
     createdAt: r.created_at,

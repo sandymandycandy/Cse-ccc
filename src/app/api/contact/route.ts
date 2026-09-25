@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     // Surface per-field messages for the visible fields only — never the honeypot
     // ("website") or the bot token — so filling the honeypot still fails generically.
     const fields: Record<string, string> = {};
-    for (const key of ["name", "email", "subject", "message"] as const) {
+    for (const key of ["name", "email", "phone", "subject", "message"] as const) {
       const msg = fieldErrors[key]?.[0];
       if (msg) fields[key] = msg;
     }
@@ -71,6 +71,7 @@ export async function POST(request: Request) {
     .insert({
       name: input.name,
       email: input.email,
+      phone: input.phone,
       subject: input.subject || null,
       message: input.message,
     })
@@ -88,6 +89,7 @@ export async function POST(request: Request) {
   await notifyLeadershipOfQuery({
     name: input.name,
     email: input.email,
+    phone: input.phone,
     subject: input.subject || null,
     message: input.message,
     inboxUrl: saved?.id ? `${origin}/admin/contact/${saved.id}` : null,

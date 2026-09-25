@@ -12,6 +12,8 @@ export type EmailPayload = { [key: string]: Json | undefined };
 export interface ContactQuery {
   name: string;
   email: string;
+  /** Absent on callers that predate the contact number. */
+  phone?: string | null;
   subject: string | null;
   message: string;
   /** Absolute URL of the inbox entry, when the origin is known. */
@@ -44,6 +46,7 @@ export function contactNotification(q: ContactQuery): {
     { label: "From", value: from },
     { label: "Reply to", value: q.email.trim() },
   ];
+  if (q.phone?.trim()) details.push({ label: "Phone", value: q.phone.trim() });
   if (topic) details.push({ label: "Subject", value: topic });
 
   const payload: EmailPayload = {

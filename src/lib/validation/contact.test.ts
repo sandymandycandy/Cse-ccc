@@ -4,6 +4,7 @@ import { ContactSchema } from "./contact";
 const valid = {
   name: "Asha Rao",
   email: "Asha@Example.com",
+  phone: "9876543210",
   subject: "Question about the robotics club",
   message: "Hi, I'd like to know how to join the robotics club this semester.",
 };
@@ -24,6 +25,14 @@ describe("ContactSchema", () => {
     expect(ContactSchema.safeParse({ ...valid, name: "" }).success).toBe(false);
     expect(ContactSchema.safeParse({ ...valid, email: "not-an-email" }).success).toBe(false);
     expect(ContactSchema.safeParse({ ...valid, message: "hi" }).success).toBe(false);
+  });
+
+  it("requires a contact number of exactly 10 digits", () => {
+    expect(ContactSchema.safeParse({ ...valid, phone: " 9876543210 " }).success).toBe(true);
+    for (const phone of ["", "987654321", "98765432101", "98765 43210", "+919876543210", "98765abcde"]) {
+      expect(ContactSchema.safeParse({ ...valid, phone }).success).toBe(false);
+    }
+    expect(ContactSchema.safeParse({ ...valid, phone: undefined }).success).toBe(false);
   });
 
   it("rejects a filled honeypot (website must be empty)", () => {
