@@ -11,11 +11,8 @@ import { splitRegistrations } from "@/lib/registration/waitlist";
 import { teamOf } from "@/lib/certificates/fields";
 import { presentPositions } from "@/lib/admin/team-attendance";
 import { RegistrationsBoard, type BoardEntry } from "@/components/admin/RegistrationsBoard";
-import {
-  shortlistAction,
-  unshortlistAction,
-  promoteWaitlistAction,
-} from "./actions";
+import { attendanceRows } from "@/lib/registration/shortlist";
+import { promoteWaitlistAction } from "./actions";
 
 export default async function RegistrationsPage({
   params,
@@ -39,11 +36,10 @@ export default async function RegistrationsPage({
   const columns = answerColumns(schema);
   const hasTeam = schema.some((f) => f.kind === "team");
   const isShortlist = selectionMode === "shortlist";
-  const shortlisted = regs.filter((r) => r.shortlistedAt).length;
-  // Seats mode splits confirmed (the main table) from the waitlist; shortlist
-  // mode has no waitlist, so the main table shows everything.
+  // Seats mode splits confirmed (the main table) from the waitlist. Shortlist
+  // mode admits only finalised teams — the rest live on the Review page.
   const { confirmed: confirmedRows, waitlist: waitlistRows } = splitRegistrations(regs);
-  const rows = isShortlist ? regs : confirmedRows;
+  const rows = isShortlist ? attendanceRows(regs, "shortlist") : confirmedRows;
 
   // One compact entry per registration: its people for the card, and the
   // answers other than the team block (which the people list already shows).
@@ -98,13 +94,18 @@ export default async function RegistrationsPage({
           <h1 style={{ margin: "6px 0 0" }}>{ev.title}</h1>
           <p className="body-text" style={{ marginTop: 6 }}>
             {isShortlist
-              ? `${regs.length} submitted · ${shortlisted} shortlisted`
+              ? `${rows.length} shortlisted ${rows.length === 1 ? "team" : "teams"} · ${peoplePresent} ${peoplePresent === 1 ? "person" : "people"} present`
               : `${confirmedRows.length} ${hasTeam ? (confirmedRows.length === 1 ? "team" : "teams") : "registered"} · ${peoplePresent} ${peoplePresent === 1 ? "person" : "people"} present${
                   waitlistRows.length ? ` · ${waitlistRows.length} waitlisted` : ""
                 }`}
           </p>
         </div>
         <div className="stack" style={{ gap: 10 }}>
+          {isShortlist ? (
+            <Link href={`/admin/events/${id}/shortlist`} className="btn btn-accent btn-sm">
+              Review &amp; shortlist
+            </Link>
+          ) : null}
           <Link
             href={`/admin/events/${id}/participants`}
             className="btn btn-ghost btn-sm"
@@ -134,66 +135,25 @@ export default async function RegistrationsPage({
         </div>
       </div>
 
-      {regs.length === 0 ? (
-        <div className="cal-empty">No registrations yet.</div>
+      {rows.length === 0 && waitlistRows.length === 0 ? (
+        <div className="cal-empty">
+          {isShortlist ? (
+            <>
+              No shortlisted teams yet.{" "}
+              <Link href={`/admin/events/${id}/shortlist`}>Review registrations</Link> and finalise the
+              shortlist.
+            </>
+          ) : (
+            "No registrations yet."
+          )}
+        </div>
       ) : (
         <>
-          {isShortlist && canEdit ? (
-            <form id="shortlist-form" action={shortlistAction} style={{ marginTop: 18 }}>
-              <input type="hidden" name="eventId" value={id} />
-              <button type="submit" className="btn btn-accent btn-sm">
-                Shortlist selected &amp; email
-              </button>
-              <span className="hint" style={{ marginLeft: 10 }}>
-                Emails each newly-selected applicant who gave an email.
-              </span>
-            </form>
-          ) : null}
           <RegistrationsBoard
             eventId={id}
             entries={entries}
             canEdit={canEdit}
             isTeamEvent={hasTeam}
-            rowLead={
-              isShortlist && canEdit
-                ? Object.fromEntries(
-                    rows.map((r) => [
-                      r.id,
-                      <input
-                        key="select"
-                        type="checkbox"
-                        name="selected"
-                        form="shortlist-form"
-                        value={r.id}
-                        aria-label={`Select ${r.name || r.roll || "registrant"}`}
-                      />,
-                    ]),
-                  )
-                : undefined
-            }
-            rowTail={
-              isShortlist
-                ? Object.fromEntries(
-                    rows.map((r) => [
-                      r.id,
-                      r.shortlistedAt ? (
-                        <span key="shortlisted" style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
-                          <span className="abadge abadge-approved">Shortlisted</span>
-                          {canEdit ? (
-                            <form action={unshortlistAction} style={{ display: "inline" }}>
-                              <input type="hidden" name="registrationId" value={r.id} />
-                              <input type="hidden" name="eventId" value={id} />
-                              <button type="submit" className="btn btn-sm btn-ghost">
-                                Undo
-                              </button>
-                            </form>
-                          ) : null}
-                        </span>
-                      ) : null,
-                    ]),
-                  )
-                : undefined
-            }
           />
 
           {!isShortlist && waitlistRows.length > 0 ? (
