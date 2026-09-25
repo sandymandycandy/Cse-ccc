@@ -15,6 +15,7 @@ const entry = (over: Partial<BoardEntry> = {}): BoardEntry => ({
   ],
   answers: [{ label: "Project", value: "Drone", href: null }],
   search: ["Lead", "Owls", "L1", { team: [{ n: "Asha", r: "A2" }] }],
+  choices: {},
   ...over,
 });
 
@@ -61,5 +62,23 @@ describe("registrations board", () => {
       <RegistrationCard entry={entry()} canEdit onClose={() => {}} onMark={() => {}} pending={false} error="" />,
     );
     expect(html).not.toContain('aria-pressed="true"');
+  });
+
+  it("sections the list by theme with each theme's attendance", () => {
+    const th = { id: "th", label: "Choose the theme", options: ["Theme-1 - Green", "Theme-2 - Agents"] };
+    const html = renderToStaticMarkup(
+      <RegistrationsBoard eventId="e" canEdit isTeamEvent groupFields={[th]} defaultGroup="th" entries={[
+        entry({ id: "a", title: "Owls", choices: { th: "Theme-2 - Agents" }, attended: true }),
+        entry({ id: "b", title: "Hawks", choices: { th: "Theme-1 - Green" } }),
+        entry({ id: "c", title: "Crows", choices: { th: "Theme-2 - Agents" }, attended: true, absent: [1] }),
+      ]} />,
+    );
+    const at = (s: string) => html.indexOf(s);
+    expect(at(">Theme-1 - Green<")).toBeGreaterThan(0);
+    expect(at(">Theme-1 - Green<")).toBeLessThan(at(">Theme-2 - Agents<"));
+    expect(at(">Theme-2 - Agents<")).toBeLessThan(at(">Owls<"));
+    expect(html).toContain("1 team · 0 people present");
+    expect(html).toContain("2 teams · 3 people present");
+    expect(html).toContain("Group by");
   });
 });

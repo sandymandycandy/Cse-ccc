@@ -4,6 +4,7 @@ import { useOptimistic, useRef, useState, useTransition, type ReactNode } from "
 import { Search, X } from "lucide-react";
 import { matchesAny } from "@/lib/admin/roster-filter";
 import { presentPositions, setPerson, teamMark } from "@/lib/admin/team-attendance";
+import { groupReview, type GroupField } from "@/lib/registration/shortlist";
 import { setMemberAttendanceAction, toggleAttendanceAction } from "@/app/admin/(app)/events/[id]/registrations/actions";
 import { RegistrationCard } from "./RegistrationCard";
 
@@ -33,6 +34,8 @@ export interface BoardEntry {
   answers: BoardAnswer[];
   /** Everything the search box reaches, including team members inside the answers. */
   search: unknown[];
+  /** Answer per groupable question id (see `groupFields`), null when unanswered. */
+  choices: Record<string, string | null>;
 }
 export type BoardView = "All" | "Not marked" | "Present" | "Partly present";
 
@@ -61,7 +64,7 @@ const SAVE_FAILED = "Could not save — refresh and try again.";
  * one-tap full-team mark, and a card with everyone on the team for exceptions.
  * Marks apply optimistically and settle when the server action revalidates.
  */
-export function RegistrationsBoard({ eventId, entries, canEdit, isTeamEvent, rowLead, rowTail }: {
+export function RegistrationsBoard({ eventId, entries, canEdit, isTeamEvent, rowLead, rowTail, groupFields = [], defaultGroup = null }: {
   eventId: string;
   entries: BoardEntry[];
   canEdit: boolean;
@@ -71,7 +74,11 @@ export function RegistrationsBoard({ eventId, entries, canEdit, isTeamEvent, row
   rowLead?: Record<string, ReactNode>;
   /** Per-row node after the mark action (shortlisted badge / undo), keyed by id. */
   rowTail?: Record<string, ReactNode>;
+  /** Choice questions the list can be sectioned by; the theme one by default. */
+  groupFields?: GroupField[];
+  defaultGroup?: string | null;
 }) {
+  const [groupBy, setGroupBy] = useState<string>(defaultGroup ?? "");
   const [q, setQ] = useState("");
   const [view, setView] = useState<BoardView>("All");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -86,6 +93,10 @@ export function RegistrationsBoard({ eventId, entries, canEdit, isTeamEvent, row
   const rows = filterEntries(shown, q, view);
   const open = shown.find((e) => e.id === openId) ?? null;
   const noun = isTeamEvent ? "team" : "registration";
+  const field = groupFields.find((f) => f.id === groupBy) ?? null;
+  const groups = groupReview(rows, field);
+  const presentIn = (list: BoardEntry[]) =>
+    list.reduce((n, e) => n + presentPositions(e.people.length, e.attended, e.absent).length, 0);
 
   function markTeam(e: BoardEntry, attend: boolean) {
     setError("");
@@ -119,6 +130,46 @@ export function RegistrationsBoard({ eventId, entries, canEdit, isTeamEvent, row
     if (id) rowRefs.current.get(id)?.focus();
   }
 
+  const row = (e: BoardEntry) => {
+    const size = e.people.length;
+    const m = markOf(e);
+    const here = presentPositions(size, e.attended, e.absent).length;
+    return (
+      <li key={e.id} className="regboard-row" data-mark={m}>
+        <span className="regboard-lead">{rowLead?.[e.id]}</span>
+        <button
+          type="button"
+          className="regboard-open"
+          ref={(el) => { if (el) rowRefs.current.set(e.id, el); else rowRefs.current.delete(e.id); }}
+          onClick={() => setOpenId(e.id)}
+          aria-haspopup="dialog"
+        >
+          <strong>{e.title}</strong>
+          {e.leader ? <span className="hint">Leader · {e.leader}</span> : null}
+        </button>
+        <span className="regboard-count">
+          {isTeamEvent ? `${size} ${size === 1 ? "person" : "people"} · ${here} present` : ""}
+        </span>
+        <span className={m === "present" ? "abadge abadge-approved" : m === "partial" ? "abadge abadge-pending" : "abadge"}>
+          {m === "present" ? "Present" : m === "partial" ? "Partly present" : "Not marked"}
+        </span>
+        <span className="regboard-action">
+          {canEdit && e.eligible ? (
+            <button
+              type="button"
+              className={`btn btn-sm ${e.attended ? "btn-ghost" : "btn-accent"}`}
+              disabled={pending}
+              onClick={() => markTeam(e, !e.attended)}
+            >
+              {e.attended ? "Undo" : isTeamEvent ? "Mark full team present" : "Mark present"}
+            </button>
+          ) : null}
+          {rowTail?.[e.id]}
+        </span>
+      </li>
+    );
+  };
+
   function clearFilters() {
     setQ("");
     setView("All");
@@ -145,6 +196,15 @@ export function RegistrationsBoard({ eventId, entries, canEdit, isTeamEvent, row
               </button>
             ) : null}
           </div>
+          {groupFields.length > 0 ? (
+            <label className="shortlist-groupby">
+              <span className="label">Group by</span>
+              <select value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
+                <option value="">No grouping</option>
+                {groupFields.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+              </select>
+            </label>
+          ) : null}
           <div className="view-chips">
             {VIEWS.map((v) => (
               <button key={v} type="button" className="view-chip" aria-pressed={view === v} onClick={() => setView(v)}>
@@ -167,48 +227,20 @@ export function RegistrationsBoard({ eventId, entries, canEdit, isTeamEvent, row
           <h2>No matching {noun}s</h2>
           <button type="button" className="btn btn-ghost" onClick={clearFilters}>Clear filters</button>
         </div>
+      ) : field ? (
+        groups.map((g) => (
+          <details className="review-group" key={g.key} open>
+            <summary>
+              <span className="review-group-title">{g.label}</span>
+              <span className="review-group-count">
+                {g.items.length} {g.items.length === 1 ? noun : `${noun}s`} · {presentIn(g.items)} {presentIn(g.items) === 1 ? "person" : "people"} present
+              </span>
+            </summary>
+            <ul className="regboard" aria-label={g.label}>{g.items.map(row)}</ul>
+          </details>
+        ))
       ) : (
-        <ul className="regboard" aria-label={`${noun}s`}>
-          {rows.map((e) => {
-            const size = e.people.length;
-            const m = markOf(e);
-            const here = presentPositions(size, e.attended, e.absent).length;
-            return (
-              <li key={e.id} className="regboard-row" data-mark={m}>
-                <span className="regboard-lead">{rowLead?.[e.id]}</span>
-                <button
-                  type="button"
-                  className="regboard-open"
-                  ref={(el) => { if (el) rowRefs.current.set(e.id, el); else rowRefs.current.delete(e.id); }}
-                  onClick={() => setOpenId(e.id)}
-                  aria-haspopup="dialog"
-                >
-                  <strong>{e.title}</strong>
-                  {e.leader ? <span className="hint">Leader · {e.leader}</span> : null}
-                </button>
-                <span className="regboard-count">
-                  {isTeamEvent ? `${size} ${size === 1 ? "person" : "people"} · ${here} present` : ""}
-                </span>
-                <span className={m === "present" ? "abadge abadge-approved" : m === "partial" ? "abadge abadge-pending" : "abadge"}>
-                  {m === "present" ? "Present" : m === "partial" ? "Partly present" : "Not marked"}
-                </span>
-                <span className="regboard-action">
-                  {canEdit && e.eligible ? (
-                    <button
-                      type="button"
-                      className={`btn btn-sm ${e.attended ? "btn-ghost" : "btn-accent"}`}
-                      disabled={pending}
-                      onClick={() => markTeam(e, !e.attended)}
-                    >
-                      {e.attended ? "Undo" : isTeamEvent ? "Mark full team present" : "Mark present"}
-                    </button>
-                  ) : null}
-                  {rowTail?.[e.id]}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
+        <ul className="regboard" aria-label={`${noun}s`}>{rows.map(row)}</ul>
       )}
       {error && !open ? <p role="alert" className="regcard-error">{error}</p> : null}
 

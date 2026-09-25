@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   attendanceRows,
+  choiceAnswers,
   decisionPatch,
   defaultGroupField,
   filterReview,
@@ -135,5 +136,20 @@ describe("grouping by a choice question", () => {
   it("no field → one unlabelled group of everything", () => {
     const groups = groupReview([it_("a", "x"), it_("b", null)], null);
     expect(groups).toEqual([{ key: "", label: "", items: [it_("a", "x"), it_("b", null)] }]);
+  });
+});
+
+describe("choiceAnswers", () => {
+  const schema = [
+    { id: "year", kind: "dropdown", identity: "year", label: "Year", required: true, options: ["1", "2"] },
+    { id: "department", kind: "dropdown", identity: "department", label: "Department", required: true, options: ["CSE"] },
+    { id: "th", kind: "radio", identity: null, label: "Theme", required: true, options: ["A", "B"] },
+  ] as FormField[];
+  it("reads identity choices off the row and the rest from custom answers", () => {
+    const fields = groupFields(schema);
+    expect(choiceAnswers({ year: 3, department: "CSE", customAnswers: { th: "B" } }, schema, fields))
+      .toEqual({ year: "3", department: "CSE", th: "B" });
+    expect(choiceAnswers({ year: null, department: "", customAnswers: null }, schema, fields))
+      .toEqual({ year: null, department: null, th: null });
   });
 });

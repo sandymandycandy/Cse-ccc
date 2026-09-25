@@ -5,7 +5,7 @@ import { canManageEvent, canViewEvent } from "@/lib/admin/event-hosts";
 import { getEventForAttendance } from "@/lib/admin/attendance";
 import { listRegistrations, getEventFormSchema } from "@/lib/admin/registrations";
 import { listTeams, teamSearchValues } from "@/lib/registration-form/participants";
-import { defaultGroupField, groupFields, shortlistState } from "@/lib/registration/shortlist";
+import { choiceAnswers, defaultGroupField, groupFields, shortlistState } from "@/lib/registration/shortlist";
 import { ShortlistReview, type ReviewItem } from "@/components/admin/ShortlistReview";
 
 /** Review every registration on a shortlist event and sort it into a category. */
@@ -24,20 +24,12 @@ export default async function ShortlistPage({ params }: { params: Promise<{ id: 
 
   const teams = listTeams(regs, schema);
   const fields = groupFields(schema);
-  const byId = new Map(schema.map((f) => [f.id, f]));
-  // Year / department are identity answers stored on the row itself; every
-  // other choice lives in custom_answers under its question id.
-  const answer = (r: (typeof regs)[number], id: string): string | null => {
-    const identity = byId.get(id)?.identity;
-    const v = identity === "year" ? r.year : identity === "department" ? r.department : r.customAnswers?.[id];
-    return v == null || v === "" ? null : String(v);
-  };
   const items: ReviewItem[] = regs.map((r, i) => ({
     id: r.id,
     team: teams[i],
     state: shortlistState(r),
     search: [...teamSearchValues(teams[i]), r.customAnswers],
-    choices: Object.fromEntries(fields.map((f) => [f.id, answer(r, f.id)])),
+    choices: choiceAnswers(r, schema, fields),
   }));
 
   return (

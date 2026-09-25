@@ -43,6 +43,9 @@ end-to-end**, not a checklist of components.
 >   off; "Not answered" last), per-section counts, collapsible `<details>`. Full-width 3-way switch (44px on
 >   phones), card head keeps badge + count together, Finalise bar **fixed to the bottom under 640px**.
 >   Checked by headless-Chrome screenshots at 375px and 1280px (no horizontal overflow). **1627 tests** ✓.
+> - **Attendance page grouped by theme too** (seats + shortlist events): same "Group by" select beside the search,
+>   collapsible sections with "N teams · M people present"; marking unchanged; seats waitlist table ungrouped.
+>   Shared `choiceAnswers(row, schema, fields)` feeds both pages. **1629 tests** ✓ build ✓.
 
 > ### 🔥 2026-09-24 evening — AI FORGE EXPO launch fixes (all LIVE)
 > Registration opened 18:00 IST and nobody could register. Causes, in order found:

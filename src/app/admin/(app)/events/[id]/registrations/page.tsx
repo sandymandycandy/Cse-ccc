@@ -11,7 +11,7 @@ import { splitRegistrations } from "@/lib/registration/waitlist";
 import { teamOf } from "@/lib/certificates/fields";
 import { presentPositions } from "@/lib/admin/team-attendance";
 import { RegistrationsBoard, type BoardEntry } from "@/components/admin/RegistrationsBoard";
-import { attendanceRows } from "@/lib/registration/shortlist";
+import { attendanceRows, choiceAnswers, defaultGroupField, groupFields } from "@/lib/registration/shortlist";
 import { promoteWaitlistAction } from "./actions";
 
 export default async function RegistrationsPage({
@@ -47,6 +47,7 @@ export default async function RegistrationsPage({
   const answerCols = columns.filter((c) => !teamIds.some((tid) => c.key.startsWith(`${tid}.`)));
   const deptYear = (d: string | null, y: string | number | null) =>
     [d, y].filter((v) => v != null && v !== "").join(" · ");
+  const fields = groupFields(schema);
   const entries: BoardEntry[] = rows.map((r) => {
     const team = teamOf(r, schema);
     const people =
@@ -76,6 +77,7 @@ export default async function RegistrationsPage({
       // Findable by anything — including details the row never shows (email,
       // phone) and every team member nested inside the custom answers.
       search: [r.name, r.teamName, r.roll, r.department, r.year, r.email, r.phone, r.customAnswers],
+      choices: choiceAnswers(r, schema, fields),
     };
   });
   const peoplePresent = entries.reduce(
@@ -154,6 +156,8 @@ export default async function RegistrationsPage({
             entries={entries}
             canEdit={canEdit}
             isTeamEvent={hasTeam}
+            groupFields={fields}
+            defaultGroup={defaultGroupField(fields)}
           />
 
           {!isShortlist && waitlistRows.length > 0 ? (

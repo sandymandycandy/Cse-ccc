@@ -180,3 +180,23 @@ export function groupReview<T extends { choices: Record<string, string | null> }
   if (none.length) groups.push({ key: "\u0000none", label: "Not answered", items: none });
   return groups;
 }
+
+/**
+ * A registration's answer to each groupable question. Year / department are
+ * identity answers stored on the row itself; every other choice lives in
+ * custom_answers under its question id.
+ */
+export function choiceAnswers(
+  row: { year: number | string | null; department: string | null; customAnswers: Record<string, unknown> | null },
+  schema: FormField[],
+  fields: GroupField[],
+): Record<string, string | null> {
+  const identityOf = new Map(schema.map((f) => [f.id, f.identity]));
+  return Object.fromEntries(
+    fields.map((f) => {
+      const identity = identityOf.get(f.id);
+      const v = identity === "year" ? row.year : identity === "department" ? row.department : row.customAnswers?.[f.id];
+      return [f.id, v == null || v === "" ? null : String(v)];
+    }),
+  );
+}
