@@ -35,8 +35,9 @@ end-to-end**, not a checklist of components.
 >   by team, un-claims teams it couldn't email; >50 recipients queue to the Outbox (`shouldQueue`).
 > - Seats mode untouched. Gate: typecheck ✓ lint ✓ **1614 tests** ✓ build ✓.
 > - **Owed:** owner browser walk (needs TOTP login): pick → finalise → attendance → move a finalised team out.
->   Deferred minors: attendance write doesn't re-check `shortlisted_at` (2-admin race); decision audit lacks
->   "before"; review chip counts ignore search; emailed-warning can be bypassed by clicking another segment.
+> - Review minors all FIXED same day: attendance writes re-check `shortlisted_at` in the UPDATE itself (2-admin
+>   race); decision audit records before+after; chip counts follow the search ("N of M match"); the
+>   already-emailed warning can only be passed by its own Confirm (`segmentClick`). Gate: **1623 tests** ✓ build ✓.
 
 > ### 🔥 2026-09-24 evening — AI FORGE EXPO launch fixes (all LIVE)
 > Registration opened 18:00 IST and nobody could register. Causes, in order found:
