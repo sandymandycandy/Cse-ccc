@@ -283,16 +283,7 @@ export function rewriteAssetRefs(design: Design, swap: (ref: AssetRef) => AssetR
 }
 
 /** Deterministic JSON (sorted keys) — the input to a design version's hash. */
-export function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  if (value && typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .filter(([, v]) => v !== undefined)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(",")}}`;
-  }
-  return JSON.stringify(value);
-}
+export { canonicalJson } from "@/lib/json";
 
 /**
  * Convert a v1 setup (one uploaded image + one name anchor) into a design:

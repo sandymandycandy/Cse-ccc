@@ -37,6 +37,17 @@ describe("diffAudit", () => {
     ]);
   });
 
+  it("never reports a before-only key as cleared, and shows after-only keys as set", () => {
+    // club_member onboarding: context in before, the change in after.
+    expect(
+      diffAudit({ name: "Vyshnavipriya", active: true, clubId: "x" }, { onboarded: true }),
+    ).toEqual([{ field: "onboarded", label: "Onboarded", kind: "set", from: null, to: "Yes" }]);
+    // club profile edit by a club head: structural keys absent from after.
+    expect(diffAudit({ name: "A", slug: "a", isActive: true }, { name: "B" })).toEqual([
+      { field: "name", label: "Name", kind: "changed", from: "A", to: "B" },
+    ]);
+  });
+
   it("lists every field as set when there is no before, and removed when there is no after", () => {
     expect(diffAudit(null, { title: "X" })).toEqual([
       { field: "title", label: "Title", kind: "set", from: null, to: "X" },

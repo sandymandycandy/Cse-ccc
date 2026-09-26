@@ -3,11 +3,11 @@
  * "from → to" list for the audit page. Pure: ids are resolved through the
  * `names` map the caller builds, and every value comes back display-ready.
  *
- * - Both snapshots present → only the fields whose value actually moved.
+ * - Both snapshots present → only the fields `after` records whose value moved.
  * - Only `after` (a create, an open, an export…) → every field, as "set".
  * - Only `before` (a delete) → every field, as "removed".
  */
-import { canonicalJson } from "@/lib/certificates/design";
+import { canonicalJson } from "@/lib/json";
 import { istDateMedium, istTime } from "@/lib/datetime";
 
 export interface AuditChange {
@@ -110,10 +110,13 @@ export function diffAudit(
   if (b && !a) return Object.entries(b).map(([k, v]) => change(k, "removed", v, undefined));
   if (!a || !b) return [];
 
-  const keys = [...Object.keys(b), ...Object.keys(a).filter((k) => !(k in b))];
-  return keys
+  // Only keys the `after` snapshot records can have changed. Producers often
+  // put context in `before` alone (a member's name next to `after: { onboarded }`,
+  // or fields a narrower role can't edit) — absent from `after` means "not
+  // recorded", never "cleared". A key new in `after` is a value being set.
+  return Object.keys(a)
     .filter((k) => sameKey(b[k]) !== sameKey(a[k]))
-    .map((k) => change(k, "changed", b[k], a[k]));
+    .map((k) => (k in b ? change(k, "changed", b[k], a[k]) : change(k, "set", undefined, a[k])));
 }
 
 /** Every uuid in a snapshot — the ids the caller should resolve to names. */

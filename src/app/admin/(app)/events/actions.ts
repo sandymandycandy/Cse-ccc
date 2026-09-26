@@ -29,7 +29,7 @@ import { validateFormSchema, defaultFormFor } from "@/lib/registration-form/sche
 import { parseSchedule } from "@/lib/registration/schedule";
 import { isGroupLink } from "@/lib/registration/whatsapp";
 import { istDateKey, istLocalToUTC } from "@/lib/datetime";
-import { canonicalJson } from "@/lib/certificates/design";
+import { canonicalJson } from "@/lib/json";
 import type { Json } from "@/lib/database.types";
 import type { AdminRole } from "@/lib/auth/capabilities";
 import { toFieldErrors } from "@/lib/admin/field-errors";

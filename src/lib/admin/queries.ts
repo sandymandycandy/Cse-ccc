@@ -9,7 +9,7 @@ import {
   type EventHosts,
 } from "@/lib/admin/event-hosts";
 import { hostLabel, orderHosts } from "@/lib/event-hosts";
-import { diffAudit, idsIn, type AuditChange } from "@/lib/admin/audit-diff";
+import { UUID, diffAudit, idsIn, type AuditChange } from "@/lib/admin/audit-diff";
 
 /**
  * Admin-side reads. These use the service-role client (drafts, pending events and
@@ -381,8 +381,6 @@ async function resolveNames(
   return names;
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /**
  * The audit trail (SECURITY_SPEC §14), newest first. Org-wide and read-only —
  * `view:audit` has no club scope, so the page guard (`requireViewPage`) is the
@@ -413,7 +411,7 @@ export async function listAuditLog(limit = 100): Promise<AuditEntry[]> {
   const ids = new Set<string>();
   for (const r of rows) {
     if (r.actor_id) ids.add(r.actor_id);
-    if (r.entity_id && UUID_RE.test(r.entity_id)) ids.add(r.entity_id);
+    if (r.entity_id && UUID.test(r.entity_id)) ids.add(r.entity_id);
     for (const id of [...idsIn(r.before), ...idsIn(r.after)]) ids.add(id);
   }
   const names = await resolveNames(admin, [...ids]);

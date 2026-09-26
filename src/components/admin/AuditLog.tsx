@@ -3,12 +3,12 @@
 import { useRef, useState } from "react";
 import { Activity, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import type { AuditEntry } from "@/lib/admin/queries";
-import type { AuditChange } from "@/lib/admin/audit-diff";
+import { fieldLabel, type AuditChange } from "@/lib/admin/audit-diff";
 import { istDateMedium, istNumericDate, istTime } from "@/lib/datetime";
 import { matchesAny } from "@/lib/admin/roster-filter";
 
 const PAGE_SIZE = 20;
-export const auditLabel = (value: string) => value.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+export const auditLabel = fieldLabel;
 
 export function filterAuditEntries(entries: AuditEntry[], query: string, action: string, entity: string) {
   return entries.filter((entry) => (!action || entry.action === action) && (!entity || entry.entity === entity) && matchesAny([
