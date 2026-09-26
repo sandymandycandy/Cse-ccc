@@ -36,6 +36,10 @@ end-to-end**, not a checklist of components.
 > - Still **latest 100 rows only** — club-member onboarding (1,000+ rows) buries event edits fast; server-side
 >   paging/filters is the natural follow-up. Not browser-checked (needs TOTP login).
 > - Data: sample team "Hello" (Abi, VTU28326) deleted from AI FORGE EXPO by direct SQL (no audit row).
+> - **CI was red since 2026-09-25 on `npm audit` only** (typecheck/lint/build were green): Next 16.3.1 had a
+>   CRITICAL unauthenticated RCE (GHSA-p293-qw3h-jr36 Windows hosts; GHSA-2xp9-vwfh-vxw4 image optimizer + AVIF) and
+>   js-yaml 4.3.1 (via eslint) a high CPU DoS. Bumped `next` + `eslint-config-next` to **16.3.6** (exact pins),
+>   `npm audit fix` for js-yaml → 0 vulnerabilities; npm ci/typegen/typecheck/lint/build/1639 tests ✓ locally.
 
 > ### 🎓 2026-09-26 — Council certificate bases INSTALLED LIVE (data only, no code change)
 > - The owner's "Engraved" certificate (zip `Certificate (1).zip`: `cert.html` + 8 logo/signature PNGs) is now the
