@@ -29,6 +29,7 @@ import { validateFormSchema, defaultFormFor } from "@/lib/registration-form/sche
 import { parseSchedule } from "@/lib/registration/schedule";
 import { isGroupLink } from "@/lib/registration/whatsapp";
 import { istDateKey, istLocalToUTC } from "@/lib/datetime";
+import { canonicalJson } from "@/lib/certificates/design";
 import type { Json } from "@/lib/database.types";
 import type { AdminRole } from "@/lib/auth/capabilities";
 import { toFieldErrors } from "@/lib/admin/field-errors";
@@ -327,7 +328,9 @@ export async function updateEventAction(
     .from("events")
     .select(
       "id, title, description, starts_at, ends_at, venue_text, poster_path, capacity, status, " +
-        "approval_status, event_clubs ( club_id, is_primary )",
+        "approval_status, selection_mode, registration_form, registration_opens_at, " +
+        "registration_closes_at, waitlist_enabled, show_on_achievements, whatsapp_url, summary, " +
+        "event_clubs ( club_id, is_primary )",
     )
     .eq("id", eventId)
     .maybeSingle();
@@ -343,6 +346,14 @@ export async function updateEventAction(
     capacity: number | null;
     status: string;
     approval_status: string;
+    selection_mode: string;
+    registration_form: Json;
+    registration_opens_at: string | null;
+    registration_closes_at: string | null;
+    waitlist_enabled: boolean;
+    show_on_achievements: boolean;
+    whatsapp_url: string | null;
+    summary: string | null;
     event_clubs: { club_id: string; is_primary: boolean }[];
   };
   const hosts = hostsFromLinks(existing.event_clubs);
@@ -459,6 +470,7 @@ export async function updateEventAction(
     summary: parsed.data.summary || null,
   };
   if (poster.path) update.poster_path = poster.path;
+  const formChanged = canonicalJson(existing.registration_form) !== canonicalJson(form.value);
 
   const { error: updErr } = await admin.from("events").update(update).eq("id", eventId);
   if (updErr) {
@@ -511,18 +523,13 @@ export async function updateEventAction(
     }
   }
 
-  // Notify confirmed registrants when ANYTHING material changed on a published
-  // event — title, description, time, venue or capacity (owner request; was
-  // previously time/venue only). A new poster alone doesn't notify.
-  const timeChanged = existing.starts_at !== startsAt || existing.ends_at !== endsAt;
-  const venueChanged = (existing.venue_text ?? null) !== venue;
-  const titleChanged = existing.title !== title;
-  const descChanged = (existing.description ?? null) !== (description ?? null);
-  const capacityChanged =
-    (existing.capacity ?? null) !== (typeof capacity === "number" ? capacity : null);
-  const anyChanged = timeChanged || venueChanged || titleChanged || descChanged || capacityChanged;
+  // Notify confirmed registrants ONLY when the venue of a published event moves
+  // to a new place (owner request). Title, description, time, capacity and
+  // poster edits send nothing; clearing the venue sends nothing either, as
+  // there is no new venue to tell them about.
+  const venueChanged = !!venue && (existing.venue_text ?? null) !== venue;
 
-  if (anyChanged && existing.status === "published") {
+  if (venueChanged && existing.status === "published") {
     const base = process.env.NEXT_PUBLIC_SITE_URL ?? "";
     const { data: regs } = await admin
       .from("registrations")
@@ -535,8 +542,14 @@ export async function updateEventAction(
         template: "event_updated",
         toEmail: r.email,
         toName: r.student_name ?? undefined,
-        subject: `Updated: ${title}`,
-        payload: { eventId, title, url: base ? `${base}/events/${eventId}` : undefined, timeChanged, venueChanged },
+        subject: `Venue updated: ${title}`,
+        payload: {
+          eventId,
+          title,
+          body: `The venue for ${title} has changed.\n\nThis is the updated venue: ${venue}`,
+          url: base ? `${base}/events/${eventId}` : undefined,
+          linkLabel: "View event",
+        },
         priority: 2,
       });
     }
@@ -547,14 +560,43 @@ export async function updateEventAction(
     action: "update",
     entity: "event",
     entityId: eventId,
+    // Full snapshots: the audit page diffs them and shows only what moved.
     before: {
       title: existing.title,
+      summary: existing.summary,
+      description: existing.description,
       starts_at: existing.starts_at,
       ends_at: existing.ends_at,
       venue_text: existing.venue_text,
+      capacity: existing.capacity,
+      selection_mode: existing.selection_mode,
+      registration_opens_at: existing.registration_opens_at,
+      registration_closes_at: existing.registration_closes_at,
+      waitlist_enabled: existing.waitlist_enabled,
+      show_on_achievements: existing.show_on_achievements,
+      whatsapp_url: existing.whatsapp_url,
+      poster: existing.poster_path ? "set" : null,
+      ...(formChanged ? { registration_form: "previous version" } : {}),
       club_id: hosts.primaryClubId,
     },
-    after: { title, starts_at: startsAt, ends_at: endsAt, venue_text: venue, club_id: clubId },
+    after: {
+      title,
+      summary: update.summary,
+      description: update.description,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      venue_text: venue,
+      capacity: update.capacity,
+      selection_mode: selectionMode,
+      registration_opens_at: sched.opensAt,
+      registration_closes_at: sched.closesAt,
+      waitlist_enabled: update.waitlist_enabled,
+      show_on_achievements: update.show_on_achievements,
+      whatsapp_url: update.whatsapp_url,
+      poster: poster.path ? "replaced" : existing.poster_path ? "set" : null,
+      ...(formChanged ? { registration_form: "edited" } : {}),
+      club_id: clubId,
+    },
   });
 
   redirect("/admin/events");

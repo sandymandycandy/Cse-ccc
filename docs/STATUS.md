@@ -3,7 +3,7 @@
 > **Picking this up cold? Read this whole file first**, then `docs/BUILD_PLAN.md`
 > (v2.1, product/engineering spec) and `docs/SECURITY_SPEC.md` as needed.
 > Per-feature designs live in `docs/superpowers/specs/` + plans in
-> `docs/superpowers/plans/`. **Last updated: 2026-09-23 (registrations team list + per-person attendance + two-panel event email page SHIPPED (6bc7377), migration `registration_absent_members` APPLIED LIVE; admin refresh follow-up — Email/Audit/Team/attendance screens + attendance close semantics — SHIPPED (454f244); 2026-09-22: three deploys: event WhatsApp group link SHIPPED (81753d6) with migration `event_whatsapp_link` APPLIED LIVE; tabbed event form + three design-handoff gaps SHIPPED (543f89c); rebuilt maintenance page SHIPPED DARK (a97c311); 2026-09-20: admin layout/interaction upgrade SHIPPED (d27c4d9), migration `attendance_absent_mark` APPLIED LIVE — club attendance is now tri-state; 2026-09-18: new `/team` page + its CMS SHIPPED (73058ce), migration team_profiles applied live and still empty; 2026-09-17: co-host dropdown + sectioned event form SHIPPED; session history search + sortable date SHIPPED; co-hosted events shipped earlier the same day; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed).**
+> `docs/superpowers/plans/`. **Last updated: 2026-09-26 (venue-only update email + field-level "from → to" audit log SHIPPED; council certificate bases installed live; 2026-09-23: registrations team list + per-person attendance + two-panel event email page SHIPPED (6bc7377), migration `registration_absent_members` APPLIED LIVE; admin refresh follow-up — Email/Audit/Team/attendance screens + attendance close semantics — SHIPPED (454f244); 2026-09-22: three deploys: event WhatsApp group link SHIPPED (81753d6) with migration `event_whatsapp_link` APPLIED LIVE; tabbed event form + three design-handoff gaps SHIPPED (543f89c); rebuilt maintenance page SHIPPED DARK (a97c311); 2026-09-20: admin layout/interaction upgrade SHIPPED (d27c4d9), migration `attendance_absent_mark` APPLIED LIVE — club attendance is now tri-state; 2026-09-18: new `/team` page + its CMS SHIPPED (73058ce), migration team_profiles applied live and still empty; 2026-09-17: co-host dropdown + sectioned event form SHIPPED; session history search + sortable date SHIPPED; co-hosted events shipped earlier the same day; 2026-09-16: per-field validation errors across the admin panel; audience picker + layer-2 audience; Outbox address leak fixed).**
 
 ## What this is
 
@@ -19,6 +19,23 @@ end-to-end**, not a checklist of components.
 ---
 
 ## 🚦 START HERE — current git/deploy state (2026-09-24)
+
+> ### 📍 2026-09-26 — Venue-only update email + detailed audit log SHIPPED (Vercel auto-deploy)
+> - **Editing an event emails registrants ONLY when the venue changes to a new place** (owner request; supersedes the
+>   earlier "notify on any title/description/time/venue/capacity change"). Published events, confirmed registrants,
+>   template `event_updated`, subject `Venue updated: <title>`, body "…This is the updated venue: <venue>" + View event
+>   button. Title/time/description/capacity/poster edits and clearing the venue send nothing. `events/actions.ts`.
+> - **Audit page shows "from → to" per field.** `src/lib/admin/audit-diff.ts` diffs each row's `before`/`after`:
+>   both present → only moved fields (same instant in `+00:00`/`.000Z` spelling = unchanged); only after → "set";
+>   only before → "removed". Values are IST dates, Yes/No, "empty"; uuids resolve to names (admins, clubs, events,
+>   club/council members, registrations) and the entry names its record ("Event · AI FORGE EXPO"). Search matches
+>   old/new values. Replaces the old `summary` string (`AuditEntry.summary` is gone → `target` + `changes`).
+> - **Event edit audit now snapshots every field** (summary, description, capacity, selection mode, registration
+>   window, waitlist, show-on-achievements, WhatsApp link, poster replaced, `registration_form: edited` when the
+>   form changed — canonical-JSON compare). Older `update/event` rows only carry title/times/venue/club.
+> - Still **latest 100 rows only** — club-member onboarding (1,000+ rows) buries event edits fast; server-side
+>   paging/filters is the natural follow-up. Not browser-checked (needs TOTP login).
+> - Data: sample team "Hello" (Abi, VTU28326) deleted from AI FORGE EXPO by direct SQL (no audit row).
 
 > ### 🎓 2026-09-26 — Council certificate bases INSTALLED LIVE (data only, no code change)
 > - The owner's "Engraved" certificate (zip `Certificate (1).zip`: `cert.html` + 8 logo/signature PNGs) is now the

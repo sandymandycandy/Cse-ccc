@@ -407,7 +407,19 @@
   .audit-action { padding: 3px 8px; border-radius: 5px; background: var(--paper-2); border: 1px solid var(--line-2); color: var(--ink-2); font: 11px/1.4 var(--mono); }
   .audit-entity { margin-top: 6px; font: 13px/1.5 var(--sans); color: var(--ink-2); }
   .audit-entity > span { color: var(--ink-3); font: 11px var(--mono); }
-  .audit-summary { margin-top: 6px; color: var(--ink-3); font: 12px/1.6 var(--mono); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .audit-entity b { font-weight: 500; color: var(--ink); overflow-wrap: anywhere; }
+  .audit-nochange { margin-top: 8px; color: var(--ink-3); font: 12px/1.5 var(--sans); }
+  .audit-changes { margin: 10px 0 0; display: grid; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .audit-change { display: grid; grid-template-columns: minmax(110px, 170px) minmax(0, 1fr); gap: 12px; padding: 8px 12px; }
+  .audit-change + .audit-change { border-top: 1px solid var(--line); }
+  .audit-change dt { color: var(--ink-3); font: 12px/1.6 var(--sans); }
+  .audit-change dd { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; min-width: 0; font: 13px/1.6 var(--sans); }
+  .audit-from, .audit-to { max-height: 9.6em; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
+  .audit-from { color: var(--rust); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--rust) 55%, transparent); }
+  .audit-to { color: var(--ink); }
+  .is-set .audit-to { color: var(--ink-2); }
+  .audit-arrow { color: var(--ink-3); }
+  .audit-empty-value { color: var(--ink-3); font-style: italic; text-decoration: none; }
   .audit-time { display: grid; gap: 5px; text-align: right; color: var(--ink-2); font: 12px/1.5 var(--mono); }
   .audit-time > :last-child { font: 11px/1.5 var(--sans); color: var(--ink-3); }
   .audit-details { margin-top: 6px; }
@@ -442,6 +454,7 @@
     .audit-time { grid-column: 1 / -1; grid-row: 1; display: flex; justify-content: space-between; align-items: baseline; text-align: left; }
     .audit-details > summary { min-height: 44px; }
     .audit-details dl > div { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+    .audit-change { grid-template-columns: minmax(0, 1fr); gap: 2px; }
     .audit-pagination { flex-wrap: wrap; padding: 16px 18px; }
     .audit-pagination > div { width: 100%; }
     .audit-pagination .btn { flex: 1; }

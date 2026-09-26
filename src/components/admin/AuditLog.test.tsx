@@ -5,7 +5,8 @@ import type { AuditEntry } from "@/lib/admin/queries";
 
 const entry = (overrides: Partial<AuditEntry> = {}): AuditEntry => ({
   id: "audit-1", at: "2026-09-23T12:00:00Z", actor: "Admin One", action: "close",
-  entity: "club_attendance_session", entityId: "record-123456789", summary: "present=9, closed=true", ip: "127.0.0.1",
+  entity: "club_attendance_session", entityId: "record-123456789", target: null, ip: "127.0.0.1",
+  changes: [{ field: "present", label: "Present", kind: "set", from: null, to: "9" }],
   ...overrides,
 });
 
@@ -31,7 +32,19 @@ describe("audit activity", () => {
     expect(html).not.toContain("Person 20");
     expect(html).toContain("record-123456789");
     expect(html).toContain("127.0.0.1");
-    expect(html).toContain("Recorded summary");
+    expect(html).toContain("Present");
+  });
+
+  it("shows what changed from → to, and finds entries by those values", () => {
+    const venue = entry({
+      entity: "event", target: "AI Forge Expo",
+      changes: [{ field: "venue_text", label: "Venue", kind: "changed", from: "Hall A", to: "Lab 3" }],
+    });
+    const html = renderToStaticMarkup(<AuditLog entries={[venue]} />);
+    expect(html).toContain("AI Forge Expo");
+    expect(html).toMatch(/Hall A.*→.*Lab 3/);
+    expect(filterAuditEntries([venue], "lab 3", "", "")).toHaveLength(1);
+    expect(filterAuditEntries([venue], "ai forge", "", "")).toHaveLength(1);
   });
 
   it("shows a truthful empty history", () => {

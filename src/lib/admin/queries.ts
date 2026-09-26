@@ -9,6 +9,7 @@ import {
   type EventHosts,
 } from "@/lib/admin/event-hosts";
 import { hostLabel, orderHosts } from "@/lib/event-hosts";
+import { diffAudit, idsIn, type AuditChange } from "@/lib/admin/audit-diff";
 
 /**
  * Admin-side reads. These use the service-role client (drafts, pending events and
@@ -346,26 +347,47 @@ export interface AuditEntry {
   action: string;
   entity: string;
   entityId: string | null;
-  summary: string;
+  /** The affected record's name (event title, club, person), when it resolves. */
+  target: string | null;
+  /** Field-by-field "from → to" (see audit-diff). */
+  changes: AuditChange[];
   ip: string | null;
 }
 
-/** A compact "k=v, k=v" of the after-snapshot (or before, on deletes), truncated. */
-function summarizeChange(before: unknown, after: unknown): string {
-  const src = (after && typeof after === "object" ? after : before) as Record<string, unknown> | null;
-  if (!src || typeof src !== "object") return "";
-  const parts = Object.entries(src).map(([k, v]) => {
-    const val = v == null ? "∅" : typeof v === "object" ? JSON.stringify(v) : String(v);
-    return `${k}=${val.length > 40 ? val.slice(0, 40) + "…" : val}`;
-  });
-  const joined = parts.join(", ");
-  return joined.length > 120 ? joined.slice(0, 120) + "…" : joined;
+/**
+ * Resolves ids to display names across the tables audit rows point at. One
+ * query per table; ids are unique across tables, so one map holds them all.
+ */
+async function resolveNames(
+  admin: ReturnType<typeof createAdminClient>,
+  ids: string[],
+): Promise<Map<string, string>> {
+  const names = new Map<string, string>();
+  if (!ids.length) return names;
+  const [admins, clubs, events, members, council, regs] = await Promise.all([
+    admin.from("admin_users").select("id, full_name").in("id", ids),
+    admin.from("clubs").select("id, name").in("id", ids),
+    admin.from("events").select("id, title").in("id", ids),
+    admin.from("club_members").select("id, name").in("id", ids),
+    admin.from("council_members").select("id, full_name").in("id", ids),
+    admin.from("registrations").select("id, student_name").in("id", ids),
+  ]);
+  for (const r of admins.data ?? []) names.set(r.id, r.full_name);
+  for (const r of clubs.data ?? []) names.set(r.id, r.name);
+  for (const r of events.data ?? []) names.set(r.id, r.title);
+  for (const r of members.data ?? []) names.set(r.id, r.name);
+  for (const r of council.data ?? []) names.set(r.id, r.full_name);
+  for (const r of regs.data ?? []) if (r.student_name) names.set(r.id, r.student_name);
+  return names;
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * The audit trail (SECURITY_SPEC §14), newest first. Org-wide and read-only —
  * `view:audit` has no club scope, so the page guard (`requireViewPage`) is the
- * only gate. Actor names are resolved in a second query (no FK-embed assumed).
+ * only gate. Actor, record and referenced-id names are resolved in follow-up
+ * queries (no FK-embed assumed).
  */
 export async function listAuditLog(limit = 100): Promise<AuditEntry[]> {
   const admin = createAdminClient();
@@ -388,15 +410,13 @@ export async function listAuditLog(limit = 100): Promise<AuditEntry[]> {
     ip: string | null;
   }[];
 
-  const actorIds = [...new Set(rows.map((r) => r.actor_id).filter((x): x is string => !!x))];
-  const names = new Map<string, string>();
-  if (actorIds.length > 0) {
-    const { data: admins } = await admin
-      .from("admin_users")
-      .select("id, full_name")
-      .in("id", actorIds);
-    for (const a of admins ?? []) names.set(a.id, a.full_name);
+  const ids = new Set<string>();
+  for (const r of rows) {
+    if (r.actor_id) ids.add(r.actor_id);
+    if (r.entity_id && UUID_RE.test(r.entity_id)) ids.add(r.entity_id);
+    for (const id of [...idsIn(r.before), ...idsIn(r.after)]) ids.add(id);
   }
+  const names = await resolveNames(admin, [...ids]);
 
   return rows.map((r) => ({
     id: r.id,
@@ -405,7 +425,8 @@ export async function listAuditLog(limit = 100): Promise<AuditEntry[]> {
     action: r.action,
     entity: r.entity,
     entityId: r.entity_id,
-    summary: summarizeChange(r.before, r.after),
+    target: r.entity_id ? names.get(r.entity_id) ?? null : null,
+    changes: diffAudit(r.before, r.after, names),
     ip: r.ip,
   }));
 }

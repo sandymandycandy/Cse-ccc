@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Activity, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import type { AuditEntry } from "@/lib/admin/queries";
+import type { AuditChange } from "@/lib/admin/audit-diff";
 import { istDateMedium, istNumericDate, istTime } from "@/lib/datetime";
 import { matchesAny } from "@/lib/admin/roster-filter";
 
@@ -12,9 +13,30 @@ export const auditLabel = (value: string) => value.replace(/_/g, " ").replace(/^
 export function filterAuditEntries(entries: AuditEntry[], query: string, action: string, entity: string) {
   return entries.filter((entry) => (!action || entry.action === action) && (!entity || entry.entity === entity) && matchesAny([
     entry.id, entry.actor ?? "System", entry.action, auditLabel(entry.action), entry.entity,
-    auditLabel(entry.entity), entry.entityId, entry.summary, entry.ip,
+    auditLabel(entry.entity), entry.entityId, entry.target, entry.ip,
+    ...entry.changes.flatMap((c) => [c.label, c.from, c.to]),
     istNumericDate(entry.at), istDateMedium(entry.at), istTime(entry.at),
   ], query));
+}
+
+const Empty = () => <em className="audit-empty-value">empty</em>;
+
+/** What changed, field by field: "Venue  Hall A → Hall B". */
+function AuditChanges({ changes }: { changes: AuditChange[] }) {
+  if (!changes.length) return <p className="audit-nochange">No field changes recorded.</p>;
+  return <dl className="audit-changes">
+    {changes.map((c) => <div key={c.field} className={`audit-change is-${c.kind}`}>
+      <dt>{c.label}</dt>
+      <dd>
+        {c.kind === "changed" ? <>
+          <span className="audit-from">{c.from ?? <Empty />}</span>
+          <span className="audit-arrow" aria-label="changed to">→</span>
+          <span className="audit-to">{c.to ?? <Empty />}</span>
+        </> : c.kind === "set" ? <span className="audit-to">{c.to ?? <Empty />}</span>
+          : <span className="audit-from">{c.from ?? <Empty />}</span>}
+      </dd>
+    </div>)}
+  </dl>;
 }
 
 export function AuditLog({ entries }: { entries: AuditEntry[] }) {
@@ -67,12 +89,11 @@ export function AuditLog({ entries }: { entries: AuditEntry[] }) {
           <span className="audit-activity-icon" aria-hidden="true"><Activity size={17} /></span>
           <div className="audit-entry-content">
             <div className="audit-entry-heading"><strong>{entry.actor ?? "System"}</strong><span className="audit-action">{auditLabel(entry.action)}</span></div>
-            <p className="audit-entity">{auditLabel(entry.entity)}{entry.entityId ? <span> · {entry.entityId.slice(0, 8)}</span> : null}</p>
-            {entry.summary ? <p className="audit-summary">{entry.summary}</p> : null}
+            <p className="audit-entity">{auditLabel(entry.entity)}{entry.target ? <> · <b>{entry.target}</b></> : entry.entityId ? <span> · {entry.entityId.slice(0, 8)}</span> : null}</p>
+            <AuditChanges changes={entry.changes} />
             <details className="audit-details">
               <summary>Record details <ChevronRight size={13} aria-hidden="true" /></summary>
               <dl>
-                <div><dt>Recorded summary</dt><dd>{entry.summary || "No change summary recorded."}</dd></div>
                 <div><dt>Record ID</dt><dd>{entry.entityId ?? "Not recorded"}</dd></div>
                 <div><dt>IP address</dt><dd>{entry.ip ?? "Not recorded"}</dd></div>
                 <div><dt>Audit ID</dt><dd>{entry.id}</dd></div>
