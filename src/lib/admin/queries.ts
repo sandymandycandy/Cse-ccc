@@ -363,21 +363,25 @@ async function resolveNames(
   ids: string[],
 ): Promise<Map<string, string>> {
   const names = new Map<string, string>();
-  if (!ids.length) return names;
-  const [admins, clubs, events, members, council, regs] = await Promise.all([
-    admin.from("admin_users").select("id, full_name").in("id", ids),
-    admin.from("clubs").select("id, name").in("id", ids),
-    admin.from("events").select("id, title").in("id", ids),
-    admin.from("club_members").select("id, name").in("id", ids),
-    admin.from("council_members").select("id, full_name").in("id", ids),
-    admin.from("registrations").select("id, student_name").in("id", ids),
-  ]);
-  for (const r of admins.data ?? []) names.set(r.id, r.full_name);
-  for (const r of clubs.data ?? []) names.set(r.id, r.name);
-  for (const r of events.data ?? []) names.set(r.id, r.title);
-  for (const r of members.data ?? []) names.set(r.id, r.name);
-  for (const r of council.data ?? []) names.set(r.id, r.full_name);
-  for (const r of regs.data ?? []) if (r.student_name) names.set(r.id, r.student_name);
+  // `.in()` travels in the GET URL — batch so 500 rows' worth of ids stays
+  // well under the gateway's URL limit.
+  for (let i = 0; i < ids.length; i += 100) {
+    const chunk = ids.slice(i, i + 100);
+    const [admins, clubs, events, members, council, regs] = await Promise.all([
+      admin.from("admin_users").select("id, full_name").in("id", chunk),
+      admin.from("clubs").select("id, name").in("id", chunk),
+      admin.from("events").select("id, title").in("id", chunk),
+      admin.from("club_members").select("id, name").in("id", chunk),
+      admin.from("council_members").select("id, full_name").in("id", chunk),
+      admin.from("registrations").select("id, student_name").in("id", chunk),
+    ]);
+    for (const r of admins.data ?? []) names.set(r.id, r.full_name);
+    for (const r of clubs.data ?? []) names.set(r.id, r.name);
+    for (const r of events.data ?? []) names.set(r.id, r.title);
+    for (const r of members.data ?? []) names.set(r.id, r.name);
+    for (const r of council.data ?? []) names.set(r.id, r.full_name);
+    for (const r of regs.data ?? []) if (r.student_name) names.set(r.id, r.student_name);
+  }
   return names;
 }
 

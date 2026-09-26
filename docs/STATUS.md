@@ -33,8 +33,9 @@ end-to-end**, not a checklist of components.
 > - **Event edit audit now snapshots every field** (summary, description, capacity, selection mode, registration
 >   window, waitlist, show-on-achievements, WhatsApp link, poster replaced, `registration_form: edited` when the
 >   form changed — canonical-JSON compare). Older `update/event` rows only carry title/times/venue/club.
-> - Still **latest 100 rows only** — club-member onboarding (1,000+ rows) buries event edits fast; server-side
->   paging/filters is the natural follow-up. Not browser-checked (needs TOTP login).
+> - Page loads the **latest 500 rows** (raised from 100; name lookups batched 100 ids per `.in()` to keep URLs short —
+>   500 rows ≈ 240 distinct ids today). Server-side paging/filters is the follow-up if 500 isn't enough.
+>   Not browser-checked (needs TOTP login).
 > - Data: sample team "Hello" (Abi, VTU28326) deleted from AI FORGE EXPO by direct SQL (no audit row).
 > - **CI was red since 2026-09-25 on `npm audit` only** (typecheck/lint/build were green): Next 16.3.1 had a
 >   CRITICAL unauthenticated RCE (GHSA-p293-qw3h-jr36 Windows hosts; GHSA-2xp9-vwfh-vxw4 image optimizer + AVIF) and
